@@ -1,312 +1,723 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CQI-9 Furnace Analyzer</title>
+<title>Pusher Furnace CQI-9 Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
-:root{--ink:#16202a;--mut:#5b6875;--bg:#eef1f4;--card:#fff;--line:#c9d1d9;--acc:#0b5cab;--ok:#0a6b2d;--okbg:#e3f6ea;--warn:#8a5a00;--warnbg:#fff3d6;--bad:#b00020;--badbg:#fde8ea;--band:#2ca02c}
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --s1:#2a78d6;--s2:#eb6834;--band:rgba(12,163,12,.10);
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --div-lo:#256abf;--div-hi:#d03b3b;--div-mid:#f0efec;--gap:#dfe3e6;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --s1:#3987e5;--s2:#d95926;--band:rgba(12,163,12,.17);
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --div-lo:#3987e5;--div-hi:#e66767;--div-mid:#383835;--gap:#26323a;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --s1:#3987e5;--s2:#d95926;--band:rgba(12,163,12,.17);
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --div-lo:#3987e5;--div-hi:#e66767;--div-mid:#383835;--gap:#26323a;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 "Segoe UI",Roboto,Arial,sans-serif}
-header.top{background:#16202a;color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline}
-header.top h1{margin:0;font-size:19px;letter-spacing:.2px}
-header.top span{color:#aebbc8;font-size:12px}
-main{max-width:1180px;margin:0 auto;padding:16px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:14px}
-.panel h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px}
-label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mut)}
-input,select{font:inherit;padding:6px 7px;border:1px solid var(--line);border-radius:3px;background:#fff;color:var(--ink)}
-#drop{border:2px dashed var(--acc);border-radius:4px;padding:26px;text-align:center;cursor:pointer;background:#f6faff}
-#drop.over{background:#e3f0ff}
-#drop b{font-size:15px}
-button{font:inherit;padding:8px 16px;border:0;border-radius:3px;background:var(--acc);color:#fff;cursor:pointer;font-weight:600}
-button.sec{background:#fff;color:var(--acc);border:1px solid var(--acc)}
-.bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-#msg{color:var(--bad);margin-top:8px}
-/* ---------- report ---------- */
-#report{background:#fff;border:1px solid var(--line);padding:20px;color:#111;font-size:12px}
-#report h1{font-size:20px;margin:0} #report h2{font-size:14px;border-bottom:2px solid #333;padding-bottom:3px;margin:18px 0 8px}
-#report .hdr{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:3px solid #222;padding-bottom:8px;margin-bottom:10px}
-#report table{border-collapse:collapse;width:100%;margin:4px 0}
-#report th,#report td{border:1px solid #999;padding:3px 5px;text-align:right;font-variant-numeric:tabular-nums}
-#report th{background:#eee} #report td:first-child,#report th:first-child{text-align:left}
-#report table.kv td{text-align:left} #report table.kv td:first-child{font-weight:600;width:22%;background:#f6f6f6}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px;min-width:0}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:70ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:8px 14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:hover{filter:brightness(1.08)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select{font:inherit;font-family:var(--mono);width:96px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
+.field select{width:auto;max-width:190px;font-family:var(--sans)}
+.field input.w{width:170px;font-family:var(--sans)}
+details.more summary{cursor:pointer;color:var(--accent);font-size:13px;font-weight:500}
+details.more .controls{margin-top:10px}
+.drop-hint{font-size:12px;color:var(--muted);margin-left:auto;align-self:center;max-width:46ch;text-align:right}
+.dragging::after{content:"Drop the SCADA .xlsx file to analyse it";position:fixed;inset:12px;border:2px dashed var(--accent);border-radius:10px;background:color-mix(in srgb,var(--bg) 85%,transparent);display:grid;place-items:center;font-size:18px;font-weight:600;color:var(--accent);z-index:50}
+.error{border-color:var(--crit);color:var(--crit-ink)}
+.upload{text-align:center;padding:48px 16px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.upload p{max-width:64ch;margin:0;color:var(--ink2)}
+.upload a{color:var(--accent);cursor:pointer;text-decoration:underline}
+/* verdict */
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:start;border-left-width:6px}
+.verdict.crit{border-left-color:var(--crit)}.verdict.warn{border-left-color:var(--warn)}.verdict.good{border-left-color:var(--good)}
+.verdict .big{font-size:20px;font-weight:600;line-height:1.25}
+.verdict p{margin:2px 0 0;color:var(--ink2);max-width:90ch}
+.vicon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;font-size:17px;grid-row:span 2}
+.crit .vicon{background:var(--crit)}.warn .vicon{background:var(--warn);color:#2b1e00}.good .vicon{background:var(--good)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+.settings-used{font-size:12.5px;color:var(--ink2);margin-top:-8px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+/* layout schematic */
+.furnace{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:0 10px;margin-top:6px}
+.furnace .io{font-size:12px;font-weight:600;text-align:center;line-height:1.3}
+.tclabels{display:grid;gap:0;font-size:12.5px;text-align:center}
+.tclabels .lab{padding:4px 2px;min-width:0}.tclabels b{font-weight:600}
+.tclabels .zt{color:var(--ink2);font-size:12px}
+.chamber{position:relative;border:2px solid var(--ink2);border-radius:6px;background:var(--surface2);padding:24px 0}
+.trays{display:grid;gap:6px;padding:0 6px}
+.tray{height:60px;border:1px solid var(--line);border-radius:3px;background:var(--surface);display:grid;place-items:center;color:var(--muted);font-size:12px}
+.wall{position:absolute;left:8px;font-size:10.5px;letter-spacing:.08em;color:var(--muted)}
+.wall.l{top:4px}.wall.r{bottom:4px}
+.zdiv{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--ink2)}
+.tcdot{position:absolute;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border:2px solid var(--surface)}
+.tcdot.l{top:0}.tcdot.r{bottom:0;top:auto;transform:translate(-50%,50%)}
+.tcdot.in{background:var(--good)}.tcdot.watch{background:var(--warn)}.tcdot.out{background:var(--crit)}.tcdot.off{background:var(--muted)}
+/* zones */
+.zones{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px}
+.zone{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.zone-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.zone table{width:100%;border-collapse:collapse;font-size:13px}
+.zone th{font-weight:500;text-align:right;color:var(--ink2);padding:3px 0 5px;border-bottom:1px solid var(--line)}
+.zone th:first-child,.zone td:first-child{text-align:left;color:var(--ink2);font-family:var(--sans)}
+.zone td{text-align:right;padding:3px 0;font-family:var(--mono);font-variant-numeric:tabular-nums;border-bottom:1px solid var(--grid)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.zone .foot{font-size:12.5px;color:var(--ink2);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+/* charts */
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-line{width:18px;height:2px;border-radius:1px;display:inline-block}
+.lg-dash{width:18px;border-top:1.5px dashed var(--muted);display:inline-block}
+.lg-band{width:18px;height:10px;background:var(--band);border:1px solid color-mix(in srgb,var(--good) 45%,transparent);display:inline-block}
+.lg-dot{width:8px;height:8px;border-radius:50%;background:var(--crit);display:inline-block}
+.lg-gap{width:18px;height:10px;background:var(--gap);display:inline-block}
+.chart{position:relative;margin-top:6px}
+.chart-title{display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline;margin-top:14px}
+.chart-title span{color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+svg.c{width:100%;height:auto;display:block;overflow:visible}
+svg text{font-family:var(--mono);font-size:11px;fill:var(--muted)}
+svg .gl{stroke:var(--grid);stroke-width:1}
+svg .ax{stroke:var(--line);stroke-width:1}
+svg .setp{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:5 4;fill:none}
+svg .bandr{fill:var(--band)}
+svg .gapr{fill:var(--gap)}
+svg .ln{fill:none;stroke-width:1.3;stroke-linejoin:round}
+svg .oot{fill:none;stroke:var(--crit);stroke-width:2.6;stroke-linecap:round}
+svg .limit{stroke:var(--good);stroke-width:1;stroke-dasharray:3 3}
+svg .lim-r{stroke:var(--crit);stroke-width:1;stroke-dasharray:4 3}
+svg text.t-good{fill:var(--good-ink)}svg text.t-crit{fill:var(--crit-ink)}svg text.lab{fill:var(--ink2);font-family:var(--sans);font-size:12px}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.18);z-index:5;white-space:nowrap;display:none}
+.tip b{font-family:var(--mono)}
+/* heatmap */
 .tw{overflow-x:auto}
-.v{display:inline-block;padding:6px 14px;font-weight:700;font-size:15px;border:2px solid;border-radius:4px}
-.v.NC{color:var(--bad);background:var(--badbg);border-color:var(--bad)}
-.v.C{color:var(--ok);background:var(--okbg);border-color:var(--ok)}
-.v.CO{color:var(--warn);background:var(--warnbg);border-color:var(--warn)}
-.PASS{color:var(--ok);font-weight:700}.FAIL{color:var(--bad);font-weight:700}
-.critical{color:var(--bad)}.warning{color:var(--warn)}.info{color:#333}
-#report li{margin:2px 0} #report figure{margin:8px 0;page-break-inside:avoid} #report figure img{width:100%;height:auto}
-#report figcaption{font-size:11px;color:#444}
-#report .sign td{height:42px;text-align:left}.small{font-size:10px;color:#555}
+table.heat{border-collapse:separate;border-spacing:2px;font-size:12px;width:100%;min-width:640px}
+table.heat th{font-weight:400;color:var(--muted);font-family:var(--mono);font-size:11px;padding:2px}
+table.heat td{text-align:center;font-family:var(--mono);padding:4px 2px;border-radius:3px;color:var(--ink)}
+table.heat td.rl{text-align:left;background:none;color:var(--ink2);font-family:var(--sans);white-space:nowrap}
+table.heat td.out{outline:2px solid var(--ink);outline-offset:-2px}
+.scale{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.scale i{display:block;width:180px;height:10px;border-radius:2px;background:linear-gradient(90deg,var(--div-lo),var(--div-mid),var(--div-hi))}
+/* tables */
+table.dt{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+table.dt th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+table.dt td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top}
+table.dt td.n,table.dt th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.dt td.m{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.dt td[contenteditable]{min-width:120px;border-bottom:1px dashed var(--line)}
+/* stats */
+.notes{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.note{display:flex;gap:10px;align-items:flex-start;padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:var(--surface2)}
+.note .chip{flex:none;margin-top:1px}
+.note.crit{border-left:4px solid var(--crit)}.note.warn{border-left:4px solid var(--warn)}.note.good{border-left:4px solid var(--good)}.note.info{border-left:4px solid var(--muted)}
+.note p{margin:0}.note small{display:block;color:var(--ink2)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px}
+.sub{margin:18px 0 6px;font-size:14px;font-weight:600}
+.foot-note{font-size:12px;color:var(--muted);margin-top:8px}
+.only-print{display:none}
+@media (max-width:640px){.furnace{grid-template-columns:1fr}.furnace .io{display:none}.tray{height:44px}}
 @media print{
- body{background:#fff} header.top,#controls,.noprint{display:none!important}
- main{padding:0;max-width:none} #report{border:0;padding:0}
- #report h2{page-break-after:avoid} #report table{page-break-inside:avoid}
- @page{size:A4;margin:12mm}
+  @page{size:A4 landscape;margin:10mm}
+  html,body{background:#fff}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  :root{--bg:#fff}
+  .noprint,.actions,#settings,.drop-hint,.tip{display:none!important}
+  .only-print{display:block}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel,.zone,.kpi,.note,.verdict{break-inside:avoid;box-shadow:none}
+  .panel{break-inside:auto} .panel h2{break-after:avoid}
+  svg.c,.tw,table.dt tr,.grid3>div{break-inside:avoid}
+  .chart-title{break-after:avoid}.chart{break-inside:avoid}
+  section.panel:has(.furnace){break-inside:avoid}
+  .kpis{grid-template-columns:repeat(6,1fr)}
 }
 </style></head><body>
-<header class="top"><h1>CQI-9 Furnace Temperature Analyzer</h1>
-<span>Continuous pusher furnace · 3 zones · 6 burners · 6 thermocouples · valid / plotted range 500–1000 °C</span></header>
-<main>
-<div id="controls">
- <div class="panel"><h3>1 · Upload SCADA sheet</h3>
-  <div id="drop"><b>Click or drop the SCADA Excel file here</b><br><span style="color:var(--mut)">Columns: Date, Time, SET-1/PV-1 … SET-6/PV-6 (.xlsx). TC1/2 = Zone 1, TC3/4 = Zone 2, TC5/6 = Zone 3; odd = Left, even = Right.</span></div>
-  <input type="file" id="file" accept=".xlsx,.xls" hidden><div id="msg"></div></div>
- <div class="panel"><h3>2 · Acceptance criteria and report header</h3><div class="grid">
-  <label>CQI-9 furnace class<select id="cls"></select></label>
-  <label>Tolerance ± °C<input id="tol" type="number" step="0.5" min="1"></label>
-  <label>Settling after SET reached (min)<input id="settle" type="number" value="60" min="0"></label>
-  <label>Min % readings in band<input id="minpct" type="number" value="100" min="1" max="100"></label>
-  <label>Sensor recovery exclusion (min)<input id="recov" type="number" value="20" min="0"></label>
-  <label>Company<input id="f_company"></label><label>Furnace<input id="f_furnace"></label>
-  <label>Part / job / tray load<input id="f_part"></label></div>
-  <p class="small" style="color:var(--mut);margin:10px 0 0">Defaults are assumptions: confirm the class against your CQI-9 process table / customer. Changing a value re-runs the analysis.</p></div>
-</div>
-<div id="out" hidden>
- <div class="bar noprint"><button id="print">🖨 Print report</button><button class="sec" id="dl">Download report (HTML)</button></div>
+<div class="wrap" id="app">
+ <header class="top">
+  <div>
+   <div class="eyebrow">CQI-9 process monitoring · continuous gas-fired pusher furnace</div>
+   <h1 id="h-title">Furnace temperature review</h1>
+   <div class="meta" id="h-meta"></div>
+  </div>
+  <div class="actions noprint">
+   <button class="btn ghost" id="b-copy" hidden>Copy excursion log</button>
+   <button class="btn ghost" id="b-up">Upload SCADA Excel…</button>
+   <button class="btn" id="b-pdf" hidden>Download PDF</button>
+   <input type="file" id="file" accept=".xlsx,.xls" hidden>
+  </div>
+ </header>
+ <section class="panel" id="settings">
+  <div class="controls">
+   <div class="field"><label for="i-cls">CQI-9 furnace class</label><select id="i-cls"></select></div>
+   <div class="field"><label for="i-tol">Tolerance ± °C</label><input id="i-tol" type="number" step="0.5" min="1" value="10"></div>
+   <div class="field"><label for="i-settle">Settling after SET, min</label><input id="i-settle" type="number" min="0" value="60"></div>
+   <div class="field"><label for="i-merge">Merge dips less than, min apart</label><input id="i-merge" type="number" min="0" value="10"></div>
+   <div class="field"><label for="i-push">Push interval, min</label><input id="i-push" type="number" min="1" value="30"></div>
+   <div class="field"><label for="i-t1">Tray positions, Zone 1</label><input id="i-t1" type="number" min="1" value="5"></div>
+   <div class="field"><label for="i-t2">Tray positions, Zone 2</label><input id="i-t2" type="number" min="1" value="4"></div>
+   <div class="field"><label for="i-t3">Tray positions, Zone 3</label><input id="i-t3" type="number" min="1" value="4"></div>
+   <div class="field"><label for="i-minr">Min. readings for an event</label><input id="i-minr" type="number" min="1" value="1"></div>
+   <div class="drop-hint">Drop a new SCADA export anywhere on the page. Everything is recalculated in your browser; nothing is uploaded.</div>
+  </div>
+  <details class="more" style="margin-top:10px"><summary>Data-integrity thresholds and report header</summary>
+   <div class="controls">
+    <div class="field"><label for="i-recov">Sensor recovery exclusion, min</label><input id="i-recov" type="number" min="0" value="20"></div>
+    <div class="field"><label for="i-flat">Flat-line alarm, readings</label><input id="i-flat" type="number" min="5" value="30"></div>
+    <div class="field"><label for="i-gapf">Gap = interval ×</label><input id="i-gapf" type="number" min="1.5" step="0.5" value="3"></div>
+    <div class="field"><label for="i-co">Company</label><input class="w" id="i-co"></div>
+    <div class="field"><label for="i-fn">Furnace name</label><input class="w" id="i-fn"></div>
+    <div class="field"><label for="i-part">Part / job</label><input class="w" id="i-part"></div>
+   </div></details>
+  <p class="foot-note">Valid and plotted range is fixed at 500–1000 °C: readings outside it are treated as invalid, listed under data integrity and never drawn. Deviation is always reading minus that thermocouple's own set value.</p>
+ </section>
+ <div id="msg" class="panel error" hidden></div>
  <div id="report"></div>
 </div>
-</main>
+<div class="tip" id="tip"></div>
 <script>/*XLSX*/</script>
+<script>const EXAMPLE=/*EXAMPLE*/;</script>
 <script>
 "use strict";
-const TMIN=500,TMAX=1000,ZONES={1:[1,2],2:[3,4],3:[5,6]},TRAYS={1:5,2:4,3:4};
+/* ===================== constants & helpers ===================== */
+const TMIN=500,TMAX=1000,ZONES={1:[1,2],2:[3,4],3:[5,6]};
 const CLASSES=[["Class 1 (±3 °C / ±5 °F)",3],["Class 2 (±6 °C / ±10 °F)",6],["Class 3 (±8 °C / ±15 °F)",8],["Class 4 (±10 °C / ±20 °F)",10],["Class 5 (±14 °C / ±25 °F)",14],["Class 6 (±28 °C / ±50 °F)",28],["Custom",null]];
-const COL={1:"#1f77b4",2:"#d62728",3:"#2ca02c",4:"#ff7f0e",5:"#9467bd",6:"#8c564b"};
 const $=id=>document.getElementById(id);
-const zoneOf=n=>n<=2?1:n<=4?2:3, tcName=n=>`TC${n} (Z${zoneOf(n)} ${n%2?"Left":"Right"})`;
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const nan=x=>x===null||x===undefined||Number.isNaN(x);
-const fx=(v,d=1)=>nan(v)?"–":Number(v).toFixed(d);
-const hm=t=>{const d=new Date(t);return d.toISOString().substr(11,5)}, hms=t=>new Date(t).toISOString().substr(11,8);
-const dmy=t=>{const d=new Date(t);return d.toISOString().substr(8,2)+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getUTCMonth()]+"-"+d.getUTCFullYear()};
+const zoneOf=n=>n<=2?1:n<=4?2:3, side=n=>n%2?"L":"R", sideName=n=>n%2?"left":"right";
+const tcS=n=>`TC-${n}`, tcL=n=>`TC-${n} Z${zoneOf(n)} ${side(n)}`;
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const isN=x=>typeof x==="number"&&!Number.isNaN(x);
+const MINUS="−";
+const fx=(v,d=1)=>isN(v)?v.toFixed(d).replace("-",MINUS):"–";
+const sg=(v,d=1)=>{if(!isN(v))return"–";const a=Math.abs(v).toFixed(d);return(+a===0?"":v>0?"+":MINUS)+a};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const p2=n=>String(n).padStart(2,"0");
+const D=t=>new Date(t);
+const hm=t=>p2(D(t).getUTCHours())+":"+p2(D(t).getUTCMinutes());
+const hms=t=>hm(t)+":"+p2(D(t).getUTCSeconds());
+const dstr=t=>`${D(t).getUTCDate()} ${MON[D(t).getUTCMonth()]}`;
+const dstrY=t=>`${dstr(t)} ${D(t).getUTCFullYear()}`;
+const dayKey=t=>Math.floor(t/86400000);
+const dur=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?`${h} h ${p2(r)} min`:`${r} min`};
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
-const std=a=>{if(a.length<2)return NaN;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
-const mn=a=>a.length?a.reduce((x,y)=>Math.min(x,y)):NaN, mx=a=>a.length?a.reduce((x,y)=>Math.max(x,y)):NaN;
+const sd=a=>{if(a.length<2)return NaN;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
+const mn=a=>{let m=Infinity;for(const x of a)if(x<m)m=x;return a.length?m:NaN};
+const mx=a=>{let m=-Infinity;for(const x of a)if(x>m)m=x;return a.length?m:NaN};
+const pct=(s,q)=>{if(!s.length)return NaN;const i=(s.length-1)*q,lo=Math.floor(i),hi=Math.ceil(i);return s[lo]+(s[hi]-s[lo])*(i-lo)};
+function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+.3275911*x);
+  return s*(1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x));}
+const Phi=z=>.5*(1+erf(z/Math.SQRT2)), phi=z=>Math.exp(-z*z/2)/Math.sqrt(2*Math.PI);
+function corr(a,b){const n=a.length;if(n<3)return NaN;const ma=mean(a),mb=mean(b);let sab=0,saa=0,sbb=0;
+  for(let i=0;i<n;i++){const x=a[i]-ma,y=b[i]-mb;sab+=x*y;saa+=x*x;sbb+=y*y}return saa&&sbb?sab/Math.sqrt(saa*sbb):NaN}
+function andersonP(x){const n=x.length;if(n<8)return NaN;const m=mean(x),s=sd(x);if(!s)return NaN;
+  const z=[...x].sort((a,b)=>a-b).map(v=>Math.min(1-1e-12,Math.max(1e-12,Phi((v-m)/s))));let S=0;
+  for(let i=0;i<n;i++)S+=(2*i+1)*(Math.log(z[i])+Math.log(1-z[n-1-i]));
+  const A=-n-S/n,a=A*(1+.75/n+2.25/n/n);
+  return a>=.6?Math.exp(1.2937-5.709*a+.0186*a*a):a>=.34?Math.exp(.9177-4.279*a-1.38*a*a):a>=.2?1-Math.exp(-8.318+42.796*a-59.938*a*a):1-Math.exp(-13.436+101.14*a-223.73*a*a);}
+const fmtP=p=>!isN(p)?"–":p<.001?"< 0.001":p.toFixed(3);
 
-/* ---------------- parsing ---------------- */
-const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-function parseDate(v){ // -> ms UTC at midnight
-  if(typeof v==="number") return Math.round((v-25569))*86400000;
-  const s=String(v).trim(); let m;
-  if(m=s.match(/^([A-Za-z]{3})[a-z]*[-\/ ](\d{1,2})[-\/ ,]+(\d{4})$/)) return Date.UTC(+m[3],MON[m[1].toLowerCase()],+m[2]);
-  if(m=s.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3})[a-z]*[-\/ ](\d{4})$/)) return Date.UTC(+m[3],MON[m[2].toLowerCase()],+m[1]);
-  if(m=s.match(/^(\d{4})-(\d{2})-(\d{2})/)) return Date.UTC(+m[1],+m[2]-1,+m[3]);
-  if(m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/)) return Date.UTC(+m[3],+m[2]-1,+m[1]);
+/* ===================== parsing ===================== */
+const MONI={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+function parseDate(v){
+  if(typeof v==="number")return Math.round(v-25569)*86400000;
+  const s=String(v).trim();let m;
+  if(m=s.match(/^([A-Za-z]{3})[a-z]*[-\/ ](\d{1,2})[-\/ ,]+(\d{4})$/))return Date.UTC(+m[3],MONI[m[1].toLowerCase()],+m[2]);
+  if(m=s.match(/^(\d{1,2})[-\/ ]([A-Za-z]{3})[a-z]*[-\/ ](\d{4})$/))return Date.UTC(+m[3],MONI[m[2].toLowerCase()],+m[1]);
+  if(m=s.match(/^(\d{4})-(\d{2})-(\d{2})/))return Date.UTC(+m[1],+m[2]-1,+m[3]);
+  if(m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/))return Date.UTC(+m[3],+m[2]-1,+m[1]);
   return NaN;}
-function parseTime(v){ // -> ms
-  if(typeof v==="number") return Math.round((v%1)*86400)*1000;
-  const m=String(v).trim().match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i); if(!m) return NaN;
-  let h=+m[1]; if(m[4]){h=h%12+(/pm/i.test(m[4])?12:0)}
-  return ((h*60+ +m[2])*60+(+m[3]||0))*1000;}
-function loadWorkbook(buf){
-  const wb=XLSX.read(buf,{type:"array"}); const ws=wb.Sheets[wb.SheetNames[0]];
-  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});
-  let h=rows.findIndex((r,i)=>i<40&&r[0]!=null&&String(r[0]).trim().toLowerCase()==="date");
-  if(h<0) throw new Error("Header row not found (a cell reading 'Date' in column A).");
-  const meta=[]; rows.slice(0,h).forEach(r=>r.forEach(c=>{if(typeof c==="string"&&c.trim())meta.push(c.trim())}));
-  const idx={}; rows[h].forEach((c,i)=>{const m=String(c).trim().match(/^(SET|PV)-(\d+)$/i); if(m)idx[m[1].toUpperCase()+m[2]]=i});
-  for(let n=1;n<=6;n++) for(const k of["SET","PV"]) if(idx[k+n]===undefined) throw new Error(`Missing column ${k}-${n}`);
-  const recs=[];
-  for(const r of rows.slice(h+1)){ if(r[0]==null||r[1]==null)continue;
-    const t=parseDate(r[0])+parseTime(r[1]); if(Number.isNaN(t))continue;
-    const o={t,set:[],pv:[]}; for(let n=1;n<=6;n++){o.set[n]=+r[idx["SET"+n]];o.pv[n]=+r[idx["PV"+n]]} recs.push(o);}
-  recs.sort((a,b)=>a.t-b.t); const u=recs.filter((r,i)=>i===0||r.t!==recs[i-1].t);
-  if(u.length<10) throw new Error("Too few readable rows.");
-  return {recs:u, meta:{company:meta[0]||"", title:meta.find(m=>/furnace/i.test(m))||""}};
-}
+function parseTime(v){
+  if(typeof v==="number")return Math.round((v%1)*86400)*1000;
+  const m=String(v).trim().match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i);if(!m)return NaN;
+  let h=+m[1];if(m[4])h=h%12+(/pm/i.test(m[4])?12:0);
+  return((h*60+ +m[2])*60+(+m[3]||0))*1000;}
+function fromRows(rows,name){
+  const h=rows.findIndex((r,i)=>i<40&&r[0]!=null&&String(r[0]).trim().toLowerCase()==="date");
+  if(h<0)throw new Error("Header row not found (a cell reading 'Date' in column A).");
+  const txt=[];rows.slice(0,h).forEach(r=>r.forEach(c=>{if(typeof c==="string"&&c.trim())txt.push(c.trim())}));
+  const idx={};rows[h].forEach((c,i)=>{const m=String(c).trim().match(/^(SET|PV)-(\d+)$/i);if(m)idx[m[1].toUpperCase()+m[2]]=i});
+  for(let n=1;n<=6;n++)for(const k of["SET","PV"])if(idx[k+n]===undefined)throw new Error(`Missing column ${k}-${n}. Expected Date, Time, SET-1/PV-1 … SET-6/PV-6.`);
+  let recs=[],skipped=0;
+  for(const r of rows.slice(h+1)){if(r[0]==null&&r[1]==null)continue;
+    const t=parseDate(r[0])+parseTime(r[1]);if(Number.isNaN(t)){skipped++;continue}
+    const o={t,set:[],pv:[]};for(let n=1;n<=6;n++){o.set[n]=+r[idx["SET"+n]];o.pv[n]=+r[idx["PV"+n]]}recs.push(o)}
+  let unordered=0;for(let i=1;i<recs.length;i++)if(recs[i].t<recs[i-1].t)unordered++;
+  recs.sort((a,b)=>a.t-b.t);const before=recs.length;recs=recs.filter((r,i)=>i===0||r.t!==recs[i-1].t);
+  if(recs.length<20)throw new Error("Too few readable rows.");
+  return{recs,name,company:txt[0]||"",title:txt.find(m=>/furnace/i.test(m))||"",dups:before-recs.length,unordered,skipped};}
+function loadWorkbook(buf,name){const wb=XLSX.read(buf,{type:"array"});
+  return fromRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null}),name)}
+function loadExample(){const E=EXAMPLE,recs=E.t.map((t,i)=>{const o={t,set:[],pv:[]};for(let n=1;n<=6;n++){o.set[n]=E["s"+n][i];o.pv[n]=E["p"+n][i]}return o});
+  return{recs,name:E.name+" (example)",company:E.company,title:E.title,dups:0,unordered:0,skipped:0}}
 
-/* ---------------- analysis ---------------- */
+/* ===================== analysis ===================== */
 function runs(mask,t,gapMs){const out=[];let s=-1;
   for(let i=0;i<mask.length;i++){
-    if(mask[i]&&(s<0||t[i]-t[i-1]>gapMs)){ if(s>=0)out.push([s,i-1]); s=i; }
-    else if(!mask[i]&&s>=0){out.push([s,i-1]);s=-1}
-  } if(s>=0)out.push([s,mask.length-1]); return out;}
-function analyse(recs,meta,p){
-  const N=recs.length,t=recs.map(r=>r.t),ch=[1,2,3,4,5,6];
-  const dts=[];for(let i=1;i<N;i++)dts.push(t[i]-t[i-1]); const sd=[...dts].sort((a,b)=>a-b);
-  const interval=sd[Math.floor(sd.length/2)]||60000, gapMs=p.gapFactor*interval;
+    if(mask[i]&&(s<0||t[i]-t[i-1]>gapMs)){if(s>=0)out.push([s,i-1]);s=i}
+    else if(!mask[i]&&s>=0){out.push([s,i-1]);s=-1}}
+  if(s>=0)out.push([s,mask.length-1]);return out;}
+function analyse(data,P){
+  const recs=data.recs,N=recs.length,t=recs.map(r=>r.t),ch=[1,2,3,4,5,6];
+  const dts=[];for(let i=1;i<N;i++)dts.push(t[i]-t[i-1]);
+  const sdt=[...dts].sort((a,b)=>a-b),interval=sdt[Math.floor(sdt.length/2)]||60000,gapMs=P.gapf*interval,iMin=interval/60000;
   const gaps=[];for(let i=1;i<N;i++)if(t[i]-t[i-1]>gapMs)gaps.push([t[i-1],t[i]]);
-  const RAW={},PV={},SET={},events=[],inService=[];
+  const missing=gaps.reduce((s,[a,b])=>s+Math.round((b-a)/interval)-1,0);
+  const RAW={},PV={},SET={},events=[],inService=[],invalidCount={},offline=[];
   for(const n of ch){
     RAW[n]=recs.map(r=>r.pv[n]);
     SET[n]=recs.map(r=>{const s=r.set[n];return s>=TMIN&&s<=TMAX?s:NaN});
     let bad=RAW[n].map(v=>!(v>=TMIN&&v<=TMAX));
-    const offline=RAW[n].every(v=>v===0);
-    if(!offline){
-      const far=RAW[n].map((v,i)=>Math.abs(v-SET[n][i])>p.tol||Number.isNaN(SET[n][i]));
+    const off=RAW[n].every(v=>v===0);
+    if(!off){
+      const far=RAW[n].map((v,i)=>Math.abs(v-SET[n][i])>P.tol||Number.isNaN(SET[n][i]));
       const arr=bad.slice();
       for(const[a,b]of runs(bad,t,gapMs)){let j=b+1;
-        while(j<N&&t[j]-t[b]<=p.recov*60000&&far[j]&&!arr[j]){arr[j]=true;j++}}
+        while(j<N&&t[j]-t[b]<=P.recov*60000&&far[j]&&!arr[j]){arr[j]=true;j++}}
       bad=arr;}
     PV[n]=RAW[n].map((v,i)=>bad[i]?NaN:v);
-    if(PV[n].some(v=>!Number.isNaN(v)))inService.push(n);
-    if(offline){events.push({tc:tcName(n),from:t[0],to:t[N-1],count:N,min:0,max:0,reason:"Channel offline (reads 0)"});continue}
+    invalidCount[n]=bad.filter(Boolean).length;
+    if(PV[n].some(v=>!Number.isNaN(v)))inService.push(n);else offline.push(n);
+    if(off){events.push({n,from:t[0],to:t[N-1],count:N,min:0,max:0,reason:"Channel offline: SET and PV read 0"});continue}
     for(const[a,b]of runs(bad,t,gapMs)){const v=RAW[n].slice(a,b+1);
-      const reason=v.some(x=>x>=32000)?"Over-range / sensor fault (≥ 32000), incl. recovery":v.every(x=>x>TMAX)?"Above 1000 °C":"Below 500 °C / recovering";
-      events.push({tc:tcName(n),from:t[a],to:t[b],count:b-a+1,min:mn(v),max:mx(v),reason});}
+      events.push({n,from:t[a],to:t[b],count:b-a+1,min:mn(v),max:mx(v),
+        reason:v.some(x=>x>=32000)?"Over-range sensor fault (≥ 32000), incl. recovery":v.every(x=>x>TMAX)?"Above 1000 °C":"Below 500 °C or recovering"});}
   }
-  // main setpoint = mode of valid SETs of in-service channels
+  // flat-lines
+  const flat=[];
+  for(const n of inService){let s=0;for(let i=1;i<=N;i++){
+    if(i<N&&PV[n][i]===PV[n][s]&&!Number.isNaN(PV[n][s]))continue;
+    if(i-s>=P.flat&&!Number.isNaN(PV[n][s]))flat.push({n,from:t[s],to:t[i-1],count:i-s,value:PV[n][s]});s=i}}
+  // main setpoint & set changes
   const cnt={};inService.forEach(n=>SET[n].forEach(s=>{if(!Number.isNaN(s))cnt[s]=(cnt[s]||0)+1}));
   const mainSp=+Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a])[0];
-  const prod={},prodStart={};
-  for(const n of ch){prod[n]=new Array(N).fill(false)}
-  for(const n of inService){
-    const at=SET[n].map(s=>s===mainSp); let last=at.lastIndexOf(true); if(last<0)continue;
-    let s=last;while(s>0&&at[s-1])s--; prodStart[n]=t[s];
-    for(let i=0;i<N;i++)prod[n][i]=at[i]&&t[i]>=t[s]+p.settle*60000;}
-  const tol=p.tol,tc=[];
+  const setChanges=[];{const n0=inService[0];let last=NaN;for(let i=0;i<N;i++){const s=SET[n0][i];if(!Number.isNaN(s)&&s!==last){setChanges.push({t:t[i],sp:s});last=s}}}
+  // production window
+  const prod={},prodStart={};ch.forEach(n=>prod[n]=new Array(N).fill(false));
+  for(const n of inService){const at=SET[n].map(s=>s===mainSp),last=at.lastIndexOf(true);if(last<0)continue;
+    let s=last;while(s>0&&at[s-1])s--;prodStart[n]=t[s];
+    for(let i=0;i<N;i++)prod[n][i]=at[i]&&t[i]>=t[s]+P.settle*60000;}
+  const anyProd=t.map((_,i)=>inService.some(n=>prod[n][i]));
+  const t0=t[0],t1=t[N-1],tol=P.tol,LSL=mainSp-tol,USL=mainSp+tol;
+  /* per TC statistics */
+  const tc={};
   for(const n of ch){
-    const r={n,name:tcName(n),zone:zoneOf(n)};
-    if(!inService.includes(n)){Object.assign(r,{status:"OFFLINE",verdict:"FAIL"});tc.push(r);continue}
-    const pv=[],dev=[],out=new Array(N).fill(false);let bad=0;
-    for(let i=0;i<N;i++)if(prod[n][i]){
-      if(!Number.isNaN(PV[n][i])){pv.push(PV[n][i]);const d=PV[n][i]-SET[n][i];dev.push(d);if(Math.abs(d)>tol)out[i]=true}
-      else if(!Number.isNaN(RAW[n][i]))bad++;}
-    const inb=dev.filter(d=>Math.abs(d)<=tol).length,rr=runs(out,t,gapMs);
-    const pct=pv.length?100*inb/pv.length:NaN;
-    Object.assign(r,{status:"In service",readings:pv.length,mean:mean(pv),min:mn(pv),max:mx(pv),std:std(pv),
-      mdev:mean(dev),dmin:mn(dev),dmax:mx(dev),pct,exc:rr.length,
-      longest:Math.max(0,...rr.map(([a,b])=>(b-a+1)*interval/60000)),invalid:bad,
-      verdict:pv.length&&pct>=p.minpct?"PASS":"FAIL"});
-    tc.push(r);}
-  const lim=2*tol,zones=[];
-  for(const z of[1,2,3]){const[l,rt]=ZONES[z],row={zone:"Zone "+z,trays:TRAYS[z]};
-    if(inService.includes(l)&&inService.includes(rt)){const d=[];
-      for(let i=0;i<N;i++)if(prod[l][i]&&prod[rt][i]&&!Number.isNaN(PV[l][i])&&!Number.isNaN(PV[rt][i]))d.push(PV[l][i]-PV[rt][i]);
-      const ok=d.filter(x=>Math.abs(x)<=lim).length;
-      Object.assign(row,{samples:d.length,mlr:mean(d),maxlr:mx(d.map(Math.abs)),pct:d.length?100*ok/d.length:NaN,verdict:d.length&&ok===d.length?"PASS":"FAIL"});
-    }else Object.assign(row,{samples:0,verdict:"N/A – TC offline"});
-    zones.push(row);}
-  const sp=new Array(N).fill(NaN);
-  for(let i=0;i<N;i++){ if(inService.every(n=>prod[n][i]&&!Number.isNaN(PV[n][i]))){const v=inService.map(n=>PV[n][i]);sp[i]=mx(v)-mn(v)}}
-  const spv=sp.filter(x=>!Number.isNaN(x));
-  const fu={spread:sp,samples:spv.length,mean:mean(spv),max:mx(spv),limit:lim,pct:spv.length?100*spv.filter(x=>x<=lim).length/spv.length:NaN};
-  const R={meta,p,t,N,interval,gaps,RAW,PV,SET,prod,inService,mainSp,tc,zones,fu,events,findings:[],verdict:""};
-  findings(R);return R;}
-function findings(R){const f=R.findings,p=R.p;
-  for(const n of[1,2,3,4,5,6])if(!R.inService.includes(n))
-    f.push(["critical",`${tcName(n)} is out of service (SET and PV read 0 for the whole period). Zone ${zoneOf(n)} has no working thermocouple on that side, so the furnace cannot be shown to conform.`]);
-  for(const r of R.tc){if(r.status!=="In service")continue;
-    if(r.verdict==="FAIL")f.push(["critical",`${r.name}: only ${fx(r.pct)}% of production readings are within ±${p.tol} °C of SET ${R.mainSp} °C (mean deviation ${fx(r.mdev)} °C, range ${fx(r.dmin,0)} to ${fx(r.dmax,0)} °C).`]);
-    if(r.invalid)f.push(["warning",`${r.name}: ${r.invalid} invalid reading(s) inside the production window (excluded from statistics and plots).`]);}
-  for(const z of R.zones)if(z.verdict==="FAIL")f.push(["warning",`${z.zone}: Left/Right difference reached ${fx(z.maxlr,0)} °C (limit ${2*p.tol} °C).`]);
-  if(R.fu.samples&&R.fu.max>R.fu.limit)f.push(["warning",`Furnace-wide spread between hottest and coldest working TC reached ${fx(R.fu.max,0)} °C (limit ${R.fu.limit} °C); within limit ${fx(R.fu.pct)}% of the time.`]);
-  for(const[a,b]of R.gaps)f.push(["warning",`Data gap ${hms(a)} → ${hms(b)} (${Math.round((b-a)/60000)} min): no SCADA records, temperature in this time is unverified.`]);
-  for(const e of R.events)if(!/offline/.test(e.reason))f.push(["info",`${e.tc}: ${e.reason} ${hm(e.from)}–${hm(e.to)} (${e.count} readings, raw ${e.min}…${e.max}), excluded.`]);
-  R.verdict=f.some(x=>x[0]==="critical")?"NON-CONFORMING":f.some(x=>x[0]==="warning")?"CONFORMING WITH OBSERVATIONS":"CONFORMING";}
+    const r={n,inService:inService.includes(n)};tc[n]=r;if(!r.inService)continue;
+    const idx=[];for(let i=0;i<N;i++)if(prod[n][i]&&!Number.isNaN(PV[n][i]))idx.push(i);
+    const x=idx.map(i=>PV[n][i]),dev=idx.map(i=>PV[n][i]-SET[n][i]);
+    r.idx=idx;r.x=x;r.dev=dev;r.nn=x.length;r.mean=mean(x);r.sd=sd(x);r.min=mn(x);r.max=mx(x);
+    r.mdev=mean(dev);r.dmin=mn(dev);r.dmax=mx(dev);
+    const sorted=[...x].sort((a,b)=>a-b);r.median=pct(sorted,.5);r.p5=pct(sorted,.05);r.p95=pct(sorted,.95);
+    const dsorted=[...dev].sort((a,b)=>a-b);r.dp5=pct(dsorted,.05);r.dp95=pct(dsorted,.95);
+    r.range=r.max-r.min;const m2=x.reduce((s,v)=>s+(v-r.mean)**2,0)/x.length,m3=x.reduce((s,v)=>s+(v-r.mean)**3,0)/x.length,m4=x.reduce((s,v)=>s+(v-r.mean)**4,0)/x.length;
+    r.skew=m2?m3/m2**1.5:NaN;r.kurt=m2?m4/m2**2-3:NaN;r.adp=andersonP(x);
+    const xc=x.map(v=>v-r.mean);let a0=0,a1=0;for(let i=0;i<xc.length;i++){a0+=xc[i]**2;if(i)a1+=xc[i]*xc[i-1]}
+    r.ac1=a0?a1/a0:NaN;r.neff=isN(r.ac1)&&r.ac1>0?Math.max(2,r.nn*(1-r.ac1)/(1+r.ac1)):r.nn;r.ci=1.96*r.sd/Math.sqrt(r.neff);
+    // drift
+    const hrs=idx.map(i=>(t[i]-t[idx[0]])/3600000),mh=mean(hrs);let sxy=0,sxx=0;
+    for(let i=0;i<x.length;i++){sxy+=(hrs[i]-mh)*(x[i]-r.mean);sxx+=(hrs[i]-mh)**2}
+    r.slope=sxx?sxy/sxx:0;r.r2=sxx&&r.sd?(sxy*sxy/sxx)/(r.sd**2*(x.length-1)):0;r.drift=r.slope*(hrs[hrs.length-1]||0);
+    // moving range
+    const mr=[];for(let k=1;k<idx.length;k++)if(t[idx[k]]-t[idx[k-1]]<=gapMs)mr.push(Math.abs(x[k]-x[k-1]));
+    r.mrbar=mean(mr);r.sw=r.mrbar/1.128;r.ucl=r.mean+2.66*r.mrbar;r.lcl=r.mean-2.66*r.mrbar;r.uclmr=3.267*r.mrbar;
+    r.cp=(USL-LSL)/(6*r.sw);r.cpk=Math.min(USL-r.mean,r.mean-LSL)/(3*r.sw);
+    r.pp=(USL-LSL)/(6*r.sd);r.ppk=Math.min(USL-r.mean,r.mean-LSL)/(3*r.sd);
+    r.exp=100*(Phi((LSL-r.mean)/r.sd)+1-Phi((USL-r.mean)/r.sd));
+    const outN=dev.filter(d=>Math.abs(d)>tol).length;r.outN=outN;r.obs=100*outN/r.nn;r.inTol=100-r.obs;r.outMin=outN*iMin;
+    r.r1=x.filter(v=>v>r.ucl||v<r.lcl).length;
+    let r2=0,run=1;for(let k=1;k<=x.length;k++){const same=k<x.length&&Math.sign(x[k]-r.mean)===Math.sign(x[k-1]-r.mean)&&x[k]!==r.mean;if(same)run++;else{if(run>=9)r2++;run=1}}r.r2c=r2;
+    let r3=0;run=1;let dir=0;for(let k=1;k<x.length;k++){const d=Math.sign(x[k]-x[k-1]);if(d!==0&&d===dir)run++;else{run=d?2:1;dir=d}if(run===6){r3++;run=1;dir=0}}r.r3=r3;
+    r.status=r.inTol>=99?"in":r.inTol>=95?"watch":"out";
+    const ws=idx.filter(i=>Math.abs(PV[n][i]-SET[n][i])===r.dmax||Math.abs(PV[n][i]-SET[n][i])===-r.dmin);
+    const worst=idx.reduce((b,i)=>Math.abs(PV[n][i]-SET[n][i])>Math.abs(b.d)?{i,d:PV[n][i]-SET[n][i]}:b,{i:idx[0],d:0});r.worst=worst;
+  }
+  const prodTCs=inService.filter(n=>tc[n].nn>0);
+  /* zone incidents */
+  const tray={1:+P.trays[1],2:+P.trays[2],3:+P.trays[3]},pos={},startPos={};let cum=0;
+  for(const z of[1,2,3]){startPos[z]=cum+1;cum+=tray[z];pos[z]=[cum-tray[z]+1,cum]}
+  const totalTrays=cum,push=P.push;
+  const incidents=[];const zoneOutMin={1:0,2:0,3:0};
+  for(const z of[1,2,3]){
+    const tcs=ZONES[z].filter(n=>inService.includes(n));if(!tcs.length)continue;
+    const outMask=new Array(N).fill(false),lo={},hi={};
+    for(let i=0;i<N;i++)for(const n of tcs)if(prod[n][i]&&!Number.isNaN(PV[n][i])){const d=PV[n][i]-SET[n][i];if(Math.abs(d)>tol)outMask[i]=true}
+    zoneOutMin[z]=outMask.filter(Boolean).length*iMin;
+    let rs=runs(outMask,t,gapMs);const merged=[];
+    for(const r of rs){const l=merged[merged.length-1];if(l&&t[r[0]]-t[l[1]]<P.merge*60000&&t[r[0]]-t[l[1]]<=gapMs)l[1]=r[1];else merged.push([...r])}
+    for(const[a,b]of merged){
+      let cntOut=0;const walls=new Set();let low=false,high=false,ext={d:0};
+      for(let i=a;i<=b;i++)for(const n of tcs)if(prod[n][i]&&!Number.isNaN(PV[n][i])){const d=PV[n][i]-SET[n][i];
+        if(Math.abs(d)>tol){walls.add(n);if(d<0)low=true;else high=true;if(Math.abs(d)>Math.abs(ext.d))ext={d,n,pv:PV[n][i],t:t[i]}}}
+      for(let i=a;i<=b;i++)if(outMask[i])cntOut++;
+      if(cntOut<P.minr)continue;
+      const s=t[a],e=t[b]+interval;const spanMin=(e-s)/60000;
+      const cFrom=s-pos[z][1]*push*60000,cTo=e-interval-(pos[z][0]-1)*push*60000;
+      incidents.push({z,from:s,to:t[b],span:spanMin,out:cntOut*iMin,walls:[...walls].sort(),bothWalls:tcs.length>1&&walls.size>=tcs.length,
+        dir:low&&high?"Low & high":low?"Low":"High",ext,trays:Math.max(1,Math.round(spanMin/push+tray[z])),cFrom,cTo});
+    }}
+  incidents.sort((p,q)=>p.from-q.from||p.z-q.z);incidents.forEach((x,i)=>x.no=i+1);
+  /* batches */
+  const batches=[];
+  [...incidents].sort((p,q)=>p.cFrom-q.cFrom).forEach(x=>{const b=batches[batches.length-1];
+    if(b&&x.cFrom<=b.to){b.to=Math.max(b.to,x.cTo);b.zones.add(x.z);b.inc.push(x.no)}else batches.push({from:x.cFrom,to:x.cTo,zones:new Set([x.z]),inc:[x.no]})});
+  batches.forEach((b,i)=>{b.no="S"+(i+1);b.dFrom=b.from+totalTrays*push*60000;b.dTo=b.to+totalTrays*push*60000;b.trays=Math.max(1,Math.round((b.to-b.from)/60000/push))});
+  /* wall differences */
+  const walls=[];
+  for(const z of[1,2,3]){const[l,r]=ZONES[z],w={z};
+    if(inService.includes(l)&&inService.includes(r)){const idx=[];for(let i=0;i<N;i++)if(prod[l][i]&&prod[r][i]&&!Number.isNaN(PV[l][i])&&!Number.isNaN(PV[r][i]))idx.push(i);
+      const d=idx.map(i=>PV[l][i]-PV[r][i]);w.idx=idx;w.d=d;w.mean=mean(d);w.n=d.length;w.avgAbs=mean(d.map(Math.abs));
+      const ac=(()=>{const m=w.mean;let a0=0,a1=0;for(let i=0;i<d.length;i++){a0+=(d[i]-m)**2;if(i)a1+=(d[i]-m)*(d[i-1]-m)}return a0?a1/a0:0})();
+      const ne=ac>0?Math.max(2,w.n*(1-ac)/(1+ac)):w.n;w.ci=1.96*sd(d)/Math.sqrt(ne);
+      const big=idx.reduce((b,i)=>Math.abs(PV[l][i]-PV[r][i])>b.v?{v:Math.abs(PV[l][i]-PV[r][i]),i}:b,{v:-1,i:idx[0]});w.max=big.v;w.maxT=t[big.i];
+    }else w.na=true;walls.push(w)}
+  /* hourly heatmap */
+  const h0=Math.floor(t0/3600000)*3600000,hours=[];for(let h=h0;h<=t1;h+=3600000)hours.push(h);
+  const heat={};for(const n of prodTCs){heat[n]=hours.map(h=>{const v=[];tc[n].idx.forEach((i,k)=>{if(t[i]>=h&&t[i]<h+3600000)v.push(tc[n].dev[k])});return v.length?mean(v):NaN})}
+  /* correlation */
+  const cm={};for(const a of prodTCs){cm[a]={};for(const b of prodTCs){const xs=[],ys=[];for(let i=0;i<N;i++)if(prod[a][i]&&prod[b][i]&&!Number.isNaN(PV[a][i])&&!Number.isNaN(PV[b][i])){xs.push(PV[a][i]-SET[a][i]);ys.push(PV[b][i]-SET[b][i])}cm[a][b]=corr(xs,ys)}}
+  /* KPIs */
+  const tot=prodTCs.reduce((s,n)=>s+tc[n].nn,0),inTot=prodTCs.reduce((s,n)=>s+tc[n].nn-tc[n].outN,0);
+  const worst=prodTCs.reduce((b,n)=>Math.abs(tc[n].worst.d)>Math.abs(b.d)?{n,i:tc[n].worst.i,d:tc[n].worst.d}:b,{d:0});
+  const maxWall=walls.filter(w=>!w.na&&w.n).reduce((b,w)=>w.max>b.max?w:b,{max:-1});
+  const spread=new Array(N).fill(NaN);
+  for(let i=0;i<N;i++)if(prodTCs.length&&prodTCs.every(n=>prod[n][i]&&!Number.isNaN(PV[n][i]))){const v=prodTCs.map(n=>PV[n][i]);spread[i]=mx(v)-mn(v)}
+  const spv=spread.filter(x=>!Number.isNaN(x));
+  const R={data,P,N,t,t0,t1,interval,iMin,gapMs,gaps,missing,RAW,PV,SET,prod,anyProd,prodStart,inService,offline,prodTCs,invalidCount,events,flat,mainSp,setChanges,LSL,USL,tol,tc,pos,tray,totalTrays,push,
+    incidents,batches,zoneOutMin,walls,hours,heat,cm,kpi:{tot,inTot,inPct:tot?100*inTot/tot:NaN,worst,maxWall,zoneOutTotal:zoneOutMin[1]+zoneOutMin[2]+zoneOutMin[3]},
+    spread:{arr:spread,n:spv.length,mean:mean(spv),max:mx(spv),limit:2*tol,pct:spv.length?100*spv.filter(v=>v<=2*tol).length/spv.length:NaN}};
+  R.findings=makeFindings(R);return R;}
 
-/* ---------------- charts (canvas -> PNG) ---------------- */
-function chart(R,o){ // o:{title,series:[{y,color,label,step,dash}],yMin,yMax,ylabel,bands:[{y0,y1,mask}],hLines:[{y,color}],h}
-  const W=1100,H=o.h||420,c=document.createElement("canvas");c.width=W*1.5;c.height=H*1.5;const g=c.getContext("2d");g.scale(1.5,1.5);
-  const L=62,Rr=16,T=34,B=44,pw=W-L-Rr,ph=H-T-B,t0=R.t[0],t1=R.t[R.N-1];
-  const X=t=>L+(t-t0)/(t1-t0)*pw,Y=y=>T+(o.yMax-y)/(o.yMax-o.yMin)*ph;
-  g.fillStyle="#fff";g.fillRect(0,0,W,H);g.font="12px Arial";
-  g.fillStyle="#e2e2e2";for(const[a,b]of R.gaps)g.fillRect(X(a),T,X(b)-X(a),ph);
-  for(const b of(o.bands||[])){g.fillStyle="rgba(44,160,44,.13)";
-    let s=-1;for(let i=0;i<=R.N;i++){const on=i<R.N&&b.mask[i];if(on&&s<0)s=i;if(!on&&s>=0){g.fillRect(X(R.t[s]),Y(b.y1),X(R.t[i-1])-X(R.t[s]),Y(b.y0)-Y(b.y1));s=-1}}}
-  const step=(o.yMax-o.yMin)>400?100:(o.yMax-o.yMin)>100?20:(o.yMax-o.yMin)>40?10:5;
-  g.strokeStyle="#ddd";g.fillStyle="#333";g.textAlign="right";g.lineWidth=1;
-  for(let y=Math.ceil(o.yMin/step)*step;y<=o.yMax;y+=step){g.beginPath();g.moveTo(L,Y(y));g.lineTo(L+pw,Y(y));g.stroke();g.fillText(y,L-6,Y(y)+4)}
-  g.textAlign="center";const h0=Math.ceil(t0/3600000)*3600000,hs=(t1-t0)>16*3600000?2:1;
-  for(let t=h0;t<=t1;t+=hs*3600000){g.beginPath();g.moveTo(X(t),T);g.lineTo(X(t),T+ph);g.stroke();g.fillText(hm(t),X(t),T+ph+16)}
-  for(const h of(o.hLines||[])){g.strokeStyle=h.color;g.lineWidth=1;g.beginPath();g.moveTo(L,Y(h.y));g.lineTo(L+pw,Y(h.y));g.stroke()}
-  g.save();g.beginPath();g.rect(L,T,pw,ph);g.clip();
-  for(const s of o.series){g.strokeStyle=s.color;g.lineWidth=s.w||1.2;g.setLineDash(s.dash||[]);g.beginPath();let pen=false,py=0;
-    for(let i=0;i<R.N;i++){const v=s.y[i];
-      if(Number.isNaN(v)||v<o.yMin||v>o.yMax||(i&&R.t[i]-R.t[i-1]>R.gapMs)){pen=false;if(Number.isNaN(v)||v<o.yMin||v>o.yMax)continue}
-      if(!pen){g.moveTo(X(R.t[i]),Y(v));pen=true}else{if(s.step)g.lineTo(X(R.t[i]),Y(py));g.lineTo(X(R.t[i]),Y(v))}py=v}
-    g.stroke()}
-  g.restore();g.setLineDash([]);g.strokeStyle="#333";g.strokeRect(L,T,pw,ph);
-  g.fillStyle="#111";g.font="bold 14px Arial";g.textAlign="left";g.fillText(o.title,L,20);
-  g.save();g.translate(16,T+ph/2);g.rotate(-Math.PI/2);g.font="12px Arial";g.textAlign="center";g.fillText(o.ylabel,0,0);g.restore();
-  g.font="12px Arial";g.textAlign="center";g.fillText("Time (grey = SCADA data gap)",L+pw/2,H-6);
-  let lx=L+8,ly=T+ph-8;g.textAlign="left";const items=o.series.filter(s=>s.label);
-  g.font="11px Arial";let totalW=items.reduce((a,s)=>a+g.measureText(s.label).width+34,0);
-  g.fillStyle="rgba(255,255,255,.88)";g.fillRect(lx-4,ly-14,totalW+4,20);
-  for(const s of items){g.strokeStyle=s.color;g.lineWidth=2;g.setLineDash(s.dash||[]);g.beginPath();g.moveTo(lx,ly-4);g.lineTo(lx+18,ly-4);g.stroke();g.setLineDash([]);
-    g.fillStyle="#111";g.fillText(s.label,lx+22,ly);lx+=g.measureText(s.label).width+34}
-  return c.toDataURL("image/png");}
-function makeCharts(R){R.gapMs=R.p.gapFactor*R.interval;
-  const tol=R.p.tol,N=R.N,figs=[],main=R.t.map((_,i)=>R.inService.some(n=>R.SET[n][i]===R.mainSp));
-  const band={y0:R.mainSp-tol,y1:R.mainSp+tol,mask:main};
-  const setS=n=>({y:R.SET[n],color:"#000",dash:[6,4],step:1,w:1.4,label:"SET"});
-  figs.push(["Overview: all thermocouples (valid range 500–1000 °C, green = SET ±"+tol+" °C)",
-    chart(R,{title:"All thermocouples vs time",yMin:TMIN,yMax:TMAX,ylabel:"Temperature (°C)",bands:[band],
-      series:[...R.inService.map(n=>({y:R.PV[n],color:COL[n],label:tcName(n)})),setS(R.inService[0])]})]);
-  for(const z of[1,2,3]){const s=[];
-    for(const n of ZONES[z])if(R.inService.includes(n))s.push({y:R.PV[n],color:COL[n],label:tcName(n)});
-    const first=ZONES[z].find(n=>R.inService.includes(n));if(first)s.push(setS(first));
-    const off=ZONES[z].filter(n=>!R.inService.includes(n)).map(n=>tcName(n)+" OFFLINE");
-    figs.push([`Zone ${z} (${TRAYS[z]} trays) left / right`+(off.length?" – "+off.join(", "):""),
-      chart(R,{title:`Zone ${z}`+(off.length?"  ("+off.join(", ")+", no data)":""),yMin:TMIN,yMax:TMAX,ylabel:"Temperature (°C)",bands:[band],series:s,h:330})]);}
-  const dev=n=>R.PV[n].map((v,i)=>R.prod[n][i]?v-R.SET[n][i]:NaN);
-  const dv=R.inService.map(dev).flat().filter(x=>!Number.isNaN(x));
-  const lo=Math.floor(Math.min(-tol*1.5,mn(dv))/10)*10-10,hi=Math.ceil(Math.max(tol*1.5,mx(dv))/10)*10+10;
-  const allTrue=new Array(N).fill(true);
-  figs.push(["Deviation from SET, production window only",chart(R,{title:`PV − SET, production window (green = ±${tol} °C)`,yMin:lo,yMax:hi,ylabel:"PV − SET (°C)",
-    bands:[{y0:-tol,y1:tol,mask:allTrue}],hLines:[{y:0,color:"#000"}],series:R.inService.map(n=>({y:dev(n),color:COL[n],label:tcName(n)}))})]);
-  const lr=[];for(const z of[1,2,3]){const[l,r]=ZONES[z];if(R.inService.includes(l)&&R.inService.includes(r))
-    lr.push({y:R.PV[l].map((v,i)=>R.prod[l][i]&&R.prod[r][i]?v-R.PV[r][i]:NaN),color:["#1f77b4","#d62728","#2ca02c"][z-1],label:`Zone ${z} (L − R)`})}
-  if(lr.length){const a=lr.flatMap(s=>s.y).filter(x=>!Number.isNaN(x));
-    const m=Math.ceil(Math.max(2*tol*1.5,mx(a.map(Math.abs)))/10)*10+10;
-    figs.push(["Left − Right difference per zone",chart(R,{title:`Left − Right difference (green = ±${2*tol} °C)`,yMin:-m,yMax:m,ylabel:"L − R (°C)",h:330,
-      bands:[{y0:-2*tol,y1:2*tol,mask:allTrue}],hLines:[{y:0,color:"#000"}],series:lr})])}
-  if(R.fu.samples)figs.push(["Furnace-wide spread",chart(R,{title:"Furnace spread: hottest − coldest working TC",yMin:0,yMax:Math.ceil(Math.max(R.fu.limit*1.5,R.fu.max)/10)*10+10,ylabel:"Spread (°C)",h:330,
-    hLines:[{y:R.fu.limit,color:"#2ca02c"}],series:[{y:R.fu.spread,color:"#444",label:"Spread (green line = limit "+R.fu.limit+" °C)"}]})]);
-  return figs;}
+function makeFindings(R){const f=[],P=R.P,tol=R.tol;
+  const add=(sev,title,detail,action)=>f.push({sev,title,detail,action});
+  for(const n of R.offline)add("crit",`${tcL(n)} is out of service`,`SET and PV read 0 for the whole record. Zone ${zoneOf(n)} has no working ${sideName(n)}-wall thermocouple, so that side of the zone cannot be shown to be in tolerance.`,
+    `Hold product per the reaction plan. Check the thermocouple, extension wire and controller input for ${tcS(n)}; replace, then verify with a system accuracy test before release.`);
+  for(const z of R.walls.map(w=>w.z)){const inc=R.incidents.filter(i=>i.z===z);if(!inc.length)continue;
+    const m=R.zoneOutMin[z],tcs=[...new Set(inc.flatMap(i=>i.walls))].map(tcS).join(", ");
+    const worst=inc.reduce((b,i)=>Math.abs(i.ext.d)>Math.abs(b.ext.d)?i:b);
+    add("crit",`Zone ${z}: ${inc.length} excursion${inc.length>1?"s":""} beyond ±${tol} °C`,`${dur(m)} out of window (${tcs}). Worst ${fx(worst.ext.pv,0)} °C (${sg(worst.ext.d)}) on ${tcS(worst.ext.n)} at ${hm(worst.ext.t)}, direction ${worst.dir.toLowerCase()}.`,
+      `Quarantine the trays listed under Suspect production for traceability. Check the burners, gas pressure and combustion air on Zone ${z}, the thermocouple calibration and the load/push rate; record the cause and correction.`);}
+  for(const n of R.prodTCs){const r=R.tc[n];
+    if(r.ppk<1.33&&r.status!=="in")add(r.ppk<1?"crit":"warn",`${tcL(n)}: ${r.ppk<1?"not capable":"marginal"} (Ppk ${fx(r.ppk,2)})`,`${fx(r.inTol)} % of production readings in ±${tol} °C, mean ${fx(r.mean)} °C (${sg(r.mdev)} from set).`,"Reduce offset and variation before the next run; re-check after the correction.");
+    if(Math.abs(r.drift)>=tol)add("warn",`${tcL(n)}: drifts ${sg(r.drift)} °C over the record`,`${sg(r.slope)} °C/h, R² ${fx(r.r2,2)}.`,"Check whether the drift is process (load, gas supply) or instrument (thermocouple ageing).");}
+  for(const w of R.walls)if(!w.na&&w.n&&Math.abs(w.mean)>=3&&Math.abs(w.mean)>w.ci)add("warn",`Zone ${w.z}: ${w.mean<0?"left":"right"} wall consistently colder by ${fx(Math.abs(w.mean))} °C`,`95 % CI ${sg(w.mean-w.ci)} to ${sg(w.mean+w.ci)} °C (left − right); largest difference ${fx(w.max)} °C at ${hm(w.maxT)}.`,"Balance the burners on the two walls or check thermocouple position and calibration.");
+  for(const[a,b]of R.gaps)add("warn",`SCADA data gap ${hm(a)} to ${hm(b)}`,`${dur((b-a)/60000)} without records; temperature in this time is unverified.`,"Trace product processed in this window and confirm the data-logger connection.");
+  for(const n of R.prodTCs)if(R.tc[n].invalid>0){}
+  const faults=R.events.filter(e=>!/offline/.test(e.reason));
+  for(const e of faults)add("warn",`${tcL(e.n)}: sensor fault ${hm(e.from)} to ${hm(e.to)}`,`${e.count} readings excluded (${e.reason.toLowerCase()}; raw ${e.min} to ${e.max}).`,"Confirm the thermocouple and input card are healthy; the excluded readings are not evidence of furnace temperature.");
+  for(const x of R.flat)add("warn",`${tcL(x.n)}: flat-line ${hm(x.from)} to ${hm(x.to)}`,`${x.count} identical readings of ${x.value} °C; the sensor may be frozen.`,"Verify the input against a reference instrument.");
+  const rank={crit:0,warn:1,info:2,good:3};f.sort((a,b)=>rank[a.sev]-rank[b.sev]);
+  if(!f.length)add("good","No findings","All thermocouples stayed inside the tolerance window during production.","Continue routine monitoring.");
+  return f;}
 
-/* ---------------- report ---------------- */
-function tbl(head,rows){return `<div class="tw"><table><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map(c=>c&&typeof c==="object"?`<td class="${c.v}">${esc(c.t)}</td>`:`<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>`}
-const vc=v=>({v:v==="PASS"?"PASS":v==="FAIL"?"FAIL":"",t:v});
-function reportHtml(R,fig,info){
-  const p=R.p,t0=R.t[0],t1=R.t[R.N-1],vcls=R.verdict==="NON-CONFORMING"?"NC":R.verdict==="CONFORMING"?"C":"CO";
-  const kv=[["Company",info.company||R.meta.company],["Furnace",info.furnace||R.meta.title],["Part / job / tray load",info.part],
-   ["Data period",`${dmy(t0)} ${hms(t0)} → ${dmy(t1)} ${hms(t1)}`],["Sampling interval",`${Math.round(R.interval/1000)} s (${R.N} records)`],
-   ["Furnace description","Continuous pusher, gas-fired; 3 zones (5 + 4 + 4 = 13 trays); 6 burners; 6 thermocouples (L/R per zone)"],
-   ["Acceptance",`Production SET ${R.mainSp} °C, tolerance ±${p.tol} °C, ≥ ${p.minpct}% readings in band, first ${p.settle} min after SET reached ignored; plots limited to 500–1000 °C`]]
-   .map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v||"")}</td></tr>`).join("");
-  const tcr=R.tc.map(r=>r.status!=="In service"?[esc(r.name),"OFFLINE","–","–","–","–","–","–","–","–","–","–",vc("FAIL")]:
-    [esc(r.name),r.status,r.readings,fx(r.mean),fx(r.min,0),fx(r.max,0),fx(r.mdev),fx(r.dmin,0),fx(r.dmax,0),fx(r.pct),fx(r.longest,0),r.exc,vc(r.verdict)]);
-  const zr=R.zones.map(z=>[z.zone,z.trays,z.samples,fx(z.mlr),fx(z.maxlr,0),fx(z.pct),vc(z.verdict)]);
-  const fu=R.fu.samples?`<table class="kv"><tr><td>Samples, all working TCs in production</td><td>${R.fu.samples}</td></tr><tr><td>Mean spread</td><td>${fx(R.fu.mean)} °C</td></tr><tr><td>Max spread</td><td>${fx(R.fu.max,0)} °C</td></tr><tr><td>Time within ${R.fu.limit} °C spread</td><td>${fx(R.fu.pct)}%</td></tr></table>`:"<p>Not computed.</p>";
-  return `<div class="hdr"><div><h1>CQI-9 Furnace Temperature Analysis Report</h1><div>SCADA temperature vs time: ${esc(info.furnace||R.meta.title)}</div></div>
-   <div style="text-align:right"><span class="v ${vcls}">${R.verdict}</span><div class="small">Generated ${new Date().toLocaleString()}</div></div></div>
-   <table class="kv">${kv}</table>
-   <h2>1. Findings</h2><ul>${R.findings.map(([s,x])=>`<li class="${s}"><b>${s.toUpperCase()}:</b> ${esc(x)}</li>`).join("")||"<li>No findings.</li>"}</ul>
-   <h2>2. Thermocouples in production window (PV vs SET ${R.mainSp} °C, ±${p.tol} °C)</h2>
-   ${tbl(["TC","Status","Readings","Mean °C","Min °C","Max °C","Mean dev","Min dev","Max dev","In band %","Longest exc. min","Excursions","Verdict"],tcr)}
-   <h2>3. Left / Right balance per zone (limit ±${2*p.tol} °C)</h2>${tbl(["Zone","Trays","Samples","Mean L−R °C","Max |L−R| °C","Within limit %","Verdict"],zr)}
-   <h2>4. Furnace-wide spread</h2>${fu}
-   <h2>5. Charts</h2>${fig.map(([c,u])=>`<figure><img src="${u}" alt=""><figcaption>${esc(c)}</figcaption></figure>`).join("")}
-   <h2>6. Data quality</h2><b>Invalid / excluded readings (outside 500–1000 °C or sensor recovery)</b>
-   ${R.events.length?tbl(["TC","From","To","Readings","Min raw","Max raw","Reason"],R.events.map(e=>[esc(e.tc),hms(e.from),hms(e.to),e.count,e.min,e.max,esc(e.reason)])):"<p>None.</p>"}
-   <b>Data gaps (&gt; ${p.gapFactor}× sampling interval)</b>${R.gaps.length?"<ul>"+R.gaps.map(([a,b])=>`<li>${hms(a)} → ${hms(b)} (${Math.round((b-a)/60000)} min)</li>`).join("")+"</ul>":"<p>None.</p>"}
-   <h2>7. Sign-off</h2><table class="sign"><tr><th>Prepared by</th><th>Reviewed by (CQI-9 Champion)</th><th>Approved by</th></tr><tr><td>Name / Date:</td><td>Name / Date:</td><td>Name / Date:</td></tr></table>
-   <p class="small">Readings outside 500–1000 °C are invalid and excluded from statistics and plots. Deviation = PV − SET for each thermocouple's own SET. Verdicts use SCADA controller PVs and do not replace a system accuracy test (SAT) or temperature uniformity survey (TUS) with calibrated instruments.</p>`;}
+/* ===================== SVG helpers ===================== */
+const CH_ID={n:0};const HOVER={};
+function niceStep(range,target=5){const raw=range/target,pw=10**Math.floor(Math.log10(raw)),m=raw/pw;return(m<1.5?1:m<3?2:m<7?5:10)*pw}
+function frame(R,o){ // o:{W,H,l,r,t,b,yLo,yHi,step,xt0,xt1,gaps}
+  const{W,H,l,r,t,b}=o,pw=W-l-r,ph=H-t-b,x0=o.x0??R.t0,x1=o.x1??R.t1;
+  const X=v=>l+(v-x0)/(x1-x0)*pw,Y=v=>t+(o.yHi-v)/(o.yHi-o.yLo)*ph;let s=`<svg class="c" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label||"chart")}">`;
+  if(o.gaps!==false)for(const[a,c]of R.gaps)s+=`<rect class="gapr" x="${X(a).toFixed(1)}" y="${t}" width="${(X(c)-X(a)).toFixed(1)}" height="${ph}"/>`;
+  const step=o.step||niceStep(o.yHi-o.yLo);
+  for(let y=Math.ceil(o.yLo/step-1e-9)*step;y<=o.yHi+1e-9;y+=step){s+=`<line class="gl" x1="${l}" x2="${W-r}" y1="${Y(y).toFixed(1)}" y2="${Y(y).toFixed(1)}"/><text x="${l-6}" y="${(Y(y)+4).toFixed(1)}" text-anchor="end">${o.yFmt?o.yFmt(y):Math.round(y*100)/100}</text>`}
+  if(!o.noTime){const hs=(x1-x0)>18*3600000?2:1;for(let h=Math.ceil(x0/3600000)*3600000;h<=x1;h+=3600000*hs){s+=`<line class="gl" x1="${X(h).toFixed(1)}" x2="${X(h).toFixed(1)}" y1="${t}" y2="${t+ph}" style="stroke-opacity:.5"/><text x="${X(h).toFixed(1)}" y="${H-b+15}" text-anchor="middle">${p2(D(h).getUTCHours())}</text>`}}
+  return{s,X,Y,W,H,l,r,t,b,pw,ph,x0,x1,close:()=>s+"</svg>"};}
+function pathOf(F,ts,ys,gapMs,skip){let d="",pen=false;
+  for(let i=0;i<ts.length;i++){const y=ys[i];if(!isN(y)||(skip&&skip(i))){pen=false;continue}
+    if(pen&&ts[i]-ts[i-1]>gapMs)pen=false;
+    d+=(pen?"L":"M")+F.X(ts[i]).toFixed(1)+" "+F.Y(y).toFixed(1);pen=true}return d}
+function statusChip(cls,txt){return`<span class="chip ${cls}"><i>${cls==="good"?"✓":cls==="crit"?"✕":cls==="warn"?"!":"i"}</i>${esc(txt)}</span>`}
 
-/* ---------------- UI ---------------- */
-let DATA=null;
-$("cls").innerHTML=CLASSES.map((c,i)=>`<option value="${i}">${c[0]}</option>`).join("");$("cls").value=4;
-function syncTol(){const c=CLASSES[+$("cls").value];if(c[1]!==null)$("tol").value=c[1];$("tol").disabled=c[1]!==null}
-function params(){return{tol:+$("tol").value||14,settle:+$("settle").value||0,minpct:+$("minpct").value||100,recov:+$("recov").value||0,gapFactor:3}}
-function info(){return{company:$("f_company").value,furnace:$("f_furnace").value,part:$("f_part").value}}
-function run(){ if(!DATA)return; $("msg").textContent="";
-  try{const R=analyse(DATA.recs,DATA.meta,params());R.fig=makeCharts(R);window.LAST=R;
-    $("report").innerHTML=reportHtml(R,R.fig,info());$("out").hidden=false;}
-  catch(e){console.error(e);$("msg").textContent="Analysis failed: "+e.message}}
-async function takeFile(f){ if(!f)return;
-  try{DATA=loadWorkbook(await f.arrayBuffer());$("drop").firstElementChild.textContent=f.name+" loaded ("+DATA.recs.length+" records). Click to choose another file.";run()}
-  catch(e){$("msg").textContent="Could not read file: "+e.message}}
-$("cls").onchange=()=>{syncTol();run()};syncTol();
-["tol","settle","minpct","recov"].forEach(i=>$(i).onchange=run);
-["f_company","f_furnace","f_part"].forEach(i=>$(i).oninput=()=>{if(window.LAST)$("report").innerHTML=reportHtml(LAST,LAST.fig,info())});
-$("drop").onclick=()=>$("file").click();$("file").onchange=e=>takeFile(e.target.files[0]);
-$("drop").ondragover=e=>{e.preventDefault();$("drop").classList.add("over")};$("drop").ondragleave=()=>$("drop").classList.remove("over");
-$("drop").ondrop=e=>{e.preventDefault();$("drop").classList.remove("over");takeFile(e.dataTransfer.files[0])};
-$("print").onclick=()=>window.print();
-$("dl").onclick=()=>{const css=[...document.querySelectorAll("style")].map(s=>s.textContent).join("\n");
-  const h=`<!doctype html><html><head><meta charset="utf-8"><title>CQI-9 Furnace Report</title><style>${css}</style></head><body><main><div id="report">${$("report").innerHTML}</div></main></body></html>`;
-  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([h],{type:"text/html"}));a.download="CQI9_report_"+new Date(LAST.t[0]).toISOString().slice(0,10)+".html";a.click()};
+/* ===================== sections ===================== */
+function secLayout(R){
+  const z=[1,2,3],T=R.totalTrays,cols=`repeat(${T},1fr)`;
+  const zc=z.map(k=>`<div class="lab" style="grid-column:${R.pos[k][0]} / ${R.pos[k][1]+1}"><b>Zone ${k}</b><div class="zt">positions ${R.pos[k][0]}–${R.pos[k][1]} · ${dur(R.tray[k]*R.push)}</div></div>`).join("");
+  const lab=(n,pos)=>{const r=R.tc[n];const st=!r.inService?"off":r.status;const txt=!r.inService?"OFFLINE, no data":`${fx(r.mean)} °C (${sg(r.mdev)}) · ${{in:"in control",watch:"watch",out:"out"}[r.status]}`;
+    return`<div class="lab" style="grid-column:${pos}"><b>${tcS(n)}</b> ${esc(txt)}</div>`};
+  const dots=(cls,list)=>list.map(n=>{const c=(R.pos[zoneOf(n)][0]-1+R.tray[zoneOf(n)]/2)/T*100,r=R.tc[n];return`<span class="tcdot ${cls} ${r.inService?r.status:"off"}" style="left:${c}%" title="${tcS(n)}"></span>`}).join("");
+  const gp=k=>`${R.pos[k][0]} / ${R.pos[k][1]+1}`;
+  return`<section class="panel"><div class="sec-head"><h2>Furnace layout and thermocouple status</h2><p>One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.</p></div>
+  <div class="furnace"><div class="io">&nbsp;</div><div class="tclabels" style="grid-template-columns:${cols}">${zc}</div><div class="io">&nbsp;</div>
+  <div class="io">Charge<br>→</div><div><div class="tclabels" style="grid-template-columns:${cols}">${lab(1,gp(1)).replace('<b>','<b>')}${lab(3,gp(2))}${lab(5,gp(3))}</div>
+  <div class="chamber"><span class="wall l">LEFT WALL</span><span class="wall r">RIGHT WALL</span>
+  <div class="trays" style="grid-template-columns:${cols}">${Array.from({length:T},(_,i)=>`<div class="tray">${i+1}</div>`).join("")}</div>
+  ${[R.pos[2][0],R.pos[3][0]].map(p=>`<div class="zdiv" style="left:${(p-1)/T*100}%"></div>`).join("")}${dots("l",[1,3,5])}${dots("r",[2,4,6])}</div>
+  <div class="tclabels" style="grid-template-columns:${cols}">${lab(2,gp(1))}${lab(4,gp(2))}${lab(6,gp(3))}</div></div><div class="io">Discharge<br>→</div></div></section>`;}
+
+function secZones(R){
+  const cards=[1,2,3].map(z=>{
+    const inc=R.incidents.filter(i=>i.z===z),n=inc.length;
+    const tcs=ZONES[z],cell=(fn)=>tcs.map(k=>`<td>${R.tc[k].inService&&R.tc[k].nn?fn(R.tc[k]):"–"}</td>`).join("");
+    const cls=(v,good,bad)=>v>=good?"ok":v<bad?"bad":"caution";
+    const w=R.walls[z-1];
+    return`<div class="zone"><div class="zone-h"><h3>Zone ${z}</h3>${n?statusChip("crit",`${n} excursion${n>1?"s":""}`):R.offline.some(k=>ZONES[z].includes(k))?statusChip("crit","TC offline"):statusChip("good","in tolerance")}</div>
+    <div class="muted mono" style="font-size:12.5px">Setpoint ${R.mainSp} °C · window ${R.LSL}–${R.USL} °C<br><span style="font-family:var(--sans)">Tray positions ${R.pos[z][0]}–${R.pos[z][1]} (${R.tray[z]} trays) · ≈ ${dur(R.tray[z]*R.push)} per tray in this zone</span></div>
+    <table><tr><th></th>${tcs.map(k=>`<th><span class="sw" style="background:var(--s${k%2?1:2})"></span>${tcS(k)} ${sideName(k)}</th>`).join("")}</tr>
+    <tr><td>Mean, °C</td>${cell(r=>fx(r.mean))}</tr>
+    <tr><td>vs setpoint</td>${cell(r=>`<span class="${Math.abs(r.mdev)>R.tol?"bad":Math.abs(r.mdev)>R.tol/2?"caution":""}">${sg(r.mdev)}</span>`)}</tr>
+    <tr><td>Min / max</td>${cell(r=>`${fx(r.min,0)} / ${fx(r.max,0)}`)}</tr>
+    <tr><td>Std dev, °C</td>${cell(r=>fx(r.sd))}</tr>
+    <tr><td>In tolerance</td>${cell(r=>`<span class="${cls(r.inTol,99,95)}">${fx(r.inTol)} %</span>`)}</tr>
+    <tr><td>Ppk</td>${cell(r=>`<span class="${cls(r.ppk,1.33,1)}">${fx(r.ppk,2)}</span>`)}</tr></table>
+    <div class="foot">${w.na||!w.n?`<span>Wall difference: not available</span>`:`<span>Wall difference avg <b class="num">${fx(w.avgAbs)} °C</b></span><span>max <b class="num">${fx(w.max)} °C</b> at ${hm(w.maxT)}</span>`}</div></div>`}).join("");
+  return`<section><div class="sec-head"><h2>Zone summary</h2><p>Left and right wall thermocouples per zone, production window only. Ppk uses the overall standard deviation against setpoint ±tolerance; see the statistical analysis for Cp, Cpk and control-chart results.</p></div><div class="zones">${cards}</div></section>`;}
+
+function yRange(R){let lo=Infinity,hi=-Infinity;
+  for(const n of R.inService){for(let i=0;i<R.N;i++){const v=R.PV[n][i];if(v<lo)lo=v;if(v>hi)hi=v;const s=R.SET[n][i];if(s<lo)lo=s;if(s>hi)hi=s}}
+  lo=Math.max(TMIN,Math.floor((lo-10)/50)*50);hi=Math.min(TMAX,Math.ceil((hi+10)/50)*50);return[lo,hi]}
+function secTrend(R){
+  const[yLo,yHi]=yRange(R);let out="";
+  for(const z of[1,2,3]){
+    const F=frame(R,{W:1100,H:270,l:46,r:10,t:10,b:24,yLo,yHi,step:niceStep(yHi-yLo,6),label:`Zone ${z} temperature trend`});
+    let s=F.s;const tcs=ZONES[z].filter(n=>R.inService.includes(n));
+    if(tcs.length){const n0=tcs[0];
+      // tolerance band over production stretches
+      for(const[a,b]of runs(R.prod[n0],R.t,R.gapMs))s+=`<rect class="bandr" x="${F.X(R.t[a]).toFixed(1)}" y="${F.Y(R.mainSp+R.tol).toFixed(1)}" width="${Math.max(1,F.X(R.t[b])-F.X(R.t[a])).toFixed(1)}" height="${(F.Y(R.mainSp-R.tol)-F.Y(R.mainSp+R.tol)).toFixed(1)}"/>`;
+      s+=`<path class="setp" d="${pathOf(F,R.t,R.SET[n0],R.gapMs)}"/>`;}
+    const series=[];
+    for(const n of tcs){const col=`var(--s${n%2?1:2})`;s+=`<path class="ln" stroke="${col}" d="${pathOf(F,R.t,R.PV[n],R.gapMs)}"/>`;
+      const om=R.t.map((_,i)=>R.prod[n][i]&&isN(R.PV[n][i])&&Math.abs(R.PV[n][i]-R.SET[n][i])>R.tol);
+      const dOut=runs(om,R.t,R.gapMs).map(([a,b])=>{let d="M"+F.X(R.t[a]).toFixed(1)+" "+F.Y(R.PV[n][a]).toFixed(1);for(let i=a+1;i<=b;i++)d+="L"+F.X(R.t[i]).toFixed(1)+" "+F.Y(R.PV[n][i]).toFixed(1);if(a===b)d+="l0.1 0";return d}).join("");
+      if(dOut)s+=`<path class="oot" d="${dOut}"/>`;series.push({name:`${tcS(n)} ${sideName(n)}`,col,vals:R.PV[n]});}
+    const off=ZONES[z].filter(n=>!R.inService.includes(n));
+    if(off.length)s+=`<text x="${F.l+8}" y="${F.t+16}" class="lab t-crit" style="fill:var(--crit-ink)">${off.map(tcS).join(", ")} offline: no data</text>`;
+    s+=`<rect class="hit" x="${F.l}" y="${F.t}" width="${F.pw}" height="${F.ph}" fill="transparent" data-h="${z}"/><line class="cross" y1="${F.t}" y2="${F.t+F.ph}" stroke="var(--muted)" style="display:none;pointer-events:none"/></svg>`;
+    HOVER[z]={F,series,set:tcs.length?R.SET[tcs[0]]:null};
+    out+=`<div class="chart-title"><h3>Zone ${z}</h3><span>${ZONES[z].map(n=>`${tcS(n)} ${sideName(n)}`).join(" · ")} · setpoint ${R.mainSp} °C · ${R.tray[z]} trays</span></div><div class="chart" data-z="${z}">${s}</div>`;}
+  return`<section class="panel"><div class="sec-head"><h2>Temperature trend by zone</h2><p>Same time axis and the same fixed temperature scale on every zone (${yLo}–${yHi} °C, inside the 500–1000 °C valid range), so the charts can be compared directly. Grey bands are SCADA data gaps; the tolerance window is drawn while the zone is at its production setpoint.</p></div>
+  <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${R.tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span><span><i class="lg-gap"></i>Data gap</span></div>${out}</section>`;}
+
+function heatColor(v){const k=Math.min(1,Math.abs(v)/15);return`color-mix(in srgb, var(${v<0?"--div-lo":"--div-hi"}) ${Math.round(k*100)}%, var(--div-mid))`}
+function secHeat(R){
+  const head=R.hours.map(h=>`<th>${p2(D(h).getUTCHours())}</th>`).join("");
+  const rows=R.prodTCs.map(n=>`<tr><td class="rl">${tcS(n)} Z${zoneOf(n)} ${side(n)}</td>${R.heat[n].map(v=>isN(v)?`<td class="${Math.abs(v)>R.tol?"out":""}" style="background:${heatColor(v)};${Math.abs(v)>7.5?"color:#fff":""}">${sg(v,0)}</td>`:`<td style="color:var(--muted)">·</td>`).join("")}</tr>`).join("");
+  return`<section class="panel"><div class="sec-head"><h2>Hourly deviation from setpoint</h2><p>Mean of (reading − setpoint) per hour, °C, production window only. A dot means the thermocouple was not in production that hour.</p></div>
+  <div class="tw"><table class="heat"><tr><th></th>${head}</tr>${rows}</table></div>
+  <div class="scale">${MINUS}15<i></i>+15 °C <span>Blue runs cold, red runs hot. Outlined cells have a mean beyond ±${R.tol} °C.</span></div></section>`;}
+
+function secSpread(R){
+  const n0=R.prodTCs;if(!n0.length)return"";
+  let lo=Math.min(-R.tol*1.5,...n0.map(n=>R.tc[n].dmin)),hi=Math.max(R.tol*1.5,...n0.map(n=>R.tc[n].dmax));
+  const step=niceStep(hi-lo,6);lo=Math.floor(lo/step)*step-step*0;hi=Math.ceil(hi/step)*step;
+  const rowH=44,H=n0.length*rowH+40,F=frame(R,{W:1100,H,l:130,r:20,t:26,b:30,yLo:0,yHi:1,noTime:true,gaps:false,x0:lo,x1:hi,label:"Spread of each thermocouple"});
+  let s=`<svg class="c" viewBox="0 0 1100 ${H}" role="img" aria-label="Spread of each thermocouple">`;
+  const X=v=>130+(v-lo)/(hi-lo)*(1100-130-20);
+  for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)s+=`<line class="gl" x1="${X(v)}" x2="${X(v)}" y1="26" y2="${H-30}"/><text x="${X(v)}" y="${H-12}" text-anchor="middle">${v}</text>`;
+  s+=`<rect class="bandr" x="${X(-R.tol)}" y="26" width="${X(R.tol)-X(-R.tol)}" height="${H-56}"/><line x1="${X(0)}" x2="${X(0)}" y1="26" y2="${H-30}" stroke="var(--muted)" stroke-dasharray="3 3"/>`;
+  s+=`<text x="${X(-R.tol)}" y="18" text-anchor="middle" class="t-good" style="fill:var(--good-ink)">${MINUS}${R.tol}</text><text x="${X(R.tol)}" y="18" text-anchor="middle" style="fill:var(--good-ink)">+${R.tol}</text>`;
+  n0.forEach((n,i)=>{const r=R.tc[n],y=26+i*rowH+rowH/2,col=`var(--s${n%2?1:2})`;
+    s+=`<text x="0" y="${y+4}" style="fill:var(--ink);font-weight:500">${tcS(n)}</text><text x="52" y="${y+4}">Z${zoneOf(n)} ${side(n)}</text>
+    <line x1="${X(r.dmin)}" x2="${X(r.dmax)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="2"/>
+    <rect x="${X(r.dp5)}" y="${y-7}" width="${Math.max(2,X(r.dp95)-X(r.dp5))}" height="14" rx="2" fill="${col}" opacity=".45"/>
+    <circle cx="${X(r.mdev)}" cy="${y}" r="6" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`});
+  s+=`<text x="${X((lo+hi)/2)}" y="${H-1}" text-anchor="middle">°C from setpoint</text></svg>`;
+  return`<section class="panel"><div class="sec-head"><h2>Spread of each thermocouple</h2><p>Deviation from setpoint. Thin line: min to max. Bar: 5th to 95th percentile. Dot: mean.</p></div><div class="chart">${s}</div></section>`;}
+
+function fmtDT(R,t){return dayKey(t)===dayKey(R.t0)?hm(t):`${dstr(t)} ${hm(t)}`}
+function secExcursions(R){
+  const rows=R.incidents.map(i=>{const wl=i.walls.length===0?"":i.bothWalls?`Both walls <span class="muted">${i.walls.map(tcS).join(", ")}</span>`:`${sideName(i.walls[0])[0].toUpperCase()+sideName(i.walls[0]).slice(1)} wall only <span class="muted">${tcS(i.walls[0])}</span>`;
+    return`<tr><td>${i.no}</td><td><b>Zone ${i.z}</b></td><td>${wl}</td><td>${i.dir}</td><td class="m">${hm(i.from)}</td><td class="m">${hm(i.to)}</td><td class="m">${dur(i.span)}</td><td class="m">${dur(i.out)}</td><td class="m bad">${fx(i.ext.pv,0)} °C (${sg(i.ext.d)}) <span class="muted">${tcS(i.ext.n)}</span></td><td class="m">≈ ${i.trays}</td><td class="m">${fmtDT(R,i.cFrom)} → ${fmtDT(R,i.cTo)}</td></tr>`}).join("");
+  const table=R.incidents.length?`<div class="tw"><table class="dt"><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays</th><th>Those trays charged</th></tr>${rows}</table></div>`:`<p class="muted">No zone excursions beyond ±${R.tol} °C in the production window.</p>`;
+  const brow=R.batches.map(b=>`<tr><td><b>${b.no}</b></td><td class="m">${fmtDT(R,b.from)}</td><td class="m">${fmtDT(R,b.to)}</td><td class="m">${fmtDT(R,b.dFrom)}</td><td class="m">${fmtDT(R,b.dTo)}</td><td class="m">${b.trays}</td><td>${[...b.zones].sort().map(z=>"Z"+z).join(", ")}</td><td class="m">${b.inc.length>7?b.inc.slice(0,6).join(", ")+` … (${b.inc.length})`:b.inc.join(", ")}</td><td contenteditable="true" aria-label="Disposition"></td></tr>`).join("");
+  return`<section class="panel"><div class="sec-head"><h2>Excursion log</h2><p>One row per zone incident: either wall beyond ±${R.tol} °C, with dips less than ${R.P.merge} min apart merged (min. ${R.P.minr} reading out). “Trays” counts every tray that sat in that zone's positions at any time during the incident.</p></div>${table}</section>
+  ${R.batches.length?`<section class="panel"><div class="sec-head"><h2>Suspect production for traceability</h2><p>Overlapping incidents combined into charge-time windows. Use the charge times against the loading register, or the discharge times at the quench end, to find the trays to hold. Times are approximate to one push (${R.push} min) because the SCADA file does not record push events.</p></div>
+  <div class="tw"><table class="dt"><tr><th>Batch</th><th>Charged from</th><th>Charged to</th><th>Discharged from</th><th>Discharged to</th><th>Trays ≈</th><th>Zones</th><th>Incidents</th><th>Disposition</th></tr>${brow}</table></div></section>`:""}`;}
+
+/* ---------- statistics ---------- */
+function statNote(sev,title,txt){const c={crit:["crit","Not capable"],warn:["warn","Attention"],good:["good","Capable"],info:["info","Note"]}[sev];
+  return`<div class="note ${sev}">${statusChip(sev,c[1])}<p>${txt}</p></div>`}
+function histSvg(R,n,lo,hi){const r=R.tc[n],W=520,H=210,l=34,rr=8,t=8,b=36,bw=Math.max(1,Math.round((hi-lo)/40)),nb=Math.ceil((hi-lo)/bw);
+  const bins=new Array(nb).fill(0);r.x.forEach(v=>{const k=Math.min(nb-1,Math.max(0,Math.floor((v-lo)/bw)));bins[k]++});
+  const ymax=Math.max(...bins,r.nn*bw*phi(0)/r.sd*.98);const X=v=>l+(v-lo)/(hi-lo)*(W-l-rr),Y=v=>t+(1-v/ymax)*(H-t-b);
+  let s=`<svg class="c" viewBox="0 0 ${W} ${H}" role="img" aria-label="Histogram ${tcS(n)}">`;
+  const st=niceStep(hi-lo,8);for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)s+=`<line class="gl" x1="${X(v)}" x2="${X(v)}" y1="${t}" y2="${H-b}"/><text x="${X(v)}" y="${H-b+14}" text-anchor="middle">${v}</text>`;
+  s+=`<line class="ax" x1="${l}" x2="${W-rr}" y1="${H-b}" y2="${H-b}"/>`;
+  bins.forEach((c,k)=>{if(c)s+=`<rect x="${X(lo+k*bw)+.5}" y="${Y(c)}" width="${Math.max(1,X(lo+(k+1)*bw)-X(lo+k*bw)-1)}" height="${H-b-Y(c)}" fill="var(--s${n%2?1:2})" opacity=".55"/>`});
+  let d="";for(let v=lo;v<=hi;v+=(hi-lo)/120)d+=(d?"L":"M")+X(v).toFixed(1)+" "+Y(r.nn*bw*phi((v-r.mean)/r.sd)/r.sd).toFixed(1);
+  s+=`<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.3"/>`;
+  s+=`<line x1="${X(R.LSL)}" x2="${X(R.LSL)}" y1="${t}" y2="${H-b}" class="lim-r"/><line x1="${X(R.USL)}" x2="${X(R.USL)}" y1="${t}" y2="${H-b}" class="lim-r"/>
+  <text x="${X(R.LSL)-3}" y="${t+10}" text-anchor="end" style="fill:var(--crit-ink)">LSL</text><text x="${X(R.USL)+3}" y="${t+10}" style="fill:var(--crit-ink)">USL</text>
+  <line x1="${X(r.mean)}" x2="${X(r.mean)}" y1="${t}" y2="${H-b}" stroke="var(--muted)" stroke-dasharray="3 3"/>
+  <text x="${W/2}" y="${H-4}" text-anchor="middle">x̄ ${fx(r.mean)} · σ ${fx(r.sd)} · Ppk ${fx(r.ppk,2)}</text></svg>`;return s}
+function imrSvg(R,n){const r=R.tc[n],W=520,H=200,ts=r.idx.map(i=>R.t[i]);
+  let lo=Math.min(r.lcl,r.min),hi=Math.max(r.ucl,r.max);const pad=(hi-lo)*.06;lo=Math.max(TMIN,lo-pad);hi=Math.min(TMAX,hi+pad);
+  const F=frame(R,{W,H,l:40,r:8,t:8,b:22,yLo:lo,yHi:hi,step:niceStep(hi-lo,5),yFmt:v=>Math.round(v),label:`I chart ${tcS(n)}`,gaps:false});
+  let s=F.s;s+=`<path class="ln" stroke="var(--s${n%2?1:2})" style="stroke-width:1" d="${pathOf(F,ts,r.x,R.gapMs)}"/>`;
+  for(const[v,c,cl]of[[r.mean,"var(--ink)",""],[r.ucl,"var(--crit)","3 3"],[r.lcl,"var(--crit)","3 3"]])s+=`<line x1="${F.l}" x2="${W-8}" y1="${F.Y(v)}" y2="${F.Y(v)}" stroke="${c}" stroke-width="1" ${cl?`stroke-dasharray="${cl}"`:""}/>`;
+  let k=0;r.x.forEach((v,j)=>{if((v>r.ucl||v<r.lcl)&&k<300){k++;s+=`<circle cx="${F.X(ts[j]).toFixed(1)}" cy="${F.Y(v).toFixed(1)}" r="2.2" fill="var(--crit)"/>`}});
+  return s+`</svg>`}
+function paretoSvg(R){const items=R.prodTCs.map(n=>({n,m:R.tc[n].outMin})).sort((a,b)=>b.m-a.m);
+  const total=items.reduce((s,i)=>s+i.m,0);if(!total)return`<p class="muted">No time out of tolerance.</p>`;
+  const W=760,H=230,l=48,r=48,t=14,b=34,pw=W-l-r,ph=H-t-b,ymax=items[0].m*1.1;let cum=0;
+  let s=`<svg class="c" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pareto of time out of tolerance">`;
+  const st=niceStep(ymax,4);for(let v=0;v<=ymax;v+=st)s+=`<line class="gl" x1="${l}" x2="${W-r}" y1="${t+ph*(1-v/ymax)}" y2="${t+ph*(1-v/ymax)}"/><text x="${l-6}" y="${t+ph*(1-v/ymax)+4}" text-anchor="end">${Math.round(v)}</text>`;
+  const bw=pw/items.length;let d="";
+  items.forEach((it,i)=>{const h=ph*it.m/ymax;cum+=it.m;s+=`<rect x="${l+i*bw+bw*.2}" y="${t+ph-h}" width="${bw*.6}" height="${h}" fill="var(--s${it.n%2?1:2})" opacity=".8"/><text x="${l+i*bw+bw/2}" y="${H-b+15}" text-anchor="middle">${tcS(it.n)}</text><text x="${l+i*bw+bw/2}" y="${t+ph-h-4}" text-anchor="middle" style="fill:var(--ink)">${Math.round(it.m)}</text>`;
+    d+=(i?"L":"M")+(l+i*bw+bw/2)+" "+(t+ph*(1-cum/total))});
+  s+=`<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="1.4"/>`+[0,50,100].map(p=>`<text x="${W-r+6}" y="${t+ph*(1-p/100)+4}">${p} %</text>`).join("")+`<text x="${l-38}" y="${t-4}">min</text></svg>`;return s}
+function wallSvg(R,w){if(w.na||!w.n)return"";const ts=w.idx.map(i=>R.t[i]);const m=Math.max(2*R.tol*1.3,mx(w.d.map(Math.abs)))*1.08;
+  const F=frame(R,{W:520,H:190,l:40,r:8,t:8,b:22,yLo:-m,yHi:m,step:niceStep(2*m,4),yFmt:v=>Math.round(v),label:`Zone ${w.z} left minus right`});
+  let s=F.s+`<rect class="bandr" x="${F.l}" y="${F.Y(2*R.tol)}" width="${F.pw}" height="${F.Y(-2*R.tol)-F.Y(2*R.tol)}"/><line x1="${F.l}" x2="${520-8}" y1="${F.Y(0)}" y2="${F.Y(0)}" stroke="var(--muted)"/>`;
+  s+=`<path class="ln" stroke="var(--accent)" style="stroke-width:1.1" d="${pathOf(F,ts,w.d,R.gapMs)}"/><line x1="${F.l}" x2="${512}" y1="${F.Y(w.mean)}" y2="${F.Y(w.mean)}" stroke="var(--ink)" stroke-dasharray="4 3"/>`;
+  return s+`</svg>`}
+function secStats(R){
+  const P=R.prodTCs;if(!P.length)return"";
+  const notes=[];
+  for(const n of P){const r=R.tc[n];const nm=`${tcS(n)} (Zone ${zoneOf(n)} · ${sideName(n)} wall)`;
+    if(r.ppk<1)notes.push(statNote("crit","",`${nm}: not capable (Pp ${fx(r.pp,2)}, Ppk ${fx(r.ppk,2)}); expected ${fx(r.exp)} % out of tolerance, observed ${fx(r.obs)} %.`));
+    else if(r.ppk<1.33)notes.push(statNote("warn","",`${nm}: marginal (Pp ${fx(r.pp,2)}, Ppk ${fx(r.ppk,2)}); expected ${fx(r.exp)} % out of tolerance, observed ${fx(r.obs)} %.`));
+    else notes.push(statNote("good","",`${nm}: capable over the record (Ppk ${fx(r.ppk,2)}).`));
+    if(Math.abs(r.drift)>=R.tol)notes.push(statNote("warn","",`${nm}: drifts ${sg(r.drift)} °C over the record (${sg(r.slope)} °C/h, R² ${fx(r.r2,2)}).`));}
+  const nn=P.filter(n=>r_(n).adp<.05);function r_(n){return R.tc[n]}
+  if(nn.length)notes.push(statNote("info","",`Distribution is not normal for ${nn.map(tcS).join(", ")} (Anderson–Darling p < 0.05). Capability indices are estimates; the observed % out of tolerance is the figure to trust.`));
+  for(const w of R.walls)if(!w.na&&w.n&&Math.abs(w.mean)>w.ci&&Math.abs(w.mean)>=1)notes.push(statNote("warn","",`Zone ${w.z}: the ${w.mean<0?"left":"right"} wall is consistently colder by ${fx(Math.abs(w.mean))} °C (95 % CI ${sg(w.mean-w.ci)} to ${sg(w.mean+w.ci)} °C, left − right).`));
+  const hd=P.map(n=>`<th class="n">${tcS(n)} Z${zoneOf(n)} ${side(n)}</th>`).join("");
+  const row=(lab,fn,strong)=>`<tr><td>${lab}</td>${P.map(n=>`<td class="n">${fn(R.tc[n])}</td>`).join("")}</tr>`;
+  const desc=`<div class="tw"><table class="dt"><tr><th></th>${hd}</tr>${[
+    ["Readings (n)",r=>r.nn],["Mean, °C",r=>fx(r.mean)],["95 % CI of mean, °C",r=>"± "+fx(r.ci)],["Median, °C",r=>fx(r.median)],["Std dev overall, °C",r=>fx(r.sd)],["Std dev within (MR̄/1.128), °C",r=>fx(r.sw)],
+    ["Min / max, °C",r=>`${fx(r.min,0)} / ${fx(r.max,0)}`],["Range, °C",r=>fx(r.range,0)],["P5 / P95, °C",r=>`${fx(r.p5,0)} / ${fx(r.p95,0)}`],["Skewness",r=>fx(r.skew,2)],["Excess kurtosis",r=>fx(r.kurt,2)],
+    ["Normality (Anderson–Darling p)",r=>fmtP(r.adp)],["Lag-1 autocorrelation",r=>fx(r.ac1,2)],["Effective n",r=>Math.round(r.neff)],["Drift, °C/h (R²)",r=>`${sg(r.slope)} (${fx(r.r2,2)})`]].map(([l,f])=>row(l,f)).join("")}</table></div>`;
+  const cap=`<div class="tw"><table class="dt"><tr><th></th>${hd}</tr>${[
+    ["LSL / USL, °C",()=>`${R.LSL} / ${R.USL}`],["Cp (within)",r=>fx(r.cp,2)],["Cpk (within)",r=>fx(r.cpk,2)],["Pp (overall)",r=>fx(r.pp,2)],["Ppk (overall)",r=>fx(r.ppk,2)],["Expected out of tolerance, %",r=>fx(r.exp)],["Observed out of tolerance, %",r=>fx(r.obs)]].map(([l,f])=>row(l,f)).join("")}</table></div>
+    <p class="foot-note">Rating: ≥ 1.33 capable, 1.00–1.33 marginal, &lt; 1.00 not capable. Cp/Cpk show short-term (minute-to-minute) capability; Pp/Ppk include every shift over the record.</p>`;
+  const imr=`<div class="tw"><table class="dt"><tr><th></th>${hd}</tr>${[
+    ["Centre line (mean), °C",r=>fx(r.mean)],["UCL / LCL, °C",r=>`${fx(r.ucl)} / ${fx(r.lcl)}`],["MR̄ / UCLMR, °C",r=>`${fx(r.mrbar)} / ${fx(r.uclmr)}`],["Rule 1: points beyond 3σ",r=>r.r1],["Rule 2: runs of 9 on one side",r=>r.r2c],["Rule 3: trends of 6 up or down",r=>r.r3]].map(([l,f])=>row(l,f)).join("")}</table></div>`;
+  const lo=Math.max(TMIN,Math.floor((Math.min(R.LSL-10,...P.map(n=>R.tc[n].min)))/10)*10),hi=Math.min(TMAX,Math.ceil((Math.max(R.USL+10,...P.map(n=>R.tc[n].max)))/10)*10);
+  const hists=P.map(n=>`<div><div class="chart-title"><h3>${tcS(n)} · Zone ${zoneOf(n)} · ${sideName(n)} wall</h3></div><div class="chart">${histSvg(R,n,lo,hi)}</div></div>`).join("");
+  const imrs=P.map(n=>`<div><div class="chart-title"><h3>${tcS(n)} · Zone ${zoneOf(n)} · ${sideName(n)} wall</h3><span>UCL ${fx(R.tc[n].ucl)} · CL ${fx(R.tc[n].mean)} · LCL ${fx(R.tc[n].lcl)}</span></div><div class="chart">${imrSvg(R,n)}</div></div>`).join("");
+  const cmat=`<div class="tw"><table class="heat" style="min-width:420px"><tr><th></th>${P.map(n=>`<th>${tcS(n)}</th>`).join("")}</tr>${P.map(a=>`<tr><td class="rl">${tcS(a)} Z${zoneOf(a)} ${side(a)}</td>${P.map(b=>{const v=R.cm[a][b];const k=isN(v)?Math.abs(v):0;return`<td style="background:color-mix(in srgb, var(--accent) ${Math.round(k*70)}%, var(--div-mid));${k>.65?"color:var(--accent-ink)":""}">${fx(v,2)}</td>`}).join("")}</tr>`).join("")}</table></div>`;
+  const walls=R.walls.map(w=>`<div><div class="chart-title"><h3>Zone ${w.z}</h3><span>${w.na||!w.n?"needs both walls in service":`mean ${sg(w.mean)} °C · 95 % CI ${sg(w.mean-w.ci)} to ${sg(w.mean+w.ci)} · left − right`}</span></div><div class="chart">${wallSvg(R,w)}</div></div>`).join("");
+  return`<section class="panel"><div class="sec-head"><h2>Statistical analysis of the process</h2><p>Per-thermocouple statistics for the production window. Specification limits are setpoint ±${R.tol} °C. Figures are for comparing thermocouples and days; ${Math.round(R.interval/1000)}-second SCADA readings are time-correlated, so they are not a formal capability study.</p></div>
+  <div class="notes">${notes.join("")}</div><div class="sub">Descriptive statistics</div>${desc}<div class="sub">Process capability</div>${cap}<div class="sub">Individuals control chart (I-MR)</div>${imr}</section>
+  <section class="panel"><div class="sec-head"><h2>Distribution of readings</h2><p>Histogram of each thermocouple on a common scale, with the fitted normal curve (overall σ), mean and specification limits.</p></div><div class="grid3">${hists}</div></section>
+  <section class="panel"><div class="sec-head"><h2>Individuals control charts</h2><p>Production readings against centre line and ±2.66 MR̄ limits. Red dots are points beyond the limits.</p></div><div class="grid3">${imrs}</div></section>
+  <section class="panel"><div class="sec-head"><h2>Correlation between thermocouples</h2><p>Pearson correlation of deviations from setpoint. Values near 1 mean the thermocouples move together (a common cause such as supply or load).</p></div>${cmat}</section>
+  <section class="panel"><div class="sec-head"><h2>Left–right wall difference</h2><p>Left minus right reading per zone (green band ±${2*R.tol} °C, dashed line = mean).</p></div><div class="grid3">${walls}</div></section>
+  <section class="panel"><div class="sec-head"><h2>Action priority (Pareto)</h2><p>Minutes out of tolerance per thermocouple, largest first; the line is the cumulative share.</p></div><div class="chart">${paretoSvg(R)}</div></section>`;}
+
+function secFindings(R){
+  const rows=R.findings.map(f=>`<tr><td>${statusChip(f.sev,{crit:"Critical",warn:"Review",info:"Note",good:"OK"}[f.sev])}</td><td><b>${esc(f.title)}</b><div class="muted">${esc(f.detail)}</div></td><td>${esc(f.action)}</td><td contenteditable="true" aria-label="Owner and due date" style="min-width:110px"></td></tr>`).join("");
+  return`<section class="panel"><div class="sec-head"><h2>Findings and actions</h2><p>Suggested reaction plan, highest priority first. Owner and due date can be typed in before printing.</p></div><div class="tw"><table class="dt"><tr><th>Level</th><th>Finding</th><th>Suggested action</th><th>Owner / due</th></tr>${rows}</table></div></section>`;}
+
+function secIntegrity(R){
+  const P=R.P,exp=Math.round((R.t1-R.t0)/R.interval)+1;
+  const rows=[];const add=(chk,res,st)=>rows.push([chk,res,st]);
+  add("Readings vs expected",`${R.N} of ${exp} expected (${fx(100*R.N/exp)} %); ${R.gaps.length} gap${R.gaps.length===1?"":"s"}${R.gaps.length?": "+R.gaps.map(([a,b])=>`${hm(a)}–${hm(b)}`).join(", "):""}`,R.gaps.length?"warn":"good");
+  add("Sampling interval",`median ${Math.round(R.interval/1000)} s`,"good");
+  add("Duplicate / out-of-order rows",`${R.data.dups} duplicate timestamps removed, ${R.data.unordered} out-of-order rows sorted, ${R.data.skipped} unreadable rows skipped`,(R.data.dups||R.data.unordered||R.data.skipped)?"warn":"good");
+  add("Channels in service",R.offline.length?`${R.offline.map(tcS).join(", ")} read 0 for the whole record`:"all 6 thermocouples reporting",R.offline.length?"crit":"good");
+  const inv=R.inService.filter(n=>R.invalidCount[n]>0);
+  add("Readings outside 500–1000 °C (excluded, not plotted)",inv.length?inv.map(n=>`${tcS(n)}: ${R.invalidCount[n]}`).join(" · "):"none",inv.length?"warn":"good");
+  add("Sensor fault events",R.events.filter(e=>!/offline/.test(e.reason)).map(e=>`${tcS(e.n)} ${hm(e.from)}–${hm(e.to)} (${e.count} readings, raw ${e.min}…${e.max})`).join("; ")||"none",R.events.some(e=>!/offline/.test(e.reason))?"warn":"good");
+  add(`Flat-lines (≥ ${P.flat} identical readings)`,R.flat.map(x=>`${tcS(x.n)} ${hm(x.from)}–${hm(x.to)} at ${x.value} °C`).join("; ")||"none",R.flat.length?"warn":"good");
+  add("Setpoint changes",R.setChanges.map(c=>`${c.sp} °C from ${hm(c.t)}`).join(" → ")+`; production setpoint ${R.mainSp} °C, ${P.settle} min settling after it is reached`,"info");
+  const lateZ=R.inService.filter(n=>R.prodStart[n]&&Math.abs(R.prodStart[n]-R.prodStart[R.inService[0]])>=5*60000);
+  if(lateZ.length)add("Setpoint changed at different times per zone",lateZ.map(n=>`${tcS(n)} reached ${R.mainSp} °C at ${hm(R.prodStart[n])}`).join("; ")+` (first at ${hm(R.prodStart[R.inService[0]])})`,"info");
+  const body=rows.map(([c,r,s])=>`<tr><td>${esc(c)}</td><td>${statusChip(s,{good:"OK",warn:"Check",crit:"Fail",info:"Info"}[s])}</td><td>${esc(r)}</td></tr>`).join("");
+  return`<section class="panel"><div class="sec-head"><h2>Data-integrity checks</h2><p>Checks on the SCADA file itself. Excluded readings never enter the statistics or the charts.</p></div><div class="tw"><table class="dt"><tr><th>Check</th><th>Result</th><th>Detail</th></tr>${body}</table></div>
+  <p class="foot-note">Verdicts use SCADA controller readings and do not replace a system accuracy test (SAT) or temperature uniformity survey (TUS) with calibrated instruments.</p></section>`;}
+
+function verdictAndKpis(R){
+  const crit=R.findings.filter(f=>f.sev==="crit").length,warn=R.findings.filter(f=>f.sev==="warn").length;
+  const state=crit?"crit":warn?"warn":"good";
+  const title={crit:"Out of tolerance: reaction plan required",warn:"In tolerance with items to review",good:"In control"}[state];
+  const parts=[];if(R.incidents.length)parts.push(`${R.incidents.length} zone excursion${R.incidents.length>1?"s":""} beyond ±${R.tol} °C`);
+  if(R.offline.length)parts.push(`${R.offline.map(tcS).join(", ")} out of service`);
+  const txt=(parts.length?parts.join(" and ")+" were found. ":"No zone excursions were found. ")+(warn?`${warn} further item${warn>1?"s":""} need review. `:"")+`Tolerance used: setpoint ±${R.tol} °C per thermocouple.`;
+  const K=R.kpi,w=K.maxWall,wv=w.z?`Zone ${w.z} at ${hm(w.maxT)}`:"";
+  const tile=(l,v,s,c="")=>`<div class="kpi"><div class="eyebrow">${l}</div><div class="v mono ${c}">${v}</div><div class="s">${s}</div></div>`;
+  const wd=K.worst;
+  return`<section class="panel verdict ${state}"><div class="vicon">${state==="crit"?"✕":state==="warn"?"!":"✓"}</div><div class="big">${title}</div><p>${esc(txt)}</p></section>
+  <div class="kpis">${tile("Record period",`${hm(R.t0)}–${hm(R.t1)}`,`${fx((R.t1-R.t0)/3600000)} h · every ${Math.round(R.interval/1000)} s`)}
+  ${tile("Readings",R.N,`${fx(100*R.N/(Math.round((R.t1-R.t0)/R.interval)+1))} % of expected · ${R.gaps.length} gap${R.gaps.length===1?"":"s"}`)}
+  ${tile("Readings in tolerance",`${fx(K.inPct)} <small>%</small>`,`all ${R.prodTCs.length} working TCs, ±${R.tol} °C`,K.inPct<95?"bad":K.inPct<99?"caution":"ok")}
+  ${tile("Zone excursions",R.incidents.length,`${dur(K.zoneOutTotal)} of zone-time out of window`,R.incidents.length?"bad":"ok")}
+  ${tile("Worst deviation",`${sg(wd.d)} <small>°C</small>`,wd.n?`${tcS(wd.n)} · ${fx(R.PV[wd.n][wd.i],0)} °C at ${hm(R.t[wd.i])}`:"–",Math.abs(wd.d)>R.tol?"bad":"ok")}
+  ${tile("Max wall difference",`${fx(w.max)} <small>°C</small>`,wv||"–",w.max>2*R.tol?"bad":w.max>R.tol?"caution":"ok")}
+</div>
+  <div class="settings-used">Settings used: tolerance ±${R.tol} °C · push interval ${R.push} min · tray positions ${R.tray[1]} / ${R.tray[2]} / ${R.tray[3]} (${R.totalTrays} in the chamber, ≈ ${dur(R.totalTrays*R.push)} from charge to discharge) · merge dips &lt; ${R.P.merge} min · settling ${R.P.settle} min · valid range 500–1000 °C · report generated ${dstrY(Date.now())} ${hm(Date.now())}</div>`;}
+
+/* ===================== app ===================== */
+let DATA=null,R=null;
+function getP(){const v=id=>+$(id).value;return{tol:v("i-tol")||10,settle:v("i-settle"),merge:v("i-merge"),push:v("i-push")||30,minr:v("i-minr")||1,recov:v("i-recov"),flat:v("i-flat")||30,gapf:v("i-gapf")||3,trays:{1:v("i-t1")||5,2:v("i-t2")||4,3:v("i-t3")||4}}}
+function header(){const d=DATA;$("h-title").textContent=$("i-fn").value||d?.title||"Furnace temperature review";
+  $("h-meta").innerHTML=d?`<span><b>${esc($("i-co").value||d.company)}</b></span><span>Date <b>${dstrY(d.recs[0].t)}</b></span><span>File <b>${esc(d.name)}</b></span>${$("i-part").value?`<span>Part <b>${esc($("i-part").value)}</b></span>`:""}<span>6 thermocouples · 3 zones</span>`:"";}
+function render(){
+  $("msg").hidden=true;
+  if(!DATA){$("report").innerHTML=`<section class="panel upload"><div class="eyebrow">Daily report</div><h2>Upload today's SCADA Excel export</h2><p>Choose the .xlsx file exported from SCADA, or drag it onto this page. The report is built in this browser and the file is not sent anywhere. Then click Download PDF and pick Save as PDF in the print dialog.</p><button class="btn" id="b-up2">Upload SCADA Excel…</button><span class="muted">or <a id="b-ex">open the example (29 Sep 2026)</a></span></section>`;
+    $("b-up2").onclick=()=>$("file").click();$("b-ex").onclick=()=>{DATA=loadExample();render()};$("b-copy").hidden=$("b-pdf").hidden=true;header();return}
+  try{R=analyse(DATA,getP())}catch(e){console.error(e);$("msg").hidden=false;$("msg").textContent="Analysis failed: "+e.message;return}
+  for(const k in HOVER)delete HOVER[k];
+  $("report").innerHTML=`<div style="display:flex;flex-direction:column;gap:18px">${verdictAndKpis(R)}${secLayout(R)}${secZones(R)}${secTrend(R)}${secHeat(R)}${secSpread(R)}${secExcursions(R)}${secStats(R)}${secFindings(R)}${secIntegrity(R)}</div>`;
+  $("b-copy").hidden=$("b-pdf").hidden=false;header();wireHover();}
+function wireHover(){const tip=$("tip");
+  document.querySelectorAll("rect.hit").forEach(h=>{const z=h.dataset.h,H=HOVER[z],svg=h.ownerSVGElement,cross=svg.querySelector(".cross");
+    const move=e=>{const bb=svg.getBoundingClientRect(),sx=1100/bb.width,x=(e.clientX-bb.left)*sx,{F}=H;
+      const tt=F.x0+(x-F.l)/F.pw*(F.x1-F.x0);let lo=0,hi=R.N-1;while(lo<hi){const m=(lo+hi)>>1;if(R.t[m]<tt)lo=m+1;else hi=m}
+      const i=lo>0&&Math.abs(R.t[lo-1]-tt)<Math.abs(R.t[lo]-tt)?lo-1:lo;
+      cross.setAttribute("x1",F.X(R.t[i]));cross.setAttribute("x2",F.X(R.t[i]));cross.style.display="";
+      tip.innerHTML=`<b>${hms(R.t[i])}</b>${H.set&&isN(H.set[i])?` · set ${H.set[i]} °C`:""}<br>`+H.series.map(s=>`<span class="sw" style="background:${s.col}"></span>${s.name}: <b>${isN(s.vals[i])?s.vals[i]+" °C":"invalid"}</b>`).join("<br>");
+      tip.style.display="block";const w=tip.offsetWidth;tip.style.left=Math.min(window.innerWidth-w-8,e.clientX+14)+window.scrollX+"px";tip.style.top=e.clientY+window.scrollY+14+"px";};
+    h.addEventListener("mousemove",move);h.addEventListener("mouseleave",()=>{tip.style.display="none";cross.style.display="none"});});}
+async function takeFile(f){if(!f)return;
+  try{DATA=loadWorkbook(await f.arrayBuffer(),f.name);render()}catch(e){console.error(e);$("msg").hidden=false;$("msg").textContent="Could not read "+f.name+": "+e.message}}
+function copyLog(){if(!R)return;const rows=[["#","Zone","Walls out","Direction","Start","End","Span","Time out","Extreme °C","Deviation","TC","Trays","Charged from","Charged to"]];
+  R.incidents.forEach(i=>rows.push([i.no,"Zone "+i.z,i.walls.map(tcS).join("+"),i.dir,hm(i.from),hm(i.to),dur(i.span),dur(i.out),i.ext.pv,sg(i.ext.d),tcS(i.ext.n),i.trays,fmtDT(R,i.cFrom),fmtDT(R,i.cTo)]));
+  const txt=rows.map(r=>r.join("\t")).join("\n"),ok=()=>{$("b-copy").textContent="Copied";setTimeout(()=>$("b-copy").textContent="Copy excursion log",1500)};
+  const fb=()=>{const a=document.createElement("textarea");a.value=txt;document.body.appendChild(a);a.select();try{document.execCommand("copy");ok()}catch(e){}a.remove()};
+  navigator.clipboard?.writeText(txt).then(ok,fb)||fb();}
+$("i-cls").innerHTML=CLASSES.map((c,i)=>`<option value="${i}">${c[0]}</option>`).join("");$("i-cls").value=3;
+const syncTol=()=>{const c=CLASSES[+$("i-cls").value];if(c[1]!==null)$("i-tol").value=c[1];$("i-tol").disabled=c[1]!==null};
+$("i-cls").onchange=()=>{syncTol();render()};syncTol();
+document.querySelectorAll("#settings input").forEach(i=>i.addEventListener("change",()=>{
+  if(i.id==="i-fn"||i.id==="i-co"||i.id==="i-part"){header();return}render()}));
+$("b-up").onclick=()=>$("file").click();$("file").onchange=e=>{takeFile(e.target.files[0]);e.target.value=""};
+$("b-pdf").onclick=()=>window.print();$("b-copy").onclick=copyLog;
+let dc=0;addEventListener("dragenter",e=>{e.preventDefault();dc++;document.body.classList.add("dragging")});
+addEventListener("dragleave",()=>{dc=Math.max(0,dc-1);if(!dc)document.body.classList.remove("dragging")});
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("drop",e=>{e.preventDefault();dc=0;document.body.classList.remove("dragging");takeFile(e.dataTransfer.files[0])});
+render();
 </script></body></html>
