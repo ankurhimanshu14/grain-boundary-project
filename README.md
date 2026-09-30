@@ -19,3 +19,6 @@ Report tab → **Download** the HTML and print (Ctrl+P, "Save as PDF" if needed)
 - Verdict NON-CONFORMING / CONFORMING WITH OBSERVATIONS / CONFORMING.
 
 Defaults (Class 5 ±14 °C, 60 min settling, 100 % in band, L−R and spread limits = 2×tolerance) are adjustable in the sidebar — **confirm against your process table / customer requirement**. SCADA PVs do not replace SAT/TUS with calibrated instruments.
+
+## Standalone version (no Python needed)
+`furnace_analyzer.html` is a single offline file (Excel reader inlined). Double-click it, drop the SCADA `.xlsx` on the page, adjust criteria, then **Print report** or **Download report (HTML)**. Rebuild after editing with `python standalone/build.py` (edits go in `standalone/src.html`).
