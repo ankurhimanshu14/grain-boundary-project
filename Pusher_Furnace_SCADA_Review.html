@@ -247,7 +247,6 @@ table.stat th:first-child{text-align:left}
     <div class="controls">
       <div class="field"><label for="tol">Tolerance ± °C</label><input id="tol" type="number" min="1" step="1"></div>
       <div class="field"><label for="merge">Merge dips less than, min apart</label><input id="merge" type="number" min="0" step="1"></div>
-      <div class="field"><label for="push">Push interval, min</label><input id="push" type="number" min="1" step="1"></div>
       <div class="field"><label for="trays1">Tray positions, Zone 1</label><input id="trays1" type="number" min="1" step="1"></div>
       <div class="field"><label for="trays2">Tray positions, Zone 2</label><input id="trays2" type="number" min="1" step="1"></div>
       <div class="field"><label for="trays3">Tray positions, Zone 3</label><input id="trays3" type="number" min="1" step="1"></div>
@@ -280,7 +279,7 @@ const MINSTAT = 10; /* min readings at one set value before it is analysed or li
 /* Valid measuring range: readings outside 500-1000 °C are treated as invalid, excluded from every statistic and never plotted. */
 const TMIN = 500, TMAX = 1000;
 const inRange = v => v!=null && v>=TMIN && v<=TMAX;
-const DEF = {tol:10, merge:10, push:30, trays1:5, trays2:4, trays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
+const DEF = {tol:10, merge:10, trays1:5, trays2:4, trays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
 const S = {...DEF};
 try{ Object.assign(S, JSON.parse(localStorage.getItem("pfsr-settings")||"{}")); }catch(e){}
 const IDS = Object.keys(DEF);
@@ -492,22 +491,19 @@ function analyze(D){
     e.min=(e.tEnd-e.tStart+step)/60000;
     e.outMin=e.count*step/60000;
     e.scope=e.walls.size>1?"Both walls":(e.walls.has(e.z*2)?"Left wall only":"Right wall only");
-    // one continuous chamber: a tray charged at T sits in position p during [T+(p-1)P, T+pP)
-    const P=S.push*60000, a=posStart(e.z), b=a+traysIn(e.z)-1;
-    e.chFrom=e.tStart-b*P; e.chTo=e.tEnd+step-(a-1)*P;
-    e.trays=Math.max(1,Math.round((e.chTo-e.chFrom)/P));
-    e.dsFrom=e.chFrom+totalPos()*P; e.dsTo=e.chTo+totalPos()*P;
+    // window in which product sitting in this zone is exposed to the out-of-tolerance temperature
+    e.winFrom=e.tStart; e.winTo=e.tEnd+step; e.posFrom=posStart(e.z); e.posTo=posStart(e.z)+traysIn(e.z)-1;
   });
   events.sort((a,b)=>a.tStart-b.tStart);
   events.forEach((e,i)=>e.no=i+1);
-  // suspect production: union of the charge windows of all incidents
-  const batches=[];
-  [...events].sort((a,b)=>a.chFrom-b.chFrom).forEach(e=>{
-    const last=batches[batches.length-1];
-    if(last&&e.chFrom<=last.to){ last.to=Math.max(last.to,e.chTo); last.zones.add(e.z); last.inc.push(e.no); }
-    else batches.push({from:e.chFrom,to:e.chTo,zones:new Set([e.z]),inc:[e.no]});
+  // affected product windows: union of the exposure windows of all incidents (any zone)
+  const windows=[];
+  [...events].sort((a,b)=>a.winFrom-b.winFrom).forEach(e=>{
+    const last=windows[windows.length-1];
+    if(last&&e.winFrom<=last.to){ last.to=Math.max(last.to,e.winTo); last.zones.add(e.z); last.inc.push(e.no); }
+    else windows.push({from:e.winFrom,to:e.winTo,zones:new Set([e.z]),inc:[e.no]});
   });
-  batches.forEach(b=>{ b.trays=Math.max(1,Math.round((b.to-b.from)/(S.push*60000))); b.dsFrom=b.from+totalPos()*S.push*60000; b.dsTo=b.to+totalPos()*S.push*60000; });
+  windows.forEach((w,i)=>{ w.no="W"+(i+1); w.min=(w.to-w.from)/60000; });
 
   // zones
   const zones=[];
@@ -530,7 +526,7 @@ function analyze(D){
   let worst=null; tcs.forEach(t=>{ [[t.dmin,t.tmin,t.min],[t.dmax,t.tmax,t.max]].forEach(([d,tt,v])=>{ if(d!=null&&(!worst||Math.abs(d)>Math.abs(worst.d))) worst={d,t:tt,v,k:t.k}; }); });
 
   const trans=tcs.flatMap(t=>t.trans).sort((a,b)=>a.t-b.t||a.k-b.k), settlingTotal=tcs.reduce((a,t)=>a+t.settling,0);
-  const A={tol,step,t0,t1,N,expected,gaps,tcs,trans,settlingTotal,setLevels,setSegs:segs,multiSet,events,batches,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
+  const A={tol,step,t0,t1,N,expected,gaps,tcs,trans,settlingTotal,setLevels,setSegs:segs,multiSet,events,windows,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
   A.stats=statistics(D,A);
   A.pareto=pareto(D,A);
   A.priority=priorityList(D,A,A.pareto);
@@ -764,7 +760,7 @@ function observations(D,A){
     const perZone=A.zones.map(z=>{ const ev=A.events.filter(e=>e.z===z.z); return ev.length?`Zone ${z.z+1}: ${ev.length} (${dur(ev.reduce((a,e)=>a+e.outMin,0))} out)`:null; }).filter(Boolean).join(" · ");
     O.push({lvl:"crit",tag:"Excursion",title:`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C`,
       detail:`${perZone}. Longest: Zone ${longest.z+1} from ${fmtDT(longest.tStart)} to ${fmtDT(longest.tEnd)} (${dur(longest.min)}), extreme ${f0(longest.worstV)} °C on ${tcName(longest.worstK)}.`,
-      action:`Start the reaction plan. Use the “Suspect production” table to find the trays by charge or discharge time, place them on hold as suspect product, and release only after hardness/microstructure verification. Record cause, disposition and corrective action on the nonconformance record.`});
+      action:`Start the reaction plan. Use the “Product affected: time windows” table to find the trays that were inside the listed zones during those windows, place them on hold as suspect product, and release only after hardness/microstructure verification. Record cause, disposition and corrective action on the nonconformance record.`});
   }
   A.tcs.forEach(t=>{
     const b=t.devMean;
@@ -787,7 +783,7 @@ function observations(D,A){
     const both=z1.ev.filter(e=>e.scope==="Both walls").length, one=z1.ev.length-both;
     O.push({lvl:"info",tag:"Load effect",title:`Zone 1 is the charge end: ${both} of ${z1.ev.length} Zone 1 excursion${z1.ev.length>1?"s":""} involved both walls`,
       detail:`Cold trays entering at each push pull Zone 1 down. Dips on both walls at once point to heat demand from the load; dips on one wall only (${one} here) point to that wall's burner or thermocouple.`,
-      action:`Compare the dip timing with the push log. If dips track pushes, review heat input and recovery time in Zone 1 against the ${S.push}-minute push interval.`});
+      action:`Compare the dip timing with the push log. If dips track pushes, review heat input and recovery time in Zone 1.`});
   }
   if(A.gaps.length){
     const m=A.gaps.reduce((a,g)=>a+g.min,0);
@@ -860,7 +856,7 @@ function render(D,A,O){
     <div class="kpi"><span class="eyebrow">Max wall difference</span><span class="v num ${maxDiff&&Math.abs(maxDiff.diffMax)>tol?"caution":""}">${maxDiff?f1(Math.abs(maxDiff.diffMax)):"–"}<small> °C</small></span><span class="s">${maxDiff?`Zone ${maxDiff.z+1} at ${fmtDT(maxDiff.diffT)}`:""}</span></div>
   </section>
 
-  <div class="settings-line">Settings used: tolerance ±${tol} °C · push interval ${S.push} min · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber, ≈ ${dur(totalPos()*S.push)} from charge to discharge) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) · valid range 500–1000 °C · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C"} · report generated ${esc(nowStamp())}</div>
+  <div class="settings-line">Settings used: tolerance ±${tol} °C · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) · valid range 500–1000 °C · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C"} · report generated ${esc(nowStamp())}</div>
 
   <section class="panel layout">
     <div class="sec-head"><h2>Furnace layout and thermocouple status</h2><p>One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.</p></div>
@@ -894,12 +890,12 @@ function render(D,A,O){
   </div>
 
   <section class="panel pb">
-    <div class="sec-head"><h2>Excursion log</h2><p>One row per zone incident: either wall beyond ±${tol} °C, with dips less than ${S.merge} min apart merged (min. ${S.persist} reading${S.persist>1?"s":""} out). “Trays” counts every tray that sat in that zone's positions at any time during the incident.</p></div>
+    <div class="sec-head"><h2>Excursion log</h2><p>One row per zone incident: either wall beyond ±${tol} °C, with dips less than ${S.merge} min apart merged (min. ${S.persist} reading${S.persist>1?"s":""} out). Start to End is the window in which trays inside that zone (positions shown) are affected by the out-of-tolerance temperature.</p></div>
     ${excursionTable(A)}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Suspect production for traceability</h2><p>Overlapping incidents combined into charge-time windows. Use the charge times against the loading register, or the discharge times at the quench end, to find the trays to hold. Times are approximate to one push (${S.push} min) because the SCADA file does not record push events.</p></div>
+    <div class="sec-head"><h2>Product affected: time windows</h2><p>Overlapping incidents combined into time windows. Any tray that was inside a listed zone at any moment of a window was exposed to out-of-tolerance temperature. Use the loading register (time each tray entered and left the zone) to find the trays to hold.</p></div>
     ${traceTable(A)}
   </section>
   ${statSection(A)}
@@ -924,7 +920,7 @@ function render(D,A,O){
     <b>How the numbers are worked out</b>
     <ul>
       <li>Thermocouple layout: TC-1/TC-2 = Zone 1 left/right wall, TC-3/TC-4 = Zone 2, TC-5/TC-6 = Zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
-      <li>The furnace is one continuous chamber of ${totalPos()} tray positions (Zone 1: positions 1–${traysIn(0)}${A.zones.slice(1).map(z=>`, Zone ${z.z+1}: ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}`).join("")}). A tray charged at time T is in position p from T + (p−1)×push to T + p×push and is discharged at T + ${totalPos()}×push. Because there is no partition, a disturbance in one zone also affects its neighbours; the zone split is for control and traceability.</li>
+      <li>The furnace is one continuous chamber of ${totalPos()} tray positions (Zone 1: positions 1–${traysIn(0)}${A.zones.slice(1).map(z=>`, Zone ${z.z+1}: ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}`).join("")}). Trays inside a zone while it is out of tolerance are the affected trays; the analysis reports these time windows and uses no push timing. Because there is no partition, a disturbance in one zone also affects its neighbours; the zone split is for control and traceability.</li>
       <li>A zone excursion starts when either wall of a zone reads outside setpoint ±${tol} °C and ends when both walls have stayed inside for more than ${S.merge} min. “Span” is start to end; “Time out” counts only the minutes actually outside the window.</li>
       <li>Capability: USL/LSL = set value ±${tol} °C. When the set value changes during the record, every statistic, histogram and control chart is calculated separately for each set value (readings with fewer than ${MINSTAT} points at a set value are not analysed). Cp = (USL − LSL) / 6σ<sub>within</sub>, Cpk = min(USL − mean, mean − LSL) / 3σ<sub>within</sub>, with σ<sub>within</sub> = average moving range / 1.128. Pp and Ppk use the overall standard deviation instead. Wall difference = |left − right| for simultaneous readings.</li>
       <li>After a set value change a thermocouple is not judged until it is back within ±${tol} °C of the new set value for ${S.hold} readings in a row, or ${S.settle} min have passed. The furnace needs this time to follow; the response time is reported separately under “Response to set value changes”.</li>
@@ -984,12 +980,12 @@ function pareto(D,A){
 const PR={P0:{lvl:"crit",when:"Today, before dispatch"},A:{lvl:"crit",when:"Start today"},B:{lvl:"warn",when:"This week"},C:{lvl:"info",when:"Next planned stop / monitor"}};
 const prChip=p=>chip(PR[p].lvl,p==="P0"?"P0 contain":p);
 function priorityList(D,A,PA){
-  const tol=A.tol, rows=[], trays=A.batches.reduce((a,b)=>a+b.trays,0), hrs=(A.t1-A.t0)/36e5;
-  if(A.batches.length){
-    rows.push({pr:"P0",issue:`≈ ${trays} trays exposed to out-of-tolerance temperature (charged ${A.batches.map(b=>fmtW(b.from)+" → "+fmtW(b.to)).join("; ")})`,impact:"Risk of hardness / microstructure outside specification reaching the customer",
-      cause:"Consequence of the excursions below",action:"Hold the batch, verify samples, decide release / re-heat-treat / scrap, raise the nonconformance record",owner:"Quality Manager, with HT Manager",when:PR.P0.when});
-    rows.push({pr:"P0",issue:"Parts in the suspect batch are unavailable until released",impact:"Possible delay to downstream supply and customer deliveries",cause:"Containment",
-      action:"Identify production lots in the suspect charge window; plan buffer stock or re-heat-treat capacity",owner:"Production Manager",when:"Today's production meeting"});
+  const tol=A.tol, rows=[], hrs=(A.t1-A.t0)/36e5;
+  if(A.windows.length){
+    rows.push({pr:"P0",issue:`Trays in the furnace during ${A.windows.length} time window${A.windows.length>1?"s":""} were exposed to out-of-tolerance temperature (${A.windows.map(w=>fmtW(w.from)+" → "+fmtW(w.to)).join("; ")})`,impact:"Risk of hardness / microstructure outside specification reaching the customer",
+      cause:"Consequence of the excursions below",action:"Hold the affected trays, verify samples, decide release / re-heat-treat / scrap, raise the nonconformance record",owner:"Quality Manager, with HT Manager",when:PR.P0.when});
+    rows.push({pr:"P0",issue:"Parts that were in the affected zones during these windows are unavailable until released",impact:"Possible delay to downstream supply and customer deliveries",cause:"Containment",
+      action:"Identify production lots that were in the affected zones during the windows; plan buffer stock or re-heat-treat capacity",owner:"Production Manager",when:"Today's production meeting"});
   }
   PA.items.forEach(it=>rows.push({pr:it.pr,issue:it.label,impact:`${f1(it.share)} % of exposure (cumulative ${f0(it.cum)} %) · ${f0(it.dm)} °C·min · ${dur(it.min)} out`,cause:it.cause,action:it.action,owner:it.owner,when:PR[it.pr].when,share:it.share,cum:it.cum,dm:it.dm,min:it.min}));
   const ranked=new Set(PA.items.filter(i=>i.k!=null).map(i=>i.k));
@@ -1044,12 +1040,12 @@ function mgmtSection(D,A,O){
   const tol=A.tol, P=A.stats.per, date=MULTI?fmtD(A.t0)+" – "+fmtD(A.t1):fmtD(A.t0);
   const furn=((D.meta.find(m=>/furnace/i.test(m))||"Furnace").match(/furnace[-\s]*\d+/i)||["Furnace"])[0].replace(/\s+/g,"-").toUpperCase();
   const crit=O.filter(o=>o.lvl==="crit").length, warn=O.filter(o=>o.lvl==="warn").length, vl=crit?"crit":warn?"warn":"good";
-  const trays=A.batches.reduce((a,b)=>a+b.trays,0);
+  const winMin=A.windows.reduce((a,w)=>a+w.min,0);
   const capable=A.tcs.filter(tc=>{ const es=P.filter(s=>s.k===tc.k); return es.length&&es.every(s=>s.ppk!=null&&s.ppk>=1.33); }).length;
   const outMin=A.events.reduce((a,e)=>a+e.outMin,0);
   const hrs=(A.t1-A.t0)/36e5, dips=chamberDips(D,A);
   const bottom=vl==="crit"
-    ? `${furn} did not hold its temperature window on ${date}. ${f1(A.inTolPct)} % of readings were within setpoint ±${tol} °C; about ${trays} tray${trays===1?"":"s"} must be held and verified before release.`
+    ? `${furn} did not hold its temperature window on ${date}. ${f1(A.inTolPct)} % of readings were within setpoint ±${tol} °C; trays that were in the furnace during the ${A.windows.length} affected time window${A.windows.length===1?"":"s"} (${dur(winMin)} in total) must be held and verified before release.`
     : vl==="warn" ? `${furn} held its temperature window on ${date}, but ${warn} item${warn>1?"s":""} need attention before they turn into product risk.`
     : `${furn} held setpoint ±${tol} °C on every thermocouple on ${date}. No product is at risk from furnace temperature.`;
 
@@ -1091,19 +1087,19 @@ function mgmtSection(D,A,O){
 
   // decisions
   const dec=[];
-  if(A.batches.length) dec.push(`Approve the containment and verification plan for ≈ ${trays} trays and the customer-notification decision (Quality Manager to recommend).`);
+  if(A.windows.length) dec.push(`Approve the containment and verification plan for the trays in the ${A.windows.length} affected time window${A.windows.length===1?"":"s"} and the customer-notification decision (Quality Manager to recommend).`);
   const bad=A.tcs.filter(t=>Math.abs(t.devMean)>tol||(t.cpk!=null&&t.cpk<1));
   if(bad.length>=2) dec.push(`Approve a short furnace stop for burner tuning and thermocouple checks on ${bad.map(t=>tcName(t.k)).join(", ")} (Maintenance Head to propose the window).`);
   const z1=A.tcs.slice(0,2).filter(t=>t.devMean<-tol);
-  if(z1.length) dec.push(`Decide whether to lengthen the push interval (currently ${S.push} min) until Zone 1 recovers, and accept the output loss (HT Manager to quantify).`);
+  if(z1.length) dec.push(`Decide whether to slow or pause charging until Zone 1 recovers, and accept the output loss (HT Manager to quantify).`);
   if(!dec.length) dec.push("No decisions required. Continue daily monitoring.");
 
   const roles=[
-    ["Director", vl==="crit"?`Temperature control failed on ${date}: ${f1(A.inTolPct)} % in tolerance, ≈ ${trays} trays on hold. ${dec.length>1||A.batches.length?"Decisions are needed on containment"+(bad.length>=2?" and a maintenance stop":"")+".":""}`:vl==="warn"?"Process held tolerance, with early-warning items being handled by the team.":"Process in control; no action needed.", "Approve the decisions listed above."],
+    ["Director", vl==="crit"?`Temperature control failed on ${date}: ${f1(A.inTolPct)} % in tolerance, product in ${A.windows.length} time window${A.windows.length===1?"":"s"} on hold. ${dec.length>1||A.windows.length?"Decisions are needed on containment"+(bad.length>=2?" and a maintenance stop":"")+".":""}`:vl==="warn"?"Process held tolerance, with early-warning items being handled by the team.":"Process in control; no action needed.", "Approve the decisions listed above."],
     ["Maintenance Head", (n=>n.length?`Owns or supports actions ${n.join(", ")} in the table above: thermocouples, burners, chamber-wide dips and SCADA records.`:"No equipment issues.")(acts.map((a,i)=>/Maintenance/.test(a.owner)?i+1:null).filter(Boolean)), acts.some(a=>/Maintenance/.test(a.owner))?"Own the burner, thermocouple and SCADA actions; propose the maintenance window.":"None."],
-    ["Production Manager", A.batches.length?`≈ ${trays} trays of parts are on hold (charged ${A.batches.map(b=>fmtW(b.from)+" → "+fmtW(b.to)).join("; ")}).`:"No parts are on hold.", A.batches.length?"Match production lots to the charge window; plan supply until release.":"None."],
+    ["Production Manager", A.windows.length?`Parts that were in the furnace during ${A.windows.map(w=>fmtW(w.from)+" → "+fmtW(w.to)).join("; ")} are on hold.`:"No parts are on hold.", A.windows.length?"Match production lots to these time windows; plan supply until release.":"None."],
     ["HT Manager", `${capable} of ${D.n} thermocouples capable (Ppk ≥ 1.33). ${A.events.length} zone incidents, ${dur(outMin)} out of window in total.`, A.events.length||bad.length?"Lead the furnace recovery and confirm the effect in the next daily reports.":"Continue daily review."],
-    ["Quality Manager", A.batches.length?`Suspect production: ${A.batches.length} batch${A.batches.length>1?"es":""}, ≈ ${trays} trays. Evidence for CQI-9 reaction plan required.`:"No suspect production.", A.batches.length?"Contain, verify, disposition, NC record; decide on customer notification.":"File the report."]
+    ["Quality Manager", A.windows.length?`Affected product: ${A.windows.length} time window${A.windows.length>1?"s":""}, ${dur(winMin)} in total. Evidence for CQI-9 reaction plan required.`:"No affected product.", A.windows.length?"Contain, verify, disposition, NC record; decide on customer notification.":"File the report."]
   ];
 
   const lvlWord={crit:"RED",warn:"AMBER",good:"GREEN"}[vl];
@@ -1118,7 +1114,7 @@ function mgmtSection(D,A,O){
     <div class="kpis mg-kpis">
       <div class="kpi"><span class="eyebrow">In tolerance</span><span class="v num ${A.inTolPct>=99?"ok":A.inTolPct>=95?"caution":"bad"}">${f1(A.inTolPct)}<small> %</small></span><span class="s">target ≥ 99 %</span></div>
       <div class="kpi"><span class="eyebrow">Zone incidents</span><span class="v num ${A.events.length?"bad":"ok"}">${A.events.length}</span><span class="s">${dur(outMin)} zone-time out of window</span></div>
-      <div class="kpi"><span class="eyebrow">Trays on hold</span><span class="v num ${trays?"bad":"ok"}">≈ ${trays}</span><span class="s">${A.batches.length} suspect batch${A.batches.length===1?"":"es"}</span></div>
+      <div class="kpi"><span class="eyebrow">Product windows affected</span><span class="v num ${A.windows.length?"bad":"ok"}">${A.windows.length}</span><span class="s">${A.windows.length?dur(winMin)+" in total":"none"}</span></div>
       <div class="kpi"><span class="eyebrow">Worst deviation</span><span class="v num ${A.worst&&Math.abs(A.worst.d)>tol?"bad":""}">${A.worst?sgn(A.worst.d):"–"}<small> °C</small></span><span class="s">${A.worst?`${tcName(A.worst.k)} at ${fmtDT(A.worst.t)}`:""}</span></div>
       <div class="kpi"><span class="eyebrow">Capable thermocouples</span><span class="v num ${capable===D.n?"ok":capable>=D.n/2?"caution":"bad"}">${capable}<small> of ${D.n}</small></span><span class="s">Ppk ≥ 1.33</span></div>
       <div class="kpi"><span class="eyebrow">Record coverage</span><span class="v num ${hrs<23.5&&!MULTI?"caution":""}">${f1(hrs)}<small> h</small></span><span class="s">${A.gaps.length} gap${A.gaps.length===1?"":"s"}</span></div>
@@ -1163,7 +1159,7 @@ function zoneCard(z,A){
   const row=(name,fn,cls)=>`<tr><td>${name}</td>${sides.map(t=>`<td class="${cls?cls(t):""}">${fn(t)}</td>`).join("")}</tr>`;
   return `<div class="zone">
     <div class="zone-h"><h3>Zone ${z.z+1}</h3>${chip(lvl,lbl)}</div>
-    <div class="muted" style="font-size:12.5px;margin-top:-6px">${RF.levels.length>1?`Set values <span class="num">${spTxt(RF.levels)}</span> · window ±<span class="num">${tol} °C</span> around each set value`:`Setpoint <span class="num">${f0(RF.sp)} °C</span> · window <span class="num">${f0(RF.sp-tol)}–${f0(RF.sp+tol)} °C</span>`}<br>Tray positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1} (${traysIn(z.z)} trays) · ≈ <span class="num">${dur(traysIn(z.z)*S.push)}</span> per tray in this zone</div>
+    <div class="muted" style="font-size:12.5px;margin-top:-6px">${RF.levels.length>1?`Set values <span class="num">${spTxt(RF.levels)}</span> · window ±<span class="num">${tol} °C</span> around each set value`:`Setpoint <span class="num">${f0(RF.sp)} °C</span> · window <span class="num">${f0(RF.sp-tol)}–${f0(RF.sp+tol)} °C</span>`}<br>Tray positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1} (${traysIn(z.z)} trays)</div>
     <table>
       <thead><tr><th></th><th><span class="sw" style="background:var(--s1)"></span>${tcName(z.L)} left</th>${R?`<th><span class="sw" style="background:var(--s2)"></span>${tcName(z.R)} right</th>`:""}</tr></thead>
       <tbody>
@@ -1238,14 +1234,15 @@ function responseSection(A){
 }
 function excursionTable(A){
   if(!A.events.length) return `<div class="empty">No excursions: every reading stayed within setpoint ±${A.tol} °C${S.persist>1?` (or lasted fewer than ${S.persist} readings)`:""}.</div>`;
-  return `<div class="scroll"><table class="log"><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays</th><th>Those trays charged</th></tr></thead><tbody>${
-    A.events.map(e=>`<tr><td class="n">${e.no}</td><td><b>Zone ${e.z+1}</b></td><td>${e.scope} <span class="muted">${[...e.walls].sort().map(tcName).join(", ")}</span></td><td>${e.low&&e.high?"Low & high":e.low?"Low":"High"}</td><td class="n">${fmtDT(e.tStart)}</td><td class="n">${fmtDT(e.tEnd)}</td><td class="n">${dur(e.min)}</td><td class="n">${dur(e.outMin)}</td><td class="n bad">${f0(e.worstV)} °C (${sgn(e.worst)}) <span class="muted">${tcName(e.worstK)}${A.multiSet?` · set ${f0(e.worstV-e.worst)}`:""}</span></td><td class="n">≈ ${e.trays}</td><td class="n">${fmtW(e.chFrom)} → ${fmtW(e.chTo)}</td></tr>`).join("")
+  return `<div class="scroll"><table class="log"><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${
+    A.events.map(e=>`<tr><td class="n">${e.no}</td><td><b>Zone ${e.z+1}</b></td><td>${e.scope} <span class="muted">${[...e.walls].sort().map(tcName).join(", ")}</span></td><td>${e.low&&e.high?"Low & high":e.low?"Low":"High"}</td><td class="n">${fmtDT(e.tStart)}</td><td class="n">${fmtDT(e.tEnd)}</td><td class="n">${dur(e.min)}</td><td class="n">${dur(e.outMin)}</td><td class="n bad">${f0(e.worstV)} °C (${sgn(e.worst)}) <span class="muted">${tcName(e.worstK)}${A.multiSet?` · set ${f0(e.worstV-e.worst)}`:""}</span></td><td>Zone ${e.z+1} <span class="muted">positions ${e.posFrom}–${e.posTo}</span></td></tr>`).join("")
   }</tbody></table></div>`;
 }
 function traceTable(A){
-  if(!A.batches.length) return `<div class="empty">No suspect production: no zone left the ±${A.tol} °C window.</div>`;
-  return `<div class="scroll"><table class="log"><thead><tr><th>Batch</th><th>Charged from</th><th>Charged to</th><th>Discharged from</th><th>Discharged to</th><th>Trays ≈</th><th>Zones</th><th>Incidents</th><th>Disposition</th></tr></thead><tbody>${
-    A.batches.map((b,i)=>`<tr><td class="n"><b>S${i+1}</b></td><td class="n">${fmtW(b.from)}</td><td class="n">${fmtW(b.to)}</td><td class="n">${fmtW(b.dsFrom)}</td><td class="n">${fmtW(b.dsTo)}</td><td class="n">${b.trays}</td><td>${[...b.zones].sort().map(z=>"Z"+(z+1)).join(", ")}</td><td class="n">${b.inc.length>6?b.inc.slice(0,6).join(", ")+" … ("+b.inc.length+")":b.inc.join(", ")}</td><td style="border-bottom:1px solid var(--line)"></td></tr>`).join("")
+  if(!A.windows.length) return `<div class="empty">No product affected: no zone left the ±${A.tol} °C window.</div>`;
+  const zt=w=>[...w.zones].sort().map(z=>`Zone ${z+1} <span class="muted">pos. ${posStart(z)}–${posStart(z)+traysIn(z)-1}</span>`).join("<br>");
+  return `<div class="scroll"><table class="log"><thead><tr><th>Window</th><th>From</th><th>To</th><th>Duration</th><th>Zones and tray positions affected</th><th>Incidents</th><th>Disposition</th></tr></thead><tbody>${
+    A.windows.map(w=>`<tr><td class="n"><b>${w.no}</b></td><td class="n">${fmtW(w.from)}</td><td class="n">${fmtW(w.to)}</td><td class="n">${dur(w.min)}</td><td>${zt(w)}</td><td class="n">${w.inc.length>6?w.inc.slice(0,6).join(", ")+" … ("+w.inc.length+")":w.inc.join(", ")}</td><td style="border-bottom:1px solid var(--line)"></td></tr>`).join("")
   }</tbody></table></div>`;
 }
 function fmtW(ms){ return (Math.floor(ms/864e5)!==T0DAY?fmtD(ms).slice(0,6)+" ":"")+fmtT(ms); }
@@ -1261,7 +1258,7 @@ function layoutSVG(A){
   A.zones.forEach(z=>{
     const a=posStart(z.z)-1, n=traysIn(z.z), xa=x0+a*sw, xb=xa+n*sw, xm=(xa+xb)/2;
     if(z.z>0) s+=`<line x1="${xa}" x2="${xa}" y1="${top-6}" y2="${bot+6}" stroke="var(--ink2)" stroke-width="1" stroke-dasharray="4 4"/>`;
-    s+=`<text x="${xm}" y="14" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">Zone ${z.z+1}</text><text x="${xm}" y="31" text-anchor="middle" font-size="11" fill="var(--muted)">positions ${a+1}–${a+n} · ${dur(n*S.push)}</text>`;
+    s+=`<text x="${xm}" y="14" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ink)">Zone ${z.z+1}</text><text x="${xm}" y="31" text-anchor="middle" font-size="11" fill="var(--muted)">positions ${a+1}–${a+n}</text>`;
     [[z.L,top,-1],[z.R,bot,1]].forEach(([k,y,dir])=>{
       if(k==null||!A.tcs[k]) return; const t=A.tcs[k], sv=st(t);
       s+=`<g><title>${tcName(k)} ${tcLoc(k)}: mean ${f1(t.mean)} °C (${sgn(t.devMean)}), ${f1(t.inTolPct)} % in tolerance</title><circle cx="${xm}" cy="${y}" r="8" fill="${colr[sv]}" stroke="var(--surface)" stroke-width="2"/>`;
@@ -1395,8 +1392,8 @@ addEventListener("drop",e=>{ e.preventDefault(); dragN=0; document.body.classLis
 
 $("#copyBtn").addEventListener("click",()=>{
   const A=window.__A; if(!A) return;
-  const head=["#","Zone","Walls out","TCs","Direction","Start","End","Span (min)","Time out (min)","Extreme °C","Deviation °C","Extreme on","Trays exposed","Suspect from"];
-  const lines=[head.join("\t")].concat(A.events.map((e,i)=>[i+1,"Zone "+(e.z+1),e.scope,[...e.walls].sort().map(tcName).join(" "),e.low&&e.high?"Low & high":e.low?"Low":"High",fmtDT(e.tStart),fmtDT(e.tEnd),Math.round(e.min),Math.round(e.outMin),f0(e.worstV),f1(e.worst),tcName(e.worstK),e.trays,fmtDT(e.winFrom)].join("\t")));
+  const head=["#","Zone","Walls out","TCs","Direction","Start","End","Span (min)","Time out (min)","Extreme °C","Deviation °C","Extreme on","Trays affected (positions)","Window from","Window to"];
+  const lines=[head.join("\t")].concat(A.events.map((e,i)=>[i+1,"Zone "+(e.z+1),e.scope,[...e.walls].sort().map(tcName).join(" "),e.low&&e.high?"Low & high":e.low?"Low":"High",fmtDT(e.tStart),fmtDT(e.tEnd),Math.round(e.min),Math.round(e.outMin),f0(e.worstV),f1(e.worst),tcName(e.worstK),"Zone "+(e.z+1)+" pos. "+e.posFrom+"-"+e.posTo,fmtDT(e.winFrom),fmtDT(e.winTo)].join("\t")));
   const txt=lines.join("\n"), b=$("#copyBtn");
   const done=m=>{ b.textContent=m; setTimeout(()=>b.textContent="Copy excursion log",1800); };
   try{ navigator.clipboard.writeText(txt).then(()=>done(A.events.length?"Copied – paste into Excel":"Copied (no events)"),()=>done("Copy blocked by browser")); }catch(e){ done("Copy blocked by browser"); }
