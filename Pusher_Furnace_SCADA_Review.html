@@ -310,6 +310,21 @@ const f0=x=>x==null||!isFinite(x)?"–":String(Math.round(x));
 const sgn=(x,d=1)=>x==null||!isFinite(x)?"–":Math.abs(x)<0.5*10**-d?(0).toFixed(d):(x>0?"+":"−")+Math.abs(x).toFixed(d);
 const dur=min=>{min=Math.round(min);return min<60?min+" min":Math.floor(min/60)+" h "+pad(min%60)+" min";};
 const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+/* Process rules, from the heading of the chart and the set value in force:
+   HARDENING furnace: set > 800 °C = austenitizing/hardening (Zone 1 is the preheating zone: its trays are not counted as affected);
+                      set <= 800 °C = preheating (trays are not counted as affected in any zone).
+   TEMPERING furnace: set > 800 °C = austenitizing, set <= 800 °C = tempering (trays counted as affected in every zone).
+   Variation in the thermocouple readings is always reported. */
+let FTYPE="";
+const HI_SET=800;
+const detectFurnace=meta=>{ const t=(meta||[]).join(" "); return /harden/i.test(t)?"hardening":/temp[e]?r/i.test(t)?"tempering":""; };
+const procAt=sp=>sp==null?"":FTYPE==="hardening"?(sp>HI_SET?"Austenitizing / hardening":"Preheating"):FTYPE==="tempering"?(sp>HI_SET?"Austenitizing":"Tempering"):"";
+const affects=(z,sp)=>FTYPE==="hardening"?(sp>HI_SET&&z!==0):true;
+const ignoreWhy=(z,sp)=>FTYPE==="hardening"&&!affects(z,sp)?(sp>HI_SET?"Zone 1 is the preheating zone":"preheating (set value ≤ "+HI_SET+" °C)"):"";
+const procTxt=levels=>{ const o=[]; levels.forEach(l=>{ const p=procAt(l.sp); if(p&&o[o.length-1]!==p) o.push(p); }); return o.join(" → "); };
+const ruleText=()=>FTYPE==="hardening"?`Hardening furnace: above ${HI_SET} °C the process is austenitizing / hardening and trays in Zone 1 (the preheating zone) are not counted as affected; at ${HI_SET} °C or below the process is preheating and trays are not counted as affected in any zone. Variation in the thermocouple readings is reported in every case.`
+  :FTYPE==="tempering"?`Tempering furnace: above ${HI_SET} °C the process is austenitizing, at ${HI_SET} °C or below it is tempering. Trays are counted as affected in every zone.`
+  :`Furnace type not recognised from the chart heading (expected “hardening furnace” or “tempering furnace”): trays are counted as affected in every zone.`;
 const spTxt=levels=>levels.map(o=>f0(o.sp)).join(" → ")+" °C"; /* e.g. 735 → 940 °C */
 const hmr=(a,b)=>fmtT(a)+"–"+fmtT(b);
 const chip=(lvl,txt)=>`<span class="chip ${lvl}"><i>${{good:"✓",warn:"!",crit:"✕",info:"i"}[lvl]}</i>${esc(txt)}</span>`;
@@ -466,6 +481,7 @@ function analyze(D){
   const segs=setSegs.filter(g=>g.n>=MINSTAT || setSegs.length===1);
   const multiSet=setLevels.length>1;
   // excursion events: per zone, out-of-window readings on either wall, merged across short recoveries
+  FTYPE=detectFurnace(D.meta);
   const events=[], bridge=S.merge*60000;
   for(let z=0;z*2<n;z++){
     const ks=[z*2,z*2+1].filter(k=>k<n);
@@ -478,8 +494,10 @@ function analyze(D){
         const d=v-sp; if(Math.abs(d)<=tol) return;
         out=true;
         if(cur&&r.t-cur.tEnd>bridge) close();
-        if(!cur) cur={z,tStart:r.t,tEnd:r.t,count:0,walls:new Set(),worst:d,worstV:v,worstT:r.t,worstK:k,low:false,high:false,_t:null};
+        if(!cur) cur={z,tStart:r.t,tEnd:r.t,count:0,walls:new Set(),worst:d,worstV:v,worstT:r.t,worstK:k,low:false,high:false,_t:null,procs:new Set(),why:new Set(),affFrom:null,affTo:null};
         cur.walls.add(k); if(d<0)cur.low=true; else cur.high=true;
+        const pr=procAt(sp); if(pr) cur.procs.add(pr);
+        if(affects(z,sp)){ if(cur.affFrom==null) cur.affFrom=r.t; cur.affTo=r.t; } else cur.why.add(ignoreWhy(z,sp));
         if(Math.abs(d)>Math.abs(cur.worst)){cur.worst=d;cur.worstV=v;cur.worstT=r.t;cur.worstK=k;}
       });
       if(out){ cur.tEnd=r.t; if(cur._t!==r.t){cur.count++;cur._t=r.t;} }
@@ -492,13 +510,14 @@ function analyze(D){
     e.outMin=e.count*step/60000;
     e.scope=e.walls.size>1?"Both walls":(e.walls.has(e.z*2)?"Left wall only":"Right wall only");
     // window in which product sitting in this zone is exposed to the out-of-tolerance temperature
-    e.winFrom=e.tStart; e.winTo=e.tEnd+step; e.posFrom=posStart(e.z); e.posTo=posStart(e.z)+traysIn(e.z)-1;
+    e.aff=e.affFrom!=null; e.proc=[...e.procs].join(" / "); e.whyTxt=[...e.why].join("; ");
+    e.winFrom=e.aff?e.affFrom:null; e.winTo=e.aff?e.affTo+step:null; e.posFrom=posStart(e.z); e.posTo=posStart(e.z)+traysIn(e.z)-1;
   });
   events.sort((a,b)=>a.tStart-b.tStart);
   events.forEach((e,i)=>e.no=i+1);
   // affected product windows: union of the exposure windows of all incidents (any zone)
   const windows=[];
-  [...events].sort((a,b)=>a.winFrom-b.winFrom).forEach(e=>{
+  events.filter(e=>e.aff).sort((a,b)=>a.winFrom-b.winFrom).forEach(e=>{
     const last=windows[windows.length-1];
     if(last&&e.winFrom<=last.to){ last.to=Math.max(last.to,e.winTo); last.zones.add(e.z); last.inc.push(e.no); }
     else windows.push({from:e.winFrom,to:e.winTo,zones:new Set([e.z]),inc:[e.no]});
@@ -675,7 +694,7 @@ function statSection(A){
   </table>`;
     return {desc,cap,spc};
   };
-  const gh=g=>multi?`<h3 class="setgrp" style="margin:18px 0 8px;padding:6px 10px;background:var(--surface2);border-left:4px solid var(--accent);border-radius:3px">Set value ${f0(g.sp)} °C <span class="muted" style="font-weight:400">· limits ${f0(g.sp-tol)}–${f0(g.sp+tol)} °C · ${g.n.toLocaleString()} readings · ${hmr(g.first,g.last)}</span></h3>`:"";
+  const gh=g=>multi?`<h3 class="setgrp" style="margin:18px 0 8px;padding:6px 10px;background:var(--surface2);border-left:4px solid var(--accent);border-radius:3px">Set value ${f0(g.sp)} °C${procAt(g.sp)?" · "+procAt(g.sp):""} <span class="muted" style="font-weight:400">· limits ${f0(g.sp-tol)}–${f0(g.sp+tol)} °C · ${g.n.toLocaleString()} readings · ${hmr(g.first,g.last)}</span></h3>`:"";
   const blocks=G.map(g=>{ const T=tables(g.per); return `${gh(g)}<div class="stat-grid">
       <div><h3>Descriptive statistics</h3><div class="scroll">${T.desc}</div></div>
       <div><h3>Process capability</h3><div class="scroll">${T.cap}</div>
@@ -758,10 +777,15 @@ function observations(D,A){
   if(A.events.length){
     const longest=A.events.reduce((a,e)=>e.min>a.min?e:a);
     const perZone=A.zones.map(z=>{ const ev=A.events.filter(e=>e.z===z.z); return ev.length?`Zone ${z.z+1}: ${ev.length} (${dur(ev.reduce((a,e)=>a+e.outMin,0))} out)`:null; }).filter(Boolean).join(" · ");
-    O.push({lvl:"crit",tag:"Excursion",title:`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C`,
-      detail:`${perZone}. Longest: Zone ${longest.z+1} from ${fmtDT(longest.tStart)} to ${fmtDT(longest.tEnd)} (${dur(longest.min)}), extreme ${f0(longest.worstV)} °C on ${tcName(longest.worstK)}.`,
+    const nAff=A.events.filter(e=>e.aff).length;
+    if(nAff) O.push({lvl:"crit",tag:"Excursion",title:`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C, ${nAff} while trays were affected`,
+      detail:`${perZone}. Longest: Zone ${longest.z+1} from ${fmtDT(longest.tStart)} to ${fmtDT(longest.tEnd)} (${dur(longest.min)}), extreme ${f0(longest.worstV)} °C on ${tcName(longest.worstK)}.${nAff<A.events.length?` The other ${A.events.length-nAff} did not affect trays (${[...new Set(A.events.filter(e=>!e.aff).map(e=>e.whyTxt))].join("; ")}).`:""}`,
       action:`Start the reaction plan. Use the “Product affected: time windows” table to find the trays that were inside the listed zones during those windows, place them on hold as suspect product, and release only after hardness/microstructure verification. Record cause, disposition and corrective action on the nonconformance record.`});
+    else O.push({lvl:"warn",tag:"Variation",title:`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C, none affecting trays`,
+      detail:`${perZone}. Longest: Zone ${longest.z+1} from ${fmtDT(longest.tStart)} to ${fmtDT(longest.tEnd)} (${dur(longest.min)}), extreme ${f0(longest.worstV)} °C on ${tcName(longest.worstK)}. No trays are counted as affected (${[...new Set(A.events.map(e=>e.whyTxt))].join("; ")}).`,
+      action:`No product containment is needed. The variation is recorded for information: check burners, control loop and thermocouples of the zones concerned so the furnace is ready when product is charged.`});
   }
+  O.push({lvl:"info",tag:"Process rules",title:`${FTYPE?FTYPE[0].toUpperCase()+FTYPE.slice(1)+" furnace":"Furnace type not recognised"}${A.setLevels.length?": "+A.setLevels.map(l=>f0(l.sp)+" °C "+(procAt(l.sp)||"").toLowerCase()).join(" → "):""}`,detail:ruleText(),action:`Confirm the rules match the process specification for the parts being run.`});
   A.tcs.forEach(t=>{
     const b=t.devMean;
     if(t.sp!=null&&Math.abs(b)>tol/2){
@@ -803,9 +827,6 @@ function observations(D,A){
   const slow=A.trans.filter(x=>x.reachedAt!=null); if(slow.length) O.push({lvl:"info",tag:"Set change",title:`Response to set value changes: ${slow.map(x=>`${tcName(x.k)} ${f0(x.from)}→${f0(x.to)} °C in ${dur(x.mins)}`).join("; ")}`,detail:`Readings during these periods are not judged (${fmtN(A.settlingTotal)} readings in total).`,action:`Compare the response time with previous days; a growing time points to weakening burners or a fouled thermocouple.`});
   const hrs=(A.t1-A.t0)/36e5;
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
-  const title=D.meta.join(" ");
-  const spMax=Math.max(...A.tcs.map(t=>t.sp||0));
-  if(/temp[e]?ring/i.test(title)&&spMax>=780) O.push({lvl:"info",tag:"Report label",title:`The file header says “tempering” but setpoints are ${f0(spMax)} °C`,detail:`That temperature is in the hardening (austenitising) range, not tempering.`,action:`Correct the SCADA report template so the record names the right furnace and process.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
   const rank={crit:0,warn:1,info:2,good:3}; O.sort((a,b)=>rank[a.lvl]-rank[b.lvl]);
   return O;
@@ -830,8 +851,10 @@ function render(D,A,O){
 
   const crit=O.filter(o=>o.lvl==="crit").length, warn=O.filter(o=>o.lvl==="warn").length;
   const vl=crit?"crit":warn?"warn":"good";
-  const vt=crit?"Out of tolerance: reaction plan required":warn?"Within tolerance, with items to review":"Process record conforms";
-  const vs=crit?`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C were found. ${warn?warn+" further item"+(warn>1?"s need":" needs")+" review.":""}`
+  const varOnly=!crit&&A.events.length>0;
+  const vt=crit?"Out of tolerance: reaction plan required":varOnly?"Variation found, no trays affected":warn?"Within tolerance, with items to review":"Process record conforms";
+  const vs=varOnly?`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C were found, but none while trays were affected under the process rules. ${warn>1?(warn-1)+" further item"+(warn>2?"s":"")+" need review.":""}`
+    :crit?`${A.events.length} zone excursion${A.events.length>1?"s":""} beyond ±${tol} °C were found${A.windows.length?`, ${A.windows.length} time window${A.windows.length>1?"s":""} with trays affected`:""}. ${warn?warn+" further item"+(warn>1?"s need":" needs")+" review.":""}`
     :warn?`No reading left the ±${tol} °C window long enough to count as an event, but ${warn} item${warn>1?"s":""} below need follow-up.`
     :`Every thermocouple stayed within ±${tol} °C with a complete, clean record.`;
 
@@ -856,7 +879,7 @@ function render(D,A,O){
     <div class="kpi"><span class="eyebrow">Max wall difference</span><span class="v num ${maxDiff&&Math.abs(maxDiff.diffMax)>tol?"caution":""}">${maxDiff?f1(Math.abs(maxDiff.diffMax)):"–"}<small> °C</small></span><span class="s">${maxDiff?`Zone ${maxDiff.z+1} at ${fmtDT(maxDiff.diffT)}`:""}</span></div>
   </section>
 
-  <div class="settings-line">Settings used: tolerance ±${tol} °C · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) · valid range 500–1000 °C · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C"} · report generated ${esc(nowStamp())}</div>
+  <div class="settings-line">Settings used: tolerance ±${tol} °C · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) · valid range 500–1000 °C · ${FTYPE?FTYPE+" furnace":"furnace type not recognised"} · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C ${(procAt(g.sp)||"").toLowerCase()} (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C "+(procAt((A.setSegs[0]||{}).sp)||"").toLowerCase()} · report generated ${esc(nowStamp())}</div>
 
   <section class="panel layout">
     <div class="sec-head"><h2>Furnace layout and thermocouple status</h2><p>One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.</p></div>
@@ -890,12 +913,12 @@ function render(D,A,O){
   </div>
 
   <section class="panel pb">
-    <div class="sec-head"><h2>Excursion log</h2><p>One row per zone incident: either wall beyond ±${tol} °C, with dips less than ${S.merge} min apart merged (min. ${S.persist} reading${S.persist>1?"s":""} out). Start to End is the window in which trays inside that zone (positions shown) are affected by the out-of-tolerance temperature.</p></div>
+    <div class="sec-head"><h2>Excursion log</h2><p>One row per zone incident: either wall beyond ±${tol} °C, with dips less than ${S.merge} min apart merged (min. ${S.persist} reading${S.persist>1?"s":""} out). Start to End is the incident. Trays inside that zone (positions shown) are affected only while the process rules count them: ${ruleText()}</p></div>
     ${excursionTable(A)}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Product affected: time windows</h2><p>Overlapping incidents combined into time windows. Any tray that was inside a listed zone at any moment of a window was exposed to out-of-tolerance temperature. Use the loading register (time each tray entered and left the zone) to find the trays to hold.</p></div>
+    <div class="sec-head"><h2>Product affected: time windows</h2><p>${ruleText()} Overlapping incidents that affect trays are combined into time windows. Any tray that was inside a listed zone at any moment of a window was exposed to out-of-tolerance temperature. Use the loading register (time each tray entered and left the zone) to find the trays to hold.</p></div>
     ${traceTable(A)}
   </section>
   ${statSection(A)}
@@ -924,6 +947,7 @@ function render(D,A,O){
       <li>A zone excursion starts when either wall of a zone reads outside setpoint ±${tol} °C and ends when both walls have stayed inside for more than ${S.merge} min. “Span” is start to end; “Time out” counts only the minutes actually outside the window.</li>
       <li>Capability: USL/LSL = set value ±${tol} °C. When the set value changes during the record, every statistic, histogram and control chart is calculated separately for each set value (readings with fewer than ${MINSTAT} points at a set value are not analysed). Cp = (USL − LSL) / 6σ<sub>within</sub>, Cpk = min(USL − mean, mean − LSL) / 3σ<sub>within</sub>, with σ<sub>within</sub> = average moving range / 1.128. Pp and Ppk use the overall standard deviation instead. Wall difference = |left − right| for simultaneous readings.</li>
       <li>After a set value change a thermocouple is not judged until it is back within ±${tol} °C of the new set value for ${S.hold} readings in a row, or ${S.settle} min have passed. The furnace needs this time to follow; the response time is reported separately under “Response to set value changes”.</li>
+      <li>${ruleText()}</li>
       <li>Gaps are intervals of at least ${S.gap}× the normal logging interval. The tolerance should match the process table / control plan for the part being run.</li>
     </ul>
   </footer>
@@ -992,8 +1016,7 @@ function priorityList(D,A,PA){
   A.tcs.filter(t=>!ranked.has(t.k)&&Math.abs(t.devMean)>tol/2).forEach(t=>rows.push({pr:"B",issue:`${tcName(t.k)} (${tcLoc(t.k)}) runs ${f1(Math.abs(t.devMean))} °C ${t.devMean<0?"low":"high"} without leaving the window`,impact:"Uses up half the tolerance; small disturbances become excursions",cause:"Offset",action:"Burner balance and TC check",owner:"Maintenance Head",when:PR.B.when}));
   const noisy=A.tcs.filter(t=>(t.spikes.length>=5||t.stuck.length)&&!PA.items.some(i=>i.k===t.k&&/Erratic/.test(i.cause)));
   if(noisy.length) rows.push({pr:"C",issue:`Erratic or frozen signal on ${noisy.map(t=>tcName(t.k)).join(", ")}`,impact:"False alarms or missed excursions; weaker CQI-9 evidence",cause:"Sensor / wiring",action:"Inspect TC junction, terminals and compensating cable at the next opportunity",owner:"Maintenance Head",when:PR.C.when});
-  const label=/temp[e]?ring/i.test(D.meta.join(" "))&&Math.max(...A.tcs.map(t=>t.sp||0))>=780;
-  if((!MULTI&&hrs<23.5)||A.gaps.length||label) rows.push({pr:"C",issue:`Record quality: ${[!MULTI&&hrs<23.5?`export ends at ${fmtT(A.t1)}`:"",A.gaps.length?`${A.gaps.length} recording gap(s)`:"",label?"report header mislabelled \"tempering\"":""].filter(Boolean).join("; ")}`,
+  if((!MULTI&&hrs<23.5)||A.gaps.length) rows.push({pr:"C",issue:`Record quality: ${[!MULTI&&hrs<23.5?`export ends at ${fmtT(A.t1)}`:"",A.gaps.length?`${A.gaps.length} recording gap(s)`:""].filter(Boolean).join("; ")}`,
     impact:"Incomplete or mislabelled records weaken audit evidence",cause:"SCADA export / template",action:"Fix the SCADA export range and report template",owner:"Maintenance Head",when:PR.C.when});
   if(!rows.length) rows.push({pr:"C",issue:"No issues",impact:"—",cause:"—",action:"Continue daily review",owner:"HT Manager",when:"Daily"});
   const ord={P0:0,A:1,B:2,C:3}; return rows.map((r,i)=>({...r,_i:i})).sort((a,b)=>ord[a.pr]-ord[b.pr]||a._i-b._i);
@@ -1057,7 +1080,7 @@ function mgmtSection(D,A,O){
     sides.forEach(t=>{ if(t.spikes.length>=5) issues.push(`${tcName(t.k)} erratic (${t.spikes.length} jumps)`); });
     const w=A.stats.walls.find(x=>x.z===z.z); if(w&&w.sig&&Math.abs(w.mean)>tol/2&&!issues.length) issues.push(`${w.mean<0?"Left":"Right"} wall colder by ${f1(Math.abs(w.mean))} °C`);
     sides.forEach(t=>{ if(!issues.length&&t.cpk!=null&&t.cpk<1) issues.push(`${tcName(t.k)} unstable (Ppk ${t.cpk.toFixed(2)})`); });
-    const lvl=evs.length?"crit":issues.length?"warn":"good";
+    const lvl=evs.some(e=>e.aff)?"crit":evs.length||issues.length?"warn":"good";
     return `<tr><td><b>Zone ${z.z+1}</b><br><span class="muted">positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}</span></td><td>${chip(lvl,lvl==="crit"?"Out of tolerance":lvl==="warn"?"Watch":"In control")}</td>
       <td class="n">${sides.map(t=>f1(t.inTolPct)+" %").join(" / ")}</td><td class="n">${sides.map(t=>sgn(t.devMean)).join(" / ")}</td><td class="n">${sides.map(t=>t.cpk==null?"–":t.cpk.toFixed(2)).join(" / ")}</td>
       <td class="n">${evs.length?`${evs.length} · ${dur(evs.reduce((a,e)=>a+e.outMin,0))}`:"0"}</td><td>${esc(issues.join("; ")||"Stable and centred")}</td></tr>`;
@@ -1153,13 +1176,13 @@ const refTC=(z,A)=>[z.L,z.R].filter(k=>k!=null).map(k=>A.tcs[k]).find(t=>t.nvali
 function zoneCard(z,A){
   const tol=A.tol, L=A.tcs[z.L], R=z.R!=null?A.tcs[z.R]:null, sides=R?[L,R]:[L], RF=refTC(z,A);
   const evs=z.ev||A.events.filter(e=>e.z===z.z);
-  const lvl=evs.length?"crit":sides.some(t=>Math.abs(t.devMean)>tol/2||(t.cpk!=null&&t.cpk<1))||(z.diffMean>tol/2)?"warn":"good";
-  const lbl=evs.length?`${evs.length} excursion${evs.length>1?"s":""}`:lvl==="warn"?"Review":"In control";
+  const lvl=evs.some(e=>e.aff)?"crit":evs.length?"warn":sides.some(t=>Math.abs(t.devMean)>tol/2||(t.cpk!=null&&t.cpk<1))||(z.diffMean>tol/2)?"warn":"good";
+  const lbl=evs.length?`${evs.length} excursion${evs.length>1?"s":""}${evs.some(e=>e.aff)?"":" · no trays affected"}`:lvl==="warn"?"Review":"In control";
   const cl=(v,good,warnF)=>v==null?"":good(v)?"":warnF(v)?"caution":"bad";
   const row=(name,fn,cls)=>`<tr><td>${name}</td>${sides.map(t=>`<td class="${cls?cls(t):""}">${fn(t)}</td>`).join("")}</tr>`;
   return `<div class="zone">
     <div class="zone-h"><h3>Zone ${z.z+1}</h3>${chip(lvl,lbl)}</div>
-    <div class="muted" style="font-size:12.5px;margin-top:-6px">${RF.levels.length>1?`Set values <span class="num">${spTxt(RF.levels)}</span> · window ±<span class="num">${tol} °C</span> around each set value`:`Setpoint <span class="num">${f0(RF.sp)} °C</span> · window <span class="num">${f0(RF.sp-tol)}–${f0(RF.sp+tol)} °C</span>`}<br>Tray positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1} (${traysIn(z.z)} trays)</div>
+    <div class="muted" style="font-size:12.5px;margin-top:-6px">${RF.levels.length>1?`Set values <span class="num">${spTxt(RF.levels)}</span> · window ±<span class="num">${tol} °C</span> around each set value`:`Setpoint <span class="num">${f0(RF.sp)} °C</span> · window <span class="num">${f0(RF.sp-tol)}–${f0(RF.sp+tol)} °C</span>`}<br>Tray positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1} (${traysIn(z.z)} trays)${procTxt(RF.levels)?`<br>Process: ${esc(procTxt(RF.levels))}${FTYPE==="hardening"&&z.z===0?" · preheating zone: trays not counted as affected when the set value is above "+HI_SET+" °C":""}`:""}</div>
     <table>
       <thead><tr><th></th><th><span class="sw" style="background:var(--s1)"></span>${tcName(z.L)} left</th>${R?`<th><span class="sw" style="background:var(--s2)"></span>${tcName(z.R)} right</th>`:""}</tr></thead>
       <tbody>
@@ -1234,8 +1257,8 @@ function responseSection(A){
 }
 function excursionTable(A){
   if(!A.events.length) return `<div class="empty">No excursions: every reading stayed within setpoint ±${A.tol} °C${S.persist>1?` (or lasted fewer than ${S.persist} readings)`:""}.</div>`;
-  return `<div class="scroll"><table class="log"><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${
-    A.events.map(e=>`<tr><td class="n">${e.no}</td><td><b>Zone ${e.z+1}</b></td><td>${e.scope} <span class="muted">${[...e.walls].sort().map(tcName).join(", ")}</span></td><td>${e.low&&e.high?"Low & high":e.low?"Low":"High"}</td><td class="n">${fmtDT(e.tStart)}</td><td class="n">${fmtDT(e.tEnd)}</td><td class="n">${dur(e.min)}</td><td class="n">${dur(e.outMin)}</td><td class="n bad">${f0(e.worstV)} °C (${sgn(e.worst)}) <span class="muted">${tcName(e.worstK)}${A.multiSet?` · set ${f0(e.worstV-e.worst)}`:""}</span></td><td>Zone ${e.z+1} <span class="muted">positions ${e.posFrom}–${e.posTo}</span></td></tr>`).join("")
+  return `<div class="scroll"><table class="log"><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Process</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${
+    A.events.map(e=>`<tr><td class="n">${e.no}</td><td style="white-space:nowrap"><b>Zone ${e.z+1}</b></td><td>${e.scope} <span class="muted">${[...e.walls].sort().map(tcName).join(", ")}</span></td><td>${e.low&&e.high?"Low & high":e.low?"Low":"High"}</td><td>${esc(e.proc||"–")}</td><td class="n" style="white-space:nowrap">${fmtDT(e.tStart)}</td><td class="n" style="white-space:nowrap">${fmtDT(e.tEnd)}</td><td class="n" style="white-space:nowrap">${dur(e.min)}</td><td class="n" style="white-space:nowrap">${dur(e.outMin)}</td><td class="n bad">${f0(e.worstV)} °C (${sgn(e.worst)}) <span class="muted">${tcName(e.worstK)}${A.multiSet?` · set ${f0(e.worstV-e.worst)}`:""}</span></td><td>${e.aff?`Zone ${e.z+1} <span class="muted">positions ${e.posFrom}–${e.posTo}</span>${e.whyTxt?`<br><span class="muted">part of it ignored: ${esc(e.whyTxt)}</span>`:""}`:`<span class="muted">None: ${esc(e.whyTxt)}</span>`}</td></tr>`).join("")
   }</tbody></table></div>`;
 }
 function traceTable(A){
@@ -1392,8 +1415,8 @@ addEventListener("drop",e=>{ e.preventDefault(); dragN=0; document.body.classLis
 
 $("#copyBtn").addEventListener("click",()=>{
   const A=window.__A; if(!A) return;
-  const head=["#","Zone","Walls out","TCs","Direction","Start","End","Span (min)","Time out (min)","Extreme °C","Deviation °C","Extreme on","Trays affected (positions)","Window from","Window to"];
-  const lines=[head.join("\t")].concat(A.events.map((e,i)=>[i+1,"Zone "+(e.z+1),e.scope,[...e.walls].sort().map(tcName).join(" "),e.low&&e.high?"Low & high":e.low?"Low":"High",fmtDT(e.tStart),fmtDT(e.tEnd),Math.round(e.min),Math.round(e.outMin),f0(e.worstV),f1(e.worst),tcName(e.worstK),"Zone "+(e.z+1)+" pos. "+e.posFrom+"-"+e.posTo,fmtDT(e.winFrom),fmtDT(e.winTo)].join("\t")));
+  const head=["#","Zone","Walls out","TCs","Direction","Process","Start","End","Span (min)","Time out (min)","Extreme °C","Deviation °C","Extreme on","Trays affected (positions)","Window from","Window to"];
+  const lines=[head.join("\t")].concat(A.events.map((e,i)=>[i+1,"Zone "+(e.z+1),e.scope,[...e.walls].sort().map(tcName).join(" "),e.low&&e.high?"Low & high":e.low?"Low":"High",e.proc,fmtDT(e.tStart),fmtDT(e.tEnd),Math.round(e.min),Math.round(e.outMin),f0(e.worstV),f1(e.worst),tcName(e.worstK),e.aff?"Zone "+(e.z+1)+" pos. "+e.posFrom+"-"+e.posTo:"None ("+e.whyTxt+")",e.aff?fmtDT(e.winFrom):"",e.aff?fmtDT(e.winTo):""].join("\t")));
   const txt=lines.join("\n"), b=$("#copyBtn");
   const done=m=>{ b.textContent=m; setTimeout(()=>b.textContent="Copy excursion log",1800); };
   try{ navigator.clipboard.writeText(txt).then(()=>done(A.events.length?"Copied – paste into Excel":"Copied (no events)"),()=>done("Copy blocked by browser")); }catch(e){ done("Copy blocked by browser"); }
