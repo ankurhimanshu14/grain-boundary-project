@@ -252,6 +252,7 @@ table.stat th:first-child{text-align:left}
       <div class="field"><label for="trays2">Tray positions, Zone 2</label><input id="trays2" type="number" min="1" step="1"></div>
       <div class="field"><label for="trays3">Tray positions, Zone 3</label><input id="trays3" type="number" min="1" step="1"></div>
       <div class="field"><label for="persist">Min. readings for an event</label><input id="persist" type="number" min="1" step="1"></div>
+      <div class="field"><label for="settle" title="After a set value change the furnace needs time to reach the new value. Readings are not judged until the thermocouple is back within the tolerance, or until this time has passed, whichever comes first. 0 = judge every reading.">Max. settling after set change, min</label><input id="settle" type="number" min="0" step="5"></div>
       <span class="drop-hint">Drop a new SCADA export anywhere on the page. Everything is recalculated in your browser; nothing is uploaded.</span>
     </div>
     <details class="more">
@@ -260,6 +261,7 @@ table.stat th:first-child{text-align:left}
         <div class="field"><label for="spike">Spike: jump ≥ °C per reading</label><input id="spike" type="number" min="1" step="1"></div>
         <div class="field"><label for="stuck">Stuck TC: identical readings ≥</label><input id="stuck" type="number" min="3" step="1"></div>
         <div class="field"><label for="gap">Gap: interval ≥ × normal</label><input id="gap" type="number" min="1.5" step="0.5"></div>
+        <div class="field"><label for="hold" title="Number of consecutive readings inside the tolerance that mark the new set value as reached.">Settled = in band for, readings</label><input id="hold" type="number" min="1" step="1"></div>
       </div>
     </details>
   </section>
@@ -278,14 +280,14 @@ const MINSTAT = 10; /* min readings at one set value before it is analysed or li
 /* Valid measuring range: readings outside 500-1000 °C are treated as invalid, excluded from every statistic and never plotted. */
 const TMIN = 500, TMAX = 1000;
 const inRange = v => v!=null && v>=TMIN && v<=TMAX;
-const DEF = {tol:10, merge:10, push:30, trays1:5, trays2:4, trays3:4, persist:1, spike:15, stuck:30, gap:2.5};
+const DEF = {tol:10, merge:10, push:30, trays1:5, trays2:4, trays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
 const S = {...DEF};
 try{ Object.assign(S, JSON.parse(localStorage.getItem("pfsr-settings")||"{}")); }catch(e){}
 const IDS = Object.keys(DEF);
 IDS.forEach(k=>{
   const el=document.getElementById(k); el.value=S[k];
   el.addEventListener("change",()=>{
-    const v=parseFloat(el.value); if(!(v>0)&&!(k==="merge"&&v===0)){ el.value=S[k]; return; }
+    const v=parseFloat(el.value); if(!(v>0)&&!((k==="merge"||k==="settle")&&v===0)){ el.value=S[k]; return; }
     S[k]=v; try{localStorage.setItem("pfsr-settings",JSON.stringify(S));}catch(e){}
     if(DATA) run();
   });
@@ -400,14 +402,37 @@ function analyze(D){
   const gaps=[]; for(let i=1;i<N;i++){ const g=rows[i].t-rows[i-1].t; if(g>=S.gap*step) gaps.push({from:rows[i-1].t,to:rows[i].t,min:(g-step)/60000}); }
   const expected=Math.round((t1-t0)/step)+1;
 
+  rows.forEach(r=>{ r.ev=r.pv.slice(); r.tr=new Array(n).fill(false); }); /* ev = value that is judged; null while the furnace is settling to a new set value */
   const tcs=[];
   for(let k=0;k<n;k++){
     const vals=[],devs=[]; let inTol=0,cnt=0,missing=0,mx=-Infinity,mn=Infinity,tmx=null,tmn=null,bad=0;
     const sps=rows.map(r=>r.sp[k]);
     const spMode=mode(sps);
+    /* set value changes: the temperature needs time to follow. Readings are not judged from the change until the TC is
+       back inside the tolerance of the NEW set value (held for S.hold readings), or S.settle minutes have passed. */
+    const trans=[];
+    { const spAt=i=>rows[i].sp[k]??spMode, maxMs=S.settle*60000;
+      for(let i=1;i<N;i++){
+        const a=spAt(i-1), b=spAt(i); if(a==null||b==null||a===b) continue;
+        let run=0, j=i, reached=null, capped=false;
+        for(;j<N;j++){
+          if(spAt(j)!==b) break;
+          if(rows[j].t-rows[i].t>=maxMs){ capped=true; break; }
+          const v=rows[j].pv[k];
+          if(v!=null&&Math.abs(v-b)<=tol){ run++; if(run>=S.hold){ reached=rows[j-S.hold+1].t; break; } } else run=0;
+          rows[j].tr[k]=true; rows[j].ev[k]=null;
+        }
+        if(reached!=null) for(let q=j-S.hold+1;q<=j;q++){ rows[q].tr[k]=false; rows[q].ev[k]=rows[q].pv[k]; }
+        const superseded=j<N&&spAt(j)!==b;
+        const endT=reached!=null?reached:rows[Math.min(j,N-1)].t;
+        if(Math.abs(b-a)>tol) trans.push({k,t:rows[i].t,from:a,to:b,dir:b>a?"up":"down",reachedAt:reached,mins:reached!=null?(reached-rows[i].t)/60000:null,capped,superseded,ended:j>=N&&reached==null,end:endT});
+        i=superseded?j-1:j;
+      } }
+    let nvalid=0, settling=0;
     rows.forEach(r=>{
       const v=r.pv[k], sp=r.sp[k]??spMode;
       if(v==null){ if(r.raw&&r.raw[k]!=null) bad++; else missing++; return; }
+      nvalid++; if(r.tr[k]){ settling++; return; }
       vals.push(v); cnt++;
       if(sp!=null){ const d=v-sp; devs.push(d); if(Math.abs(d)<=tol) inTol++; }
       if(v>mx){mx=v;tmx=r.t;} if(v<mn){mn=v;tmn=r.t;}
@@ -418,7 +443,7 @@ function analyze(D){
     const devMean=devs.reduce((a,b)=>a+b,0)/Math.max(1,devs.length);
     const sdDev=devs.length>1?Math.sqrt(devs.reduce((a,b)=>a+(b-devMean)**2,0)/(devs.length-1)):0;
     const cpk=sdDev>0?Math.min(tol-devMean,devMean+tol)/(3*sdDev):null; /* set-value independent: works when the set value changes */
-    const lvMap=new Map(); rows.forEach(r=>{ const v=r.pv[k]; if(v==null) return; const sp=r.sp[k]??spMode; if(sp==null) return; const o=lvMap.get(sp)||{sp,n:0,first:r.t,last:r.t}; o.n++; o.last=r.t; lvMap.set(sp,o); });
+    const lvMap=new Map(); rows.forEach(r=>{ const v=r.ev[k]; if(v==null) return; const sp=r.sp[k]??spMode; if(sp==null) return; const o=lvMap.get(sp)||{sp,n:0,first:r.t,last:r.t}; o.n++; o.last=r.t; lvMap.set(sp,o); });
     const levels=[...lvMap.values()].filter(o=>o.n>=MINSTAT);
     // setpoint changes
     const spChanges=[]; for(let i=1;i<N;i++){ const a=rows[i-1].sp[k],b=rows[i].sp[k]; if(a!=null&&b!=null&&a!==b) spChanges.push({t:rows[i].t,from:a,to:b}); }
@@ -430,8 +455,8 @@ function analyze(D){
       if(a!=null&&a===b){ run++; } else { if(run>=S.stuck) stuck.push({from:rows[runStart].t,to:rows[i-1].t,val:rows[i-1].pv[k],len:run}); run=1; runStart=i; }
     }
     if(run>=S.stuck) stuck.push({from:rows[runStart].t,to:rows[N-1].t,val:rows[N-1].pv[k],len:run});
-    const E=cnt===0; /* thermocouple with no valid (500-1000 °C) reading */
-    tcs.push({k,mean:E?null:mean,sd:E?null:sd,min:E?null:mn,max:E?null:mx,tmin:tmn,tmax:tmx,cnt,missing,bad,inTol,inTolPct:devs.length?100*inTol/devs.length:null,
+    const E=cnt===0; /* thermocouple with nothing to judge (no valid 500-1000 °C reading, or only settling) */
+    tcs.push({k,nvalid,settling,trans,mean:E?null:mean,sd:E?null:sd,min:E?null:mn,max:E?null:mx,tmin:tmn,tmax:tmx,cnt,missing,bad,inTol,inTolPct:devs.length?100*inTol/devs.length:null,
       sp:spMode,levels,sdDev:E?null:sdDev,devMean:devs.length?devMean:null,p5:quant(ds,.05),p95:quant(ds,.95),dmin:ds[0],dmax:ds[ds.length-1],cpk,spChanges,spikes,stuck});
   }
 
@@ -450,7 +475,7 @@ function analyze(D){
     rows.forEach(r=>{
       let out=false;
       ks.forEach(k=>{
-        const v=r.pv[k], sp=r.sp[k]??tcs[k].sp; if(v==null||sp==null) return;
+        const v=r.ev[k], sp=r.sp[k]??tcs[k].sp; if(v==null||sp==null) return;
         const d=v-sp; if(Math.abs(d)<=tol) return;
         out=true;
         if(cur&&r.t-cur.tEnd>bridge) close();
@@ -490,7 +515,7 @@ function analyze(D){
     const L=z*2,R=z*2+1;
     if(R>=n){ zones.push({z,L,R:null}); continue; }
     let sum=0,c=0,mx=0,tmx=null;
-    rows.forEach(r=>{ const a=r.pv[L],b=r.pv[R]; if(a==null||b==null) return; const d=a-b; sum+=Math.abs(d); c++; if(Math.abs(d)>Math.abs(mx)){mx=d;tmx=r.t;} });
+    rows.forEach(r=>{ const a=r.ev[L],b=r.ev[R]; if(a==null||b==null) return; const d=a-b; sum+=Math.abs(d); c++; if(Math.abs(d)>Math.abs(mx)){mx=d;tmx=r.t;} });
     zones.push({z,L,R,diffMean:c?sum/c:null,diffMax:mx,diffT:tmx,ev:events.filter(e=>e.z===z)});
   }
 
@@ -498,13 +523,14 @@ function analyze(D){
   const hourStart=Math.floor(t0/36e5)*36e5, nh=Math.ceil((t1-hourStart+1)/36e5);
   const bucketH=nh>48?Math.ceil(nh/48):1, nb=Math.ceil(nh/bucketH);
   const heat=tcs.map(tc=>{ const s=new Array(nb).fill(0),c=new Array(nb).fill(0);
-    rows.forEach(r=>{ const v=r.pv[tc.k], sp=r.sp[tc.k]??tc.sp; if(v==null||sp==null) return; const b=Math.floor((r.t-hourStart)/36e5/bucketH); s[b]+=v-sp; c[b]++; });
+    rows.forEach(r=>{ const v=r.ev[tc.k], sp=r.sp[tc.k]??tc.sp; if(v==null||sp==null) return; const b=Math.floor((r.t-hourStart)/36e5/bucketH); s[b]+=v-sp; c[b]++; });
     return s.map((x,i)=>c[i]?{m:x/c[i],n:c[i]}:null); });
 
   let all=0,allIn=0; tcs.forEach(t=>{ all+=t.inTolPct!=null?t.cnt:0; allIn+=t.inTol; });
   let worst=null; tcs.forEach(t=>{ [[t.dmin,t.tmin,t.min],[t.dmax,t.tmax,t.max]].forEach(([d,tt,v])=>{ if(d!=null&&(!worst||Math.abs(d)>Math.abs(worst.d))) worst={d,t:tt,v,k:t.k}; }); });
 
-  const A={tol,step,t0,t1,N,expected,gaps,tcs,setLevels,setSegs:segs,multiSet,events,batches,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
+  const trans=tcs.flatMap(t=>t.trans).sort((a,b)=>a.t-b.t||a.k-b.k), settlingTotal=tcs.reduce((a,t)=>a+t.settling,0);
+  const A={tol,step,t0,t1,N,expected,gaps,tcs,trans,settlingTotal,setLevels,setSegs:segs,multiSet,events,batches,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
   A.stats=statistics(D,A);
   A.pareto=pareto(D,A);
   A.priority=priorityList(D,A,A.pareto);
@@ -563,7 +589,7 @@ function statistics(D,A){
     const entries=[]; let yLo=Infinity,yHi=-Infinity;
     A.tcs.forEach(tc=>{
       const t=[],y=[];
-      rows.forEach(r=>{ const v=r.pv[tc.k]; if(v==null) return; if((r.sp[tc.k]??tc.sp)!==lv.sp) return; t.push(r.t); y.push(v); });
+      rows.forEach(r=>{ const v=r.ev[tc.k]; if(v==null) return; if((r.sp[tc.k]??tc.sp)!==lv.sp) return; t.push(r.t); y.push(v); });
       if(y.length<MINSTAT) return;
       const e=statEntry(tc,t,y,lv.sp,A); entries.push(e);
       yLo=Math.min(yLo,e.min,e.LSL); yHi=Math.max(yHi,e.max,e.USL);
@@ -575,10 +601,10 @@ function statistics(D,A){
     entries.forEach(e=>{ e.sc=sc; e.g=g; }); groups.push(g); per.push(...entries);
   });
   /* correlation on deviation from the set value, so a set-value change does not create false correlation */
-  const cols=A.tcs.map(tc=>rows.map(r=>{ const v=r.pv[tc.k], sp=r.sp[tc.k]??tc.sp; return v==null||sp==null?null:v-sp; }));
+  const cols=A.tcs.map(tc=>rows.map(r=>{ const v=r.ev[tc.k], sp=r.sp[tc.k]??tc.sp; return v==null||sp==null?null:v-sp; }));
   const corr=cols.map(a=>cols.map(b=>pearson(a,b)));
   const walls=A.zones.filter(z=>z.R!=null).map(z=>{
-    const d=[]; rows.forEach(r=>{ const a=r.pv[z.L],b=r.pv[z.R]; if(a!=null&&b!=null) d.push(a-b); });
+    const d=[]; rows.forEach(r=>{ const a=r.ev[z.L],b=r.ev[z.R]; if(a!=null&&b!=null) d.push(a-b); });
     const N=d.length, m=d.reduce((a,b)=>a+b,0)/N, s_=Math.sqrt(d.reduce((a,b)=>a+(b-m)**2,0)/Math.max(1,N-1));
     const r=lag1(d), neff=r!=null?Math.min(N,Math.max(2,N*(1-r)/(1+r))):N, ci=1.96*s_/Math.sqrt(neff);
     return {z:z.z,N,mean:m,sd:s_,r1ac:r,neff,lo:m-ci,hi:m+ci,sig:(m-ci)>0||(m+ci)<0};
@@ -667,7 +693,7 @@ function statSection(A){
   const minis=fn=>G.map(g=>`${gh(g)}<div class="mini-grid">${g.per.map(s=>`<div>${fn(s,A)}</div>`).join("")}</div>`).join("");
   return `
   <section class="panel pb stats">
-    <div class="sec-head"><h2>Statistical analysis of the process</h2><p>Per-thermocouple statistics for the whole record${multi?`, split by set value (${spTxt(A.setLevels)})`:""}. Specification limits are the set value ±${tol} °C. Figures are for comparing thermocouples and days; 1-minute SCADA readings are time-correlated, so they are not a formal capability study.</p></div>
+    <div class="sec-head"><h2>Statistical analysis of the process</h2><p>Per-thermocouple statistics for the whole record${multi?`, split by set value (${spTxt(A.setLevels)})`:""}${A.settlingTotal?`, without the ${fmtN(A.settlingTotal)} settling readings after set value changes`:""}. Specification limits are the set value ±${tol} °C. Figures are for comparing thermocouples and days; 1-minute SCADA readings are time-correlated, so they are not a formal capability study.</p></div>
     <div class="obs" style="margin-bottom:14px">${interp.map(o=>`<div class="ob"><div>${chip(o.lvl,{good:"Capable",warn:"Attention",crit:"Not capable",info:"Note"}[o.lvl])}</div><p style="margin:0;color:var(--ink)">${esc(o.txt)}</p></div>`).join("")}</div>
     ${blocks}${capNote}
   </section>
@@ -775,6 +801,10 @@ function observations(D,A){
   if(bad.length) O.push({lvl:"warn",tag:"Records",title:`Missing or implausible values on ${bad.map(t=>tcName(t.k)).join(", ")}`,detail:bad.map(t=>`${tcName(t.k)}: ${t.missing} blank, ${t.bad} outside 500–1000 °C (excluded from statistics and charts)`).join("; "),action:`Treat blank or out-of-range values as loss of monitoring for that period.`});
   const spc=A.tcs.filter(t=>t.spChanges.length);
   if(spc.length) O.push({lvl:"info",tag:"Setpoint",title:`Set value changed during the record: ${A.multiSet?spTxt(A.setLevels):spc.map(t=>tcName(t.k)).join(", ")}`,detail:(A.setSegs.length>1?`Set values in time order: ${A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → ")}. `:"")+spc.map(t=>t.spChanges.slice(0,3).map(c=>`${tcName(t.k)} ${f0(c.from)}→${f0(c.to)} °C at ${fmtDT(c.t)}`).join("; ")).join("; "),action:`Confirm each change matches an approved process specification and was authorised.`});
+  A.trans.filter(x=>x.reachedAt==null&&!x.ended&&!x.superseded).forEach(x=>O.push({lvl:"warn",tag:"Set change",title:`${tcName(x.k)} did not reach the new set value ${f0(x.to)} °C within ${S.settle} min`,
+    detail:`Set value changed ${f0(x.from)} → ${f0(x.to)} °C at ${fmtDT(x.t)}; the thermocouple was not within ±${tol} °C of it ${S.settle} min later, so readings after that are judged and count as out of tolerance.`,
+    action:`Check burner capacity, gas supply and control loop response on the ${x.k%2?"right":"left"} wall of Zone ${Math.floor(x.k/2)+1}; confirm the change is achievable in the time allowed. Lengthen the settling time only with the process owner's approval.`}));
+  const slow=A.trans.filter(x=>x.reachedAt!=null); if(slow.length) O.push({lvl:"info",tag:"Set change",title:`Response to set value changes: ${slow.map(x=>`${tcName(x.k)} ${f0(x.from)}→${f0(x.to)} °C in ${dur(x.mins)}`).join("; ")}`,detail:`Readings during these periods are not judged (${fmtN(A.settlingTotal)} readings in total).`,action:`Compare the response time with previous days; a growing time points to weakening burners or a fouled thermocouple.`});
   const hrs=(A.t1-A.t0)/36e5;
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   const title=D.meta.join(" ");
@@ -824,13 +854,13 @@ function render(D,A,O){
   <section class="kpis" aria-label="Key figures">
     <div class="kpi"><span class="eyebrow">Record period</span><span class="v num">${fmtT(A.t0)}–${fmtT(A.t1)}</span><span class="s">${f1((A.t1-A.t0)/36e5)} h · every ${f0(A.step/1000)} s</span></div>
     <div class="kpi"><span class="eyebrow">Readings</span><span class="v num">${A.N.toLocaleString()}</span><span class="s ${cov<99?"caution":""}">${f1(Math.min(100,cov))} % of expected · ${A.gaps.length} gap${A.gaps.length===1?"":"s"}</span></div>
-    <div class="kpi"><span class="eyebrow">Readings in tolerance</span><span class="v num ${inLvl}">${f1(A.inTolPct)}<small> %</small></span><span class="s">all ${D.n} TCs, ±${tol} °C</span></div>
+    <div class="kpi"><span class="eyebrow">Readings in tolerance</span><span class="v num ${inLvl}">${f1(A.inTolPct)}<small> %</small></span><span class="s">all ${D.n} TCs, ±${tol} °C${A.settlingTotal?" · settling excluded":""}</span></div>
     <div class="kpi"><span class="eyebrow">Zone excursions</span><span class="v num ${A.events.length?"bad":"ok"}">${A.events.length}</span><span class="s">${A.events.length?dur(totEv)+" of zone-time out of window":"none"}</span></div>
     <div class="kpi"><span class="eyebrow">Worst deviation</span><span class="v num ${A.worst&&Math.abs(A.worst.d)>tol?"bad":""}">${A.worst?sgn(A.worst.d):"–"}<small> °C</small></span><span class="s">${A.worst?`${tcName(A.worst.k)} · ${f0(A.worst.v)} °C at ${fmtDT(A.worst.t)}`:""}</span></div>
     <div class="kpi"><span class="eyebrow">Max wall difference</span><span class="v num ${maxDiff&&Math.abs(maxDiff.diffMax)>tol?"caution":""}">${maxDiff?f1(Math.abs(maxDiff.diffMax)):"–"}<small> °C</small></span><span class="s">${maxDiff?`Zone ${maxDiff.z+1} at ${fmtDT(maxDiff.diffT)}`:""}</span></div>
   </section>
 
-  <div class="settings-line">Settings used: tolerance ±${tol} °C · push interval ${S.push} min · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber, ≈ ${dur(totalPos()*S.push)} from charge to discharge) · merge dips &lt; ${S.merge} min · valid range 500–1000 °C · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C"} · report generated ${esc(nowStamp())}</div>
+  <div class="settings-line">Settings used: tolerance ±${tol} °C · push interval ${S.push} min · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber, ≈ ${dur(totalPos()*S.push)} from charge to discharge) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) · valid range 500–1000 °C · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C"} · report generated ${esc(nowStamp())}</div>
 
   <section class="panel layout">
     <div class="sec-head"><h2>Furnace layout and thermocouple status</h2><p>One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.</p></div>
@@ -844,10 +874,12 @@ function render(D,A,O){
 
   <section class="panel pb">
     <div class="sec-head"><div><h2>Temperature trend by zone</h2><p style="margin:2px 0 0;color:var(--ink2);font-size:13px">Same time axis and the same fixed temperature scale on every zone, so the charts can be compared directly.</p></div>
-      <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span></div>
+      <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span>${A.trans.length?`<span><i class="lg-band" style="background:var(--grid);border-color:var(--line)"></i>Settling to new set value (not judged)</span>`:""}</div>
     </div>
     <div class="trend">${A.zones.map(z=>`<div class="trend-row"><h3>Zone ${z.z+1} <span class="muted">${tcName(z.L)} left${z.R!=null?` · ${tcName(z.R)} right`:""} · ${(rf=>rf.levels.length>1?"set values "+spTxt(rf.levels):"setpoint "+f0(rf.sp)+" °C")(refTC(z,A))} · ${traysIn(z.z)} trays</span></h3><div class="cbox"><canvas id="c${z.z}" role="img" aria-label="Zone ${z.z+1} temperature trend"></canvas></div></div>`).join("")}</div>
   </section>
+
+  ${responseSection(A)}
 
   <div class="stack">
     <section class="panel">
@@ -895,6 +927,7 @@ function render(D,A,O){
       <li>The furnace is one continuous chamber of ${totalPos()} tray positions (Zone 1: positions 1–${traysIn(0)}${A.zones.slice(1).map(z=>`, Zone ${z.z+1}: ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}`).join("")}). A tray charged at time T is in position p from T + (p−1)×push to T + p×push and is discharged at T + ${totalPos()}×push. Because there is no partition, a disturbance in one zone also affects its neighbours; the zone split is for control and traceability.</li>
       <li>A zone excursion starts when either wall of a zone reads outside setpoint ±${tol} °C and ends when both walls have stayed inside for more than ${S.merge} min. “Span” is start to end; “Time out” counts only the minutes actually outside the window.</li>
       <li>Capability: USL/LSL = set value ±${tol} °C. When the set value changes during the record, every statistic, histogram and control chart is calculated separately for each set value (readings with fewer than ${MINSTAT} points at a set value are not analysed). Cp = (USL − LSL) / 6σ<sub>within</sub>, Cpk = min(USL − mean, mean − LSL) / 3σ<sub>within</sub>, with σ<sub>within</sub> = average moving range / 1.128. Pp and Ppk use the overall standard deviation instead. Wall difference = |left − right| for simultaneous readings.</li>
+      <li>After a set value change a thermocouple is not judged until it is back within ±${tol} °C of the new set value for ${S.hold} readings in a row, or ${S.settle} min have passed. The furnace needs this time to follow; the response time is reported separately under “Response to set value changes”.</li>
       <li>Gaps are intervals of at least ${S.gap}× the normal logging interval. The tolerance should match the process table / control plan for the part being run.</li>
     </ul>
   </footer>
@@ -929,7 +962,7 @@ function pareto(D,A){
   const tol=A.tol, sm=A.step/60000, dips=chamberDips(D,A);
   const inDip=t=>dips.some(d=>t>=d.from&&t<=d.to);
   const acc={};
-  D.rows.forEach(r=>{ const dip=inDip(r.t); for(let k=0;k<D.n;k++){ const v=r.pv[k], sp=r.sp[k]??A.tcs[k].sp; if(v==null||sp==null) continue; const d=v-sp, ex=Math.abs(d)-tol; if(ex<=0) continue;
+  D.rows.forEach(r=>{ const dip=inDip(r.t); for(let k=0;k<D.n;k++){ const v=r.ev[k], sp=r.sp[k]??A.tcs[k].sp; if(v==null||sp==null) continue; const d=v-sp, ex=Math.abs(d)-tol; if(ex<=0) continue;
     const key=dip?"chamber":"tc"+k, o=acc[key]||(acc[key]={dm:0,min:0,lo:0,hi:0}); o.dm+=ex*sm; o.min+=sm; if(d<0)o.lo++; else o.hi++; } });
   const items=Object.entries(acc).map(([key,o])=>{
     if(key==="chamber") return {...o,key,short:"Chamber-wide",label:"Chamber-wide dips: most thermocouples out together",
@@ -1002,7 +1035,7 @@ function chamberDips(D,A){
   // periods when most thermocouples were out of tolerance at the same time: a chamber-wide cause
   const need=Math.max(3,Math.ceil(D.n*0.75)), out=[], bridge=S.merge*60000; let cur=null;
   D.rows.forEach(r=>{
-    let c=0; for(let k=0;k<D.n;k++){ const v=r.pv[k], sp=r.sp[k]??A.tcs[k].sp; if(v!=null&&sp!=null&&Math.abs(v-sp)>A.tol) c++; }
+    let c=0; for(let k=0;k<D.n;k++){ const v=r.ev[k], sp=r.sp[k]??A.tcs[k].sp; if(v!=null&&sp!=null&&Math.abs(v-sp)>A.tol) c++; }
     if(c>=need){ if(cur&&r.t-cur.to<=bridge){cur.to=r.t;cur.max=Math.max(cur.max,c);} else { cur={from:r.t,to:r.t,max:c}; out.push(cur); } }
   });
   return out;
@@ -1120,7 +1153,7 @@ function mgmtSection(D,A,O){
   </section>`;
 }
 
-const refTC=(z,A)=>[z.L,z.R].filter(k=>k!=null).map(k=>A.tcs[k]).find(t=>t.cnt>0&&t.sp!=null)||A.tcs[z.L]; /* working wall of the zone */
+const refTC=(z,A)=>[z.L,z.R].filter(k=>k!=null).map(k=>A.tcs[k]).find(t=>t.nvalid>0&&t.sp!=null)||A.tcs[z.L]; /* working wall of the zone */
 function zoneCard(z,A){
   const tol=A.tol, L=A.tcs[z.L], R=z.R!=null?A.tcs[z.R]:null, sides=R?[L,R]:[L], RF=refTC(z,A);
   const evs=z.ev||A.events.filter(e=>e.z===z.z);
@@ -1156,7 +1189,7 @@ function heatmap(A){
   A.heat.forEach((row,k)=>{
     h+=`<tr><th class="rl">${tcName(k)} <span class="muted">Z${Math.floor(k/2)+1} ${k%2?"R":"L"}</span></th>`;
     row.forEach((c,b)=>{
-      if(!c){ h+=`<td title="No data"></td>`; return; }
+      if(!c){ h+=`<td title="No judged data (offline or settling)"></td>`; return; }
       const t=Math.min(1,Math.abs(c.m)/lim), bg=mix(mid,c.m<0?lo:hi,t), fg=t>0.55?"#fff":ink;
       const out=Math.abs(c.m)>A.tol;
       const st=A.hourStart+b*A.bucketH*36e5;
@@ -1178,7 +1211,7 @@ function rangeChart(A){
   s+=`<text x="${x(tol)+4}" y="${top+10}" fill="var(--good-ink)" font-size="10">+${tol}</text><text x="${x(-tol)-4}" y="${top+10}" text-anchor="end" fill="var(--good-ink)" font-size="10">−${tol}</text>`;
   A.tcs.forEach((t,i)=>{
     const y=top+i*rh+rh/2, col=t.k%2?"var(--s2)":"var(--s1)";
-    if(!t.cnt){ s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">no valid reading in 500–1000 °C</text>`; return; }
+    if(!t.cnt){ s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">${t.nvalid?"only settling readings, none judged":"no valid reading in 500–1000 °C"}</text>`; return; }
     s+=`<g><title>${tcName(t.k)} ${tcLoc(t.k)}: min ${sgn(t.dmin)}, P5 ${sgn(t.p5)}, mean ${sgn(t.devMean)}, P95 ${sgn(t.p95)}, max ${sgn(t.dmax)} °C</title>`;
     s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">Z${Math.floor(t.k/2)+1} ${t.k%2?"R":"L"}</text>`;
     s+=`<line x1="${x(t.dmin)}" x2="${x(t.dmax)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="2" stroke-linecap="round"/>`;
@@ -1190,6 +1223,19 @@ function rangeChart(A){
   return s+`</svg>`;
 }
 
+const fmtN=x=>Number(x).toLocaleString();
+function responseSection(A){
+  if(!A.trans.length) return "";
+  const rows=A.trans.map(x=>{
+    const res=x.reachedAt!=null?chip("good","Reached in "+dur(x.mins)):x.ended?chip("info","Record ended before it settled"):x.superseded?chip("info","Set value changed again"):chip("crit","Not reached in "+dur(S.settle));
+    return `<tr><td><b>${tcName(x.k)}</b> <span class="muted">${tcLoc(x.k)}</span></td><td class="n">${f0(x.from)} → ${f0(x.to)} °C ${x.dir==="up"?"↑":"↓"}</td><td class="n">${fmtDT(x.t)}</td><td class="n">${x.reachedAt!=null?fmtDT(x.reachedAt):"–"}</td><td class="n">${x.mins==null?"–":dur(x.mins)}</td><td>${res}</td></tr>`;
+  }).join("");
+  const nr=A.trans.filter(x=>x.reachedAt==null&&!x.ended&&!x.superseded).length;
+  return `<section class="panel">
+    <div class="sec-head"><h2>Response to set value changes</h2><p>After a set value change the temperature needs time to follow. A thermocouple is judged again once it is back within ±${A.tol} °C of the new set value for ${S.hold} readings in a row, or after ${S.settle} min at the latest. Until then its readings are shown on the charts (grey band) but not counted as excursions, in tolerance or in the statistics. ${fmtN(A.settlingTotal)} readings were left out for this reason.${nr?` <b class="bad">${nr} thermocouple${nr>1?"s":""} did not reach the new set value within ${S.settle} min, so their later readings are judged.</b>`:""}</p></div>
+    <div class="scroll"><table class="log"><thead><tr><th>Thermocouple</th><th>Set value change</th><th>Changed at</th><th>Back in tolerance at</th><th>Time to settle</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
 function excursionTable(A){
   if(!A.events.length) return `<div class="empty">No excursions: every reading stayed within setpoint ±${A.tol} °C${S.persist>1?` (or lasted fewer than ${S.persist} readings)`:""}.</div>`;
   return `<div class="scroll"><table class="log"><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Start</th><th>End</th><th>Span</th><th>Time out</th><th>Extreme</th><th>Trays</th><th>Those trays charged</th></tr></thead><tbody>${
@@ -1219,7 +1265,7 @@ function layoutSVG(A){
     [[z.L,top,-1],[z.R,bot,1]].forEach(([k,y,dir])=>{
       if(k==null||!A.tcs[k]) return; const t=A.tcs[k], sv=st(t);
       s+=`<g><title>${tcName(k)} ${tcLoc(k)}: mean ${f1(t.mean)} °C (${sgn(t.devMean)}), ${f1(t.inTolPct)} % in tolerance</title><circle cx="${xm}" cy="${y}" r="8" fill="${colr[sv]}" stroke="var(--surface)" stroke-width="2"/>`;
-      s+=`<text x="${xm}" y="${y+dir*22+(dir<0?0:6)}" text-anchor="middle" font-size="11.5" fill="var(--ink)"><tspan font-weight="600">${tcName(k)}</tspan> ${t.cnt?(A.multiSet?`avg ${sgn(t.devMean)} °C vs set`:`${f1(t.mean)} °C (${sgn(t.devMean)})`)+` · ${word[sv]||""}`:"no valid reading · offline"}</text></g>`;
+      s+=`<text x="${xm}" y="${y+dir*22+(dir<0?0:6)}" text-anchor="middle" font-size="11.5" fill="var(--ink)"><tspan font-weight="600">${tcName(k)}</tspan> ${t.cnt?(A.multiSet?`avg ${sgn(t.devMean)} °C vs set`:`${f1(t.mean)} °C (${sgn(t.devMean)})`)+` · ${word[sv]||""}`:(t.nvalid?"settling only · not judged":"no valid reading · offline")}</text></g>`;
     });
   });
   s+=`<text x="${x0+8}" y="${top+14}" font-size="10" fill="var(--muted)" letter-spacing=".06em">LEFT WALL</text><text x="${x0+8}" y="${bot-7}" font-size="10" fill="var(--muted)" letter-spacing=".06em">RIGHT WALL</text>`;
@@ -1239,6 +1285,7 @@ function integrity(A){
   const sp=A.tcs.filter(t=>t.spikes.length);
   C.push(sp.length?{lvl:"warn",name:"No sudden jumps",txt:sp.map(t=>`${tcName(t.k)}: ${t.spikes.length} (first ${f0(t.spikes[0].from)}→${f0(t.spikes[0].to)} °C at ${fmtDT(t.spikes[0].t)})`).join("; ")}:{lvl:"good",name:"No sudden jumps",txt:`No change of ${S.spike} °C or more between consecutive readings.`});
   const spc=A.tcs.filter(t=>t.spChanges.length);
+  C.push(A.trans.length?{lvl:A.trans.some(x=>x.reachedAt==null&&!x.ended&&!x.superseded)?"warn":"info",name:"Settling after set value change",txt:`${fmtN(A.settlingTotal)} readings not judged while the furnace followed a new set value (until within ±${A.tol} °C for ${S.hold} readings, at most ${S.settle} min).`}:{lvl:"good",name:"Settling after set value change",txt:"No set value change larger than the tolerance in this record."});
   C.push(spc.length?{lvl:"info",name:"Set value changed",txt:(A.setSegs.length>1?`${A.setSegs.map(g=>`${f0(g.sp)} °C ${hmr(g.from,g.to)}`).join(" → ")}. `:"")+spc.map(t=>`${tcName(t.k)}: ${t.spChanges.length} change(s)`).join("; ")+". Deviations and statistics use the set value in force at each reading."}:{lvl:"good",name:"Setpoint stable",txt:`Setpoints unchanged: ${[...new Set(A.tcs.map(t=>f0(t.sp)))].join(" / ")} °C.`});
   return C;
 }
@@ -1264,7 +1311,7 @@ function drawCharts(D,A){
     const el=document.getElementById("c"+z.z); if(!el) return;
     const L=z.L,R=z.R, RK=refTC(z,A).k, spOf=(r,k)=>r.sp[k]??A.tcs[k].sp??A.tcs[RK].sp;
     const pts=k=>D.rows.map((r,i)=>({x:xs[i],y:r.pv[k]}));
-    const rad=k=>D.rows.map(r=>{ const v=r.pv[k],s=spOf(r,k); return v!=null&&s!=null&&Math.abs(v-s)>A.tol?2.6:0; });
+    const rad=k=>D.rows.map(r=>{ const v=r.ev[k],s=spOf(r,k); return v!=null&&s!=null&&Math.abs(v-s)>A.tol?2.6:0; });
     const ds=[
       {label:"upper",data:D.rows.map((r,i)=>({x:xs[i],y:Math.min(TMAX,spOf(r,RK)+A.tol)})),borderWidth:0,pointRadius:0,pointHoverRadius:0,fill:false},
       {label:"lower",data:D.rows.map((r,i)=>({x:xs[i],y:Math.max(TMIN,spOf(r,RK)-A.tol)})),borderWidth:0,pointRadius:0,pointHoverRadius:0,fill:"-1",backgroundColor:band},
@@ -1272,7 +1319,9 @@ function drawCharts(D,A){
       {label:`${tcName(L)} left`,data:pts(L),borderColor:c1,backgroundColor:c1,borderWidth:1.5,pointRadius:rad(L),pointBackgroundColor:crit,pointBorderColor:surf,pointBorderWidth:1,pointHoverRadius:4,pointHoverBackgroundColor:c1,spanGaps:false}
     ];
     if(R!=null) ds.push({label:`${tcName(R)} right`,data:pts(R),borderColor:c2,backgroundColor:c2,borderWidth:1.5,pointRadius:rad(R),pointBackgroundColor:crit,pointBorderColor:surf,pointBorderWidth:1,pointHoverRadius:4,pointHoverBackgroundColor:c2,spanGaps:false});
-    charts.push(new Chart(el,{type:"line",data:{datasets:ds},plugins:[crosshair],options:{
+    const spans=A.trans.filter(x=>x.k===L||x.k===R).map(x=>({from:x.t,to:x.end}));
+    const settleBand={id:"sb",beforeDatasetsDraw(c){ if(!spans.length) return; const a=c.chartArea, xs_=c.scales.x, g=c.ctx; g.save(); g.fillStyle=grid; g.globalAlpha=.75; spans.forEach(sp=>{ const x0=Math.max(a.left,xs_.getPixelForValue((sp.from-t0)/60000)), x1=Math.min(a.right,xs_.getPixelForValue((sp.to-t0)/60000)); if(x1>x0) g.fillRect(x0,a.top,x1-x0,a.bottom-a.top); }); g.restore(); }};
+    charts.push(new Chart(el,{type:"line",data:{datasets:ds},plugins:[settleBand,crosshair],options:{
       animation:false,parsing:false,normalized:true,responsive:true,maintainAspectRatio:false,devicePixelRatio:PRINTING?3:undefined,
       interaction:{mode:"index",intersect:false},
       plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex>=2,backgroundColor:surf,titleColor:cssv("--ink"),bodyColor:ink2,borderColor:cssv("--line"),borderWidth:1,
