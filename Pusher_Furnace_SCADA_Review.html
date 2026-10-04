@@ -267,6 +267,20 @@ table.stat th:first-child{text-align:left}
     </details>
   </section>
 
+  <section class="panel noprint" id="replPanel" aria-label="Thermocouple replacements">
+    <div class="sec-head" style="margin-bottom:8px"><h2 style="font-size:14px">Thermocouple replacements</h2><p>Enter every thermocouple that was replaced, with its new ID and the time of replacement. The register is kept on this computer and applies to any record that covers those times.</p></div>
+    <div class="controls">
+      <div class="field"><label for="rTc">Thermocouple replaced</label><select id="rTc" style="width:auto;font-family:var(--sans)"></select></div>
+      <div class="field"><label for="rId">New thermocouple ID</label><input id="rId" type="text" maxlength="40" style="width:150px;font-family:var(--sans)" placeholder="e.g. TC-K-0412"></div>
+      <div class="field"><label for="rTime">Time of replacement</label><input id="rTime" type="datetime-local" step="60" style="width:190px"></div>
+      <div class="field"><label for="rNote">Note (optional)</label><input id="rNote" type="text" maxlength="80" style="width:200px;font-family:var(--sans)" placeholder="e.g. burned out, SAT done"></div>
+      <button class="btn" type="button" id="rAdd">Add</button>
+      <button class="btn ghost" type="button" id="rClear" hidden>Clear all</button>
+    </div>
+    <div id="rMsg" class="small muted" style="margin-top:6px"></div>
+    <div id="rList" class="scroll" style="margin-top:8px"></div>
+  </section>
+
   <div id="out"></div>
 </div>
 
@@ -306,6 +320,7 @@ const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 const fmtT=ms=>{const d=new Date(ms);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes());};
 const fmtD=ms=>{const d=new Date(ms);return pad(d.getUTCDate())+" "+MONS[d.getUTCMonth()]+" "+d.getUTCFullYear();};
 let MULTI=false, T0DAY=0;
+let REPL=[]; try{ REPL=(JSON.parse(localStorage.getItem("pfsr-repl")||"[]")||[]).filter(x=>x&&isFinite(x.t)&&x.k>=0&&x.k<12); }catch(e){} /* register of replaced thermocouples: {k, id, t, note} */
 const RUN={start:null,stop:null}; /* optional furnace start / stop time (ms, same clock as the record); readings outside are not judged */
 const parseLocal=v=>{ if(!v) return null; const t=Date.parse(v+":00Z"); return isFinite(t)?t:null; };
 const fmtDT=ms=>MULTI?fmtD(ms).slice(0,6)+" "+fmtT(ms):fmtT(ms);
@@ -490,6 +505,22 @@ function analyze(D){
       sp:spMode,levels,sdDev:E?null:sdDev,devMean:devs.length?devMean:null,p5:quant(ds,.05),p95:quant(ds,.95),dmin:ds[0],dmax:ds[ds.length-1],cpk,spChanges,spikes,stuck});
   }
 
+  /* replaced thermocouples: readings before and after each replacement */
+  const seg=(k,a,b)=>{ const d=[], dd=[], q=k^1; rows.forEach(rw=>{ if(rw.t>=a&&rw.t<b){ const v=rw.ev[k], sp=rw.sp[k]??tcs[k].sp; if(v==null||sp==null) return; d.push(v-sp);
+      if(q<n){ const vq=rw.ev[q], sq=rw.sp[q]??tcs[q].sp; if(vq!=null&&sq!=null) dd.push((v-sp)-(vq-sq)); } } });
+    const avg=x=>x.length?x.reduce((m,y)=>m+y,0)/x.length:null, m=avg(d);
+    return {n:d.length,mean:m,sd:d.length>1?Math.sqrt(d.reduce((x,y)=>x+(y-m)**2,0)/(d.length-1)):null,inTol:d.length?100*d.filter(x=>Math.abs(x)<=tol).length/d.length:null,nd:dd.length,diff:avg(dd)}; };
+  const repl=REPL.filter(r=>r.k<n).slice().sort((a,b)=>a.t-b.t||a.k-b.k).map(r=>{
+    const o={...r,inRec:r.t>=t0&&r.t<=t1};
+    if(o.inRec){
+      const prev=REPL.filter(q=>q.k===r.k&&q.t<r.t).reduce((m,q)=>Math.max(m,q.t),t0), next=REPL.filter(q=>q.k===r.k&&q.t>r.t).reduce((m,q)=>Math.min(m,q.t),t1+1);
+      o.before=seg(r.k,Math.max(prev,t0),r.t); o.after=seg(r.k,r.t,next);
+      o.shift=(o.before.n>=MINSTAT&&o.after.n>=MINSTAT)?o.after.mean-o.before.mean:null;
+      o.shiftRel=(o.before.nd>=MINSTAT&&o.after.nd>=MINSTAT)?o.after.diff-o.before.diff:null; /* change relative to the other wall of the zone: furnace-wide changes cancel */
+      o.partner=r.k^1;
+    }
+    return o; });
+  const ids=Array.from({length:n},(_,k)=>{ const e=REPL.filter(q=>q.k===k&&q.t<=t1).sort((a,b)=>b.t-a.t)[0]; return e?e.id:null; });
   // set values: distinct levels overall, and the time line of the majority set value
   const lvAll=new Map(); tcs.forEach(t=>t.levels.forEach(o=>{ const g=lvAll.get(o.sp)||{sp:o.sp,n:0,first:o.first,last:o.last}; g.n+=o.n; g.first=Math.min(g.first,o.first); g.last=Math.max(g.last,o.last); lvAll.set(o.sp,g); }));
   const setLevels=[...lvAll.values()].sort((a,b)=>a.first-b.first);
@@ -561,7 +592,7 @@ function analyze(D){
   let worst=null; tcs.forEach(t=>{ [[t.dmin,t.tmin,t.min],[t.dmax,t.tmax,t.max]].forEach(([d,tt,v])=>{ if(d!=null&&(!worst||Math.abs(d)>Math.abs(worst.d))) worst={d,t:tt,v,k:t.k}; }); });
 
   const trans=tcs.flatMap(t=>t.trans).sort((a,b)=>a.t-b.t||a.k-b.k), settlingTotal=tcs.reduce((a,t)=>a+t.settling,0);
-  const A={run:{start:runStart,stop:runStop,warn:runWarn,offRows},tol,step,t0,t1,N,expected,gaps,tcs,trans,settlingTotal,setLevels,setSegs:segs,multiSet,events,windows,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
+  const A={repl,ids,run:{start:runStart,stop:runStop,warn:runWarn,offRows},tol,step,t0,t1,N,expected,gaps,tcs,trans,settlingTotal,setLevels,setSegs:segs,multiSet,events,windows,zones,heat,hourStart,bucketH,nb,inTolPct:all?100*allIn/all:null,worst};
   A.stats=statistics(D,A);
   A.pareto=pareto(D,A);
   A.priority=priorityList(D,A,A.pareto);
@@ -841,6 +872,9 @@ function observations(D,A){
     detail:`${x.start?"Furnace started":"Set value changed "+f0(x.from)+" → "+f0(x.to)+" °C"} at ${fmtDT(x.t)}; the thermocouple was not within ±${tol} °C of it ${S.settle} min later, so readings after that are judged and count as out of tolerance.`,
     action:`Check burner capacity, gas supply and control loop response on the ${x.k%2?"right":"left"} wall of Zone ${Math.floor(x.k/2)+1}; confirm the change is achievable in the time allowed. Lengthen the settling time only with the process owner's approval.`}));
   const slow=A.trans.filter(x=>x.reachedAt!=null); if(slow.length) O.push({lvl:"info",tag:"Set change",title:`Response to set value changes: ${slow.map(x=>`${tcName(x.k)} ${x.start?"start":f0(x.from)}→${f0(x.to)} °C in ${dur(x.mins)}`).join("; ")}`,detail:`Readings during these periods are not judged (${fmtN(A.settlingTotal)} readings in total).`,action:`Compare the response time with previous days; a growing time points to weakening burners or a fouled thermocouple.`});
+  A.repl.filter(r=>r.inRec).forEach(r=>O.push({lvl:(r.shiftRel!=null?Math.abs(r.shiftRel):r.shift!=null?Math.abs(r.shift):0)>A.tol/2?"warn":"info",tag:"Replacement",title:`${tcName(r.k)} replaced at ${fmtDT(r.t)}, new ID ${r.id}`,
+    detail:r.shift!=null?`Mean deviation from the set value ${sgn(r.before.mean)} °C before and ${sgn(r.after.mean)} °C after.${r.shiftRel!=null?` Compared with ${tcName(r.partner)} the difference changed by ${sgn(r.shiftRel)} °C.`:""}${r.note?" Note: "+r.note+".":""}`:`Too few readings on one side to compare before and after.${r.note?" Note: "+r.note+".":""}`,
+    action:(r.shiftRel!=null?Math.abs(r.shiftRel):r.shift!=null?Math.abs(r.shift):0)>A.tol/2?`The reading changed relative to the other wall, which points to the sensor rather than the furnace. Check the new thermocouple against the SAT thermocouple and its calibration certificate, and check the extension wire and the controller input before relying on it.`:`Keep the replacement record with the SAT result for the new thermocouple.`}));
   const hrs=(A.t1-A.t0)/36e5;
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
@@ -909,12 +943,14 @@ function render(D,A,O){
 
   <section class="panel pb">
     <div class="sec-head"><div><h2>Temperature trend by zone</h2><p style="margin:2px 0 0;color:var(--ink2);font-size:13px">Same time axis and the same fixed temperature scale on every zone, so the charts can be compared directly.</p></div>
-      <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span>${A.trans.length||A.run.offRows?`<span><i class="lg-band" style="background:var(--grid);border-color:var(--line)"></i>Furnace off / settling to set value (not judged)</span>`:""}</div>
+      <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span>${A.repl.some(r=>r.inRec)?`<span><i class="lg-dash"></i>Thermocouple replaced</span>`:""}${A.trans.length||A.run.offRows?`<span><i class="lg-band" style="background:var(--grid);border-color:var(--line)"></i>Furnace off / settling to set value (not judged)</span>`:""}</div>
     </div>
     <div class="trend">${A.zones.map(z=>`<div class="trend-row"><h3>Zone ${z.z+1} <span class="muted">${tcName(z.L)} left${z.R!=null?` · ${tcName(z.R)} right`:""} · ${(rf=>rf.levels.length>1?"set values "+spTxt(rf.levels):"setpoint "+f0(rf.sp)+" °C")(refTC(z,A))} · ${traysIn(z.z)} trays</span></h3><div class="cbox"><canvas id="c${z.z}" role="img" aria-label="Zone ${z.z+1} temperature trend"></canvas></div></div>`).join("")}</div>
   </section>
 
   ${responseSection(A)}
+
+  ${replSection(A)}
 
   <div class="stack">
     <section class="panel">
@@ -1202,7 +1238,7 @@ function zoneCard(z,A){
     <div class="zone-h"><h3>Zone ${z.z+1}</h3>${chip(lvl,lbl)}</div>
     <div class="muted" style="font-size:12.5px;margin-top:-6px">${RF.levels.length>1?`Set values <span class="num">${spTxt(RF.levels)}</span> · window ±<span class="num">${tol} °C</span> around each set value`:`Setpoint <span class="num">${f0(RF.sp)} °C</span> · window <span class="num">${f0(RF.sp-tol)}–${f0(RF.sp+tol)} °C</span>`}<br>Tray positions ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1} (${traysIn(z.z)} trays)${procTxt(RF.levels)?`<br>Process: ${esc(procTxt(RF.levels))}${FTYPE==="hardening"&&z.z===0?" · preheating zone: trays not counted as affected when the set value is above "+HI_SET+" °C":""}`:""}</div>
     <table>
-      <thead><tr><th></th><th><span class="sw" style="background:var(--s1)"></span>${tcName(z.L)} left</th>${R?`<th><span class="sw" style="background:var(--s2)"></span>${tcName(z.R)} right</th>`:""}</tr></thead>
+      <thead><tr><th></th><th><span class="sw" style="background:var(--s1)"></span>${tcName(z.L)} left${A.ids[z.L]?` <span class="muted">${esc(A.ids[z.L])}</span>`:""}</th>${R?`<th><span class="sw" style="background:var(--s2)"></span>${tcName(z.R)} right${A.ids[z.R]?` <span class="muted">${esc(A.ids[z.R])}</span>`:""}</th>`:""}</tr></thead>
       <tbody>
         ${A.multiSet?"":row("Mean, °C",t=>f1(t.mean))}
         ${row("vs setpoint",t=>sgn(t.devMean),t=>Math.abs(t.devMean)>tol?"bad":Math.abs(t.devMean)>tol/2?"caution":"")}
@@ -1261,6 +1297,25 @@ function rangeChart(A){
 }
 
 const fmtN=x=>Number(x).toLocaleString();
+const fmtAbs=ms=>`${fmtD(ms)} ${fmtT(ms)}`;
+function replSection(A){
+  if(!A.repl.length) return "";
+  const cell=g=>!g||!g.n?"–":`${sgn(g.mean)} °C · ${f1(g.inTol)} % in tol. <span class="muted">(${g.n} readings)</span>`;
+  const rows=A.repl.map(r=>{
+    let res;
+    const big=v=>Math.abs(v)>A.tol/2;
+    if(!r.inRec) res=chip("info","Outside this record");
+    else if(r.shiftRel!=null) res=big(r.shiftRel)?chip("warn","Differs from "+tcName(r.partner)+" by "+sgn(r.shiftRel)+" °C more than before: check against SAT"):chip("good","Consistent with "+tcName(r.partner));
+    else if(r.shift==null) res=chip("info","Too few readings to compare");
+    else res=big(r.shift)?chip("warn","Reading moved "+sgn(r.shift)+" °C (no partner wall to compare)"):chip("good","No shift ("+sgn(r.shift)+" °C)");
+    return `<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td><td><b>${esc(r.id)}</b></td><td class="n">${r.inRec?fmtDT(r.t):fmtAbs(r.t)}</td><td class="n">${r.inRec?cell(r.before):"–"}</td><td class="n">${r.inRec?cell(r.after):"–"}</td><td class="n">${r.inRec&&r.shiftRel!=null?sgn(r.shiftRel)+" °C":"–"}</td><td>${res}</td><td>${esc(r.note||"")}</td></tr>`;
+  }).join("");
+  const n=A.repl.filter(r=>r.inRec).length;
+  return `<section class="panel">
+    <div class="sec-head"><h2>Thermocouple replacements</h2><p>${n?`${n} thermocouple${n>1?"s were":" was"} replaced during this record. Mean deviation from the set value and the share of readings in tolerance are compared before and after each replacement (settling and furnace-off periods excluded). The “change vs other wall” compares the new thermocouple with the other wall of its zone before and after, so furnace-wide changes cancel out. A jump there points to a sensor difference: check the new thermocouple against the SAT.`:`No replacement falls inside this record; the register is shown for reference.`} Statistics for a replaced thermocouple combine both sensors.</p></div>
+    <div class="scroll"><table class="log"><thead><tr><th>Thermocouple</th><th>New ID</th><th>Replaced at</th><th>Before</th><th>After</th><th>Change vs other wall</th><th>Result</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
 const chg=x=>x.from==null?`furnace start → ${f0(x.to)} °C`:`${f0(x.from)} → ${f0(x.to)} °C`;
 function responseSection(A){
   if(!A.trans.length) return "";
@@ -1324,6 +1379,7 @@ function integrity(A){
   const sp=A.tcs.filter(t=>t.spikes.length);
   C.push(sp.length?{lvl:"warn",name:"No sudden jumps",txt:sp.map(t=>`${tcName(t.k)}: ${t.spikes.length} (first ${f0(t.spikes[0].from)}→${f0(t.spikes[0].to)} °C at ${fmtDT(t.spikes[0].t)})`).join("; ")}:{lvl:"good",name:"No sudden jumps",txt:`No change of ${S.spike} °C or more between consecutive readings.`});
   const spc=A.tcs.filter(t=>t.spChanges.length);
+  C.push(A.repl.length?{lvl:"info",name:"Thermocouple replacements",txt:A.repl.map(r=>`${tcName(r.k)} → ${r.id} at ${r.inRec?fmtDT(r.t):fmtAbs(r.t)}${r.inRec?"":" (outside this record)"}`).join("; ")}:{lvl:"good",name:"Thermocouple replacements",txt:"None entered. Enter any thermocouple replaced so the report can show the change."});
   C.push(A.run.warn?{lvl:"warn",name:"Furnace start / stop",txt:"The stop time is not later than the start time, so the stop time was ignored."}:(A.run.start!=null||A.run.stop!=null)?{lvl:"info",name:"Furnace start / stop",txt:`${A.run.start!=null?"Start "+fmtDT(A.run.start)+". ":""}${A.run.stop!=null?"Stop "+fmtDT(A.run.stop)+". ":""}${fmtN(A.run.offRows)} readings outside this period are not judged (furnace off, starting or shutting down); after the start, readings count once each thermocouple has reached its set value.`}:{lvl:"good",name:"Furnace start / stop",txt:"No start or stop time entered: the whole record is judged."});
   C.push(A.trans.length?{lvl:A.trans.some(x=>x.reachedAt==null&&!x.ended&&!x.superseded)?"warn":"info",name:"Settling after set value change",txt:`${fmtN(A.settlingTotal)} readings not judged while the furnace followed a new set value (until within ±${A.tol} °C for ${S.hold} readings, at most ${S.settle} min).`}:{lvl:"good",name:"Settling after set value change",txt:"No set value change larger than the tolerance in this record."});
   C.push(spc.length?{lvl:"info",name:"Set value changed",txt:(A.setSegs.length>1?`${A.setSegs.map(g=>`${f0(g.sp)} °C ${hmr(g.from,g.to)}`).join(" → ")}. `:"")+spc.map(t=>`${tcName(t.k)}: ${t.spChanges.length} change(s)`).join("; ")+". Deviations and statistics use the set value in force at each reading."}:{lvl:"good",name:"Setpoint stable",txt:`Setpoints unchanged: ${[...new Set(A.tcs.map(t=>f0(t.sp)))].join(" / ")} °C.`});
@@ -1363,7 +1419,14 @@ function drawCharts(D,A){
     if(A.run.start!=null&&A.run.start>A.t0) spans.push({from:A.t0,to:A.run.start});
     if(A.run.stop!=null&&A.run.stop<A.t1) spans.push({from:A.run.stop,to:A.t1});
     const settleBand={id:"sb",beforeDatasetsDraw(c){ if(!spans.length) return; const a=c.chartArea, xs_=c.scales.x, g=c.ctx; g.save(); g.fillStyle=grid; g.globalAlpha=.75; spans.forEach(sp=>{ const x0=Math.max(a.left,xs_.getPixelForValue((sp.from-t0)/60000)), x1=Math.min(a.right,xs_.getPixelForValue((sp.to-t0)/60000)); if(x1>x0) g.fillRect(x0,a.top,x1-x0,a.bottom-a.top); }); g.restore(); }};
-    charts.push(new Chart(el,{type:"line",data:{datasets:ds},plugins:[settleBand,crosshair],options:{
+    const marks=A.repl.filter(r=>r.inRec&&(r.k===L||r.k===R));
+    const replMark={id:"rm",afterDatasetsDraw(c){ if(!marks.length) return; const a=c.chartArea, g=c.ctx; g.save(); g.font="11px IBM Plex Mono, monospace"; g.textBaseline="top";
+      marks.forEach((m,i)=>{ const x=c.scales.x.getPixelForValue((m.t-t0)/60000); if(x<a.left||x>a.right) return; const col=m.k%2?c2:c1;
+        g.strokeStyle=col; g.lineWidth=1.5; g.setLineDash([5,3]); g.beginPath(); g.moveTo(x,a.top); g.lineTo(x,a.bottom); g.stroke(); g.setLineDash([]);
+        const txt=`${tcName(m.k)} replaced · ${m.id}`, w=g.measureText(txt).width+8, bx=Math.min(a.right-w,x+3), by=a.top+3+i*16;
+        g.fillStyle=surf; g.globalAlpha=.9; g.fillRect(bx,by,w,15); g.globalAlpha=1; g.strokeStyle=col; g.lineWidth=1; g.strokeRect(bx,by,w,15); g.fillStyle=cssv("--ink"); g.fillText(txt,bx+4,by+2); });
+      g.restore(); }};
+    charts.push(new Chart(el,{type:"line",data:{datasets:ds},plugins:[settleBand,replMark,crosshair],options:{
       animation:false,parsing:false,normalized:true,responsive:true,maintainAspectRatio:false,devicePixelRatio:PRINTING?3:undefined,
       interaction:{mode:"index",intersect:false},
       plugins:{legend:{display:false},tooltip:{filter:i=>i.datasetIndex>=2,backgroundColor:surf,titleColor:cssv("--ink"),bodyColor:ink2,borderColor:cssv("--line"),borderWidth:1,
@@ -1406,6 +1469,24 @@ function exitPrint(){
 }
 addEventListener("beforeprint",enterPrint);
 addEventListener("afterprint",()=>setTimeout(exitPrint,0));
+function renderRepl(){
+  const tb=REPL.slice().sort((a,b)=>b.t-a.t);
+  $("#rClear").hidden=!tb.length;
+  $("#rList").innerHTML=tb.length?`<table class="log"><thead><tr><th>Thermocouple</th><th>New ID</th><th>Replaced at</th><th>Note</th><th></th></tr></thead><tbody>${tb.map(r=>`<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td><td>${esc(r.id)}</td><td class="n">${fmtAbs(r.t)}</td><td>${esc(r.note||"")}</td><td><button class="btn ghost" type="button" data-del="${REPL.indexOf(r)}" style="padding:2px 10px">Remove</button></td></tr>`).join("")}</tbody></table>`:`<div class="muted small">No replacements entered.</div>`;
+  $("#rList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{ REPL.splice(+b.dataset.del,1); saveRepl(); renderRepl(); if(DATA) run(); }));
+}
+const saveRepl=()=>{ try{ localStorage.setItem("pfsr-repl",JSON.stringify(REPL)); }catch(e){} };
+$("#rTc").innerHTML=Array.from({length:6},(_,k)=>`<option value="${k}">${tcName(k)} · ${tcLoc(k)}</option>`).join("");
+$("#rAdd").addEventListener("click",()=>{
+  const id=$("#rId").value.trim(), t=parseLocal($("#rTime").value), msg=$("#rMsg");
+  if(!id){ msg.textContent="Enter the ID of the new thermocouple."; msg.className="small bad"; return; }
+  if(t==null){ msg.textContent="Enter the time of replacement."; msg.className="small bad"; return; }
+  REPL.push({k:+$("#rTc").value,id,t,note:$("#rNote").value.trim()}); saveRepl();
+  $("#rId").value=""; $("#rNote").value=""; msg.textContent=`Added ${tcName(+$("#rTc").value)} → ${id}.`; msg.className="small muted"; renderRepl(); if(DATA) run();
+});
+$("#rClear").addEventListener("click",()=>{ if(!REPL.length) return; if($("#rClear").dataset.sure!=="1"){ $("#rClear").dataset.sure="1"; $("#rClear").textContent="Click again to clear all"; setTimeout(()=>{ $("#rClear").dataset.sure=""; $("#rClear").textContent="Clear all"; },3000); return; }
+  REPL=[]; saveRepl(); $("#rClear").dataset.sure=""; $("#rClear").textContent="Clear all"; renderRepl(); if(DATA) run(); });
+renderRepl();
 const syncRun=()=>{ RUN.start=parseLocal($("#runStart").value); RUN.stop=parseLocal($("#runStop").value); if(DATA) run(); };
 ["runStart","runStop"].forEach(id=>document.getElementById(id).addEventListener("change",syncRun));
 const resetRun=()=>{ $("#runStart").value=""; $("#runStop").value=""; RUN.start=RUN.stop=null; };
