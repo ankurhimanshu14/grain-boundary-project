@@ -159,6 +159,11 @@ footer li{margin:2px 0}
 .landing p{margin:0;color:var(--ink2);max-width:70ch}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
 .print-only{display:none}
+.rcard{border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-top:12px;background:var(--surface)}
+.rcard h3{margin:0 0 6px}
+.rverdict{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--ink)}
+.rgrid{display:grid;grid-template-columns:minmax(300px,1fr) minmax(300px,1.2fr);gap:14px;align-items:start}
+@media (max-width:820px){.rgrid{grid-template-columns:1fr}}
 .stat-grid{display:grid;grid-template-columns:1fr;gap:18px}
 .stat-grid h3{margin-bottom:6px}
 table.stat td:first-child{color:var(--ink2);width:28%}
@@ -424,6 +429,28 @@ const tcLoc=k=>`Zone ${Math.floor(k/2)+1} · ${k%2===0?"left":"right"} wall`;
 function quant(sorted,q){ if(!sorted.length) return null; const p=(sorted.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p); return sorted[lo]+(sorted[hi]-sorted[lo])*(p-lo); }
 function mode(arr){ const m=new Map(); let best=null,bc=0; arr.forEach(v=>{ if(v==null) return; const c=(m.get(v)||0)+1; m.set(v,c); if(c>bc){bc=c;best=v;} }); return best; }
 
+/* ---------- process-control history (kept in this browser) ----------
+   Every record that is analysed leaves a one-line summary per thermocouple, so that days before and after a
+   thermocouple replacement can be compared even when the replacement happened between two exports. */
+let HIST={}; try{ HIST=JSON.parse(localStorage.getItem("pfsr-hist")||"{}")||{}; }catch(e){}
+const furnaceKey=D=>{ const m=((D.meta||[]).find(x=>/furnace/i.test(x))||"").match(/furnace[-\s]*\d+/i); return m?m[0].replace(/\s+/g,"-").toUpperCase():"FURNACE"; };
+function saveHistory(D,h){
+  if(/\(example\)/.test(FILE||"")) return;
+  HIST[h.f+"|"+h.day]=h;
+  const keys=Object.keys(HIST).sort((a,b)=>HIST[a].day-HIST[b].day); while(keys.length>400) delete HIST[keys.shift()];
+  try{ localStorage.setItem("pfsr-hist",JSON.stringify(HIST)); }catch(e){}
+}
+const wmean=(xs,ws)=>{ let a=0,b=0; xs.forEach((x,i)=>{ if(x!=null&&isFinite(x)){ a+=x*ws[i]; b+=ws[i]; } }); return b?a/b:null; };
+/* verdict from a before/after pair: share in tolerance, offset from the set value and scatter */
+function judgeCtl(b,a,tol){
+  if(!b||!a||b.n<MINSTAT||a.n<MINSTAT||b.mean==null||a.mean==null) return null;
+  let pts=0; const why=[];
+  const dIn=a.inTol-b.inTol; if(dIn>=5){ pts++; why.push("more readings in tolerance"); } else if(dIn<=-5){ pts--; why.push("fewer readings in tolerance"); }
+  const dm=Math.abs(a.mean)-Math.abs(b.mean); if(dm<=-tol/4){ pts++; why.push("smaller offset from the set value"); } else if(dm>=tol/4){ pts--; why.push("larger offset from the set value"); }
+  if(b.sd>0&&a.sd!=null){ const q=a.sd/b.sd; if(q<=0.8){ pts++; why.push("less scatter"); } else if(q>=1.25){ pts--; why.push("more scatter"); } }
+  const verdict=(pts>=2||(pts===1&&dIn>=0))?"better":(pts<=-2||(pts===-1&&dIn<=0))?"worse":"same";
+  return {verdict,pts,why,dIn};
+}
 function analyze(D){
   const {rows,n}=D, tol=S.tol, N=rows.length; NZ=Math.ceil(n/2);
   const dts=[]; for(let i=1;i<N;i++) dts.push(rows[i].t-rows[i-1].t);
@@ -509,7 +536,21 @@ function analyze(D){
   const seg=(k,a,b)=>{ const d=[], dd=[], q=k^1; rows.forEach(rw=>{ if(rw.t>=a&&rw.t<b){ const v=rw.ev[k], sp=rw.sp[k]??tcs[k].sp; if(v==null||sp==null) return; d.push(v-sp);
       if(q<n){ const vq=rw.ev[q], sq=rw.sp[q]??tcs[q].sp; if(vq!=null&&sq!=null) dd.push((v-sp)-(vq-sq)); } } });
     const avg=x=>x.length?x.reduce((m,y)=>m+y,0)/x.length:null, m=avg(d);
-    return {n:d.length,mean:m,sd:d.length>1?Math.sqrt(d.reduce((x,y)=>x+(y-m)**2,0)/(d.length-1)):null,inTol:d.length?100*d.filter(x=>Math.abs(x)<=tol).length/d.length:null,nd:dd.length,diff:avg(dd)}; };
+    const sdv=d.length>1?Math.sqrt(d.reduce((x,y)=>x+(y-m)**2,0)/(d.length-1)):null, nOut=d.filter(x=>Math.abs(x)>tol).length;
+    return {n:d.length,mean:m,sd:sdv,inTol:d.length?100*(d.length-nOut)/d.length:null,out:nOut*step/60000,ppk:sdv>0?Math.min(tol-m,m+tol)/(3*sdv):null,
+      max:d.length?Math.max(...d.map(Math.abs)):null,nd:dd.length,diff:avg(dd),wallAbs:dd.length?avg(dd.map(Math.abs)):null}; };
+  /* summary of this record for the day-to-day comparison */
+  saveHistory(D,{f:furnaceKey(D),day:Math.floor(t0/864e5),tol,tc:tcs.map(t=>t.cnt?{n:t.cnt,mean:t.devMean,sd:t.sdDev,inTol:t.inTolPct,out:(t.cnt-t.inTol)*step/60000,ppk:t.cpk}:null)});
+  /* days before / after a replacement that is not inside this record (nearest 7 days each side; the replacement day itself is left out) */
+  const dayCmp=(r)=>{
+    const fk=furnaceKey(D), rd=Math.floor(r.t/864e5), same=Object.values(HIST).filter(h=>h.f===fk&&h.tc&&h.tc[r.k]&&h.tc[r.k].n>=MINSTAT);
+    const bef=same.filter(h=>h.day<rd).sort((x,y)=>y.day-x.day).slice(0,7).reverse(), aft=same.filter(h=>h.day>rd).sort((x,y)=>x.day-y.day).slice(0,7);
+    const agg=list=>{ if(!list.length) return null; const T=list.map(h=>h.tc[r.k]), w=T.map(x=>x.n), pa=list.map(h=>h.tc[r.k^1]);
+      const rel=list.map(h=>{ const x=h.tc[r.k], y=h.tc[r.k^1]; return x&&y&&x.mean!=null&&y.mean!=null?x.mean-y.mean:null; });
+      return {days:list.length,n:T.reduce((a,x)=>a+x.n,0),mean:wmean(T.map(x=>x.mean),w),sd:wmean(T.map(x=>x.sd),w),inTol:wmean(T.map(x=>x.inTol),w),out:wmean(T.map(x=>x.out),list.map(()=>1)),ppk:wmean(T.map(x=>x.ppk),w),diff:wmean(rel,w)}; };
+    const B=agg(bef), Af=agg(aft), tols=new Set([...bef,...aft].map(h=>h.tol));
+    return {bef,aft,before:B,after:Af,mixedTol:tols.size>1,ctl:judgeCtl(B&&{...B,n:B.n},Af&&{...Af,n:Af.n},tol)};
+  };
   const repl=REPL.filter(r=>r.k<n).slice().sort((a,b)=>a.t-b.t||a.k-b.k).map(r=>{
     const o={...r,inRec:r.t>=t0&&r.t<=t1};
     if(o.inRec){
@@ -518,7 +559,8 @@ function analyze(D){
       o.shift=(o.before.n>=MINSTAT&&o.after.n>=MINSTAT)?o.after.mean-o.before.mean:null;
       o.shiftRel=(o.before.nd>=MINSTAT&&o.after.nd>=MINSTAT)?o.after.diff-o.before.diff:null; /* change relative to the other wall of the zone: furnace-wide changes cancel */
       o.partner=r.k^1;
-    }
+      o.ctl=judgeCtl(o.before,o.after,tol);
+    } else o.days=dayCmp(r);
     return o; });
   const ids=Array.from({length:n},(_,k)=>{ const e=REPL.filter(q=>q.k===k&&q.t<=t1).sort((a,b)=>b.t-a.t)[0]; return e?e.id:null; });
   // set values: distinct levels overall, and the time line of the majority set value
@@ -875,6 +917,10 @@ function observations(D,A){
   A.repl.filter(r=>r.inRec).forEach(r=>O.push({lvl:(r.shiftRel!=null?Math.abs(r.shiftRel):r.shift!=null?Math.abs(r.shift):0)>A.tol/2?"warn":"info",tag:"Replacement",title:`${tcName(r.k)} replaced at ${fmtDT(r.t)}, new ID ${r.id}`,
     detail:r.shift!=null?`Mean deviation from the set value ${sgn(r.before.mean)} °C before and ${sgn(r.after.mean)} °C after.${r.shiftRel!=null?` Compared with ${tcName(r.partner)} the difference changed by ${sgn(r.shiftRel)} °C.`:""}${r.note?" Note: "+r.note+".":""}`:`Too few readings on one side to compare before and after.${r.note?" Note: "+r.note+".":""}`,
     action:(r.shiftRel!=null?Math.abs(r.shiftRel):r.shift!=null?Math.abs(r.shift):0)>A.tol/2?`The reading changed relative to the other wall, which points to the sensor rather than the furnace. Check the new thermocouple against the SAT thermocouple and its calibration certificate, and check the extension wire and the controller input before relying on it.`:`Keep the replacement record with the SAT result for the new thermocouple.`}));
+  A.repl.forEach(r=>{ const J=r.inRec?r.ctl:(r.days&&r.days.ctl); if(!J) return; const B=r.inRec?r.before:r.days.before, Af=r.inRec?r.after:r.days.after;
+    O.push({lvl:J.verdict==="worse"?"warn":"info",tag:"Replacement",title:`${tcName(r.k)} (${r.id}): process control ${J.verdict==="better"?"improved":J.verdict==="worse"?"got worse":"did not clearly change"} after the replacement`,
+      detail:`In tolerance ${f1(B.inTol)} % → ${f1(Af.inTol)} %, offset from the set value ${sgn(B.mean)} → ${sgn(Af.mean)} °C, scatter ${f1(B.sd)} → ${f1(Af.sd)} °C${J.why.length?" ("+J.why.join(", ")+")":""}.`,
+      action:J.verdict==="better"?`Keep the replacement record with the SAT result of the new thermocouple.`:J.verdict==="worse"?`The new thermocouple did not improve control. Check it against the SAT thermocouple, check the extension wire, polarity and controller input, and check immersion and position before relying on it.`:`The replacement made no clear difference. If it was made to fix a reading problem, check the SAT result and the other causes (wiring, controller settings, burner).`}); });
   const hrs=(A.t1-A.t0)/36e5;
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
@@ -951,6 +997,7 @@ function render(D,A,O){
   ${responseSection(A)}
 
   ${replSection(A)}
+  ${controlSection(D,A)}
 
   <div class="stack">
     <section class="panel">
@@ -1298,6 +1345,72 @@ function rangeChart(A){
 
 const fmtN=x=>Number(x).toLocaleString();
 const fmtAbs=ms=>`${fmtD(ms)} ${fmtT(ms)}`;
+const VER={better:["good","Improved"],worse:["crit","Worse"],same:["info","No clear change"]};
+function devChartSvg(D,A,r){
+  const W=760,H=190,l=44,rr=10,t=12,b=24, k=r.k, pts=[];
+  D.rows.forEach(rw=>{ const v=rw.ev[k], sp=rw.sp[k]??A.tcs[k].sp; if(v!=null&&sp!=null) pts.push([rw.t,v-sp]); });
+  if(pts.length<2) return "";
+  const lim=Math.max(2*A.tol,...pts.map(x=>Math.abs(x[1])).sort((a,c)=>a-c).slice(0,Math.ceil(pts.length*0.995)).slice(-1))*1.1, X=ms=>l+(ms-A.t0)/(A.t1-A.t0)*(W-l-rr), Y=v=>t+(1-(v+lim)/(2*lim))*(H-t-b);
+  const step=Math.max(1,Math.floor(pts.length/700)); let d="",prev=null;
+  pts.forEach((x,i)=>{ if(i%step) return; d+=(prev==null||x[0]-prev>A.step*3?"M":"L")+X(x[0]).toFixed(1)+" "+Y(Math.max(-lim,Math.min(lim,x[1]))).toFixed(1); prev=x[0]; });
+  let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Deviation of ${tcName(k)} before and after replacement">`;
+  g+=`<rect x="${l}" y="${Y(A.tol)}" width="${W-l-rr}" height="${Y(-A.tol)-Y(A.tol)}" fill="var(--band)"/>`;
+  [-lim,0,lim].forEach(v=>{ g+=`<line x1="${l}" x2="${W-rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v===0?"var(--muted)":"var(--grid)"}" stroke-dasharray="${v===0?"3 3":""}"/><text x="${l-5}" y="${Y(v)+3}" text-anchor="end" font-size="9.5" fill="var(--muted)">${v>0?"+":""}${Math.round(v)}</text>`; });
+  g+=`<path d="${d}" fill="none" stroke="${k%2?"var(--s2)":"var(--s1)"}" stroke-width="1"/>`;
+  const xr=X(r.t); g+=`<line x1="${xr}" x2="${xr}" y1="${t}" y2="${H-b}" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="5 3"/><text x="${Math.min(xr+4,W-130)}" y="${t+10}" font-size="10.5" font-weight="600" fill="var(--ink)">replaced · ${esc(r.id)}</text>`;
+  [[r.before,A.t0,r.t],[r.after,r.t,A.t1]].forEach(([m,x0,x1])=>{ if(m&&m.mean!=null) g+=`<line x1="${X(Math.max(x0,A.t0))}" x2="${X(Math.min(x1,A.t1))}" y1="${Y(m.mean)}" y2="${Y(m.mean)}" stroke="var(--ink)" stroke-width="2.2" opacity=".85"><title>mean ${sgn(m.mean)} °C</title></line>`; });
+  const hrs=(A.t1-A.t0)/36e5, st=hrs>36?12:hrs>12?4:2; for(let h=0;h<=hrs;h+=st){ const tt=A.t0+h*36e5; g+=`<text x="${X(tt)}" y="${H-7}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${fmtT(tt)}</text>`; }
+  g+=`<text x="${l}" y="${t-1}" font-size="9.5" fill="var(--muted)">°C from set value (band ±${A.tol}; thick lines = mean before / after)</text>`;
+  return g+`</svg>`;
+}
+function dayChartSvg(A,r){
+  const dd=r.days; const list=[...dd.bef.map(h=>({h,a:false})),...dd.aft.map(h=>({h,a:true}))];
+  if(!list.length) return "";
+  const W=760,H=170,l=44,rr=10,t=14,b=26,bw=(W-l-rr)/list.length, Y=v=>t+(1-v/100)*(H-t-b);
+  let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Share of readings in tolerance per day, before and after replacement of ${tcName(r.k)}">`;
+  [0,50,100].forEach(v=>{ g+=`<line x1="${l}" x2="${W-rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${l-5}" y="${Y(v)+3}" text-anchor="end" font-size="9.5" fill="var(--muted)">${v} %</text>`; });
+  list.forEach((x,i)=>{ const T=x.h.tc[r.k], cx=l+i*bw+bw/2, hh=(H-t-b)*(T.inTol/100);
+    g+=`<rect x="${cx-bw*.32}" y="${Y(T.inTol)}" width="${bw*.64}" height="${hh}" rx="2" fill="${x.a?"var(--good)":"var(--muted)"}" opacity="${x.a?.8:.6}"><title>${fmtD(x.h.day*864e5)}: ${f1(T.inTol)} % in tolerance, mean ${sgn(T.mean)} °C, σ ${f1(T.sd)} °C</title></rect><text x="${cx}" y="${Y(T.inTol)-3}" text-anchor="middle" font-size="9.5" fill="var(--ink2)">${f0(T.inTol)}</text><text x="${cx}" y="${H-9}" text-anchor="middle" font-size="9" fill="var(--muted)">${fmtD(x.h.day*864e5).slice(0,6)}</text>`; });
+  if(dd.bef.length&&dd.aft.length){ const xm=l+dd.bef.length*bw; g+=`<line x1="${xm}" x2="${xm}" y1="${t-4}" y2="${H-b}" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="5 3"/><text x="${xm+4}" y="${t+6}" font-size="10.5" font-weight="600" fill="var(--ink)">replaced · ${esc(r.id)}</text>`; }
+  return g+`</svg>`;
+}
+function controlSection(D,A){
+  const rs=A.repl.filter(r=>r.inRec?(r.before&&r.after):r.days); if(!rs.length) return "";
+  const fm=(v,d=1)=>v==null||!isFinite(v)?"–":v.toFixed(d).replace("-","−");
+  const row=(lab,b,a,fn,better)=>{ const bv=fn(b), av=fn(a); const bn=b==null?null:b, an=a==null?null:a; let ch="–", cls=""; if(bn!=null&&an!=null){ const dlt=an-bn; ch=(dlt>0?"+":dlt<0?"−":"")+Math.abs(dlt).toFixed(1); if(better&&Math.abs(dlt)>1e-9){ const g=better(dlt); cls=g>0?"ok":g<0?"bad":""; } } return {lab,bv,av,ch,cls}; };
+  const cards=rs.map(r=>{
+    const inRec=r.inRec, B=inRec?r.before:r.days.before, Af=inRec?r.after:r.days.after, J=inRec?r.ctl:r.days.ctl;
+    const head=`<h3>${tcName(r.k)} <span class="muted" style="font-weight:400">${tcLoc(r.k)}</span> · new ID <b>${esc(r.id)}</b> · replaced ${fmtAbs(r.t)}${r.note?` <span class="muted">(${esc(r.note)})</span>`:""}</h3>`;
+    if(!B||!Af||!J){
+      const need=inRec?"Too few judged readings on one side of the replacement to compare.":!r.days.before?"No earlier day on record for this thermocouple, so there is nothing to compare against. Each file you analyse is remembered in this browser; analyse the days before the replacement too.":!r.days.after?"No later day on record yet. Analyse a later day to see the effect of the replacement.":"Too few judged readings to compare.";
+      return `<div class="rcard">${head}<p class="muted" style="margin:6px 0 0">${need}</p></div>`;
+    }
+    const R=[
+      row("Readings in tolerance, %",B.inTol,Af.inTol,x=>fm(x),d=>d),
+      row("Mean offset from set value, °C",B.mean,Af.mean,x=>sgn(x),d=>0),
+      row("Scatter about the set value (σ), °C",B.sd,Af.sd,x=>fm(x),d=>-d),
+      row(inRec?"Time out of tolerance, min":"Time out of tolerance, min per day",B.out,Af.out,x=>fm(x,0),d=>-d),
+      row("Ppk",B.ppk,Af.ppk,x=>x==null?"–":x.toFixed(2).replace("-","−"),d=>d),
+      row("Difference to the other wall of the zone, °C",B.diff,Af.diff,x=>sgn(x),d=>0)
+    ];
+    // offset: improvement means closer to zero, not smaller number
+    R[1].cls=(B.mean!=null&&Af.mean!=null)?(Math.abs(Af.mean)<Math.abs(B.mean)-0.05?"ok":Math.abs(Af.mean)>Math.abs(B.mean)+0.05?"bad":""):"";
+    R[5].cls=(B.diff!=null&&Af.diff!=null)?(Math.abs(Af.diff)<Math.abs(B.diff)-0.05?"ok":Math.abs(Af.diff)>Math.abs(B.diff)+0.05?"bad":""):"";
+    const [lv,tx]=VER[J.verdict];
+    const sub=inRec?`${fmtN(B.n)} readings before, ${fmtN(Af.n)} after, inside this record`:`${r.days.bef.length} day${r.days.bef.length>1?"s":""} before (${r.days.bef.map(h=>fmtD(h.day*864e5).slice(0,6)).join(", ")}) and ${r.days.aft.length} day${r.days.aft.length>1?"s":""} after (${r.days.aft.map(h=>fmtD(h.day*864e5).slice(0,6)).join(", ")}); the replacement day is left out`;
+    const sentence=`In tolerance ${f1(B.inTol)} % → ${f1(Af.inTol)} %, offset ${sgn(B.mean)} → ${sgn(Af.mean)} °C, scatter ${f1(B.sd)} → ${f1(Af.sd)} °C${J.why.length?` (${J.why.join(", ")})`:""}.`;
+    const warn=(!inRec&&r.days.mixedTol)?`<p class="small bad" style="margin:6px 0 0">The days were analysed with different tolerances, so the percentages are not strictly comparable.</p>`:"";
+    return `<div class="rcard">${head}
+      <div class="rverdict">${chip(lv,tx)}<span>${esc(sentence)}</span></div>
+      <p class="small muted" style="margin:2px 0 8px">${sub}</p>
+      <div class="rgrid"><div class="scroll"><table class="log"><thead><tr><th>Measure</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>${R.map(x=>`<tr><td>${x.lab}</td><td class="n">${x.bv}</td><td class="n">${x.av}</td><td class="n ${x.cls}">${x.ch}</td></tr>`).join("")}</tbody></table></div>
+      <div>${inRec?devChartSvg(D,A,r):dayChartSvg(A,r)}</div></div>${warn}</div>`;
+  }).join("");
+  return `<section class="panel">
+    <div class="sec-head"><h2>Process control after thermocouple replacement</h2><p>For each replaced thermocouple the readings before and after the replacement are compared on what the process controller cares about: share of readings within ±${A.tol} °C of the set value, offset from the set value, scatter, time out of tolerance and Ppk. Readings while the furnace was off or settling to a set value are not counted. “Improved” needs at least two of: ≥ 5 points more readings in tolerance, offset closer to the set value by ≥ ${A.tol/4} °C, scatter at least 20 % lower (or one of them with no loss in tolerance). A replacement that was made because the old thermocouple was wrong should show up here as a step toward the set value; a new thermocouple that moves the reading away from the set value, or away from the other wall of its zone, should be checked against the SAT.</p></div>
+    ${cards}
+  </section>`;
+}
 function replSection(A){
   if(!A.repl.length) return "";
   const cell=g=>!g||!g.n?"–":`${sgn(g.mean)} °C · ${f1(g.inTol)} % in tol. <span class="muted">(${g.n} readings)</span>`;
