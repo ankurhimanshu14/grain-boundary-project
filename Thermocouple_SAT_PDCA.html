@@ -145,6 +145,25 @@ table.rd input{font:inherit;font-family:var(--mono);width:100%;min-width:70px;pa
 table.rd tr.due td{background:color-mix(in srgb,var(--d) 16%,transparent)}
 .loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
 
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px}
+table.edit select{min-width:110px}table.edit input[type=date]{min-width:140px}table.edit input{min-width:80px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px;border-top:1px solid var(--grid)}
+.fch:first-of-type{border-top:0}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fch.on{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+@media screen and (max-width:760px){table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}}
 .print-only{display:none}
 footer{font-size:12.5px;color:var(--ink2)}
 footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
@@ -190,6 +209,12 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
     </div>
   </header>
 
+  <section class="panel">
+    <div class="sec-head"><h2>Furnaces</h2><p>Each furnace has a hardening and a tempering chamber. Select a chamber (or a furnace) to show only its thermocouples on this page; the selection also applies to the printed report.</p></div>
+    <div class="fgrid4" id="furnaces"></div>
+    <div class="viewbar" id="viewbar"></div>
+  </section>
+
   <section class="kpis" id="kpis"></section>
 
   <section class="panel">
@@ -220,6 +245,12 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   </section>
 
   <section class="panel">
+    <div class="sec-head"><h2>Thermocouple replacement history</h2><p>Every replaced element: what was removed, what was fitted, why, and the SAT that verified the new element. A replaced thermocouple is due for a SAT until a valid SAT has been done on or after the replacement date.</p>
+      <div class="actions noprint"><button class="btn small" id="b-repl">Record replacement</button><button class="btn ghost small" id="b-csvrep">Export CSV</button></div></div>
+    <div id="repl"></div>
+  </section>
+
+  <section class="panel">
     <div class="sec-head"><h2>SAT records</h2><p>SAT difference = mean over all readings of furnace system reading − (test instrument reading + test instrument correction + test thermocouple correction).</p>
       <div class="actions noprint"><button class="btn ghost small" id="b-csv">Export CSV</button><button class="btn ghost small" id="b-csvr">Export all readings (CSV)</button></div></div>
     <div class="scroll" id="records"></div>
@@ -234,7 +265,10 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   <details class="panel more noprint" id="setup">
     <summary>Settings, thermocouple register and data</summary>
     <div class="controls" id="settings"></div>
-    <h3 style="margin:18px 0 6px">Thermocouples under SAT</h3>
+    <h3 style="margin:18px 0 6px">Furnaces</h3>
+    <div class="scroll" id="furnace-reg"></div>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost small" id="b-addfurnace">Add furnace</button></div>
+    <h3 style="margin:18px 0 6px">Thermocouples under SAT <span class="muted" id="sensors-view" style="font-weight:400;font-size:12.5px"></span></h3>
     <div class="scroll" id="sensors"></div>
     <div class="actions" style="margin-top:8px"><button class="btn ghost small" id="b-addsensor">Add thermocouple</button></div>
     <h3 style="margin:18px 0 6px">Data</h3>
@@ -255,12 +289,14 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
       <li>SAT per CQI-9: a calibrated test thermocouple is placed next to the furnace control/recording thermocouple tip and both readings are compared at the normal operating set value with the furnace stable.</li>
       <li>Default tolerance ±5.5 °C (±10 °F) and quarterly frequency (90 days); both can be changed in Settings. Readings within the warning band (default 70 % of tolerance) pass but need preventive action.</li>
       <li>A test is invalid when the test instrument calibration had expired on the test day or the furnace was not stable; it must be repeated (Do).</li>
+      <li>Thermocouples are registered per furnace (F-01 … F-04) and chamber (hardening, tempering). A replacement record updates the installed element; the thermocouple is then due for a verification SAT on or after the replacement date.</li>
       <li>A failed SAT closes only after root cause, corrective action, product-impact assessment and a passing re-SAT.</li>
     </ul>
   </footer>
 </div>
 
 <dialog id="dlg"></dialog>
+<dialog id="rdlg"></dialog>
 
 <script>
 "use strict";
@@ -281,18 +317,36 @@ const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</spa
 
 /* ---------- data model ---------- */
 const KEY="tsat-pdca";            // own storage key: nothing is shared with the SCADA review
-const DEF={plant:"Pusher furnace",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10,nRead:30,step:1,stab:5};
+const DEF={plant:"Heat treatment shop",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10,nRead:30,step:1,stab:5};
 const STAGES=["plan","do","check","act","closed"];
 const SNAME={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
 const SCOL={plan:"var(--p)",do:"var(--d)",check:"var(--c)",act:"var(--a)",closed:"var(--muted)"};
 const CAUSES=["Control thermocouple drift / ageing","Thermocouple damaged or wrong immersion / position","Compensating cable, connector or junction fault","Controller / recorder calibration","Test equipment or test method error","Other"];
 const ACTIONS=["Replace control thermocouple","Apply / adjust instrument offset","Recalibrate controller / recorder","Repair wiring / connection","Re-position thermocouple","Other"];
-const defSensors=()=>[1,2,3,4,5,6].map(i=>({id:"TC"+i,zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:"N",use:"Control + record",active:true}));
-const blank=()=>({v:1,settings:{...DEF},sensors:defSensors(),cycles:[],seq:1});
+const REASONS=["SAT failure","Drift / preventive (warning band)","Damage / breakage","Open circuit / erratic reading","Scheduled life replacement","Other"];
+const CHAMBERS=["Hardening","Tempering"];
+const CHCODE={Hardening:"H",Tempering:"T"};
+const defFurnaces=()=>["F-01","F-02","F-03","F-04"].map(id=>({id,name:""}));
+/* sensor ids are internal and stay fixed; screens show furnace · chamber · tag */
+const sensorId=(f,ch,tag,list)=>{let b=`${f}-${CHCODE[ch]||String(ch)[0]}-${tag}`,id=b,n=2;while((list||[]).some(x=>x.id===id))id=b+"-"+n++;return id;};
+const tcSet=(f,ch)=>[1,2,3,4,5,6].map(i=>({id:sensorId(f,ch,"TC"+i),furnace:f,chamber:ch,tag:"TC"+i,zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:"N",use:"Control + record",serial:"",installed:"",active:true}));
+const defSensors=()=>defFurnaces().flatMap(f=>CHAMBERS.flatMap(ch=>tcSet(f.id,ch)));
+const blank=()=>({v:2,settings:{...DEF},furnaces:defFurnaces(),sensors:defSensors(),cycles:[],repl:[],seq:1,rseq:1});
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.cycles)||!Array.isArray(o.sensors)) return null;
   o.settings={...DEF,...(o.settings||{})};
   o.sensors=o.sensors.filter(s=>s&&s.id);
+  /* records from before furnaces/chambers existed belong to F-01 hardening */
+  o.sensors.forEach(s=>{s.furnace=s.furnace||"F-01";s.chamber=s.chamber||"Hardening";s.tag=s.tag||s.id;});
+  o.furnaces=Array.isArray(o.furnaces)&&o.furnaces.length?o.furnaces.filter(f=>f&&f.id):defFurnaces();
+  o.sensors.forEach(s=>{if(!o.furnaces.some(f=>f.id===s.furnace))o.furnaces.push({id:s.furnace,name:""});});
+  if(!(o.v>=2)){ /* first load after furnaces were added: give every furnace/chamber without thermocouples the default six */
+    o.furnaces.forEach(f=>CHAMBERS.forEach(ch=>{if(!o.sensors.some(s=>s.furnace===f.id&&s.chamber===ch))tcSet(f.id,ch).forEach(x=>{x.id=sensorId(f.id,ch,x.tag,o.sensors);o.sensors.push(x);});}));
+    if(o.settings.plant==="Pusher furnace")o.settings.plant=DEF.plant;
+    o.v=2;
+  }
+  o.repl=Array.isArray(o.repl)?o.repl.filter(r=>r&&r.id&&r.sensor):[];
+  o.rseq=Math.max(+o.rseq||1,...o.repl.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
   o.cycles=o.cycles.filter(c=>c&&c.id&&STAGES.includes(c.stage)).map(c=>({plan:{},do:{},check:{},act:{},log:[],...c}));
   o.seq=Math.max(+o.seq||1,...o.cycles.map(c=>+(String(c.id).match(/\d+/)||[0])[0]+1));
   return o;
@@ -303,7 +357,15 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}};
 const S=()=>DB.settings;
 const cyc=id=>DB.cycles.find(c=>c.id===id);
 const sensor=id=>DB.sensors.find(s=>s.id===id);
-const sLabel=id=>{const s=sensor(id);return s?`${s.id} · ${s.zone}${s.pos?" "+s.pos.toLowerCase():""}`:id;};
+const sName=id=>{const s=sensor(id);return s?`${s.furnace} ${CHCODE[s.chamber]||s.chamber} · ${s.tag}`:id;};
+const sLabel=id=>{const s=sensor(id);return s?`${s.furnace} · ${s.chamber} · ${s.tag} · ${s.zone}${s.pos?" "+s.pos.toLowerCase():""}`:id;};
+const sOrder=(a,b)=>a.furnace.localeCompare(b.furnace)||CHAMBERS.indexOf(a.chamber)-CHAMBERS.indexOf(b.chamber)||String(a.tag).localeCompare(String(b.tag),undefined,{numeric:true});
+/* page filter: one furnace and/or one chamber (per viewer, not part of the records) */
+let VIEW={f:"",ch:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem("tsat-view")||"{}")};}catch(e){}
+const inView=s=>!!s&&(!VIEW.f||s.furnace===VIEW.f)&&(!VIEW.ch||s.chamber===VIEW.ch);
+const cInView=c=>inView(sensor(c.sensor));
+const viewName=()=>!VIEW.f&&!VIEW.ch?"All furnaces and chambers":`${VIEW.f||"All furnaces"} · ${VIEW.ch?VIEW.ch+" chamber":"both chambers"}`;
+const setView=(f,ch)=>{VIEW={f,ch};try{localStorage.setItem("tsat-view",JSON.stringify(VIEW));}catch(e){}};
 const newId=()=>"SAT-"+String(DB.seq++).padStart(4,"0");
 const logIt=(c,text)=>c.log.push({d:today(),t:text});
 
@@ -356,6 +418,13 @@ function prevValid(c){
 }
 const history=id=>DB.cycles.filter(c=>c.sensor===id&&isValidDone(c)).sort(order);
 
+/* ---------- replacements ---------- */
+const replOf=id=>DB.repl.filter(r=>r.sensor===id).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.id<b.id?-1:1);
+/* first valid SAT on or after the replacement day, not counting the SAT that found the fault */
+const verifySat=r=>history(r.sensor).find(c=>c.do.date>=r.date&&c.id!==r.satRef)||null;
+const repl12=id=>replOf(id).filter(r=>r.date>=addDays(today(),-365)).length;
+function syncSensor(id){const s=sensor(id),l=replOf(id);if(!s||!l.length)return;const r=l.at(-1);s.serial=r.newSerial||"";s.installed=r.date;if(r.newType)s.type=r.newType;}
+
 /* ---------- schedule: next due date per thermocouple ---------- */
 function schedule(sn){
   const h=history(sn.id), last=h.at(-1)||null;
@@ -366,14 +435,16 @@ function schedule(sn){
   let interval=+S().interval;
   if(lastPass&&num(lastPass.act?.interval)) interval=num(lastPass.act.interval);
   let due,status;
-  if(!last){due=today();status="none";}
+  const rp=replOf(sn.id).at(-1);
+  if(rp&&!verifySat(rp)){due=rp.date;status="repl";}
+  else if(!last){due=today();status="none";}
   else if(lastK.res==="fail"){due=last.do.date;status="fail";}
   else{due=addDays(lastPass.do.date,interval);
     const left=daysBetween(today(),due);
     status=left<0?"overdue":left<=+S().soon?"soon":"ok";}
   return {last,lastK,lastPass,open,interval,due,status,left:daysBetween(today(),due)};
 }
-const statusChip=s=>({none:chip("info","?","No SAT on record"),fail:chip("crit","!","Failed — re-SAT required"),overdue:chip("crit","!","Overdue"),soon:chip("warn","!","Due soon"),ok:chip("good","✓","In date")}[s]);
+const statusChip=s=>({repl:chip("warn","↻","Replaced — SAT required"),none:chip("info","?","No SAT on record"),fail:chip("crit","!","Failed — re-SAT required"),overdue:chip("crit","!","Overdue"),soon:chip("warn","!","Due soon"),ok:chip("good","✓","In date")}[s]);
 const resChip=(k,c)=>{
   if(!k||k.res==null) return chip("info","…","No reading");
   if(c&&c.check?.valid==="invalid") return chip("info","×","Invalid test");
@@ -405,6 +476,7 @@ function missing(c){
       const ch=reSats(c),ok=ch.find(x=>x.stage==="closed"&&calc(x).res!=="fail"&&x.check?.valid==="valid");
       need(ok,"a closed, passing re-SAT (use “Plan re-SAT”)");
     }else if(k.res==="warn"){need(a.detail,"preventive action");}
+    if(a.action==="Replace control thermocouple"&&!DB.repl.some(r=>r.satRef===c.id)) m.push("a replacement record linked to this SAT (use “Record replacement”)");
   }
   return m;
 }
@@ -424,24 +496,27 @@ function advance(c){
 /* ---------- render: page ---------- */
 function render(){
   const s=S();
-  $("#meta").innerHTML=`<span>Furnace <b>${esc(s.plant)}</b></span><span>Tolerance <b>±${s.tol} °C</b></span><span>Warning band <b>${s.warnPct} %</b></span><span>Interval <b>${s.interval} days</b></span><span>Date <b>${fdate(today())}</b></span>`;
-  const active=DB.sensors.filter(x=>x.active!==false);
+  $("#meta").innerHTML=`<span>Plant <b>${esc(s.plant)}</b></span><span>Showing <b>${esc(viewName())}</b></span><span>Tolerance <b>±${s.tol} °C</b></span><span>Warning band <b>${s.warnPct} %</b></span><span>Interval <b>${s.interval} days</b></span><span>Date <b>${fdate(today())}</b></span>`;
+  drawFurnaces();
+  const active=DB.sensors.filter(x=>x.active!==false&&inView(x)).sort(sOrder);
   const sch=active.map(x=>({s:x,...schedule(x)}));
-  const open=DB.cycles.filter(c=>c.stage!=="closed");
+  const open=DB.cycles.filter(c=>c.stage!=="closed"&&cInView(c));
   const cnt=st=>open.filter(c=>c.stage===st).length;
   const yearAgo=addDays(today(),-365);
-  const yr=DB.cycles.filter(c=>isValidDone(c)&&c.do.date>=yearAgo&&!c.parent);
+  const yr=DB.cycles.filter(c=>isValidDone(c)&&c.do.date>=yearAgo&&!c.parent&&cInView(c));
   const firstPass=yr.filter(c=>calc(c).res!=="fail").length;
+  const rep12=DB.repl.filter(r=>r.date>=yearAgo&&inView(sensor(r.sensor))).length;
   const capaOpen=open.filter(c=>c.stage==="act"&&["fail","warn"].includes(calc(c).res)).length;
-  const overdue=sch.filter(x=>["overdue","fail","none"].includes(x.status)).length, soon=sch.filter(x=>x.status==="soon").length;
+  const overdue=sch.filter(x=>["overdue","fail","none","repl"].includes(x.status)).length, soon=sch.filter(x=>x.status==="soon").length;
   const worst=sch.filter(x=>x.lastK).sort((a,b)=>Math.abs(b.lastK.diff)-Math.abs(a.lastK.diff))[0];
   $("#kpis").innerHTML=[
     [active.length,"Thermocouples under SAT",""],
-    [overdue,"Overdue / failed / never tested",soon+" due within "+s.soon+" days",overdue?"bad":"ok"],
+    [overdue,"SAT due now",soon+" due within "+s.soon+" days",overdue?"bad":"ok"],
     [open.length,"Open PDCA cycles",`P ${cnt("plan")} · D ${cnt("do")} · C ${cnt("check")} · A ${cnt("act")}`],
     [yr.length?Math.round(firstPass/yr.length*100)+"<small> %</small>":"—","First-time pass rate",`last 12 months, ${firstPass}/${yr.length} SATs`, yr.length&&firstPass<yr.length?"caution":""],
     [capaOpen,"Open corrective / preventive actions","SATs in Act needing action",capaOpen?"caution":""],
-    [worst?sgn(worst.lastK.diff)+"<small> °C</small>":"—","Largest latest SAT difference",worst?worst.s.id+" · limit ±"+s.tol+" °C":"",worst&&worst.lastK.res==="fail"?"bad":worst&&worst.lastK.res==="warn"?"caution":""],
+    [rep12,"Replacements, last 12 months",sch.filter(x=>x.status==="repl").length+" awaiting verification SAT"],
+    [worst?sgn(worst.lastK.diff)+"<small> °C</small>":"—","Largest latest SAT difference",worst?sName(worst.s.id)+" · limit ±"+s.tol+" °C":"",worst&&worst.lastK.res==="fail"?"bad":worst&&worst.lastK.res==="warn"?"caution":""],
   ].map(([v,l,sub,cls])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${cls||""}">${v}</span><span class="s">${esc(sub)}</span></div>`).join("");
 
   /* board */
@@ -454,8 +529,11 @@ function render(){
 
   /* schedule */
   $("#sched-note").textContent=`Next due = date of the last passing SAT + interval (${s.interval} days unless an Act stage set a different interval for that thermocouple). “Due soon” = within ${s.soon} days.`;
-  $("#sched").innerHTML=sch.length?`<table class="log cards"><thead><tr><th>Thermocouple</th><th>Last SAT</th><th class="n">Difference</th><th>Result</th><th>Interval</th><th>Next due</th><th>Status</th><th>Open cycle</th><th class="noprint"></th></tr></thead><tbody>${
-    sch.map(x=>`<tr><td data-label="Thermocouple"><b>${esc(x.s.id)}</b> <span class="muted">${esc(x.s.zone)} · ${esc(x.s.pos||"")} · type ${esc(x.s.type||"")}</span></td>
+  let grp="";
+  $("#sched").innerHTML=sch.length?`<table class="log cards"><thead><tr><th>Thermocouple</th><th>Installed element</th><th>Last SAT</th><th class="n">Difference</th><th>Result</th><th>Interval</th><th>Next due</th><th>Status</th><th>Open cycle</th><th class="noprint"></th></tr></thead><tbody>${
+    sch.map(x=>{const g=x.s.furnace+" · "+x.s.chamber+" chamber",head=g!==grp?`<tr class="grp"><td colspan="10">${esc(g)}</td></tr>`:"";grp=g;const n12=repl12(x.s.id);
+      return head+`<tr><td data-label="Thermocouple"><b>${esc(x.s.tag)}</b> <span class="muted">${esc(x.s.zone)} · ${esc(x.s.pos||"")} · type ${esc(x.s.type||"")}</span></td>
+      <td data-label="Installed element">${x.s.serial?`<span class="mono">${esc(x.s.serial)}</span>`:"—"}${isDate(x.s.installed)?`<br><span class="muted">since ${fdate(x.s.installed)} (${daysBetween(x.s.installed,today())} d)</span>`:""}${n12>=2?"<br>"+chip("warn","!",n12+" replacements in 12 months"):""}</td>
       <td data-label="Last SAT" class="n">${x.last?fdate(x.last.do.date):"—"}</td>
       <td data-label="Difference" class="n">${x.lastK?sgn(x.lastK.diff)+" °C":"—"}</td>
       <td data-label="Result">${x.last?resChip(x.lastK):"—"}</td>
@@ -463,11 +541,12 @@ function render(){
       <td data-label="Next due" class="n">${fdate(x.due)}${x.status==="overdue"?` <span class="bad">(${-x.left} d late)</span>`:x.status==="soon"?` <span class="caution">(${x.left} d)</span>`:""}</td>
       <td data-label="Status">${statusChip(x.status)}</td>
       <td data-label="Open cycle">${x.open.map(c=>`<button class="btn ghost small" data-open="${c.id}">${c.id} · ${SNAME[c.stage]}</button>`).join(" ")||"—"}</td>
-      <td class="noprint" data-label="">${x.open.length?"":`<button class="btn small" data-plan="${esc(x.s.id)}">Plan SAT</button>`}</td></tr>`).join("")}</tbody></table>`
-    :`<div class="empty">No active thermocouples. Add them under Settings.</div>`;
+      <td class="noprint" data-label="">${x.open.length?"":`<button class="btn small" data-plan="${esc(x.s.id)}">Plan SAT</button>`}</td></tr>`;}).join("")}</tbody></table>`
+    :`<div class="empty">No active thermocouples in ${esc(viewName())}. Add them under Settings.</div>`;
 
   drawDrift(active);
   drawCapa();
+  drawRepl();
   drawRecords();
   drawSettings();
 }
@@ -477,8 +556,8 @@ function card(c){
   const kids=reSats(c).map(x=>`<span class="chip info"><i>↻</i>${esc(x.id)} ${SNAME[x.stage]}</span>`).join("");
   const nm=missing(c).length;
   return `<button class="card" style="--k:${SCOL[c.stage]}" data-open="${c.id}">
-    <span class="t"><span>${esc(c.sensor)}</span><span class="mono muted" style="font-weight:400">${esc(c.id)}</span></span>
-    <span class="s">${esc(sLabel(c.sensor).split(" · ")[1]||"")}</span>
+    <span class="t"><span>${esc(sName(c.sensor))}</span><span class="mono muted" style="font-weight:400">${esc(c.id)}</span></span>
+    <span class="s">${esc((sensor(c.sensor)?.chamber||"")+" chamber · "+(sensor(c.sensor)?.zone||""))}</span>
     <span class="s">${c.stage==="plan"?"Planned "+fdate(c.plan.date):"Tested "+fdate(c.do.date)}${c.plan.by?" · "+esc(c.plan.by):""}</span>
     <span class="row">${k.res?resChip(k,c)+`<span class="chip info mono"><i>Δ</i>${sgn(k.diff)} °C</span>`:""}${late?chip("crit","!","Plan date passed"):""}${parent}${kids}</span>
     <span class="s">${nm?nm+" entr"+(nm>1?"ies":"y")+" needed to advance":"Ready to advance"}</span>
@@ -490,26 +569,29 @@ function drawDrift(active){
   const s=S(),tol=+s.tol,warn=tol*s.warnPct/100;
   $("#drift-legend").innerHTML=`<span><span class="lg-band"></span>within ±${tol} °C</span><span><span class="lg-dash"></span>warning band ±${warn.toFixed(1)} °C</span><span><span class="dot" style="background:var(--good)"></span>pass</span><span><span class="dot" style="background:var(--warn)"></span>warning</span><span><span class="dot" style="background:var(--crit)"></span>fail</span>`;
   const W=360,H=150,L=34,R=8,T=10,B=22;
-  $("#drift").innerHTML=active.map(sn=>{
+  $("#drift-legend").insertAdjacentHTML("beforeend",`<span><span class="lg-dash" style="border-color:var(--d)"></span>thermocouple replaced</span>`);
+  const withH=active.filter(sn=>history(sn.id).length),noH=active.length-withH.length;
+  $("#drift").innerHTML=(withH.length?"":`<div class="empty">No valid SAT yet in ${esc(viewName())}.</div>`)+withH.map(sn=>{
     const h=history(sn.id).map(c=>({c,k:calc(c),x:dnum(c.do.date)}));
-    if(!h.length) return `<div><h3>${esc(sn.id)} <span class="muted" style="font-weight:400;font-size:12px">${esc(sn.zone)}</span></h3><div class="empty" style="margin-top:6px">No valid SAT yet.</div></div>`;
     const ymax=Math.max(tol*1.6,...h.map(p=>Math.abs(p.k.diff)*1.15));
-    let x0=Math.min(...h.map(p=>p.x)),x1=Math.max(...h.map(p=>p.x),dnum(today()));
+    const rps=replOf(sn.id);
+    let x0=Math.min(...h.map(p=>p.x),...rps.map(r=>dnum(r.date))),x1=Math.max(...h.map(p=>p.x),dnum(today()));
     if(x1-x0<30)x0=x1-30;
     const X=x=>L+(x-x0)/(x1-x0)*(W-L-R),Y=y=>T+(ymax-y)/(2*ymax)*(H-T-B);
     const tick=[-tol,0,tol].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L-4}" y="${Y(v)+3.5}" text-anchor="end">${v>0?"+":""}${v}</text>`).join("");
     const pts=h.map(p=>`${X(p.x).toFixed(1)},${Y(p.k.diff).toFixed(1)}`).join(" ");
     const col={pass:"var(--good)",warn:"var(--warn)",fail:"var(--crit)"};
-    return `<div><h3>${esc(sn.id)} <span class="muted" style="font-weight:400;font-size:12px">${esc(sn.zone)} · ${esc(sn.pos||"")} · latest ${sgn(h.at(-1).k.diff)} °C</span></h3>
-    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="SAT differences for ${esc(sn.id)}">
+    return `<div><h3>${esc(sName(sn.id))} <span class="muted" style="font-weight:400;font-size:12px">${esc(sn.zone)} · ${esc(sn.pos||"")} · latest ${sgn(h.at(-1).k.diff)} °C</span></h3>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="SAT differences for ${esc(sName(sn.id))}">
       <rect x="${L}" y="${Y(tol)}" width="${W-L-R}" height="${Y(-tol)-Y(tol)}" fill="var(--band)"/>
       ${tick}
       ${[warn,-warn].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--warn)" stroke-dasharray="4 3" stroke-width="1"/>`).join("")}
+      ${rps.map(r=>`<line x1="${X(dnum(r.date)).toFixed(1)}" x2="${X(dnum(r.date)).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="var(--d)" stroke-dasharray="3 3" stroke-width="1.3"><title>${esc(r.id)} · replaced ${fdate(r.date)} · ${esc(r.reason||"")}</title></line>`).join("")}
       <polyline points="${pts}" fill="none" stroke="var(--ink2)" stroke-width="1.2"/>
       ${h.map(p=>`<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.k.diff).toFixed(1)}" r="4" fill="${col[p.k.res]}"><title>${p.c.id} · ${fdate(p.c.do.date)} · ${sgn(p.k.diff)} °C</title></circle>`).join("")}
       <text x="${L}" y="${H-6}">${fdate(dstr(x0))}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${fdate(dstr(x1))}</text>
     </svg></div>`;
-  }).join("");
+  }).join("")+(noH&&withH.length?`<div class="muted" style="font-size:12.5px;align-self:center">${noH} more thermocouple${noH>1?"s":""} without a valid SAT yet.</div>`:"");
 }
 
 /* ---------- render: actions register ---------- */
@@ -518,14 +600,14 @@ function riskWindow(c){
   return p?`${fdate(p.do.date)} → ${fdate(c.do.date)} (${daysBetween(p.do.date,c.do.date)} days)`:`up to ${fdate(c.do.date)} (no earlier passing SAT)`;
 }
 function drawCapa(){
-  const l=DB.cycles.filter(c=>(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&["fail","warn"].includes(calc(c).res)).sort((a,b)=>order(b,a));
+  const l=DB.cycles.filter(c=>cInView(c)&&(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&["fail","warn"].includes(calc(c).res)).sort((a,b)=>order(b,a));
   $("#capa").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th class="n">Difference</th><th>Type</th><th>Root cause</th><th>Action</th><th>Product at risk</th><th>Re-SAT</th><th>Interval set</th><th>Status</th></tr></thead><tbody>${
     l.map(c=>{const k=calc(c),a=c.act,kids=reSats(c);
       return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button><br><span class="muted">${fdate(c.do.date)}</span></td>
       <td data-label="Thermocouple">${esc(sLabel(c.sensor))}</td><td data-label="Difference" class="n">${sgn(k.diff)} °C</td>
       <td data-label="Type">${k.res==="fail"?chip("crit","✕","Corrective"):chip("warn","!","Preventive")}</td>
       <td data-label="Root cause">${esc(a.cause||"—")}</td>
-      <td data-label="Action">${a.action?"<b>"+esc(a.action)+"</b><br>":""}${esc(a.detail||"—")}${a.standard?`<br><span class="muted">Standardised: ${esc(a.standard)}</span>`:""}</td>
+      <td data-label="Action">${a.action?"<b>"+esc(a.action)+"</b><br>":""}${esc(a.detail||"—")}${DB.repl.filter(r=>r.satRef===c.id).map(r=>`<br><span class="muted">Replacement ${esc(r.id)}: ${esc(r.oldSerial||"?")} → ${esc(r.newSerial)}</span>`).join("")}${a.standard?`<br><span class="muted">Standardised: ${esc(a.standard)}</span>`:""}</td>
       <td data-label="Product at risk">${k.res==="fail"?riskWindow(c)+(a.impact?`<br><span class="muted">${esc(a.impact)}</span>`:`<br><span class="bad">assessment missing</span>`):"—"}</td>
       <td data-label="Re-SAT">${kids.map(x=>{const xk=calc(x);return `${esc(x.id)} · ${SNAME[x.stage]}${xk.res?" · "+sgn(xk.diff)+" °C":""}`;}).join("<br>")||(k.res==="fail"?`<span class="bad">not planned</span>`:"—")}</td>
       <td data-label="Interval set" class="n">${num(a.interval)?a.interval+" d":"—"}</td>
@@ -533,12 +615,46 @@ function drawCapa(){
     :`<div class="empty">No failed or warning-band SATs recorded.</div>`;
 }
 
+/* ---------- render: furnace overview (also the page filter) ---------- */
+function drawFurnaces(){
+  const all=DB.sensors.filter(x=>x.active!==false);
+  const st=l=>{const sc=l.map(schedule),due=sc.filter(x=>["fail","overdue","repl"].includes(x.status)).length,none=sc.filter(x=>x.status==="none").length,soon=sc.filter(x=>x.status==="soon").length,
+      open=DB.cycles.filter(c=>c.stage!=="closed"&&l.some(s=>s.id===c.sensor)).length;
+    const k=!l.length?"var(--muted)":due?"var(--crit)":none||soon?"var(--warn)":"var(--good)";
+    const t=!l.length?"no thermocouples":[l.length+" TC",due&&due+" due now",soon&&soon+" due soon",none&&none+" never tested",open&&open+" open cycle"+(open>1?"s":"")].filter(Boolean).join(" · ");
+    return {k,t};};
+  const a=st(all);
+  $("#furnaces").innerHTML=`<button class="fall ${!VIEW.f&&!VIEW.ch?"on":""}" data-view="|"><b>All furnaces</b><span>${esc(a.t)}</span></button>`+
+    DB.furnaces.map(f=>`<div class="fcard ${VIEW.f===f.id&&!VIEW.ch?"on":""}"><button class="fhead" data-view="${esc(f.id)}|">${esc(f.id)}<small>${esc(f.name||"")}</small></button>${
+      CHAMBERS.map(ch=>{const x=st(all.filter(s=>s.furnace===f.id&&s.chamber===ch));
+        return `<button class="fch ${VIEW.f===f.id&&VIEW.ch===ch?"on":""}" style="--k:${x.k}" data-view="${esc(f.id)}|${ch}"><b>${ch} chamber</b><span>${esc(x.t)}</span></button>`;}).join("")}</div>`).join("");
+  $("#viewbar").innerHTML=`<span>Showing <b>${esc(viewName())}</b></span>${VIEW.f||VIEW.ch?`<button class="btn ghost small noprint" data-view="|">Show all</button>`:""}
+    <span class="noprint">Chamber: ${["",...CHAMBERS].map(ch=>`<button class="btn ${VIEW.ch===ch?"":"ghost"} small" data-view="${esc(VIEW.f)}|${ch}">${ch||"Both"}</button>`).join(" ")}</span>`;
+}
+
+/* ---------- render: replacement history ---------- */
+function drawRepl(){
+  const l=DB.repl.filter(r=>inView(sensor(r.sensor))).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:a.id<b.id?1:-1);
+  $("#repl").innerHTML=l.length?`<table class="log cards"><thead><tr><th>Record</th><th>Date</th><th>Thermocouple</th><th>Removed element</th><th>Fitted element</th><th>Reason</th><th>Found by SAT</th><th>Verification SAT</th><th>By</th><th>Notes</th></tr></thead><tbody>${
+    l.map(r=>{const v=verifySat(r),vk=v&&calc(v),life=isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):null;
+      return `<tr><td data-label="Record"><button class="btn ghost small" data-repl="${esc(r.id)}">${esc(r.id)}</button></td>
+      <td data-label="Date" class="n">${fdate(r.date)}</td>
+      <td data-label="Thermocouple"><b>${esc(sName(r.sensor))}</b><br><span class="muted">${esc(sensor(r.sensor)?.chamber||"")} chamber · ${esc(sensor(r.sensor)?.zone||"")}</span></td>
+      <td data-label="Removed element"><span class="mono">${esc(r.oldSerial||"—")}</span>${life!=null?`<br><span class="muted">in service ${life} d${isDate(r.oldInstalled)?" since "+fdate(r.oldInstalled):""}</span>`:""}</td>
+      <td data-label="Fitted element"><span class="mono">${esc(r.newSerial)}</span>${r.newType?`<br><span class="muted">type ${esc(r.newType)}${r.cert?" · cert "+esc(r.cert):""}</span>`:""}</td>
+      <td data-label="Reason">${esc(r.reason||"—")}</td>
+      <td data-label="Found by SAT">${r.satRef?`<button class="btn ghost small" data-open="${esc(r.satRef)}">${esc(r.satRef)}</button>`:"—"}</td>
+      <td data-label="Verification SAT">${v?`<button class="btn ghost small" data-open="${v.id}">${v.id}</button> ${fdate(v.do.date)} · ${sgn(vk.diff)} °C ${resChip(vk)}`:chip("warn","↻","SAT required")}</td>
+      <td data-label="By">${esc(r.by||"—")}</td><td data-label="Notes">${esc(r.notes||"")}</td></tr>`;}).join("")}</tbody></table>`
+    :`<div class="empty">No thermocouple replacements recorded${VIEW.f||VIEW.ch?" for "+esc(viewName()):""}.</div>`;
+}
+
 /* ---------- render: SAT records ---------- */
 function drawRecords(){
-  const l=DB.cycles.filter(c=>calc(c).diff!=null).sort((a,b)=>order(b,a));
+  const l=DB.cycles.filter(c=>cInView(c)&&calc(c).diff!=null).sort((a,b)=>order(b,a));
   $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Readings</th><th class="n">Furnace mean °C</th><th class="n">Test mean (corrected) °C</th><th class="n">SAT difference</th><th class="n">Min / max</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th></tr></thead><tbody>${
     l.map(c=>{const k=calc(c);return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button>${c.parent?`<br><span class="muted">re-SAT of ${esc(c.parent)}</span>`:""}</td>
-    <td data-label="Thermocouple">${esc(c.sensor)}</td><td data-label="Test date" class="n">${fdate(c.do.date)}</td>
+    <td data-label="Thermocouple">${esc(sName(c.sensor))}</td><td data-label="Test date" class="n">${fdate(c.do.date)}</td>
     <td data-label="Set °C" class="n">${esc(c.plan.setpoint??"—")}</td><td data-label="Readings" class="n">${k.n}</td><td data-label="Furnace °C" class="n">${k.fMean.toFixed(1)}</td>
     <td data-label="Test mean (corrected) °C" class="n">${k.corr.toFixed(1)}</td><td data-label="SAT difference" class="n">${sgn(k.diff)}</td><td data-label="Min / max" class="n">${sgn(k.dMin)} / ${sgn(k.dMax)}</td>
     <td data-label="Result">${resChip(k,c)}</td><td data-label="Test instrument · test TC">${esc(c.plan.instr||"—")} · ${esc(c.plan.testTc||"—")}</td>
@@ -551,14 +667,23 @@ function drawSettings(){
   const s=S();
   const f=(k,l,t="number",step="any",cls="")=>`<div class="field ${cls}"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="${step}" value="${esc(s[k])}"></div>`;
   if(!$("#settings").contains(document.activeElement)) $("#settings").innerHTML=
-    f("plant","Furnace / line","text","","wide")+f("tol","SAT tolerance ± °C","number","0.1")+f("warnPct","Warning band, % of tolerance","number","5")+
+    f("plant","Plant / shop","text","","wide")+f("tol","SAT tolerance ± °C","number","0.1")+f("warnPct","Warning band, % of tolerance","number","5")+
     f("interval","Default SAT interval, days","number","1")+f("soon","“Due soon” window, days","number","1")+
     f("nRead","Readings per SAT","number","1")+f("step","Minutes between readings","number","0.5")+f("stab","Max furnace range during test °C","number","0.5");
-  if(!$("#sensors").contains(document.activeElement)) $("#sensors").innerHTML=`<table class="log edit"><thead><tr><th>ID</th><th>Zone</th><th>Position</th><th>Type</th><th>Use</th><th>Active</th><th></th></tr></thead><tbody>${
-    DB.sensors.map((x,i)=>`<tr><td class="mono" style="min-width:60px"><b>${esc(x.id)}</b></td>
-      ${["zone","pos","type","use"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.id)}"></td>`).join("")}
+  if(!$("#furnace-reg").contains(document.activeElement)) $("#furnace-reg").innerHTML=`<table class="log edit"><thead><tr><th>Furnace ID</th><th>Description</th><th>Thermocouples (hardening / tempering)</th><th></th></tr></thead><tbody>${
+    DB.furnaces.map((f,i)=>{const n=ch=>DB.sensors.filter(s=>s.furnace===f.id&&s.chamber===ch).length;
+      return `<tr><td class="mono"><b>${esc(f.id)}</b></td><td><input data-fu="${i}" value="${esc(f.name||"")}" placeholder="e.g. pusher line 1" aria-label="Description of ${esc(f.id)}"></td><td class="n" style="text-align:left">${n("Hardening")} / ${n("Tempering")}</td>
+      <td>${DB.sensors.some(s=>s.furnace===f.id)?"":`<button class="btn danger small" data-delfu="${i}">Remove</button>`}</td></tr>`;}).join("")}</tbody></table>`;
+  $("#sensors-view").textContent="· showing "+viewName();
+  const opt=(l,v)=>l.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+  if(!$("#sensors").contains(document.activeElement)) $("#sensors").innerHTML=`<table class="log edit"><thead><tr><th>Furnace</th><th>Chamber</th><th>Tag</th><th>Zone</th><th>Position</th><th>Type</th><th>Use</th><th>Element serial</th><th>Installed</th><th>Active</th><th></th></tr></thead><tbody>${
+    DB.sensors.map((x,i)=>({x,i})).filter(o=>inView(o.x)).sort((a,b)=>sOrder(a.x,b.x)).map(({x,i})=>`<tr>
+      <td><select data-sn="${i}" data-k="furnace" aria-label="furnace">${opt(DB.furnaces.map(f=>f.id),x.furnace)}</select></td>
+      <td><select data-sn="${i}" data-k="chamber" aria-label="chamber">${opt(CHAMBERS,x.chamber)}</select></td>
+      ${["tag","zone","pos","type","use","serial"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.tag)}" ${k==="serial"&&replOf(x.id).length?'title="Set by the latest replacement record"':""}></td>`).join("")}
+      <td><input type="date" data-sn="${i}" data-k="installed" value="${esc(x.installed||"")}" aria-label="installed"></td>
       <td><input type="checkbox" data-sn="${i}" data-k="active" ${x.active!==false?"checked":""} aria-label="active"></td>
-      <td>${DB.cycles.some(c=>c.sensor===x.id)?`<span class="muted" style="font-size:12px">has records</span>`:`<button class="btn danger small" data-delsn="${i}">Remove</button>`}</td></tr>`).join("")}</tbody></table>`;
+      <td>${DB.cycles.some(c=>c.sensor===x.id)||DB.repl.some(r=>r.sensor===x.id)?`<span class="muted" style="font-size:12px">has records</span>`:`<button class="btn danger small" data-delsn="${i}">Remove</button>`}</td></tr>`).join("")}</tbody></table>`;
 }
 
 /* ---------- cycle editor (dialog) ---------- */
@@ -575,6 +700,12 @@ function fld(c,path,label,o={}){
   else ctl=`<input id="${id}" data-p="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any" inputmode="decimal"':""} value="${esc(v)}"${ro}>`;
   return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${ctl}${o.hint?`<span class="muted" style="font-size:11.5px">${o.hint}</span>`:""}</div>`;
 }
+/* thermocouple select grouped by furnace and chamber */
+function sensorField(id,attr,val,ro,label){
+  const groups=[];DB.sensors.filter(x=>x.active!==false||x.id===val).sort(sOrder).forEach(x=>{const g=x.furnace+" · "+x.chamber;let G=groups.at(-1);if(!G||G.g!==g)groups.push(G={g,l:[]});G.l.push(x);});
+  return `<div class="field req"><label for="${id}">${label}</label><select id="${id}" ${attr}${ro?" disabled":""}><option value="">— select —</option>${
+    groups.map(G=>`<optgroup label="${esc(G.g)}">${G.l.map(x=>`<option value="${esc(x.id)}" ${x.id===val?"selected":""}>${esc(x.furnace+" · "+x.chamber+" · "+x.tag+" · "+x.zone+" "+(x.pos||"").toLowerCase())}</option>`).join("")}</optgroup>`).join("")}</select></div>`;
+}
 function drawDlg(){
   const c=cyc(EDIT); if(!c){dlg.close();return;}
   if(c.stage==="do") padReadings(c);
@@ -583,7 +714,7 @@ function drawDlg(){
   let h=`<div class="dlg-h"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>${esc(c.id)} · ${esc(sLabel(c.sensor))}</h2>${c.parent?`<span class="chip info"><i>↻</i>re-SAT of ${esc(c.parent)}</span>`:""}</div><div class="steps">${steps}</div></div><div class="dlg-b">`;
   /* PLAN */
   h+=`<div class="stage" style="--k:var(--p)"><h3>Plan <small>schedule the test and the calibrated test equipment</small></h3><div class="fgrid">
-    ${fld(c,"sensor","Thermocouple",{req:1,opts:DB.sensors.map(x=>[x.id,sLabel(x.id)]),ro:c.stage!=="plan"})}
+    ${sensorField("f-sensor",'data-p="sensor"',c.sensor,c.stage!=="plan","Thermocouple")}
     ${fld(c,"plan.date","Planned date",{req:1,type:"date",ro:ro("plan")})}
     ${fld(c,"plan.by","Responsible person",{req:1,ro:ro("plan")})}
     ${fld(c,"plan.setpoint","Test set value °C",{req:1,type:"number",ro:ro("plan"),hint:"normal operating temperature"})}
@@ -650,7 +781,9 @@ function liveDlg(){
       k.res==="fail"?`<div><b class="bad">Failed SAT — corrective action.</b> Required: root cause, action, product-impact assessment and a passing re-SAT.</div><div>Product at risk since the last passing SAT: <b>${riskWindow(c)}</b></div>
         <div>Re-SAT: ${kids.length?kids.map(x=>`<button class="btn ghost small" data-open="${x.id}">${x.id} · ${SNAME[x.stage]}${calc(x).res?" · "+sgn(calc(x).diff)+" °C":""}</button>`).join(" "):`<span class="bad">not planned yet</span>`}</div>`
       :k.res==="warn"?`<div><b class="caution">Pass in the warning band — preventive action.</b> Record the preventive action; consider a shorter interval for this thermocouple.</div>`
-      :`<div><b class="ok">Pass.</b> Confirm the standard and close. Next SAT due ${fdate(addDays(c.do.date,num(c.act.interval)||+s.interval))}.</div>`}</div>`;
+      :`<div><b class="ok">Pass.</b> Confirm the standard and close. Next SAT due ${fdate(addDays(c.do.date,num(c.act.interval)||+s.interval))}.</div>`}
+      <div>Thermocouple replacement: ${DB.repl.filter(r=>r.satRef===c.id).map(r=>`<button class="btn ghost small" data-repl="${esc(r.id)}">${esc(r.id)} · ${fdate(r.date)} · ${esc(r.oldSerial||"?")} → ${esc(r.newSerial)}</button>`).join(" ")||(c.act.action==="Replace control thermocouple"?`<span class="bad">not recorded yet</span>`:`<span class="muted">none</span>`)}
+      ${c.stage!=="closed"?` <button class="btn ghost small" data-addrepl="${esc(c.id)}">Record replacement</button>`:""}</div></div>`;
   }
   $("#dlg-msg").textContent=MSG;
   /* live per-reading difference in the Do table */
@@ -723,7 +856,7 @@ function tick(){
 
 /* ---------- actions ---------- */
 function newCycle(sid,date){
-  sid=sid||DB.sensors.find(x=>x.active!==false)?.id||"";
+  sid=sid||DB.sensors.filter(x=>x.active!==false&&inView(x)).sort(sOrder)[0]?.id||"";
   const latest=l=>l.filter(c=>isDate(c.plan?.date)).sort((a,b)=>a.plan.date<b.plan.date?1:-1)[0];
   const prev=latest(DB.cycles),same=latest(DB.cycles.filter(c=>c.sensor===sid)); /* equipment from the last plan, set value from this thermocouple's last plan */
   const c={id:newId(),sensor:sid,stage:"plan",parent:null,created:today(),
@@ -737,6 +870,11 @@ document.addEventListener("click",e=>{
   if(t.dataset.open){openCycle(t.dataset.open);return;}
   if(t.dataset.plan){const sc=schedule(sensor(t.dataset.plan));const c=newCycle(t.dataset.plan,sc.due);render();openCycle(c.id);return;}
   if(t.dataset.delsn!=null){DB.sensors.splice(+t.dataset.delsn,1);save();render();return;}
+  if(t.dataset.delfu!=null){DB.furnaces.splice(+t.dataset.delfu,1);save();render();return;}
+  if(t.dataset.view!=null){const [f,ch]=t.dataset.view.split("|");setView(f,ch);render();return;}
+  if(t.dataset.repl){openRepl(t.dataset.repl);return;}
+  if(t.dataset.addrepl){const c=cyc(t.dataset.addrepl);openRepl(null,{sensor:c.sensor,satRef:c.id,reason:calc(c).res==="fail"?"SAT failure":calc(c).res==="warn"?"Drift / preventive (warning band)":""});return;}
+  if(t.dataset.ract){replAction(t.dataset.ract);return;}
   const a=t.dataset.act;
   if(a){const c=cyc(EDIT);
     if(a==="close"){dlg.close();return;}
@@ -751,7 +889,7 @@ document.addEventListener("click",e=>{
   }
   const id=t.id;
   if(id==="b-new"){const c=newCycle();render();openCycle(c.id);}
-  else if(id==="b-due"){let n=0;DB.sensors.filter(x=>x.active!==false).forEach(x=>{const sc=schedule(x);if(!sc.open.length&&sc.status!=="ok"){newCycle(x.id,sc.due);n++;}});render();alert(n?`${n} SAT plan${n>1?"s":""} created in Plan.`:"No thermocouple is due within the “due soon” window without an open cycle.");}
+  else if(id==="b-due"){let n=0;DB.sensors.filter(x=>x.active!==false&&inView(x)).sort(sOrder).forEach(x=>{const sc=schedule(x);if(!sc.open.length&&sc.status!=="ok"){newCycle(x.id,sc.due);n++;}});render();alert(n?`${n} SAT plan${n>1?"s":""} created in Plan (${viewName()}).`:`No thermocouple in ${viewName()} is due within the “due soon” window without an open cycle.`);}
   else if(id==="b-print") window.print();
   else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("tsat-theme",r.dataset.theme);}catch(e){}}
   else if(id==="b-csv") exportCsv();
@@ -760,7 +898,16 @@ document.addEventListener("click",e=>{
   else if(id==="b-import") $("#imp").click();
   else if(id==="b-example"){if(!DB.cycles.length||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
   else if(id==="b-clear"){if(confirm("Delete all SAT records and reset settings? Export a backup first if you need one.")){DB=blank();save();render();}}
-  else if(id==="b-addsensor"){const v=prompt("New thermocouple ID (e.g. TC7, OTC-1):");if(v&&v.trim()){const idv=v.trim();if(sensor(idv))alert(idv+" already exists.");else{DB.sensors.push({id:idv,zone:"",pos:"",type:"N",use:"Control + record",active:true});save();render();}}}
+  else if(id==="b-addsensor"){
+    const f=VIEW.f||DB.furnaces[0]?.id||"F-01",ch=VIEW.ch||"Hardening";
+    const v=prompt(`New thermocouple tag in ${f} · ${ch} chamber (e.g. TC7, OTC-1). Change furnace or chamber in the table afterwards if needed.`);
+    if(v&&v.trim()){const tag=v.trim();if(DB.sensors.some(x=>x.furnace===f&&x.chamber===ch&&x.tag===tag))alert(`${tag} already exists in ${f} · ${ch}.`);
+      else{DB.sensors.push({id:sensorId(f,ch,tag,DB.sensors),furnace:f,chamber:ch,tag,zone:"",pos:"",type:"N",use:"Control + record",serial:"",installed:"",active:true});save();render();}}}
+  else if(id==="b-addfurnace"){const v=prompt("New furnace ID (e.g. F-05):");if(v&&v.trim()){const fid=v.trim();if(DB.furnaces.some(f=>f.id===fid))alert(fid+" already exists.");
+      else if(confirm(`Add ${fid} with 6 thermocouples (TC1–TC6) in each of the hardening and tempering chambers? You can edit or remove them afterwards.`)){DB.furnaces.push({id:fid,name:""});CHAMBERS.forEach(ch=>tcSet(fid,ch).forEach(x=>{x.id=sensorId(fid,ch,x.tag,DB.sensors);DB.sensors.push(x);}));save();render();}
+      else{DB.furnaces.push({id:fid,name:""});save();render();}}}
+  else if(id==="b-repl") openRepl(null,{});
+  else if(id==="b-csvrep") exportReplCsv();
 });
 dlg.addEventListener("change",e=>{
   const el=e.target,p=el.dataset.p,c=cyc(EDIT);if(!p||!c)return;
@@ -784,25 +931,76 @@ document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.set){const k=el.dataset.set;S()[k]=k==="plant"?el.value:(num(el.value)??DEF[k]);save();el.blur();render();}
   else if(el.dataset.sn!=null){const x=DB.sensors[+el.dataset.sn];x[el.dataset.k]=el.type==="checkbox"?el.checked:el.value;save();el.blur();render();}
+  else if(el.dataset.fu!=null){DB.furnaces[+el.dataset.fu].name=el.value;save();el.blur();render();}
 });
 $("#imp").addEventListener("change",async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const o=normalize(JSON.parse(await f.text()));if(!o)throw new Error("not a SAT PDCA backup");
-    if(confirm(`Import ${o.cycles.length} cycles and ${o.sensors.length} thermocouples? This replaces the current records.`)){DB=o;save();render();}}
+    if(confirm(`Import ${o.cycles.length} cycles, ${o.repl.length} replacements and ${o.sensors.length} thermocouples? This replaces the current records.`)){DB=o;save();render();}}
   catch(err){alert("Import failed: "+err.message);}
   e.target.value="";
 });
+/* ---------- replacement record (dialog) ---------- */
+const rdlg=$("#rdlg");let REDIT=null,RMSG="";
+function openRepl(id,pre){
+  const r=id&&DB.repl.find(x=>x.id===id);
+  if(r) REDIT={...r};
+  else{const sid=pre.sensor||DB.sensors.filter(x=>x.active!==false&&inView(x)).sort(sOrder)[0]?.id||"";
+    REDIT={id:null,sensor:sid,date:today(),reason:pre.reason||"",satRef:pre.satRef||"",by:"",notes:"",newSerial:"",cert:""};fillOld();}
+  RMSG="";drawReplDlg();if(!rdlg.open)rdlg.showModal();
+}
+function fillOld(){const s=sensor(REDIT.sensor)||{};REDIT.oldSerial=s.serial||"";REDIT.oldInstalled=s.installed||"";REDIT.newType=s.type||"";}
+function drawReplDlg(){
+  const r=REDIT,f=(k,l,o={})=>`<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="r-${k}">${l}</label>${o.area?`<textarea id="r-${k}" data-r="${k}">${esc(r[k]||"")}</textarea>`:`<input id="r-${k}" data-r="${k}" type="${o.type||"text"}" value="${esc(r[k]||"")}">`}${o.hint?`<span class="muted" style="font-size:11.5px">${o.hint}</span>`:""}</div>`;
+  const sats=DB.cycles.filter(c=>c.sensor===r.sensor&&calc(c).diff!=null).sort((a,b)=>order(b,a));
+  rdlg.innerHTML=`<div class="dlg-h"><h2>${r.id?esc(r.id)+" · ":""}Thermocouple replacement</h2></div><div class="dlg-b"><div class="fgrid">
+    ${sensorField("r-sensor",'data-r="sensor"',r.sensor,false,"Thermocouple")}
+    ${f("date","Replacement date",{req:1,type:"date"})}
+    <div class="field req"><label for="r-reason">Reason</label><select id="r-reason" data-r="reason"><option value="">— select —</option>${REASONS.map(x=>`<option ${x===r.reason?"selected":""}>${esc(x)}</option>`).join("")}</select></div>
+    <div class="field"><label for="r-satRef">Found by SAT</label><select id="r-satRef" data-r="satRef"><option value="">— none —</option>${sats.map(c=>`<option value="${c.id}" ${c.id===r.satRef?"selected":""}>${c.id} · ${fdate(c.do.date)} · ${sgn(calc(c).diff)} °C</option>`).join("")}</select></div>
+    ${f("oldSerial","Removed element serial",{hint:"prefilled from the register"})}
+    ${f("oldInstalled","Removed element installed on",{type:"date",hint:"gives its service life"})}
+    ${f("newSerial","Fitted element serial",{req:1})}
+    ${f("newType","Fitted element type",{hint:"e.g. N, K"})}
+    ${f("cert","Fitted element certificate no.")}
+    ${f("by","Replaced by",{req:1})}
+    ${f("notes","Notes (offset reset, sheath condition, immersion depth checked …)",{area:1,span:1})}
+  </div><p class="muted" style="margin:0;font-size:12.5px">Saving updates the thermocouple's installed element in the register. The thermocouple then needs a SAT on or after the replacement date (verification SAT).</p></div>
+  <div class="dlg-f"><span class="msg">${esc(RMSG)}</span>${r.id?`<button class="btn danger" data-ract="delete">Delete</button>`:""}<button class="btn ghost" data-ract="cancel">Cancel</button><button class="btn" data-ract="save">Save replacement</button></div>`;
+}
+rdlg.addEventListener("change",e=>{const k=e.target.dataset.r;if(!k)return;REDIT[k]=e.target.value;if(k==="sensor"){if(!REDIT.id)fillOld();REDIT.satRef="";drawReplDlg();}});
+function replAction(a){
+  const r=REDIT;if(!r)return;
+  if(a==="cancel"){rdlg.close();return;}
+  if(a==="delete"){if(!confirm(`Delete replacement record ${r.id}?`))return;DB.repl=DB.repl.filter(x=>x.id!==r.id);syncSensor(r.sensor);save();rdlg.close();afterRepl();return;}
+  const m=[];if(!sensor(r.sensor))m.push("thermocouple");if(!isDate(r.date))m.push("replacement date");else if(r.date>today())m.push("a date that is not in the future");
+  if(!r.reason)m.push("reason");if(!String(r.newSerial||"").trim())m.push("fitted element serial");if(!String(r.by||"").trim())m.push("replaced by");
+  if(m.length){RMSG="Still needed: "+m.join(", ")+".";drawReplDlg();return;}
+  const old=r.id&&DB.repl.find(x=>x.id===r.id);
+  if(old){Object.assign(old,r);if(old.sensor!==r.sensor)syncSensor(old.sensor);}
+  else{r.id="TR-"+String(DB.rseq++).padStart(4,"0");DB.repl.push(r);const c=cyc(r.satRef);if(c)logIt(c,`Thermocouple replaced (${r.id}: ${r.oldSerial||"?"} → ${r.newSerial})`);}
+  syncSensor(r.sensor);save();rdlg.close();afterRepl();
+}
+function afterRepl(){render();if(dlg.open&&cyc(EDIT)){MSG="";drawDlg();}}
+rdlg.addEventListener("close",()=>{REDIT=null;});
+function exportReplCsv(){
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const rows=[["Record","Date","Furnace","Chamber","Thermocouple","Zone","Removed serial","Removed installed","Service life d","Fitted serial","Fitted type","Certificate","Reason","Found by SAT","Verification SAT","Verification date","Verification difference °C","Verification result","Replaced by","Notes"]];
+  DB.repl.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>{const s=sensor(r.sensor)||{},v=verifySat(r),vk=v&&calc(v);
+    rows.push([r.id,r.date,s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
+  download(`thermocouple-replacements-${today()}.csv`,"\ufeff"+rows.map(x=>x.map(q).join(",")).join("\r\n"),"text/csv");
+}
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 function exportCsv(){
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const head=["SAT","Re-SAT of","Thermocouple","Zone","Stage","Planned","Test date","Set °C","Readings","Furnace mean °C","Test mean °C","Instr corr","TC corr","Corrected test mean °C","SAT difference °C","Diff min °C","Diff max °C","Diff SD °C","Furnace range °C","Result","Valid","Test instrument","Instr cal due","Test TC","Technician","Reviewer","Root cause","Action","Action details","Product impact","Interval d","Closed"];
-  const rows=DB.cycles.map(c=>{const k=calc(c),sn=sensor(c.sensor)||{};return [c.id,c.parent||"",c.sensor,sn.zone,SNAME[c.stage],c.plan.date,c.do.date,c.plan.setpoint,k.n,k.fMean,k.tMean,c.do.instrCorr,c.do.tcCorr,k.corr,k.diff,k.dMin,k.dMax,k.sd,k.fRange,k.res,c.check.valid,c.plan.instr,c.plan.instrCalDue,c.plan.testTc,c.do.tech,c.check.by,c.act.cause,c.act.action,c.act.detail,c.act.impact,c.act.interval,c.stage==="closed"?c.act.date:""];});
+  const head=["SAT","Re-SAT of","Furnace","Chamber","Thermocouple","Zone","Stage","Planned","Test date","Set °C","Readings","Furnace mean °C","Test mean °C","Instr corr","TC corr","Corrected test mean °C","SAT difference °C","Diff min °C","Diff max °C","Diff SD °C","Furnace range °C","Result","Valid","Test instrument","Instr cal due","Test TC","Technician","Reviewer","Root cause","Action","Action details","Product impact","Interval d","Closed"];
+  const rows=DB.cycles.map(c=>{const k=calc(c),sn=sensor(c.sensor)||{};return [c.id,c.parent||"",sn.furnace,sn.chamber,sn.tag||c.sensor,sn.zone,SNAME[c.stage],c.plan.date,c.do.date,c.plan.setpoint,k.n,k.fMean,k.tMean,c.do.instrCorr,c.do.tcCorr,k.corr,k.diff,k.dMin,k.dMax,k.sd,k.fRange,k.res,c.check.valid,c.plan.instr,c.plan.instrCalDue,c.plan.testTc,c.do.tech,c.check.by,c.act.cause,c.act.action,c.act.detail,c.act.impact,c.act.interval,c.stage==="closed"?c.act.date:""];});
   download(`thermocouple-sat-${today()}.csv`,"﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
 }
 
 function exportReadingsCsv(){
-  const rows=[["SAT","Thermocouple","Test date","Reading","Time","Furnace °C","Test °C","Corrections °C","Difference °C"]];
-  DB.cycles.forEach(c=>{const k=calc(c);(k.list||[]).forEach(r=>rows.push([c.id,c.sensor,c.do.date,r.i+1,rTime(c,r.i),r.f,r.t,r1(k.k0),r1(r.d)]));});
+  const rows=[["SAT","Furnace","Chamber","Thermocouple","Test date","Reading","Time","Furnace °C","Test °C","Corrections °C","Difference °C"]];
+  DB.cycles.forEach(c=>{const k=calc(c);(k.list||[]).forEach(r=>rows.push([c.id,sensor(c.sensor)?.furnace,sensor(c.sensor)?.chamber,sensor(c.sensor)?.tag||c.sensor,c.do.date,r.i+1,rTime(c,r.i),r.f,r.t,r1(k.k0),r1(r.d)]));});
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   download(`thermocouple-sat-readings-${today()}.csv`,"\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
 }
@@ -817,8 +1015,10 @@ function exReadings(sp,diff,k0,seed,n=+DEF.nRead){
 }
 function example(){
   const o=blank();o.seq=1;const T=today(),D=n=>addDays(T,n);
+  o.furnaces[0].name="Pusher line 1";o.furnaces[1].name="Pusher line 2";
+  const H=t=>"F-01-H-"+t,TT=t=>"F-02-T-"+t;
   const mk=(sid,day,diff,o2={})=>{
-    const sp=sid==="TC1"||sid==="TC2"?860:900,test=sp+0.4,instrCorr=0.3,tcCorr=-0.5;
+    const sp=sid.includes("-T-")?560:/TC[12]$/.test(sid)?860:900,instrCorr=0.3,tcCorr=-0.5;
     const c={id:"SAT-"+String(o.seq++).padStart(4,"0"),sensor:sid,stage:"closed",parent:o2.parent||null,created:D(day-7),
       plan:{date:D(day),by:"R. Kumar",setpoint:sp,instr:"DTI-07 Fluke 714B",instrCalDue:D(day+150),testTc:"TTC-N-"+(100+o.seq),testTcCert:"CC/"+(2200+o.seq)},
       do:{date:D(day),tech:"S. Patil",stable:"yes",start:"10:"+pad(5+o.seq%40),instrCorr,tcCorr,readings:exReadings(sp,diff,instrCorr+tcCorr,o.seq)},
@@ -827,18 +1027,28 @@ function example(){
   };
   const base={TC1:[0.8,1.1,0.9,1.4],TC2:[-0.6,-0.9,-1.2,-0.8],TC3:[1.2,2.4,3.6,4.3],TC4:[0.4,0.2,0.7,0.5],TC5:[-1.5,-1.8,-1.4,-2.0],TC6:[0.9,1.3,1.0,1.6]};
   const days=[-350,-260,-170,-80];
-  Object.entries(base).forEach(([sid,arr])=>arr.forEach((d,i)=>o.cycles.push(mk(sid,days[i]+(+sid[2]),d))));
-  const w=o.cycles.find(c=>c.sensor==="TC3"&&c.do.date===D(-77));
+  Object.entries(base).forEach(([t,arr])=>arr.forEach((d,i)=>o.cycles.push(mk(H(t),days[i]+(+t[2]),d))));
+  const tbase={TC1:[0.5,0.7,0.6],TC2:[-2.1,-3.2,-0.4],TC3:[0.3,0.1,0.4],TC4:[1.1,0.9,1.2],TC5:[-0.7,-0.5,-0.9],TC6:[0.2,0.6,0.4]};
+  Object.entries(tbase).forEach(([t,arr])=>arr.forEach((d,i)=>o.cycles.push(mk(TT(t),[-290,-200,-110][i]+(+t[2]),d))));
+  const w=o.cycles.find(c=>c.sensor===H("TC3")&&c.do.date===D(-77));
   Object.assign(w.act,{cause:"Control thermocouple drift / ageing",action:"Other",detail:"Steady positive drift over three SATs. TC3 sheath inspected, no damage. Replacement N-type element ordered.",interval:45,standard:"Drift trend added to monthly maintenance review."});
-  const f=mk("TC3",-36,6.8,{act:{cause:"Control thermocouple drift / ageing",action:"Replace control thermocouple",detail:"TC3 replaced with new N-type element (lot N24-118); controller offset reset to 0.",impact:"Hardening loads in Zone 2 trays 6–9 during the window reviewed; surface hardness re-checked on retained samples from 4 lots, all within spec. No product held.",standard:"Spare N-type elements kept in stores; SAT interval for TC3 back to 90 days after a passing re-SAT.",interval:90,date:D(-33)}});
+  const f=mk(H("TC3"),-36,6.8,{act:{cause:"Control thermocouple drift / ageing",action:"Replace control thermocouple",detail:"TC3 replaced with new N-type element (lot N24-118); controller offset reset to 0.",impact:"Hardening loads in Zone 2 trays 6–9 during the window reviewed; surface hardness re-checked on retained samples from 4 lots, all within spec. No product held.",standard:"Spare N-type elements kept in stores; SAT interval for TC3 back to 90 days after a passing re-SAT.",interval:90,date:D(-33)}});
   o.cycles.push(f);
-  const r=mk("TC3",-35,0.6,{parent:f.id});o.cycles.push(r);
+  const r=mk(H("TC3"),-35,0.6,{parent:f.id});o.cycles.push(r);
   f.log.push({d:D(-35),t:"Re-SAT "+r.id+" passed"});
-  const p1=mk("TC1",8,0);p1.stage="plan";p1.do={};p1.check={};p1.act={};p1.plan.date=D(8);p1.plan.instrCalDue=D(120);p1.log=[{d:T,t:"Cycle created"}];
-  const p2=mk("TC2",8,0);p2.stage="plan";p2.do={};p2.check={};p2.act={};p2.plan.date=D(8);p2.plan.instrCalDue=D(120);p2.plan.testTc="";p2.log=[{d:T,t:"Cycle created"}];
-  const d4=mk("TC4",0,0);d4.stage="do";d4.do={date:T,tech:"S. Patil",stable:"yes",start:"09:30",instrCorr:0.3,tcCorr:-0.5,readings:exReadings(900,0.4,-0.2,7).map((r,i)=>i<12?r:{f:"",t:""})};d4.check={};d4.act={};d4.plan.instrCalDue=D(120);d4.log=[{d:T,t:"Plan approved → Do"}];
-  const c5=mk("TC5",-1,-2.6);c5.stage="check";c5.check={date:T};c5.act={};c5.plan.instrCalDue=D(120);c5.log=[{d:D(-1),t:"Readings recorded → Check"}];
+  const p1=mk(H("TC1"),8,0);p1.stage="plan";p1.do={};p1.check={};p1.act={};p1.plan.date=D(8);p1.plan.instrCalDue=D(120);p1.log=[{d:T,t:"Cycle created"}];
+  const p2=mk(H("TC2"),8,0);p2.stage="plan";p2.do={};p2.check={};p2.act={};p2.plan.date=D(8);p2.plan.instrCalDue=D(120);p2.plan.testTc="";p2.log=[{d:T,t:"Cycle created"}];
+  const d4=mk(H("TC4"),0,0);d4.stage="do";d4.do={date:T,tech:"S. Patil",stable:"yes",start:"09:30",instrCorr:0.3,tcCorr:-0.5,readings:exReadings(900,0.4,-0.2,7).map((r,i)=>i<12?r:{f:"",t:""})};d4.check={};d4.act={};d4.plan.instrCalDue=D(120);d4.log=[{d:T,t:"Plan approved → Do"}];
+  const c5=mk(H("TC5"),-1,-2.6);c5.stage="check";c5.check={date:T};c5.act={};c5.plan.instrCalDue=D(120);c5.log=[{d:D(-1),t:"Readings recorded → Check"}];
   o.cycles.push(p1,p2,d4,c5);
+  /* installed elements and replacement history */
+  o.sensors.filter(x=>x.furnace==="F-01"&&x.chamber==="Hardening"||x.furnace==="F-02"&&x.chamber==="Tempering").forEach((x,i)=>{x.serial="N-"+(x.chamber==="Hardening"?"23":"22")+"-"+String(410+i);x.installed=D(-420-i*3);});
+  const rep=(sid,day,o2)=>{const s=o.sensors.find(x=>x.id===sid);const r={id:"TR-"+String(o.rseq++).padStart(4,"0"),sensor:sid,date:D(day),oldSerial:s.serial,oldInstalled:s.installed,newType:"N",by:"Maintenance — A. Singh",notes:"",cert:"",...o2};
+    o.repl.push(r);s.serial=r.newSerial;s.installed=r.date;return r;};
+  rep(H("TC5"),-200,{newSerial:"N-24-031",reason:"Damage / breakage",cert:"TC/24/031",notes:"Sheath cracked at the roof entry after a tray jam. Immersion depth re-set to 150 mm."});
+  rep(TT("TC2"),-130,{newSerial:"N-24-077",reason:"Scheduled life replacement",cert:"TC/24/077",notes:"Element at end of planned life; previous SAT −3.2 °C trending negative."});
+  rep(H("TC3"),-36,{newSerial:"N-24-118",reason:"SAT failure",satRef:f.id,cert:"TC/24/118",notes:"Replaced after "+f.id+" (+6.8 °C). Controller offset reset to 0."});
+  f.log.push({d:D(-36),t:"Thermocouple replaced (TR-0003)"});
   return o;
 }
 
@@ -846,6 +1056,6 @@ function example(){
 try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__SAT={get DB(){return DB;},calc,schedule,missing,readings};
+window.__SAT={get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
 </script>
 </body></html>
