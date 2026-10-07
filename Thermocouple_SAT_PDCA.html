@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thermocouple SAT PDCA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --band:rgba(12,163,12,.10);--wband:rgba(250,178,25,.12);
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --band:rgba(12,163,12,.17);--wband:rgba(250,178,25,.14);
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --band:rgba(12,163,12,.17);--wband:rgba(250,178,25,.14);
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+
+/* PDCA board */
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.board{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.board{grid-template-columns:1fr}}
+.col{background:var(--surface2);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px;border-top:4px solid var(--k);min-height:120px}
+.col h3{display:flex;align-items:center;gap:8px}
+.col h3 .L{width:24px;height:24px;border-radius:50%;background:var(--k);color:#fff;display:grid;place-items:center;font-size:13px}
+.col h3 .cnt{margin-left:auto;font-family:var(--mono);font-weight:500;color:var(--ink2)}
+.col .why{font-size:12px;color:var(--ink2);margin:0}
+.card{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--k);border-radius:5px;padding:8px 10px;cursor:pointer;display:flex;flex-direction:column;gap:3px;text-align:left;font:inherit;color:inherit;width:100%}
+.card:hover{border-color:var(--k)}
+.card .t{display:flex;justify-content:space-between;gap:6px;font-weight:600}
+.card .s{font-size:12px;color:var(--ink2)}
+.card .row{display:flex;gap:6px;flex-wrap:wrap}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0 0 12px;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right}table.log th.n{text-align:right}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-band{width:18px;height:10px;background:var(--band);border:1px solid color-mix(in srgb,var(--good) 45%,transparent);display:inline-block}
+.lg-dash{width:18px;border-top:1.5px dashed var(--warn);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:220px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:10px;z-index:2}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.steps{display:flex;gap:4px;flex-wrap:wrap}
+.steps span{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+.steps span.on{background:var(--k);color:#fff;border-color:var(--k)}
+.steps span.done{color:var(--k);border-color:var(--k)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc .big{font-size:20px;font-weight:600;font-family:var(--mono)}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+.scroll{overflow-x:auto}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px;break-inside:avoid}
+  .board{grid-template-columns:repeat(4,1fr)}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(6,1fr)}
+  .kpi .v{font-size:18px}
+  .card{break-inside:avoid}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · System Accuracy Test (SAT) · Plan – Do – Check – Act</div>
+      <h1>Thermocouple SAT — PDCA register</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-new">New SAT plan</button>
+      <button class="btn ghost" id="b-due">Plan all due SATs</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>PDCA board</h2><p>Every SAT is one cycle that moves through the four stages. A cycle cannot advance until the stage's required entries (*) are complete. Click a card to work on it.</p></div>
+    <ul class="cycle-explain">
+      <li><b>Plan</b> — schedule the SAT, choose the calibrated test instrument and test thermocouple.</li>
+      <li><b>Do</b> — run the test at the operating set value and record readings and corrections.</li>
+      <li><b>Check</b> — SAT difference vs tolerance, drift since the last SAT, validity of the test.</li>
+      <li><b>Act</b> — correct and re-test failures, assess product at risk, set the next interval.</li>
+    </ul>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>SAT schedule</h2><p id="sched-note"></p></div>
+    <div id="sched"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>SAT difference trend per thermocouple</h2><p>Valid SATs only. A trend towards the limit is the cue for preventive action before a failure.</p></div>
+    <div class="legend" id="drift-legend"></div>
+    <div class="mini-grid" id="drift"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Corrective &amp; preventive actions</h2><p>All failed SATs (corrective) and SATs in the warning band (preventive), with the product-at-risk window since the last passing SAT.</p></div>
+    <div id="capa"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>SAT records</h2><p>SAT difference = furnace system reading − (test instrument reading + test instrument correction + test thermocouple correction).</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-csv">Export CSV</button></div></div>
+    <div class="scroll" id="records"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (Maintenance / Metrology)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings, thermocouple register and data</summary>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Thermocouples under SAT</h3>
+    <div class="scroll" id="sensors"></div>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost small" id="b-addsensor">Add thermocouple</button></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only (separate from the Furnace SCADA Review). Export a backup regularly and import it on another computer.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li>SAT per CQI-9: a calibrated test thermocouple is placed next to the furnace control/recording thermocouple tip and both readings are compared at the normal operating set value with the furnace stable.</li>
+      <li>Default tolerance ±5.5 °C (±10 °F) and quarterly frequency (90 days); both can be changed in Settings. Readings within the warning band (default 70 % of tolerance) pass but need preventive action.</li>
+      <li>A test is invalid when the test instrument calibration had expired on the test day or the furnace was not stable; it must be repeated (Do).</li>
+      <li>A failed SAT closes only after root cause, corrective action, product-impact assessment and a passing re-SAT.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const daysBetween=(a,b)=>dnum(b)-dnum(a);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const sgn=(v,d=1)=>v==null?"—":(v>0?"+":v<0?"−":"±")+Math.abs(v).toFixed(d);
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</span>`;
+
+/* ---------- data model ---------- */
+const KEY="tsat-pdca";            // own storage key: nothing is shared with the SCADA review
+const DEF={plant:"Pusher furnace",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10};
+const STAGES=["plan","do","check","act","closed"];
+const SNAME={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
+const SCOL={plan:"var(--p)",do:"var(--d)",check:"var(--c)",act:"var(--a)",closed:"var(--muted)"};
+const CAUSES=["Control thermocouple drift / ageing","Thermocouple damaged or wrong immersion / position","Compensating cable, connector or junction fault","Controller / recorder calibration","Test equipment or test method error","Other"];
+const ACTIONS=["Replace control thermocouple","Apply / adjust instrument offset","Recalibrate controller / recorder","Repair wiring / connection","Re-position thermocouple","Other"];
+const defSensors=()=>[1,2,3,4,5,6].map(i=>({id:"TC"+i,zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:"N",use:"Control + record",active:true}));
+const blank=()=>({v:1,settings:{...DEF},sensors:defSensors(),cycles:[],seq:1});
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.cycles)||!Array.isArray(o.sensors)) return null;
+  o.settings={...DEF,...(o.settings||{})};
+  o.sensors=o.sensors.filter(s=>s&&s.id);
+  o.cycles=o.cycles.filter(c=>c&&c.id&&STAGES.includes(c.stage)).map(c=>({plan:{},do:{},check:{},act:{},log:[],...c}));
+  o.seq=Math.max(+o.seq||1,...o.cycles.map(c=>+(String(c.id).match(/\d+/)||[0])[0]+1));
+  return o;
+}
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}};
+const S=()=>DB.settings;
+const cyc=id=>DB.cycles.find(c=>c.id===id);
+const sensor=id=>DB.sensors.find(s=>s.id===id);
+const sLabel=id=>{const s=sensor(id);return s?`${s.id} · ${s.zone}${s.pos?" "+s.pos.toLowerCase():""}`:id;};
+const newId=()=>"SAT-"+String(DB.seq++).padStart(4,"0");
+const logIt=(c,text)=>c.log.push({d:today(),t:text});
+
+/* ---------- check: SAT calculation and judgement ---------- */
+function calc(c){
+  const s=S(),d=c.do||{},p=c.plan||{};
+  const f=num(d.furnace),t=num(d.test);
+  const out={diff:null,res:null,issues:[],invalid:false,prev:null,drift:null};
+  if(f==null||t==null) return out;
+  const corr=t+(num(d.instrCorr)||0)+(num(d.tcCorr)||0);
+  out.corr=Math.round(corr*10)/10;
+  out.diff=Math.round((f-corr)*10)/10;
+  const a=Math.abs(out.diff),tol=+s.tol,warn=tol*s.warnPct/100;
+  out.res=a>tol?"fail":a>warn?"warn":"pass";
+  out.warnLim=warn;
+  if(isDate(p.instrCalDue)&&isDate(d.date)&&p.instrCalDue<d.date){out.invalid=true;out.issues.push(`Test instrument calibration expired on ${fdate(p.instrCalDue)} — the test is not valid and must be repeated.`);}
+  if(d.stable==="no"){out.invalid=true;out.issues.push("Furnace was not stable at the set value during the test — repeat the test.");}
+  const sp=num(p.setpoint);
+  if(sp!=null&&Math.abs(f-sp)>15) out.issues.push(`Furnace reading is ${sgn(f-sp)} °C from the set value ${sp} °C — confirm the test was run at the operating temperature.`);
+  out.prev=prevValid(c);
+  if(out.prev){const pk=calc(out.prev);out.drift=Math.round((out.diff-pk.diff)*10)/10;
+    if(Math.abs(out.drift)>=tol/2) out.issues.push(`Shift of ${sgn(out.drift)} °C since the previous SAT (${out.prev.id}, ${fdate(out.prev.do.date)}) — at least half the tolerance; look for a developing fault.`);}
+  return out;
+}
+/* a SAT counts once its check has been accepted as valid */
+const isValidDone=c=>(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&isDate(c.do?.date)&&num(c.do?.furnace)!=null&&num(c.do?.test)!=null;
+const order=(a,b)=>(a.do.date<b.do.date?-1:a.do.date>b.do.date?1:a.id<b.id?-1:1);
+function prevValid(c){
+  if(!isDate(c.do?.date)) return null;
+  const l=DB.cycles.filter(x=>x!==c&&x.sensor===c.sensor&&isValidDone(x)&&order(x,c)<0).sort(order);
+  return l.at(-1)||null;
+}
+const history=id=>DB.cycles.filter(c=>c.sensor===id&&isValidDone(c)).sort(order);
+
+/* ---------- schedule: next due date per thermocouple ---------- */
+function schedule(sn){
+  const h=history(sn.id), last=h.at(-1)||null;
+  const lastK=last?calc(last):null;
+  const passes=h.filter(c=>calc(c).res!=="fail");
+  const lastPass=passes.at(-1)||null;
+  const open=DB.cycles.filter(c=>c.sensor===sn.id&&c.stage!=="closed");
+  let interval=+S().interval;
+  if(lastPass&&num(lastPass.act?.interval)) interval=num(lastPass.act.interval);
+  let due,status;
+  if(!last){due=today();status="none";}
+  else if(lastK.res==="fail"){due=last.do.date;status="fail";}
+  else{due=addDays(lastPass.do.date,interval);
+    const left=daysBetween(today(),due);
+    status=left<0?"overdue":left<=+S().soon?"soon":"ok";}
+  return {last,lastK,lastPass,open,interval,due,status,left:daysBetween(today(),due)};
+}
+const statusChip=s=>({none:chip("info","?","No SAT on record"),fail:chip("crit","!","Failed — re-SAT required"),overdue:chip("crit","!","Overdue"),soon:chip("warn","!","Due soon"),ok:chip("good","✓","In date")}[s]);
+const resChip=(k,c)=>{
+  if(!k||k.res==null) return chip("info","…","No reading");
+  if(c&&c.check?.valid==="invalid") return chip("info","×","Invalid test");
+  return {pass:chip("good","✓","Pass"),warn:chip("warn","!","Pass – warning band"),fail:chip("crit","✕","Fail")}[k.res];
+};
+
+/* ---------- stage gates: what each stage needs before the cycle advances ---------- */
+function missing(c){
+  const m=[],p=c.plan,d=c.do,k=calc(c),ck=c.check,a=c.act;
+  const need=(cond,txt)=>{if(!cond)m.push(txt);};
+  if(c.stage==="plan"){
+    need(sensor(c.sensor),"thermocouple");need(isDate(p.date),"planned date");need(p.by,"responsible person");
+    need(num(p.setpoint)!=null,"test set value");need(p.instr,"test instrument ID");need(isDate(p.instrCalDue),"test instrument calibration due date");
+    need(p.testTc,"test thermocouple ID");
+    if(isDate(p.instrCalDue)&&isDate(p.date)&&p.instrCalDue<p.date) m.push("a test instrument whose calibration is still valid on the planned date");
+  }else if(c.stage==="do"){
+    need(isDate(d.date),"test date");need(d.tech,"technician");need(num(d.furnace)!=null,"furnace system reading");need(num(d.test)!=null,"test instrument reading");
+    need(d.stable==="yes"||d.stable==="no","furnace stable (yes/no)");
+    if(isDate(d.date)&&d.date>today()) m.push("a test date that is not in the future");
+    const par=c.parent&&cyc(c.parent);
+    if(par&&isDate(d.date)&&isDate(par.do?.date)&&d.date<par.do.date) m.push(`a re-SAT date on or after the failed test (${fdate(par.do.date)})`);
+  }else if(c.stage==="check"){
+    need(ck.by,"reviewer");need(isDate(ck.date),"review date");
+    if(k.invalid) m.push("— the test is invalid: use “Repeat test (back to Do)”");
+  }else if(c.stage==="act"){
+    need(a.by,"action owner");need(isDate(a.date),"closing date");
+    if(k.res==="fail"){
+      need(a.cause,"root cause");need(a.action,"corrective action");need(a.detail,"action details");need(a.impact,"product-impact assessment");
+      const ch=reSats(c),ok=ch.find(x=>x.stage==="closed"&&calc(x).res!=="fail"&&x.check?.valid==="valid");
+      need(ok,"a closed, passing re-SAT (use “Plan re-SAT”)");
+    }else if(k.res==="warn"){need(a.detail,"preventive action");}
+  }
+  return m;
+}
+const reSats=c=>DB.cycles.filter(x=>x.parent===c.id);
+
+function advance(c){
+  const m=missing(c);
+  if(m.length) return "Still needed: "+m.join(", ")+".";
+  const k=calc(c);
+  if(c.stage==="plan"){c.stage="do";if(!c.do.date)c.do.date=c.plan.date<today()?c.plan.date:today();logIt(c,"Plan approved → Do");}
+  else if(c.stage==="do"){c.stage="check";if(!c.check.date)c.check.date=today();logIt(c,`Readings recorded (SAT difference ${sgn(k.diff)} °C) → Check`);}
+  else if(c.stage==="check"){c.check.valid="valid";c.stage="act";if(!c.act.date)c.act.date=today();logIt(c,`Check accepted: ${k.res.toUpperCase()} → Act`);}
+  else if(c.stage==="act"){c.stage="closed";logIt(c,"Cycle closed");}
+  return "";
+}
+
+/* ---------- render: page ---------- */
+function render(){
+  const s=S();
+  $("#meta").innerHTML=`<span>Furnace <b>${esc(s.plant)}</b></span><span>Tolerance <b>±${s.tol} °C</b></span><span>Warning band <b>${s.warnPct} %</b></span><span>Interval <b>${s.interval} days</b></span><span>Date <b>${fdate(today())}</b></span>`;
+  const active=DB.sensors.filter(x=>x.active!==false);
+  const sch=active.map(x=>({s:x,...schedule(x)}));
+  const open=DB.cycles.filter(c=>c.stage!=="closed");
+  const cnt=st=>open.filter(c=>c.stage===st).length;
+  const yearAgo=addDays(today(),-365);
+  const yr=DB.cycles.filter(c=>isValidDone(c)&&c.do.date>=yearAgo&&!c.parent);
+  const firstPass=yr.filter(c=>calc(c).res!=="fail").length;
+  const capaOpen=open.filter(c=>c.stage==="act"&&["fail","warn"].includes(calc(c).res)).length;
+  const overdue=sch.filter(x=>["overdue","fail","none"].includes(x.status)).length, soon=sch.filter(x=>x.status==="soon").length;
+  const worst=sch.filter(x=>x.lastK).sort((a,b)=>Math.abs(b.lastK.diff)-Math.abs(a.lastK.diff))[0];
+  $("#kpis").innerHTML=[
+    [active.length,"Thermocouples under SAT",""],
+    [overdue,"Overdue / failed / never tested",soon+" due within "+s.soon+" days",overdue?"bad":"ok"],
+    [open.length,"Open PDCA cycles",`P ${cnt("plan")} · D ${cnt("do")} · C ${cnt("check")} · A ${cnt("act")}`],
+    [yr.length?Math.round(firstPass/yr.length*100)+"<small> %</small>":"—","First-time pass rate",`last 12 months, ${firstPass}/${yr.length} SATs`, yr.length&&firstPass<yr.length?"caution":""],
+    [capaOpen,"Open corrective / preventive actions","SATs in Act needing action",capaOpen?"caution":""],
+    [worst?sgn(worst.lastK.diff)+"<small> °C</small>":"—","Largest latest SAT difference",worst?worst.s.id+" · limit ±"+s.tol+" °C":"",worst&&worst.lastK.res==="fail"?"bad":worst&&worst.lastK.res==="warn"?"caution":""],
+  ].map(([v,l,sub,cls])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${cls||""}">${v}</span><span class="s">${esc(sub)}</span></div>`).join("");
+
+  /* board */
+  const why={plan:"Schedule, equipment, responsibility",do:"Run test, record readings",check:"Judge result and validity",act:"Correct, re-test, standardise"};
+  $("#board").innerHTML=["plan","do","check","act"].map(st=>{
+    const l=open.filter(c=>c.stage===st).sort((a,b)=>(a.plan.date||"")<(b.plan.date||"")?-1:1);
+    return `<div class="col" style="--k:${SCOL[st]}"><h3><span class="L">${SNAME[st][0]}</span>${SNAME[st]}<span class="cnt">${l.length}</span></h3><p class="why">${why[st]}</p>
+      ${l.map(card).join("")||`<div class="muted" style="font-size:12.5px">Nothing here.</div>`}</div>`;
+  }).join("");
+
+  /* schedule */
+  $("#sched-note").textContent=`Next due = date of the last passing SAT + interval (${s.interval} days unless an Act stage set a different interval for that thermocouple). “Due soon” = within ${s.soon} days.`;
+  $("#sched").innerHTML=sch.length?`<table class="log cards"><thead><tr><th>Thermocouple</th><th>Last SAT</th><th class="n">Difference</th><th>Result</th><th>Interval</th><th>Next due</th><th>Status</th><th>Open cycle</th><th class="noprint"></th></tr></thead><tbody>${
+    sch.map(x=>`<tr><td data-label="Thermocouple"><b>${esc(x.s.id)}</b> <span class="muted">${esc(x.s.zone)} · ${esc(x.s.pos||"")} · type ${esc(x.s.type||"")}</span></td>
+      <td data-label="Last SAT" class="n">${x.last?fdate(x.last.do.date):"—"}</td>
+      <td data-label="Difference" class="n">${x.lastK?sgn(x.lastK.diff)+" °C":"—"}</td>
+      <td data-label="Result">${x.last?resChip(x.lastK):"—"}</td>
+      <td data-label="Interval" class="n">${x.interval} d</td>
+      <td data-label="Next due" class="n">${fdate(x.due)}${x.status==="overdue"?` <span class="bad">(${-x.left} d late)</span>`:x.status==="soon"?` <span class="caution">(${x.left} d)</span>`:""}</td>
+      <td data-label="Status">${statusChip(x.status)}</td>
+      <td data-label="Open cycle">${x.open.map(c=>`<button class="btn ghost small" data-open="${c.id}">${c.id} · ${SNAME[c.stage]}</button>`).join(" ")||"—"}</td>
+      <td class="noprint" data-label="">${x.open.length?"":`<button class="btn small" data-plan="${esc(x.s.id)}">Plan SAT</button>`}</td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">No active thermocouples. Add them under Settings.</div>`;
+
+  drawDrift(active);
+  drawCapa();
+  drawRecords();
+  drawSettings();
+}
+function card(c){
+  const k=calc(c),late=c.stage==="plan"&&isDate(c.plan.date)&&c.plan.date<today();
+  const parent=c.parent?`<span class="chip info"><i>↻</i>re-SAT of ${esc(c.parent)}</span>`:"";
+  const kids=reSats(c).map(x=>`<span class="chip info"><i>↻</i>${esc(x.id)} ${SNAME[x.stage]}</span>`).join("");
+  const nm=missing(c).length;
+  return `<button class="card" style="--k:${SCOL[c.stage]}" data-open="${c.id}">
+    <span class="t"><span>${esc(c.sensor)}</span><span class="mono muted" style="font-weight:400">${esc(c.id)}</span></span>
+    <span class="s">${esc(sLabel(c.sensor).split(" · ")[1]||"")}</span>
+    <span class="s">${c.stage==="plan"?"Planned "+fdate(c.plan.date):"Tested "+fdate(c.do.date)}${c.plan.by?" · "+esc(c.plan.by):""}</span>
+    <span class="row">${k.res?resChip(k,c)+`<span class="chip info mono"><i>Δ</i>${sgn(k.diff)} °C</span>`:""}${late?chip("crit","!","Plan date passed"):""}${parent}${kids}</span>
+    <span class="s">${nm?nm+" entr"+(nm>1?"ies":"y")+" needed to advance":"Ready to advance"}</span>
+  </button>`;
+}
+
+/* ---------- render: trend small multiples (SVG) ---------- */
+function drawDrift(active){
+  const s=S(),tol=+s.tol,warn=tol*s.warnPct/100;
+  $("#drift-legend").innerHTML=`<span><span class="lg-band"></span>within ±${tol} °C</span><span><span class="lg-dash"></span>warning band ±${warn.toFixed(1)} °C</span><span><span class="dot" style="background:var(--good)"></span>pass</span><span><span class="dot" style="background:var(--warn)"></span>warning</span><span><span class="dot" style="background:var(--crit)"></span>fail</span>`;
+  const W=360,H=150,L=34,R=8,T=10,B=22;
+  $("#drift").innerHTML=active.map(sn=>{
+    const h=history(sn.id).map(c=>({c,k:calc(c),x:dnum(c.do.date)}));
+    if(!h.length) return `<div><h3>${esc(sn.id)} <span class="muted" style="font-weight:400;font-size:12px">${esc(sn.zone)}</span></h3><div class="empty" style="margin-top:6px">No valid SAT yet.</div></div>`;
+    const ymax=Math.max(tol*1.6,...h.map(p=>Math.abs(p.k.diff)*1.15));
+    let x0=Math.min(...h.map(p=>p.x)),x1=Math.max(...h.map(p=>p.x),dnum(today()));
+    if(x1-x0<30)x0=x1-30;
+    const X=x=>L+(x-x0)/(x1-x0)*(W-L-R),Y=y=>T+(ymax-y)/(2*ymax)*(H-T-B);
+    const tick=[-tol,0,tol].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L-4}" y="${Y(v)+3.5}" text-anchor="end">${v>0?"+":""}${v}</text>`).join("");
+    const pts=h.map(p=>`${X(p.x).toFixed(1)},${Y(p.k.diff).toFixed(1)}`).join(" ");
+    const col={pass:"var(--good)",warn:"var(--warn)",fail:"var(--crit)"};
+    return `<div><h3>${esc(sn.id)} <span class="muted" style="font-weight:400;font-size:12px">${esc(sn.zone)} · ${esc(sn.pos||"")} · latest ${sgn(h.at(-1).k.diff)} °C</span></h3>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="SAT differences for ${esc(sn.id)}">
+      <rect x="${L}" y="${Y(tol)}" width="${W-L-R}" height="${Y(-tol)-Y(tol)}" fill="var(--band)"/>
+      ${tick}
+      ${[warn,-warn].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--warn)" stroke-dasharray="4 3" stroke-width="1"/>`).join("")}
+      <polyline points="${pts}" fill="none" stroke="var(--ink2)" stroke-width="1.2"/>
+      ${h.map(p=>`<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.k.diff).toFixed(1)}" r="4" fill="${col[p.k.res]}"><title>${p.c.id} · ${fdate(p.c.do.date)} · ${sgn(p.k.diff)} °C</title></circle>`).join("")}
+      <text x="${L}" y="${H-6}">${fdate(dstr(x0))}</text><text x="${W-R}" y="${H-6}" text-anchor="end">${fdate(dstr(x1))}</text>
+    </svg></div>`;
+  }).join("");
+}
+
+/* ---------- render: actions register ---------- */
+function riskWindow(c){
+  const p=DB.cycles.filter(x=>x!==c&&x.parent!==c.id&&x.sensor===c.sensor&&isValidDone(x)&&order(x,c)<0&&calc(x).res!=="fail").sort(order).at(-1);
+  return p?`${fdate(p.do.date)} → ${fdate(c.do.date)} (${daysBetween(p.do.date,c.do.date)} days)`:`up to ${fdate(c.do.date)} (no earlier passing SAT)`;
+}
+function drawCapa(){
+  const l=DB.cycles.filter(c=>(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&["fail","warn"].includes(calc(c).res)).sort((a,b)=>order(b,a));
+  $("#capa").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th class="n">Difference</th><th>Type</th><th>Root cause</th><th>Action</th><th>Product at risk</th><th>Re-SAT</th><th>Interval set</th><th>Status</th></tr></thead><tbody>${
+    l.map(c=>{const k=calc(c),a=c.act,kids=reSats(c);
+      return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button><br><span class="muted">${fdate(c.do.date)}</span></td>
+      <td data-label="Thermocouple">${esc(sLabel(c.sensor))}</td><td data-label="Difference" class="n">${sgn(k.diff)} °C</td>
+      <td data-label="Type">${k.res==="fail"?chip("crit","✕","Corrective"):chip("warn","!","Preventive")}</td>
+      <td data-label="Root cause">${esc(a.cause||"—")}</td>
+      <td data-label="Action">${a.action?"<b>"+esc(a.action)+"</b><br>":""}${esc(a.detail||"—")}${a.standard?`<br><span class="muted">Standardised: ${esc(a.standard)}</span>`:""}</td>
+      <td data-label="Product at risk">${k.res==="fail"?riskWindow(c)+(a.impact?`<br><span class="muted">${esc(a.impact)}</span>`:`<br><span class="bad">assessment missing</span>`):"—"}</td>
+      <td data-label="Re-SAT">${kids.map(x=>{const xk=calc(x);return `${esc(x.id)} · ${SNAME[x.stage]}${xk.res?" · "+sgn(xk.diff)+" °C":""}`;}).join("<br>")||(k.res==="fail"?`<span class="bad">not planned</span>`:"—")}</td>
+      <td data-label="Interval set" class="n">${num(a.interval)?a.interval+" d":"—"}</td>
+      <td data-label="Status">${c.stage==="closed"?chip("good","✓","Closed "+fdate(a.date)):chip("warn","…","Open")}</td></tr>`;}).join("")}</tbody></table>`
+    :`<div class="empty">No failed or warning-band SATs recorded.</div>`;
+}
+
+/* ---------- render: SAT records ---------- */
+function drawRecords(){
+  const l=DB.cycles.filter(c=>calc(c).diff!=null).sort((a,b)=>order(b,a));
+  $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Furnace °C</th><th class="n">Test (corrected) °C</th><th class="n">Difference</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th></tr></thead><tbody>${
+    l.map(c=>{const k=calc(c);return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button>${c.parent?`<br><span class="muted">re-SAT of ${esc(c.parent)}</span>`:""}</td>
+    <td data-label="Thermocouple">${esc(c.sensor)}</td><td data-label="Test date" class="n">${fdate(c.do.date)}</td>
+    <td data-label="Set °C" class="n">${esc(c.plan.setpoint??"—")}</td><td data-label="Furnace °C" class="n">${num(c.do.furnace).toFixed(1)}</td>
+    <td data-label="Test (corrected) °C" class="n">${k.corr.toFixed(1)}</td><td data-label="Difference" class="n">${sgn(k.diff)}</td>
+    <td data-label="Result">${resChip(k,c)}</td><td data-label="Test instrument · test TC">${esc(c.plan.instr||"—")} · ${esc(c.plan.testTc||"—")}</td>
+    <td data-label="Technician">${esc(c.do.tech||"—")}</td><td data-label="Stage">${SNAME[c.stage]}</td></tr>`;}).join("")}</tbody></table>`
+    :`<div class="empty">No SAT readings recorded yet.</div>`;
+}
+
+/* ---------- render: settings + thermocouple register ---------- */
+function drawSettings(){
+  const s=S();
+  const f=(k,l,t="number",step="any",cls="")=>`<div class="field ${cls}"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="${step}" value="${esc(s[k])}"></div>`;
+  if(!$("#settings").contains(document.activeElement)) $("#settings").innerHTML=
+    f("plant","Furnace / line","text","","wide")+f("tol","SAT tolerance ± °C","number","0.1")+f("warnPct","Warning band, % of tolerance","number","5")+
+    f("interval","Default SAT interval, days","number","1")+f("soon","“Due soon” window, days","number","1");
+  if(!$("#sensors").contains(document.activeElement)) $("#sensors").innerHTML=`<table class="log edit"><thead><tr><th>ID</th><th>Zone</th><th>Position</th><th>Type</th><th>Use</th><th>Active</th><th></th></tr></thead><tbody>${
+    DB.sensors.map((x,i)=>`<tr><td class="mono" style="min-width:60px"><b>${esc(x.id)}</b></td>
+      ${["zone","pos","type","use"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.id)}"></td>`).join("")}
+      <td><input type="checkbox" data-sn="${i}" data-k="active" ${x.active!==false?"checked":""} aria-label="active"></td>
+      <td>${DB.cycles.some(c=>c.sensor===x.id)?`<span class="muted" style="font-size:12px">has records</span>`:`<button class="btn danger small" data-delsn="${i}">Remove</button>`}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------- cycle editor (dialog) ---------- */
+let EDIT=null,MSG="";
+const dlg=$("#dlg");
+function openCycle(id){EDIT=id;MSG="";drawDlg();if(!dlg.open)dlg.showModal();}
+function getP(o,p){return p.split(".").reduce((a,k)=>a?.[k],o);}
+function setP(o,p,v){const ks=p.split(".");let a=o;ks.slice(0,-1).forEach(k=>{a[k]=a[k]||{};a=a[k];});a[ks.at(-1)]=v;}
+function fld(c,path,label,o={}){
+  const v=getP(c,path)??"",id="f-"+path.replace(".","-"),ro=o.ro?" disabled":"";
+  let ctl;
+  if(o.opts) ctl=`<select id="${id}" data-p="${path}"${ro}><option value="">— select —</option>${o.opts.map(x=>{const [val,lab]=Array.isArray(x)?x:[x,x];return `<option value="${esc(val)}" ${String(v)===String(val)?"selected":""}>${esc(lab)}</option>`;}).join("")}</select>`;
+  else if(o.area) ctl=`<textarea id="${id}" data-p="${path}"${ro}>${esc(v)}</textarea>`;
+  else ctl=`<input id="${id}" data-p="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any" inputmode="decimal"':""} value="${esc(v)}"${ro}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${ctl}${o.hint?`<span class="muted" style="font-size:11.5px">${o.hint}</span>`:""}</div>`;
+}
+function drawDlg(){
+  const c=cyc(EDIT); if(!c){dlg.close();return;}
+  const si=STAGES.indexOf(c.stage),ro=st=>c.stage==="closed"||(st==="plan"&&si>=2);
+  const steps=STAGES.slice(0,4).map((st,i)=>`<span class="${i<si?"done":i===si?"on":""}" style="--k:${SCOL[st]}">${SNAME[st]}</span>`).join("")+(c.stage==="closed"?`<span class="on" style="--k:var(--good)">Closed</span>`:"");
+  let h=`<div class="dlg-h"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>${esc(c.id)} · ${esc(sLabel(c.sensor))}</h2>${c.parent?`<span class="chip info"><i>↻</i>re-SAT of ${esc(c.parent)}</span>`:""}</div><div class="steps">${steps}</div></div><div class="dlg-b">`;
+  /* PLAN */
+  h+=`<div class="stage" style="--k:var(--p)"><h3>Plan <small>schedule the test and the calibrated test equipment</small></h3><div class="fgrid">
+    ${fld(c,"sensor","Thermocouple",{req:1,opts:DB.sensors.map(x=>[x.id,sLabel(x.id)]),ro:c.stage!=="plan"})}
+    ${fld(c,"plan.date","Planned date",{req:1,type:"date",ro:ro("plan")})}
+    ${fld(c,"plan.by","Responsible person",{req:1,ro:ro("plan")})}
+    ${fld(c,"plan.setpoint","Test set value °C",{req:1,type:"number",ro:ro("plan"),hint:"normal operating temperature"})}
+    ${fld(c,"plan.instr","Test instrument ID",{req:1,ro:ro("plan")})}
+    ${fld(c,"plan.instrCalDue","Test instrument calibration due",{req:1,type:"date",ro:ro("plan")})}
+    ${fld(c,"plan.testTc","Test thermocouple ID",{req:1,ro:ro("plan")})}
+    ${fld(c,"plan.testTcCert","Test thermocouple certificate no.",{ro:ro("plan")})}
+    ${fld(c,"plan.notes","Planning notes (production slot, access, permits)",{area:1,span:1,ro:ro("plan")})}
+  </div></div>`;
+  /* DO */
+  if(si>=1) h+=`<div class="stage" style="--k:var(--d)"><h3>Do <small>run the test with the test TC tip within 50 mm of the furnace TC tip</small></h3><div class="fgrid">
+    ${fld(c,"do.date","Test date",{req:1,type:"date",ro:c.stage==="closed"})}
+    ${fld(c,"do.tech","Technician",{req:1,ro:c.stage==="closed"})}
+    ${fld(c,"do.stable","Furnace stable at set value ≥ "+S().stableMin+" min",{req:1,opts:[["yes","Yes"],["no","No"]],ro:c.stage==="closed"})}
+    ${fld(c,"do.furnace","Furnace system reading °C",{req:1,type:"number",ro:c.stage==="closed",hint:"controller / recorder display, offsets included"})}
+    ${fld(c,"do.test","Test instrument reading °C",{req:1,type:"number",ro:c.stage==="closed"})}
+    ${fld(c,"do.instrCorr","Test instrument correction °C",{type:"number",ro:c.stage==="closed",hint:"from its calibration certificate"})}
+    ${fld(c,"do.tcCorr","Test thermocouple correction °C",{type:"number",ro:c.stage==="closed",hint:"from its certificate at this temperature"})}
+    ${fld(c,"do.notes","Observations during the test",{area:1,span:1,ro:c.stage==="closed"})}
+  </div></div>`;
+  /* CHECK */
+  if(si>=2) h+=`<div class="stage" style="--k:var(--c)"><h3>Check <small>judge the result, its validity and the trend</small></h3>
+    <div id="live-check"></div><div class="fgrid" style="margin-top:10px">
+    ${fld(c,"check.by","Reviewed by",{req:1,ro:c.stage==="closed"})}
+    ${fld(c,"check.date","Review date",{req:1,type:"date",ro:c.stage==="closed"})}
+    ${fld(c,"check.remarks","Review remarks",{area:1,span:1,ro:c.stage==="closed"})}
+  </div></div>`;
+  /* ACT */
+  if(si>=3) h+=`<div class="stage" style="--k:var(--a)"><h3>Act <small>correct, verify, standardise</small></h3><div id="live-act"></div><div class="fgrid" style="margin-top:10px">
+    ${fld(c,"act.cause","Root cause",{opts:CAUSES,ro:c.stage==="closed"})}
+    ${fld(c,"act.action","Action taken",{opts:ACTIONS,ro:c.stage==="closed"})}
+    ${fld(c,"act.detail","Action details (corrective or preventive)",{area:1,span:1,ro:c.stage==="closed"})}
+    ${fld(c,"act.impact","Product-impact assessment for the at-risk window",{area:1,span:1,ro:c.stage==="closed",hint:"required for a failed SAT: lots/trays processed, hardness checks, disposition"})}
+    ${fld(c,"act.standard","Standardise / lessons learned",{area:1,span:1,ro:c.stage==="closed",hint:"e.g. procedure updated, spare TC stock, PM task added"})}
+    ${fld(c,"act.interval","Next SAT interval for this thermocouple (days)",{type:"number",ro:c.stage==="closed",hint:"blank = default "+S().interval+" d; shorten after a warning or failure"})}
+    ${fld(c,"act.by","Action owner",{req:1,ro:c.stage==="closed"})}
+    ${fld(c,"act.date","Closing date",{req:1,type:"date",ro:c.stage==="closed"})}
+  </div></div>`;
+  if(c.log.length) h+=`<div><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${c.log.map(x=>`<li><span class="mono">${fdate(x.d)}</span> — ${esc(x.t)}</li>`).join("")}</ul></div>`;
+  h+=`</div><div class="dlg-f"><span class="msg" id="dlg-msg"></span>`;
+  if(c.stage==="plan") h+=`<button class="btn danger" data-act="delete">Delete</button>`;
+  if(c.stage==="check") h+=`<button class="btn ghost" data-act="invalid">Repeat test (back to Do)</button>`;
+  if(c.stage==="act"&&calc(c).res==="fail") h+=`<button class="btn ghost" data-act="resat">Plan re-SAT</button>`;
+  h+=`<button class="btn ghost" data-act="close">Close window</button>`;
+  if(c.stage!=="closed") h+=`<button class="btn" data-act="advance">${{plan:"Approve plan → Do",do:"Submit readings → Check",check:"Accept check → Act",act:"Close cycle"}[c.stage]}</button>`;
+  h+=`</div>`;
+  dlg.innerHTML=h; liveDlg();
+}
+function liveDlg(){
+  const c=cyc(EDIT); if(!c) return;
+  const k=calc(c),s=S();
+  const lc=$("#live-check");
+  if(lc){
+    lc.innerHTML=k.diff==null?`<div class="calc">Enter both readings in Do to calculate the SAT difference.</div>`:
+    `<div class="calc"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="big">${sgn(k.diff)} °C</span>${resChip(k,k.invalid?{check:{valid:"invalid"}}:null)}<span class="muted">limit ±${s.tol} °C · warning ±${k.warnLim.toFixed(1)} °C</span></div>
+      <div class="mono" style="font-size:12.5px">${num(c.do.furnace).toFixed(1)} − (${num(c.do.test).toFixed(1)} ${sgn(num(c.do.instrCorr)||0)} ${sgn(num(c.do.tcCorr)||0)}) = ${sgn(k.diff)} °C</div>
+      ${k.prev?`<div>Previous valid SAT ${esc(k.prev.id)} on ${fdate(k.prev.do.date)}: ${sgn(calc(k.prev).diff)} °C → change ${sgn(k.drift)} °C</div>`:`<div class="muted">No earlier valid SAT for this thermocouple.</div>`}
+      ${k.issues.length?`<ul>${k.issues.map(x=>`<li class="${k.invalid&&/valid|repeat/.test(x)?"bad":"caution"}">${esc(x)}</li>`).join("")}</ul>`:`<div class="ok">No validity issues found.</div>`}</div>`;
+  }
+  const la=$("#live-act");
+  if(la){
+    const kids=reSats(c);
+    la.innerHTML=`<div class="calc">${
+      k.res==="fail"?`<div><b class="bad">Failed SAT — corrective action.</b> Required: root cause, action, product-impact assessment and a passing re-SAT.</div><div>Product at risk since the last passing SAT: <b>${riskWindow(c)}</b></div>
+        <div>Re-SAT: ${kids.length?kids.map(x=>`<button class="btn ghost small" data-open="${x.id}">${x.id} · ${SNAME[x.stage]}${calc(x).res?" · "+sgn(calc(x).diff)+" °C":""}</button>`).join(" "):`<span class="bad">not planned yet</span>`}</div>`
+      :k.res==="warn"?`<div><b class="caution">Pass in the warning band — preventive action.</b> Record the preventive action; consider a shorter interval for this thermocouple.</div>`
+      :`<div><b class="ok">Pass.</b> Confirm the standard and close. Next SAT due ${fdate(addDays(c.do.date,num(c.act.interval)||+s.interval))}.</div>`}</div>`;
+  }
+  $("#dlg-msg").textContent=MSG;
+}
+
+/* ---------- actions ---------- */
+function newCycle(sid,date){
+  sid=sid||DB.sensors.find(x=>x.active!==false)?.id||"";
+  const latest=l=>l.filter(c=>isDate(c.plan?.date)).sort((a,b)=>a.plan.date<b.plan.date?1:-1)[0];
+  const prev=latest(DB.cycles),same=latest(DB.cycles.filter(c=>c.sensor===sid)); /* equipment from the last plan, set value from this thermocouple's last plan */
+  const c={id:newId(),sensor:sid,stage:"plan",parent:null,created:today(),
+    plan:{date:date&&date>today()?date:today(),by:prev?.plan.by||"",setpoint:same?.plan.setpoint??"",instr:prev?.plan.instr||"",instrCalDue:prev?.plan.instrCalDue||"",testTc:"",testTcCert:""},
+    do:{instrCorr:"",tcCorr:""},check:{},act:{},log:[]};
+  logIt(c,"Cycle created");
+  DB.cycles.push(c);save();return c;
+}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.open){openCycle(t.dataset.open);return;}
+  if(t.dataset.plan){const sc=schedule(sensor(t.dataset.plan));const c=newCycle(t.dataset.plan,sc.due);render();openCycle(c.id);return;}
+  if(t.dataset.delsn!=null){DB.sensors.splice(+t.dataset.delsn,1);save();render();return;}
+  const a=t.dataset.act;
+  if(a){const c=cyc(EDIT);
+    if(a==="close"){dlg.close();return;}
+    if(a==="delete"){if(confirm(`Delete ${c.id}?`)){DB.cycles=DB.cycles.filter(x=>x!==c);save();dlg.close();render();}return;}
+    if(a==="invalid"){c.check.valid="invalid";c.stage="do";logIt(c,"Check: test invalid → back to Do for a repeat test"+(c.check.remarks?" ("+c.check.remarks+")":""));
+      c.do={instrCorr:c.do.instrCorr,tcCorr:c.do.tcCorr,notes:c.do.notes};c.check={};save();render();drawDlg();return;}
+    if(a==="resat"){const r=newCycle(c.sensor,today());r.parent=c.id;r.plan.testTc=c.plan.testTc;r.plan.setpoint=c.plan.setpoint;logIt(r,"Re-SAT after failure of "+c.id);logIt(c,"Re-SAT "+r.id+" planned");save();render();openCycle(r.id);return;}
+    if(a==="advance"){MSG=advance(c);save();render();if(!MSG&&c.stage==="closed"&&c.parent){const p=cyc(c.parent);if(p&&p.stage==="act"){openCycle(p.id);MSG=calc(c).res!=="fail"?`Re-SAT ${c.id} passed — complete and close ${p.id}.`:`Re-SAT ${c.id} also failed — further corrective action needed.`;liveDlg();return;}}drawDlg();return;}
+  }
+  const id=t.id;
+  if(id==="b-new"){const c=newCycle();render();openCycle(c.id);}
+  else if(id==="b-due"){let n=0;DB.sensors.filter(x=>x.active!==false).forEach(x=>{const sc=schedule(x);if(!sc.open.length&&sc.status!=="ok"){newCycle(x.id,sc.due);n++;}});render();alert(n?`${n} SAT plan${n>1?"s":""} created in Plan.`:"No thermocouple is due within the “due soon” window without an open cycle.");}
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("tsat-theme",r.dataset.theme);}catch(e){}}
+  else if(id==="b-csv") exportCsv();
+  else if(id==="b-export") download(`thermocouple-sat-pdca-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!DB.cycles.length||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete all SAT records and reset settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+  else if(id==="b-addsensor"){const v=prompt("New thermocouple ID (e.g. TC7, OTC-1):");if(v&&v.trim()){const idv=v.trim();if(sensor(idv))alert(idv+" already exists.");else{DB.sensors.push({id:idv,zone:"",pos:"",type:"N",use:"Control + record",active:true});save();render();}}}
+});
+dlg.addEventListener("change",e=>{
+  const el=e.target,p=el.dataset.p,c=cyc(EDIT);if(!p||!c)return;
+  setP(c,p,el.value);MSG="";save();render();liveDlg();
+  if(p==="sensor") drawDlg();
+});
+dlg.addEventListener("close",()=>{EDIT=null;});
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.set){const k=el.dataset.set;S()[k]=k==="plant"?el.value:(num(el.value)??DEF[k]);save();el.blur();render();}
+  else if(el.dataset.sn!=null){const x=DB.sensors[+el.dataset.sn];x[el.dataset.k]=el.type==="checkbox"?el.checked:el.value;save();el.blur();render();}
+});
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o)throw new Error("not a SAT PDCA backup");
+    if(confirm(`Import ${o.cycles.length} cycles and ${o.sensors.length} thermocouples? This replaces the current records.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+  e.target.value="";
+});
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+function exportCsv(){
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const head=["SAT","Re-SAT of","Thermocouple","Zone","Stage","Planned","Test date","Set °C","Furnace °C","Test °C","Instr corr","TC corr","Corrected test °C","SAT difference °C","Result","Valid","Test instrument","Instr cal due","Test TC","Technician","Reviewer","Root cause","Action","Action details","Product impact","Interval d","Closed"];
+  const rows=DB.cycles.map(c=>{const k=calc(c),sn=sensor(c.sensor)||{};return [c.id,c.parent||"",c.sensor,sn.zone,SNAME[c.stage],c.plan.date,c.do.date,c.plan.setpoint,c.do.furnace,c.do.test,c.do.instrCorr,c.do.tcCorr,k.corr,k.diff,k.res,c.check.valid,c.plan.instr,c.plan.instrCalDue,c.plan.testTc,c.do.tech,c.check.by,c.act.cause,c.act.action,c.act.detail,c.act.impact,c.act.interval,c.stage==="closed"?c.act.date:""];});
+  download(`thermocouple-sat-${today()}.csv`,"﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
+}
+
+/* ---------- example data (dates relative to today) ---------- */
+function example(){
+  const o=blank();o.seq=1;const T=today(),D=n=>addDays(T,n);
+  const mk=(sid,day,diff,o2={})=>{
+    const sp=sid==="TC1"||sid==="TC2"?860:900,test=sp+0.4,instrCorr=0.3,tcCorr=-0.5;
+    const c={id:"SAT-"+String(o.seq++).padStart(4,"0"),sensor:sid,stage:"closed",parent:o2.parent||null,created:D(day-7),
+      plan:{date:D(day),by:"R. Kumar",setpoint:sp,instr:"DTI-07 Fluke 714B",instrCalDue:D(day+150),testTc:"TTC-N-"+(100+o.seq),testTcCert:"CC/"+(2200+o.seq)},
+      do:{date:D(day),tech:"S. Patil",stable:"yes",furnace:+(test+instrCorr+tcCorr+diff).toFixed(1),test,instrCorr,tcCorr},
+      check:{by:"HT Manager",date:D(day+1),valid:"valid"},act:{by:"HT Manager",date:D(day+2)},log:[{d:D(day),t:"Recorded from example data"}]};
+    Object.assign(c.act,o2.act||{});return c;
+  };
+  const base={TC1:[0.8,1.1,0.9,1.4],TC2:[-0.6,-0.9,-1.2,-0.8],TC3:[1.2,2.4,3.6,4.3],TC4:[0.4,0.2,0.7,0.5],TC5:[-1.5,-1.8,-1.4,-2.0],TC6:[0.9,1.3,1.0,1.6]};
+  const days=[-350,-260,-170,-80];
+  Object.entries(base).forEach(([sid,arr])=>arr.forEach((d,i)=>o.cycles.push(mk(sid,days[i]+(+sid[2]),d))));
+  const w=o.cycles.find(c=>c.sensor==="TC3"&&c.do.date===D(-77));
+  Object.assign(w.act,{cause:"Control thermocouple drift / ageing",action:"Other",detail:"Steady positive drift over three SATs. TC3 sheath inspected, no damage. Replacement N-type element ordered.",interval:45,standard:"Drift trend added to monthly maintenance review."});
+  const f=mk("TC3",-36,6.8,{act:{cause:"Control thermocouple drift / ageing",action:"Replace control thermocouple",detail:"TC3 replaced with new N-type element (lot N24-118); controller offset reset to 0.",impact:"Hardening loads in Zone 2 trays 6–9 during the window reviewed; surface hardness re-checked on retained samples from 4 lots, all within spec. No product held.",standard:"Spare N-type elements kept in stores; SAT interval for TC3 back to 90 days after a passing re-SAT.",interval:90,date:D(-33)}});
+  o.cycles.push(f);
+  const r=mk("TC3",-35,0.6,{parent:f.id});o.cycles.push(r);
+  f.log.push({d:D(-35),t:"Re-SAT "+r.id+" passed"});
+  const p1=mk("TC1",8,0);p1.stage="plan";p1.do={};p1.check={};p1.act={};p1.plan.date=D(8);p1.plan.instrCalDue=D(120);p1.log=[{d:T,t:"Cycle created"}];
+  const p2=mk("TC2",8,0);p2.stage="plan";p2.do={};p2.check={};p2.act={};p2.plan.date=D(8);p2.plan.instrCalDue=D(120);p2.plan.testTc="";p2.log=[{d:T,t:"Cycle created"}];
+  const d4=mk("TC4",0,0);d4.stage="do";d4.do={date:T,tech:"S. Patil",instrCorr:0.3,tcCorr:-0.5};d4.check={};d4.act={};d4.plan.instrCalDue=D(120);d4.log=[{d:T,t:"Plan approved → Do"}];
+  const c5=mk("TC5",-1,-2.6);c5.stage="check";c5.check={date:T};c5.act={};c5.plan.instrCalDue=D(120);c5.log=[{d:D(-1),t:"Readings recorded → Check"}];
+  o.cycles.push(p1,p2,d4,c5);
+  return o;
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__SAT={get DB(){return DB;},calc,schedule,missing};
+</script>
+</body></html>

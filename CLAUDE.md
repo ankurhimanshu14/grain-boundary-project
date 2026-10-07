@@ -11,6 +11,16 @@ Analysis of SCADA temperature exports (Excel: `Date, Time, SET-1/PV-1 … SET-6/
 - **`Pusher_Furnace_SCADA_Review.html` is the current app and the one the user iterates on.** One self-contained file (HTML + CSS + JS), edited directly: there is no build step and no bundler. It loads `xlsx.full.min.js` 0.18.5 and `Chart.js` 4.4.1 from cdnjs and works offline once those are cached; the page also embeds an example dataset (`SAMPLE`).
 - `furnace_analyzer.html` (built from `standalone/src.html` with `python standalone/build.py`) and the Python/Streamlit app (`app.py`, `cqi9/`, `run_report.py`, `tests/`) are older, simpler versions. They do **not** have set-value changes, settling, hardening/tempering rules, furnace start/stop or the replacement register. Don't port new features to them unless asked. `README.md` describes only these older versions.
 
+## Separate tool: `Thermocouple_SAT_PDCA.html`
+
+A stand-alone register that runs thermocouple System Accuracy Tests (CQI-9 SAT) through a Plan → Do → Check → Act cycle. It is deliberately **separate from the SCADA review**: no shared code, no shared `localStorage` keys (it uses `tsat-pdca` for data and `tsat-theme`), no CDN scripts. Same single-file, no-build convention and the same colour tokens.
+
+- Data `DB = {settings, sensors[], cycles[], seq}`; each cycle is one SAT `{id, sensor, stage, parent, plan, do, check, act, log}` with `stage` in `plan|do|check|act|closed`. `parent` links a re-SAT to the failed SAT.
+- `calc(c)`: SAT difference = furnace reading − (test reading + test instrument correction + test TC correction); `fail` beyond ±`tol`, `warn` beyond `warnPct` % of `tol`. A test is invalid if the test instrument calibration had expired on the test day or the furnace was not stable (Check sends it back to Do).
+- `missing(c)` is the stage gate used by `advance(c)`. A failed SAT closes only with root cause, action, product-impact assessment and a closed, passing re-SAT. A warning-band SAT needs a preventive action. Act can set a per-thermocouple interval, which `schedule()` uses for the next due date (last passing SAT + interval).
+- Product at risk for a failure is a date window since the last passing SAT (`riskWindow`), in line with the time-window approach of the SCADA app.
+- Test with Playwright: click `#b-example`, drive the dialog via `[data-p="stage.field"]` inputs and `[data-act="advance"]`, and read `window.__SAT`.
+
 ## Commands
 
 ```bash
