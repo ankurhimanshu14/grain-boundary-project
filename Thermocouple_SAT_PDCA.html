@@ -135,6 +135,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .calc .big{font-size:20px;font-weight:600;font-family:var(--mono)}
 .calc ul{margin:0;padding-left:18px}
+.rd-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
+.rd-wrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:5px}
+table.rd{width:100%;border-collapse:collapse;font-size:13px}
+table.rd th{position:sticky;top:0;background:var(--surface2);font-weight:500;color:var(--ink2);text-align:left;padding:5px 8px;font-size:12px}
+table.rd td{padding:2px 8px;border-top:1px solid var(--grid)}
+table.rd td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+table.rd input{font:inherit;font-family:var(--mono);width:100%;min-width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
+table.rd tr.due td{background:color-mix(in srgb,var(--d) 16%,transparent)}
 .loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
 
 .print-only{display:none}
@@ -212,8 +220,8 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>SAT records</h2><p>SAT difference = furnace system reading − (test instrument reading + test instrument correction + test thermocouple correction).</p>
-      <div class="actions noprint"><button class="btn ghost small" id="b-csv">Export CSV</button></div></div>
+    <div class="sec-head"><h2>SAT records</h2><p>SAT difference = mean over all readings of furnace system reading − (test instrument reading + test instrument correction + test thermocouple correction).</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-csv">Export CSV</button><button class="btn ghost small" id="b-csvr">Export all readings (CSV)</button></div></div>
     <div class="scroll" id="records"></div>
   </section>
 
@@ -243,6 +251,7 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   <footer>
     <b>Method</b>
     <ul>
+      <li>Each SAT records a series of furnace and test reading pairs (default 30 readings, one per minute, over 30 minutes). The SAT difference is the mean of the per-reading differences and is judged against the tolerance; individual readings outside tolerance move a pass into the warning band, and a furnace range above the stability limit is flagged.</li>
       <li>SAT per CQI-9: a calibrated test thermocouple is placed next to the furnace control/recording thermocouple tip and both readings are compared at the normal operating set value with the furnace stable.</li>
       <li>Default tolerance ±5.5 °C (±10 °F) and quarterly frequency (90 days); both can be changed in Settings. Readings within the warning band (default 70 % of tolerance) pass but need preventive action.</li>
       <li>A test is invalid when the test instrument calibration had expired on the test day or the furnace was not stable; it must be repeated (Do).</li>
@@ -272,7 +281,7 @@ const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</spa
 
 /* ---------- data model ---------- */
 const KEY="tsat-pdca";            // own storage key: nothing is shared with the SCADA review
-const DEF={plant:"Pusher furnace",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10};
+const DEF={plant:"Pusher furnace",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10,nRead:30,step:1,stab:5};
 const STAGES=["plan","do","check","act","closed"];
 const SNAME={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
 const SCOL={plan:"var(--p)",do:"var(--d)",check:"var(--c)",act:"var(--a)",closed:"var(--muted)"};
@@ -299,17 +308,35 @@ const newId=()=>"SAT-"+String(DB.seq++).padStart(4,"0");
 const logIt=(c,text)=>c.log.push({d:today(),t:text});
 
 /* ---------- check: SAT calculation and judgement ---------- */
+/* complete reading pairs; a record from before the 30-reading test has single do.furnace/do.test values */
+function readings(c){
+  const d=c.do||{};
+  if(Array.isArray(d.readings)) return d.readings.map((r,i)=>({i,f:num(r?.f),t:num(r?.t)})).filter(r=>r.f!=null&&r.t!=null);
+  const f=num(d.furnace),t=num(d.test);
+  return f!=null&&t!=null?[{i:0,f,t}]:[];
+}
+const r1=v=>Math.round(v*10)/10;
+const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+const sdev=a=>a.length<2?0:Math.sqrt(a.reduce((x,y)=>x+(y-mean(a))**2,0)/(a.length-1));
+/* SAT difference = mean over all readings of furnace − (test + test instrument correction + test TC correction) */
 function calc(c){
   const s=S(),d=c.do||{},p=c.plan||{};
-  const f=num(d.furnace),t=num(d.test);
-  const out={diff:null,res:null,issues:[],invalid:false,prev:null,drift:null};
-  if(f==null||t==null) return out;
-  const corr=t+(num(d.instrCorr)||0)+(num(d.tcCorr)||0);
-  out.corr=Math.round(corr*10)/10;
-  out.diff=Math.round((f-corr)*10)/10;
+  const out={diff:null,res:null,issues:[],invalid:false,prev:null,drift:null,n:0};
+  const R=readings(c);
+  if(!R.length) return out;
+  const k0=(num(d.instrCorr)||0)+(num(d.tcCorr)||0);
+  const dl=R.map(r=>r.f-(r.t+k0)),fl=R.map(r=>r.f),tl=R.map(r=>r.t);
+  const f=mean(fl);
+  out.n=R.length;out.k0=k0;out.list=R.map((r,j)=>({...r,d:dl[j]}));
+  out.fMean=r1(f);out.tMean=r1(mean(tl));out.corr=r1(mean(tl)+k0);
+  out.diff=r1(mean(dl));out.dMin=r1(Math.min(...dl));out.dMax=r1(Math.max(...dl));out.sd=Math.round(sdev(dl)*100)/100;
+  out.fRange=r1(Math.max(...fl)-Math.min(...fl));out.tRange=r1(Math.max(...tl)-Math.min(...tl));
   const a=Math.abs(out.diff),tol=+s.tol,warn=tol*s.warnPct/100;
   out.res=a>tol?"fail":a>warn?"warn":"pass";
   out.warnLim=warn;
+  out.over=dl.filter(x=>Math.abs(x)>tol).length;
+  if(out.over){out.issues.push(`${out.over} of ${out.n} individual readings are outside ±${tol} °C (range ${sgn(out.dMin)} to ${sgn(out.dMax)} °C).`);if(out.res==="pass")out.res="warn";}
+  if(out.n>1&&out.fRange>+s.stab) out.issues.push(`Furnace reading varied by ${out.fRange} °C during the test (limit ${s.stab} °C) — check the furnace was stable.`);
   if(isDate(p.instrCalDue)&&isDate(d.date)&&p.instrCalDue<d.date){out.invalid=true;out.issues.push(`Test instrument calibration expired on ${fdate(p.instrCalDue)} — the test is not valid and must be repeated.`);}
   if(d.stable==="no"){out.invalid=true;out.issues.push("Furnace was not stable at the set value during the test — repeat the test.");}
   const sp=num(p.setpoint);
@@ -320,7 +347,7 @@ function calc(c){
   return out;
 }
 /* a SAT counts once its check has been accepted as valid */
-const isValidDone=c=>(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&isDate(c.do?.date)&&num(c.do?.furnace)!=null&&num(c.do?.test)!=null;
+const isValidDone=c=>(c.stage==="act"||c.stage==="closed")&&c.check?.valid==="valid"&&isDate(c.do?.date)&&readings(c).length>0;
 const order=(a,b)=>(a.do.date<b.do.date?-1:a.do.date>b.do.date?1:a.id<b.id?-1:1);
 function prevValid(c){
   if(!isDate(c.do?.date)) return null;
@@ -363,7 +390,7 @@ function missing(c){
     need(p.testTc,"test thermocouple ID");
     if(isDate(p.instrCalDue)&&isDate(p.date)&&p.instrCalDue<p.date) m.push("a test instrument whose calibration is still valid on the planned date");
   }else if(c.stage==="do"){
-    need(isDate(d.date),"test date");need(d.tech,"technician");need(num(d.furnace)!=null,"furnace system reading");need(num(d.test)!=null,"test instrument reading");
+    need(isDate(d.date),"test date");need(d.tech,"technician");const nr=Array.isArray(d.readings)?+S().nRead:1;need(k.n>=nr,`${nr} complete pairs of furnace and test readings (${k.n} entered)`);
     need(d.stable==="yes"||d.stable==="no","furnace stable (yes/no)");
     if(isDate(d.date)&&d.date>today()) m.push("a test date that is not in the future");
     const par=c.parent&&cyc(c.parent);
@@ -387,7 +414,7 @@ function advance(c){
   const m=missing(c);
   if(m.length) return "Still needed: "+m.join(", ")+".";
   const k=calc(c);
-  if(c.stage==="plan"){c.stage="do";if(!c.do.date)c.do.date=c.plan.date<today()?c.plan.date:today();logIt(c,"Plan approved → Do");}
+  if(c.stage==="plan"){c.stage="do";padReadings(c);if(!c.do.date)c.do.date=c.plan.date<today()?c.plan.date:today();logIt(c,"Plan approved → Do");}
   else if(c.stage==="do"){c.stage="check";if(!c.check.date)c.check.date=today();logIt(c,`Readings recorded (SAT difference ${sgn(k.diff)} °C) → Check`);}
   else if(c.stage==="check"){c.check.valid="valid";c.stage="act";if(!c.act.date)c.act.date=today();logIt(c,`Check accepted: ${k.res.toUpperCase()} → Act`);}
   else if(c.stage==="act"){c.stage="closed";logIt(c,"Cycle closed");}
@@ -509,11 +536,11 @@ function drawCapa(){
 /* ---------- render: SAT records ---------- */
 function drawRecords(){
   const l=DB.cycles.filter(c=>calc(c).diff!=null).sort((a,b)=>order(b,a));
-  $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Furnace °C</th><th class="n">Test (corrected) °C</th><th class="n">Difference</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th></tr></thead><tbody>${
+  $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Readings</th><th class="n">Furnace mean °C</th><th class="n">Test mean (corrected) °C</th><th class="n">SAT difference</th><th class="n">Min / max</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th></tr></thead><tbody>${
     l.map(c=>{const k=calc(c);return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button>${c.parent?`<br><span class="muted">re-SAT of ${esc(c.parent)}</span>`:""}</td>
     <td data-label="Thermocouple">${esc(c.sensor)}</td><td data-label="Test date" class="n">${fdate(c.do.date)}</td>
-    <td data-label="Set °C" class="n">${esc(c.plan.setpoint??"—")}</td><td data-label="Furnace °C" class="n">${num(c.do.furnace).toFixed(1)}</td>
-    <td data-label="Test (corrected) °C" class="n">${k.corr.toFixed(1)}</td><td data-label="Difference" class="n">${sgn(k.diff)}</td>
+    <td data-label="Set °C" class="n">${esc(c.plan.setpoint??"—")}</td><td data-label="Readings" class="n">${k.n}</td><td data-label="Furnace °C" class="n">${k.fMean.toFixed(1)}</td>
+    <td data-label="Test mean (corrected) °C" class="n">${k.corr.toFixed(1)}</td><td data-label="SAT difference" class="n">${sgn(k.diff)}</td><td data-label="Min / max" class="n">${sgn(k.dMin)} / ${sgn(k.dMax)}</td>
     <td data-label="Result">${resChip(k,c)}</td><td data-label="Test instrument · test TC">${esc(c.plan.instr||"—")} · ${esc(c.plan.testTc||"—")}</td>
     <td data-label="Technician">${esc(c.do.tech||"—")}</td><td data-label="Stage">${SNAME[c.stage]}</td></tr>`;}).join("")}</tbody></table>`
     :`<div class="empty">No SAT readings recorded yet.</div>`;
@@ -525,7 +552,8 @@ function drawSettings(){
   const f=(k,l,t="number",step="any",cls="")=>`<div class="field ${cls}"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="${step}" value="${esc(s[k])}"></div>`;
   if(!$("#settings").contains(document.activeElement)) $("#settings").innerHTML=
     f("plant","Furnace / line","text","","wide")+f("tol","SAT tolerance ± °C","number","0.1")+f("warnPct","Warning band, % of tolerance","number","5")+
-    f("interval","Default SAT interval, days","number","1")+f("soon","“Due soon” window, days","number","1");
+    f("interval","Default SAT interval, days","number","1")+f("soon","“Due soon” window, days","number","1")+
+    f("nRead","Readings per SAT","number","1")+f("step","Minutes between readings","number","0.5")+f("stab","Max furnace range during test °C","number","0.5");
   if(!$("#sensors").contains(document.activeElement)) $("#sensors").innerHTML=`<table class="log edit"><thead><tr><th>ID</th><th>Zone</th><th>Position</th><th>Type</th><th>Use</th><th>Active</th><th></th></tr></thead><tbody>${
     DB.sensors.map((x,i)=>`<tr><td class="mono" style="min-width:60px"><b>${esc(x.id)}</b></td>
       ${["zone","pos","type","use"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.id)}"></td>`).join("")}
@@ -549,6 +577,7 @@ function fld(c,path,label,o={}){
 }
 function drawDlg(){
   const c=cyc(EDIT); if(!c){dlg.close();return;}
+  if(c.stage==="do") padReadings(c);
   const si=STAGES.indexOf(c.stage),ro=st=>c.stage==="closed"||(st==="plan"&&si>=2);
   const steps=STAGES.slice(0,4).map((st,i)=>`<span class="${i<si?"done":i===si?"on":""}" style="--k:${SCOL[st]}">${SNAME[st]}</span>`).join("")+(c.stage==="closed"?`<span class="on" style="--k:var(--good)">Closed</span>`:"");
   let h=`<div class="dlg-h"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>${esc(c.id)} · ${esc(sLabel(c.sensor))}</h2>${c.parent?`<span class="chip info"><i>↻</i>re-SAT of ${esc(c.parent)}</span>`:""}</div><div class="steps">${steps}</div></div><div class="dlg-b">`;
@@ -569,12 +598,11 @@ function drawDlg(){
     ${fld(c,"do.date","Test date",{req:1,type:"date",ro:c.stage==="closed"})}
     ${fld(c,"do.tech","Technician",{req:1,ro:c.stage==="closed"})}
     ${fld(c,"do.stable","Furnace stable at set value ≥ "+S().stableMin+" min",{req:1,opts:[["yes","Yes"],["no","No"]],ro:c.stage==="closed"})}
-    ${fld(c,"do.furnace","Furnace system reading °C",{req:1,type:"number",ro:c.stage==="closed",hint:"controller / recorder display, offsets included"})}
-    ${fld(c,"do.test","Test instrument reading °C",{req:1,type:"number",ro:c.stage==="closed"})}
+    ${fld(c,"do.start","Start time of first reading",{type:"time",ro:c.stage==="closed"})}
     ${fld(c,"do.instrCorr","Test instrument correction °C",{type:"number",ro:c.stage==="closed",hint:"from its calibration certificate"})}
     ${fld(c,"do.tcCorr","Test thermocouple correction °C",{type:"number",ro:c.stage==="closed",hint:"from its certificate at this temperature"})}
     ${fld(c,"do.notes","Observations during the test",{area:1,span:1,ro:c.stage==="closed"})}
-  </div></div>`;
+  </div>${readingsTable(c)}</div>`;
   /* CHECK */
   if(si>=2) h+=`<div class="stage" style="--k:var(--c)"><h3>Check <small>judge the result, its validity and the trend</small></h3>
     <div id="live-check"></div><div class="fgrid" style="margin-top:10px">
@@ -610,7 +638,8 @@ function liveDlg(){
   if(lc){
     lc.innerHTML=k.diff==null?`<div class="calc">Enter both readings in Do to calculate the SAT difference.</div>`:
     `<div class="calc"><div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span class="big">${sgn(k.diff)} °C</span>${resChip(k,k.invalid?{check:{valid:"invalid"}}:null)}<span class="muted">limit ±${s.tol} °C · warning ±${k.warnLim.toFixed(1)} °C</span></div>
-      <div class="mono" style="font-size:12.5px">${num(c.do.furnace).toFixed(1)} − (${num(c.do.test).toFixed(1)} ${sgn(num(c.do.instrCorr)||0)} ${sgn(num(c.do.tcCorr)||0)}) = ${sgn(k.diff)} °C</div>
+      <div class="mono" style="font-size:12.5px">mean ${k.fMean.toFixed(1)} − (mean ${k.tMean.toFixed(1)} ${sgn(num(c.do.instrCorr)||0)} ${sgn(num(c.do.tcCorr)||0)}) = ${sgn(k.diff)} °C</div>
+      ${statTable(k)}${readingsChart(c,k)}
       ${k.prev?`<div>Previous valid SAT ${esc(k.prev.id)} on ${fdate(k.prev.do.date)}: ${sgn(calc(k.prev).diff)} °C → change ${sgn(k.drift)} °C</div>`:`<div class="muted">No earlier valid SAT for this thermocouple.</div>`}
       ${k.issues.length?`<ul>${k.issues.map(x=>`<li class="${k.invalid&&/valid|repeat/.test(x)?"bad":"caution"}">${esc(x)}</li>`).join("")}</ul>`:`<div class="ok">No validity issues found.</div>`}</div>`;
   }
@@ -624,6 +653,72 @@ function liveDlg(){
       :`<div><b class="ok">Pass.</b> Confirm the standard and close. Next SAT due ${fdate(addDays(c.do.date,num(c.act.interval)||+s.interval))}.</div>`}</div>`;
   }
   $("#dlg-msg").textContent=MSG;
+  /* live per-reading difference in the Do table */
+  const corr=k.k0??((num(c.do.instrCorr)||0)+(num(c.do.tcCorr)||0)),tol=+s.tol;
+  (c.do.readings||[]).forEach((r,i)=>{const el=document.getElementById("rd-"+i);if(!el)return;
+    const f=num(r?.f),t=num(r?.t);if(f==null||t==null){el.textContent="—";el.className="n muted";return;}
+    const dv=f-(t+corr);el.textContent=sgn(dv);el.className="n "+(Math.abs(dv)>tol?"bad":Math.abs(dv)>tol*s.warnPct/100?"caution":"");});
+  const rc=$("#rd-count");if(rc)rc.textContent=`${readings(c).length} of ${(c.do.readings||[]).length} complete`;
+}
+/* ---------- readings: 30 timed pairs in Do ---------- */
+function padReadings(c){
+  if(!Array.isArray(c.do.readings)){
+    c.do.readings=[];
+    if(num(c.do.furnace)!=null||num(c.do.test)!=null)c.do.readings.push({f:c.do.furnace??"",t:c.do.test??""}); /* carry an old single reading */
+    delete c.do.furnace;delete c.do.test;
+  }
+  while(c.do.readings.length<+S().nRead)c.do.readings.push({f:"",t:""});
+}
+function rTime(c,i){
+  const m=/^(\d{1,2}):(\d{2})/.exec(c.do?.start||"");if(!m)return "";
+  const t=(+m[1]*60+ +m[2]+i*(+S().step||1))%1440;
+  return pad(Math.floor(t/60))+":"+pad(Math.floor(t%60))+(t%1?":"+pad(Math.round(t%1*60)):"");
+}
+function readingsTable(c){
+  if(!Array.isArray(c.do.readings)) return "";
+  const ro=c.stage!=="do"?" disabled":"",s=S();
+  const rows=c.do.readings.map((r,i)=>`<tr data-row="${i}"><td class="n muted">${i+1}</td><td class="n muted">${rTime(c,i)||"—"}</td>
+    <td><input type="number" step="any" inputmode="decimal" data-p="do.readings.${i}.f" value="${esc(r?.f??"")}" aria-label="Furnace reading ${i+1}"${ro}></td>
+    <td><input type="number" step="any" inputmode="decimal" data-p="do.readings.${i}.t" value="${esc(r?.t??"")}" aria-label="Test reading ${i+1}"${ro}></td>
+    <td class="n" id="rd-${i}">—</td></tr>`).join("");
+  return `<div class="rd-head"><h3>Readings <small class="muted" style="font-weight:400">${c.do.readings.length} × every ${s.step} min · <span id="rd-count"></span></small></h3>
+    ${c.stage==="do"?`<div class="actions"><span id="tmr" class="mono muted"></span><button class="btn ghost small" data-act="timer">${TIMER?"Stop timer":"Start "+Math.round(c.do.readings.length*s.step)+"-min timer"}</button></div>`:""}</div>
+    ${c.stage==="do"?`<p class="muted" style="font-size:12px;margin:0 0 6px">Enter one pair per reading, or paste two columns (furnace, test) copied from Excel into any furnace cell. The timer marks the reading that is due.</p>`:""}
+    <div class="rd-wrap"><table class="rd"><thead><tr><th>#</th><th>Time</th><th>Furnace °C</th><th>Test °C</th><th class="n">Δ °C</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function statTable(k){
+  if(k.n<2) return "";
+  return `<table class="log" style="max-width:560px"><tbody>
+    <tr><td>Readings used</td><td class="n">${k.n}</td><td>Furnace mean / range</td><td class="n">${k.fMean.toFixed(1)} / ${k.fRange} °C</td></tr>
+    <tr><td>Difference min / max</td><td class="n">${sgn(k.dMin)} / ${sgn(k.dMax)}</td><td>Test mean / range</td><td class="n">${k.tMean.toFixed(1)} / ${k.tRange} °C</td></tr>
+    <tr><td>Std. deviation</td><td class="n">${k.sd.toFixed(2)} °C</td><td>Readings outside ±${S().tol}</td><td class="n ${k.over?"bad":""}">${k.over}</td></tr></tbody></table>`;
+}
+function readingsChart(c,k){
+  if(k.n<2) return "";
+  const tol=+S().tol,warn=k.warnLim,W=640,H=150,L=36,Rr=8,T=8,B=20;
+  const ymax=Math.max(tol*1.4,...k.list.map(r=>Math.abs(r.d)*1.15));
+  const n=Math.max(k.n,c.do.readings?.length||k.n);
+  const X=i=>L+(n>1?i/(n-1):0.5)*(W-L-Rr),Y=y=>T+(ymax-y)/(2*ymax)*(H-T-B);
+  const col=d=>Math.abs(d)>tol?"var(--crit)":Math.abs(d)>warn?"var(--warn)":"var(--good)";
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-width:${W}px" role="img" aria-label="Difference per reading">
+    <rect x="${L}" y="${Y(tol)}" width="${W-L-Rr}" height="${Y(-tol)-Y(tol)}" fill="var(--band)"/>
+    ${[-tol,0,tol].map(v=>`<line x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L-4}" y="${Y(v)+3.5}" text-anchor="end">${v>0?"+":""}${v}</text>`).join("")}
+    ${[warn,-warn].map(v=>`<line x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--warn)" stroke-dasharray="4 3"/>`).join("")}
+    <line x1="${L}" x2="${W-Rr}" y1="${Y(k.diff)}" y2="${Y(k.diff)}" stroke="var(--accent)" stroke-width="1.5"><title>mean ${sgn(k.diff)} °C</title></line>
+    <polyline points="${k.list.map(r=>X(r.i).toFixed(1)+","+Y(r.d).toFixed(1)).join(" ")}" fill="none" stroke="var(--ink2)" stroke-width="1"/>
+    ${k.list.map(r=>`<circle cx="${X(r.i).toFixed(1)}" cy="${Y(r.d).toFixed(1)}" r="3" fill="${col(r.d)}"><title>#${r.i+1} ${rTime(c,r.i)} · ${r.f} − (${r.t} ${sgn(k.k0)}) = ${sgn(r.d)} °C</title></circle>`).join("")}
+    <text x="${L}" y="${H-5}">#1</text><text x="${W-Rr}" y="${H-5}" text-anchor="end">#${n}</text><text x="${(L+W)/2}" y="${H-5}" text-anchor="middle">difference per reading · line = mean (SAT difference)</text>
+  </svg>`;
+}
+/* timer: marks the reading that is due; time is taken from the click, the start-time field is filled if empty */
+let TIMER=null;
+function stopTimer(){if(TIMER){clearInterval(TIMER.h);TIMER=null;}}
+function tick(){
+  const c=cyc(EDIT),el=$("#tmr");if(!c||!TIMER||!el){stopTimer();return;}
+  const s=S(),n=c.do.readings.length,el_s=(Date.now()-TIMER.t0)/1000,step=(+s.step||1)*60;
+  const due=Math.min(n-1,Math.floor(el_s/step)),total=(n-1)*step;
+  el.textContent=el_s>=total+step?`Done · ${Math.floor(el_s/60)} min`:`${pad(Math.floor(el_s/60))}:${pad(Math.floor(el_s%60))} · reading ${due+1} due · next in ${Math.ceil(step-el_s%step)} s`;
+  document.querySelectorAll("table.rd tr[data-row]").forEach(tr=>tr.classList.toggle("due",+tr.dataset.row===due&&el_s<total+step));
 }
 
 /* ---------- actions ---------- */
@@ -645,9 +740,12 @@ document.addEventListener("click",e=>{
   const a=t.dataset.act;
   if(a){const c=cyc(EDIT);
     if(a==="close"){dlg.close();return;}
+    if(a==="timer"){if(TIMER){stopTimer();drawDlg();return;}
+      const now=new Date();if(!c.do.start){c.do.start=pad(now.getHours())+":"+pad(now.getMinutes());save();}
+      TIMER={t0:Date.now(),h:setInterval(tick,1000)};drawDlg();tick();return;}
     if(a==="delete"){if(confirm(`Delete ${c.id}?`)){DB.cycles=DB.cycles.filter(x=>x!==c);save();dlg.close();render();}return;}
     if(a==="invalid"){c.check.valid="invalid";c.stage="do";logIt(c,"Check: test invalid → back to Do for a repeat test"+(c.check.remarks?" ("+c.check.remarks+")":""));
-      c.do={instrCorr:c.do.instrCorr,tcCorr:c.do.tcCorr,notes:c.do.notes};c.check={};save();render();drawDlg();return;}
+      c.do={instrCorr:c.do.instrCorr,tcCorr:c.do.tcCorr,notes:c.do.notes};padReadings(c);c.check={};save();render();drawDlg();return;}
     if(a==="resat"){const r=newCycle(c.sensor,today());r.parent=c.id;r.plan.testTc=c.plan.testTc;r.plan.setpoint=c.plan.setpoint;logIt(r,"Re-SAT after failure of "+c.id);logIt(c,"Re-SAT "+r.id+" planned");save();render();openCycle(r.id);return;}
     if(a==="advance"){MSG=advance(c);save();render();if(!MSG&&c.stage==="closed"&&c.parent){const p=cyc(c.parent);if(p&&p.stage==="act"){openCycle(p.id);MSG=calc(c).res!=="fail"?`Re-SAT ${c.id} passed — complete and close ${p.id}.`:`Re-SAT ${c.id} also failed — further corrective action needed.`;liveDlg();return;}}drawDlg();return;}
   }
@@ -657,6 +755,7 @@ document.addEventListener("click",e=>{
   else if(id==="b-print") window.print();
   else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("tsat-theme",r.dataset.theme);}catch(e){}}
   else if(id==="b-csv") exportCsv();
+  else if(id==="b-csvr") exportReadingsCsv();
   else if(id==="b-export") download(`thermocouple-sat-pdca-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
   else if(id==="b-import") $("#imp").click();
   else if(id==="b-example"){if(!DB.cycles.length||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
@@ -668,7 +767,19 @@ dlg.addEventListener("change",e=>{
   setP(c,p,el.value);MSG="";save();render();liveDlg();
   if(p==="sensor") drawDlg();
 });
-dlg.addEventListener("close",()=>{EDIT=null;});
+dlg.addEventListener("close",()=>{EDIT=null;stopTimer();});
+dlg.addEventListener("paste",e=>{
+  const el=e.target,m=/^do\.readings\.(\d+)\.([ft])$/.exec(el.dataset?.p||""),c=cyc(EDIT);if(!m||!c)return;
+  const lines=(e.clipboardData?.getData("text")||"").trim().split(/\r?\n/).map(l=>l.trim().split(/\t|;|\s+/).filter(Boolean).map(v=>v.replace(",",".")));
+  if(lines.length<2&&(lines[0]||[]).length<2)return; /* a single value pastes normally */
+  e.preventDefault();
+  let i=+m[1];
+  lines.forEach(cols=>{if(!cols.length)return;while(c.do.readings.length<=i)c.do.readings.push({f:"",t:""});
+    const r=c.do.readings[i];
+    if(m[2]==="f"){if(num(cols[0])!=null)r.f=cols[0];if(cols.length>1&&num(cols[1])!=null)r.t=cols[1];}else if(num(cols[0])!=null)r.t=cols[0];
+    i++;});
+  MSG="";save();render();drawDlg();
+});
 document.addEventListener("change",e=>{
   const el=e.target;
   if(el.dataset.set){const k=el.dataset.set;S()[k]=k==="plant"?el.value:(num(el.value)??DEF[k]);save();el.blur();render();}
@@ -684,19 +795,33 @@ $("#imp").addEventListener("change",async e=>{
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 function exportCsv(){
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const head=["SAT","Re-SAT of","Thermocouple","Zone","Stage","Planned","Test date","Set °C","Furnace °C","Test °C","Instr corr","TC corr","Corrected test °C","SAT difference °C","Result","Valid","Test instrument","Instr cal due","Test TC","Technician","Reviewer","Root cause","Action","Action details","Product impact","Interval d","Closed"];
-  const rows=DB.cycles.map(c=>{const k=calc(c),sn=sensor(c.sensor)||{};return [c.id,c.parent||"",c.sensor,sn.zone,SNAME[c.stage],c.plan.date,c.do.date,c.plan.setpoint,c.do.furnace,c.do.test,c.do.instrCorr,c.do.tcCorr,k.corr,k.diff,k.res,c.check.valid,c.plan.instr,c.plan.instrCalDue,c.plan.testTc,c.do.tech,c.check.by,c.act.cause,c.act.action,c.act.detail,c.act.impact,c.act.interval,c.stage==="closed"?c.act.date:""];});
+  const head=["SAT","Re-SAT of","Thermocouple","Zone","Stage","Planned","Test date","Set °C","Readings","Furnace mean °C","Test mean °C","Instr corr","TC corr","Corrected test mean °C","SAT difference °C","Diff min °C","Diff max °C","Diff SD °C","Furnace range °C","Result","Valid","Test instrument","Instr cal due","Test TC","Technician","Reviewer","Root cause","Action","Action details","Product impact","Interval d","Closed"];
+  const rows=DB.cycles.map(c=>{const k=calc(c),sn=sensor(c.sensor)||{};return [c.id,c.parent||"",c.sensor,sn.zone,SNAME[c.stage],c.plan.date,c.do.date,c.plan.setpoint,k.n,k.fMean,k.tMean,c.do.instrCorr,c.do.tcCorr,k.corr,k.diff,k.dMin,k.dMax,k.sd,k.fRange,k.res,c.check.valid,c.plan.instr,c.plan.instrCalDue,c.plan.testTc,c.do.tech,c.check.by,c.act.cause,c.act.action,c.act.detail,c.act.impact,c.act.interval,c.stage==="closed"?c.act.date:""];});
   download(`thermocouple-sat-${today()}.csv`,"﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
 }
 
+function exportReadingsCsv(){
+  const rows=[["SAT","Thermocouple","Test date","Reading","Time","Furnace °C","Test °C","Corrections °C","Difference °C"]];
+  DB.cycles.forEach(c=>{const k=calc(c);(k.list||[]).forEach(r=>rows.push([c.id,c.sensor,c.do.date,r.i+1,rTime(c,r.i),r.f,r.t,r1(k.k0),r1(r.d)]));});
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  download(`thermocouple-sat-readings-${today()}.csv`,"\ufeff"+rows.map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
+}
+
 /* ---------- example data (dates relative to today) ---------- */
+/* 30 example pairs: furnace wanders around the set value, the difference scatters ±0.4 °C around the target */
+function exReadings(sp,diff,k0,seed,n=+DEF.nRead){
+  const out=[];
+  for(let i=0;i<n;i++){const f=sp+0.6*Math.sin((i+seed)/4)+0.3*Math.cos(i*1.7+seed);const d=diff+0.4*Math.sin(i*2.3+seed*1.1);
+    out.push({f:String(r1(f)),t:String(r1(f-k0-d))});}
+  return out;
+}
 function example(){
   const o=blank();o.seq=1;const T=today(),D=n=>addDays(T,n);
   const mk=(sid,day,diff,o2={})=>{
     const sp=sid==="TC1"||sid==="TC2"?860:900,test=sp+0.4,instrCorr=0.3,tcCorr=-0.5;
     const c={id:"SAT-"+String(o.seq++).padStart(4,"0"),sensor:sid,stage:"closed",parent:o2.parent||null,created:D(day-7),
       plan:{date:D(day),by:"R. Kumar",setpoint:sp,instr:"DTI-07 Fluke 714B",instrCalDue:D(day+150),testTc:"TTC-N-"+(100+o.seq),testTcCert:"CC/"+(2200+o.seq)},
-      do:{date:D(day),tech:"S. Patil",stable:"yes",furnace:+(test+instrCorr+tcCorr+diff).toFixed(1),test,instrCorr,tcCorr},
+      do:{date:D(day),tech:"S. Patil",stable:"yes",start:"10:"+pad(5+o.seq%40),instrCorr,tcCorr,readings:exReadings(sp,diff,instrCorr+tcCorr,o.seq)},
       check:{by:"HT Manager",date:D(day+1),valid:"valid"},act:{by:"HT Manager",date:D(day+2)},log:[{d:D(day),t:"Recorded from example data"}]};
     Object.assign(c.act,o2.act||{});return c;
   };
@@ -711,7 +836,7 @@ function example(){
   f.log.push({d:D(-35),t:"Re-SAT "+r.id+" passed"});
   const p1=mk("TC1",8,0);p1.stage="plan";p1.do={};p1.check={};p1.act={};p1.plan.date=D(8);p1.plan.instrCalDue=D(120);p1.log=[{d:T,t:"Cycle created"}];
   const p2=mk("TC2",8,0);p2.stage="plan";p2.do={};p2.check={};p2.act={};p2.plan.date=D(8);p2.plan.instrCalDue=D(120);p2.plan.testTc="";p2.log=[{d:T,t:"Cycle created"}];
-  const d4=mk("TC4",0,0);d4.stage="do";d4.do={date:T,tech:"S. Patil",instrCorr:0.3,tcCorr:-0.5};d4.check={};d4.act={};d4.plan.instrCalDue=D(120);d4.log=[{d:T,t:"Plan approved → Do"}];
+  const d4=mk("TC4",0,0);d4.stage="do";d4.do={date:T,tech:"S. Patil",stable:"yes",start:"09:30",instrCorr:0.3,tcCorr:-0.5,readings:exReadings(900,0.4,-0.2,7).map((r,i)=>i<12?r:{f:"",t:""})};d4.check={};d4.act={};d4.plan.instrCalDue=D(120);d4.log=[{d:T,t:"Plan approved → Do"}];
   const c5=mk("TC5",-1,-2.6);c5.stage="check";c5.check={date:T};c5.act={};c5.plan.instrCalDue=D(120);c5.log=[{d:D(-1),t:"Readings recorded → Check"}];
   o.cycles.push(p1,p2,d4,c5);
   return o;
@@ -721,6 +846,6 @@ function example(){
 try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__SAT={get DB(){return DB;},calc,schedule,missing};
+window.__SAT={get DB(){return DB;},calc,schedule,missing,readings};
 </script>
 </body></html>
