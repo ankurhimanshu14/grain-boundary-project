@@ -90,7 +90,7 @@ header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-con
 table.log{width:100%;border-collapse:collapse;font-size:13px}
 table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
 table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
-table.log td.n{text-align:right}table.log th.n{text-align:right}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
 .empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -245,6 +245,11 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   </section>
 
   <section class="panel">
+    <div class="sec-head"><h2>Due for replacement</h2><p id="due-note"></p></div>
+    <div id="repl-due"></div>
+  </section>
+
+  <section class="panel">
     <div class="sec-head"><h2>Thermocouple replacement history</h2><p>Every replaced element: what was removed, what was fitted, why, and the SAT that verified the new element. A replaced thermocouple is due for a SAT until a valid SAT has been done on or after the replacement date.</p>
       <div class="actions noprint"><button class="btn small" id="b-repl">Record replacement</button><button class="btn ghost small" id="b-csvrep">Export CSV</button></div></div>
     <div id="repl"></div>
@@ -289,6 +294,7 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
       <li>SAT per CQI-9: a calibrated test thermocouple is placed next to the furnace control/recording thermocouple tip and both readings are compared at the normal operating set value with the furnace stable.</li>
       <li>Default tolerance ±5.5 °C (±10 °F) and quarterly frequency (90 days); both can be changed in Settings. Readings within the warning band (default 70 % of tolerance) pass but need preventive action.</li>
       <li>A test is invalid when the test instrument calibration had expired on the test day or the furnace was not stable; it must be repeated (Do).</li>
+      <li>Type K thermocouples are replaced one year after installation (Settings). They are also replaced, whatever their age, on: SAT failure; drift towards the limit; physical damage; open circuit or erratic reading; use beyond the temperature limit or in a damaging atmosphere; TUS failure caused by the sensor; wrong type or missing traceability; relocation or immersion change (decide on a TUS). A SAT is invalid when its test thermocouple's calibration had expired, its correction exceeds the limit, or its use limit was reached. Limits are to be confirmed against the controlled copy of CQI-9.</li>
       <li>All furnace thermocouples are type K; the register and replacement records use type K throughout.</li>
       <li>Thermocouples are registered per furnace (F-01 … F-04) and chamber (hardening, tempering). A replacement record updates the installed element; the thermocouple is then due for a verification SAT on or after the replacement date.</li>
       <li>A failed SAT closes only after root cause, corrective action, product-impact assessment and a passing re-SAT.</li>
@@ -318,13 +324,16 @@ const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</spa
 
 /* ---------- data model ---------- */
 const KEY="tsat-pdca";            // own storage key: nothing is shared with the SCADA review
-const DEF={plant:"Heat treatment shop",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10,nRead:30,step:1,stab:5};
+const DEF={plant:"Heat treatment shop",tol:5.5,warnPct:70,interval:90,soon:14,stableMin:10,nRead:30,step:1,stab:5,lifeDays:365,lifeSoon:30,tcCorrMax:2.2,testUsesMax:0};
 const STAGES=["plan","do","check","act","closed"];
 const SNAME={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
 const SCOL={plan:"var(--p)",do:"var(--d)",check:"var(--c)",act:"var(--a)",closed:"var(--muted)"};
 const CAUSES=["Control thermocouple drift / ageing","Thermocouple damaged or wrong immersion / position","Compensating cable, connector or junction fault","Controller / recorder calibration","Test equipment or test method error","Other"];
 const ACTIONS=["Replace control thermocouple","Apply / adjust instrument offset","Recalibrate controller / recorder","Repair wiring / connection","Re-position thermocouple","Other"];
-const REASONS=["SAT failure","Drift / preventive (warning band)","Damage / breakage","Open circuit / erratic reading","Scheduled life replacement","Other"];
+/* replacement cases for furnace control/monitoring thermocouples (CQI-9 pyrometry; confirm limits against the controlled standard) */
+const R_SAT="SAT failure",R_LIFE="Service life reached (annual replacement)",R_DRIFT="Drift trend / correction near limit (preventive)",R_MOVE="Relocation, immersion-depth change or new installation";
+const REASONS=[R_SAT,R_LIFE,R_DRIFT,"Physical damage (sheath, insulation, hot junction)","Open circuit / erratic reading","Used beyond temperature limit or in a damaging atmosphere","TUS failure caused by the sensor","Wrong type / not traceable to certificate",R_MOVE,"Other"];
+const OLD_REASONS={"Drift / preventive (warning band)":R_DRIFT,"Damage / breakage":REASONS[3],"Scheduled life replacement":R_LIFE};
 const CHAMBERS=["Hardening","Tempering"];
 const TC_TYPE="K"; /* every furnace thermocouple in this plant is type K */
 const CHCODE={Hardening:"H",Tempering:"T"};
@@ -348,7 +357,7 @@ function normalize(o){
     o.v=2;
   }
   o.repl=Array.isArray(o.repl)?o.repl.filter(r=>r&&r.id&&r.sensor):[];
-  o.sensors.forEach(s=>{s.type=TC_TYPE;});o.repl.forEach(r=>{r.newType=TC_TYPE;});
+  o.sensors.forEach(s=>{s.type=TC_TYPE;});o.repl.forEach(r=>{r.newType=TC_TYPE;if(OLD_REASONS[r.reason])r.reason=OLD_REASONS[r.reason];});
   o.rseq=Math.max(+o.rseq||1,...o.repl.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
   o.cycles=o.cycles.filter(c=>c&&c.id&&STAGES.includes(c.stage)).map(c=>({plan:{},do:{},check:{},act:{},log:[],...c}));
   o.seq=Math.max(+o.seq||1,...o.cycles.map(c=>+(String(c.id).match(/\d+/)||[0])[0]+1));
@@ -403,6 +412,9 @@ function calc(c){
   if(out.over){out.issues.push(`${out.over} of ${out.n} individual readings are outside ±${tol} °C (range ${sgn(out.dMin)} to ${sgn(out.dMax)} °C).`);if(out.res==="pass")out.res="warn";}
   if(out.n>1&&out.fRange>+s.stab) out.issues.push(`Furnace reading varied by ${out.fRange} °C during the test (limit ${s.stab} °C) — check the furnace was stable.`);
   if(isDate(p.instrCalDue)&&isDate(d.date)&&p.instrCalDue<d.date){out.invalid=true;out.issues.push(`Test instrument calibration expired on ${fdate(p.instrCalDue)} — the test is not valid and must be repeated.`);}
+  if(isDate(p.testTcCalDue)&&isDate(d.date)&&p.testTcCalDue<d.date){out.invalid=true;out.issues.push(`Test thermocouple calibration expired on ${fdate(p.testTcCalDue)} — replace the test thermocouple and repeat the test.`);}
+  if(num(d.tcCorr)!=null&&Math.abs(num(d.tcCorr))>+s.tcCorrMax){out.invalid=true;out.issues.push(`Test thermocouple correction ${sgn(num(d.tcCorr))} °C is beyond ±${s.tcCorrMax} °C — the test thermocouple must not be used; replace it and repeat the test.`);}
+  if(+s.testUsesMax&&num(p.testTcUses)!=null&&num(p.testTcUses)>=+s.testUsesMax){out.invalid=true;out.issues.push(`Test thermocouple had already been used ${num(p.testTcUses)} times (limit ${s.testUsesMax}) — replace it and repeat the test.`);}
   if(d.stable==="no"){out.invalid=true;out.issues.push("Furnace was not stable at the set value during the test — repeat the test.");}
   const sp=num(p.setpoint);
   if(sp!=null&&Math.abs(f-sp)>15) out.issues.push(`Furnace reading is ${sgn(f-sp)} °C from the set value ${sp} °C — confirm the test was run at the operating temperature.`);
@@ -426,6 +438,13 @@ const replOf=id=>DB.repl.filter(r=>r.sensor===id).sort((a,b)=>a.date<b.date?-1:a
 /* first valid SAT on or after the replacement day, not counting the SAT that found the fault */
 const verifySat=r=>history(r.sensor).find(c=>c.do.date>=r.date&&c.id!==r.satRef)||null;
 const repl12=id=>replOf(id).filter(r=>r.date>=addDays(today(),-365)).length;
+/* annual replacement: a type K element is due S.lifeDays after it was installed */
+function lifeOf(sn){
+  if(!isDate(sn?.installed)) return {st:"unknown"};
+  const due=addDays(sn.installed,+S().lifeDays||365),left=daysBetween(today(),due);
+  return {due,left,st:left<0?"over":left<=+S().lifeSoon?"soon":"ok"};
+}
+const lifeChip=L=>L.st==="over"?chip("crit","!",`Replacement overdue ${-L.left} d`):L.st==="soon"?chip("warn","!",`Replace by ${fdate(L.due)}`):L.st==="ok"?`<span class="muted">replace by ${fdate(L.due)}</span>`:`<span class="muted">install date not recorded</span>`;
 function syncSensor(id){const s=sensor(id),l=replOf(id);if(!s||!l.length)return;const r=l.at(-1);s.serial=r.newSerial||"";s.installed=r.date;s.type=TC_TYPE;}
 
 /* ---------- schedule: next due date per thermocouple ---------- */
@@ -461,7 +480,9 @@ function missing(c){
   if(c.stage==="plan"){
     need(sensor(c.sensor),"thermocouple");need(isDate(p.date),"planned date");need(p.by,"responsible person");
     need(num(p.setpoint)!=null,"test set value");need(p.instr,"test instrument ID");need(isDate(p.instrCalDue),"test instrument calibration due date");
-    need(p.testTc,"test thermocouple ID");
+    need(p.testTc,"test thermocouple ID");need(isDate(p.testTcCalDue),"test thermocouple calibration due date");
+    if(isDate(p.testTcCalDue)&&isDate(p.date)&&p.testTcCalDue<p.date) m.push("a test thermocouple whose calibration is still valid on the planned date");
+    if(+S().testUsesMax&&num(p.testTcUses)!=null&&num(p.testTcUses)>=+S().testUsesMax) m.push(`a test thermocouple below its use limit (${S().testUsesMax})`);
     if(isDate(p.instrCalDue)&&isDate(p.date)&&p.instrCalDue<p.date) m.push("a test instrument whose calibration is still valid on the planned date");
   }else if(c.stage==="do"){
     need(isDate(d.date),"test date");need(d.tech,"technician");const nr=Array.isArray(d.readings)?+S().nRead:1;need(k.n>=nr,`${nr} complete pairs of furnace and test readings (${k.n} entered)`);
@@ -518,6 +539,8 @@ function render(){
     [open.length,"Open PDCA cycles",`P ${cnt("plan")} · D ${cnt("do")} · C ${cnt("check")} · A ${cnt("act")}`],
     [yr.length?Math.round(firstPass/yr.length*100)+"<small> %</small>":"—","First-time pass rate",`last 12 months, ${firstPass}/${yr.length} SATs`, yr.length&&firstPass<yr.length?"caution":""],
     [capaOpen,"Open corrective / preventive actions","SATs in Act needing action",capaOpen?"caution":""],
+    (()=>{const L=active.map(lifeOf),o=L.filter(x=>x.st==="over").length,so=L.filter(x=>x.st==="soon").length;
+      return [o+so,"Annual replacement due",`${o} overdue · ${so} within ${s.lifeSoon} days`,o?"bad":so?"caution":""];})(),
     [rep12,"Replacements, last 12 months",sch.filter(x=>x.status==="repl").length+" awaiting verification SAT"],
     [worst?sgn(worst.lastK.diff)+"<small> °C</small>":"—","Largest latest SAT difference",worst?sName(worst.s.id)+" · limit ±"+s.tol+" °C":"",worst&&worst.lastK.res==="fail"?"bad":worst&&worst.lastK.res==="warn"?"caution":""],
   ].map(([v,l,sub,cls])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${cls||""}">${v}</span><span class="s">${esc(sub)}</span></div>`).join("");
@@ -536,7 +559,7 @@ function render(){
   $("#sched").innerHTML=sch.length?`<table class="log cards"><thead><tr><th>Thermocouple</th><th>Installed element</th><th>Last SAT</th><th class="n">Difference</th><th>Result</th><th>Interval</th><th>Next due</th><th>Status</th><th>Open cycle</th><th class="noprint"></th></tr></thead><tbody>${
     sch.map(x=>{const g=x.s.furnace+" · "+x.s.chamber+" chamber",head=g!==grp?`<tr class="grp"><td colspan="10">${esc(g)}</td></tr>`:"";grp=g;const n12=repl12(x.s.id);
       return head+`<tr><td data-label="Thermocouple"><b>${esc(x.s.tag)}</b> <span class="muted">${esc(x.s.zone)} · ${esc(x.s.pos||"")} · type ${esc(x.s.type||"")}</span></td>
-      <td data-label="Installed element">${x.s.serial?`<span class="mono">${esc(x.s.serial)}</span>`:"—"}${isDate(x.s.installed)?`<br><span class="muted">since ${fdate(x.s.installed)} (${daysBetween(x.s.installed,today())} d)</span>`:""}${n12>=2?"<br>"+chip("warn","!",n12+" replacements in 12 months"):""}</td>
+      <td data-label="Installed element">${x.s.serial?`<span class="mono">${esc(x.s.serial)}</span>`:"—"}${isDate(x.s.installed)?`<br><span class="muted">since ${fdate(x.s.installed)} (${daysBetween(x.s.installed,today())} d)</span>`:""}<br>${lifeChip(lifeOf(x.s))}${n12>=2?"<br>"+chip("warn","!",n12+" replacements in 12 months"):""}</td>
       <td data-label="Last SAT" class="n">${x.last?fdate(x.last.do.date):"—"}</td>
       <td data-label="Difference" class="n">${x.lastK?sgn(x.lastK.diff)+" °C":"—"}</td>
       <td data-label="Result">${x.last?resChip(x.lastK):"—"}</td>
@@ -549,6 +572,7 @@ function render(){
 
   drawDrift(active);
   drawCapa();
+  drawDue();
   drawRepl();
   drawRecords();
   drawSettings();
@@ -622,9 +646,10 @@ function drawCapa(){
 function drawFurnaces(){
   const all=DB.sensors.filter(x=>x.active!==false);
   const st=l=>{const sc=l.map(schedule),due=sc.filter(x=>["fail","overdue","repl"].includes(x.status)).length,none=sc.filter(x=>x.status==="none").length,soon=sc.filter(x=>x.status==="soon").length,
-      open=DB.cycles.filter(c=>c.stage!=="closed"&&l.some(s=>s.id===c.sensor)).length;
-    const k=!l.length?"var(--muted)":due?"var(--crit)":none||soon?"var(--warn)":"var(--good)";
-    const t=!l.length?"no thermocouples":[l.length+" TC",due&&due+" due now",soon&&soon+" due soon",none&&none+" never tested",open&&open+" open cycle"+(open>1?"s":"")].filter(Boolean).join(" · ");
+      open=DB.cycles.filter(c=>c.stage!=="closed"&&l.some(s=>s.id===c.sensor)).length,
+      L=l.map(lifeOf),lo=L.filter(x=>x.st==="over").length,ls=L.filter(x=>x.st==="soon").length;
+    const k=!l.length?"var(--muted)":due||lo?"var(--crit)":none||soon||ls?"var(--warn)":"var(--good)";
+    const t=!l.length?"no thermocouples":[l.length+" TC",due&&due+" SAT due now",soon&&soon+" SAT due soon",none&&none+" never tested",lo&&lo+" replacement overdue",ls&&ls+" replacement due",open&&open+" open cycle"+(open>1?"s":"")].filter(Boolean).join(" · ");
     return {k,t};};
   const a=st(all);
   $("#furnaces").innerHTML=`<button class="fall ${!VIEW.f&&!VIEW.ch?"on":""}" data-view="|"><b>All furnaces</b><span>${esc(a.t)}</span></button>`+
@@ -636,6 +661,19 @@ function drawFurnaces(){
 }
 
 /* ---------- render: replacement history ---------- */
+function drawDue(){
+  const s=S(),act=DB.sensors.filter(x=>x.active!==false&&inView(x));
+  const l=act.map(x=>({x,L:lifeOf(x)})).filter(o=>o.L.st==="over"||o.L.st==="soon").sort((a,b)=>a.L.due<b.L.due?-1:1);
+  const unk=act.filter(x=>!isDate(x.installed)).length;
+  $("#due-note").textContent=`Type K thermocouples are replaced ${s.lifeDays} days after installation. Listed: overdue, or due within ${s.lifeSoon} days. Other reasons for replacement are chosen when the replacement is recorded.`;
+  $("#repl-due").innerHTML=(l.length?`<table class="log cards"><thead><tr><th>Thermocouple</th><th>Installed element</th><th>Installed on</th><th>Replace by</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${
+    l.map(({x,L})=>`<tr><td data-label="Thermocouple"><b>${esc(sName(x.id))}</b><br><span class="muted">${esc(x.chamber)} chamber · ${esc(x.zone)} ${esc((x.pos||"").toLowerCase())}</span></td>
+      <td data-label="Installed element" class="mono">${esc(x.serial||"—")}</td><td data-label="Installed on" class="n">${fdate(x.installed)}</td>
+      <td data-label="Replace by" class="n">${fdate(L.due)}</td><td data-label="Status">${lifeChip(L)}</td>
+      <td class="noprint" data-label=""><button class="btn small" data-replfor="${esc(x.id)}">Record replacement</button></td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">No thermocouple in ${esc(viewName())} is due for its annual replacement within ${s.lifeSoon} days.</div>`)+
+    (unk?`<p class="muted" style="font-size:12.5px;margin:8px 0 0">${unk} thermocouple${unk>1?"s have":" has"} no install date — enter it in the thermocouple register (Settings) so the annual replacement can be tracked.</p>`:"");
+}
 function drawRepl(){
   const l=DB.repl.filter(r=>inView(sensor(r.sensor))).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:a.id<b.id?1:-1);
   $("#repl").innerHTML=l.length?`<table class="log cards"><thead><tr><th>Record</th><th>Date</th><th>Thermocouple</th><th>Removed element</th><th>Fitted element</th><th>Reason</th><th>Found by SAT</th><th>Verification SAT</th><th>By</th><th>Notes</th></tr></thead><tbody>${
@@ -645,7 +683,7 @@ function drawRepl(){
       <td data-label="Thermocouple"><b>${esc(sName(r.sensor))}</b><br><span class="muted">${esc(sensor(r.sensor)?.chamber||"")} chamber · ${esc(sensor(r.sensor)?.zone||"")}</span></td>
       <td data-label="Removed element"><span class="mono">${esc(r.oldSerial||"—")}</span>${life!=null?`<br><span class="muted">in service ${life} d${isDate(r.oldInstalled)?" since "+fdate(r.oldInstalled):""}</span>`:""}</td>
       <td data-label="Fitted element"><span class="mono">${esc(r.newSerial)}</span>${r.newType?`<br><span class="muted">type ${esc(r.newType)}${r.cert?" · cert "+esc(r.cert):""}</span>`:""}</td>
-      <td data-label="Reason">${esc(r.reason||"—")}</td>
+      <td data-label="Reason">${esc(r.reason||"—")}${r.offset?`<br><span class="muted">offset reset: ${esc(r.offset)}</span>`:""}${r.reason===R_MOVE?`<br>${r.tus?`<span class="muted">TUS: ${esc(r.tus)}</span>`:chip("warn","!","TUS decision missing")}`:""}</td>
       <td data-label="Found by SAT">${r.satRef?`<button class="btn ghost small" data-open="${esc(r.satRef)}">${esc(r.satRef)}</button>`:"—"}</td>
       <td data-label="Verification SAT">${v?`<button class="btn ghost small" data-open="${v.id}">${v.id}</button> ${fdate(v.do.date)} · ${sgn(vk.diff)} °C ${resChip(vk)}`:chip("warn","↻","SAT required")}</td>
       <td data-label="By">${esc(r.by||"—")}</td><td data-label="Notes">${esc(r.notes||"")}</td></tr>`;}).join("")}</tbody></table>`
@@ -672,7 +710,9 @@ function drawSettings(){
   if(!$("#settings").contains(document.activeElement)) $("#settings").innerHTML=
     f("plant","Plant / shop","text","","wide")+f("tol","SAT tolerance ± °C","number","0.1")+f("warnPct","Warning band, % of tolerance","number","5")+
     f("interval","Default SAT interval, days","number","1")+f("soon","“Due soon” window, days","number","1")+
-    f("nRead","Readings per SAT","number","1")+f("step","Minutes between readings","number","0.5")+f("stab","Max furnace range during test °C","number","0.5");
+    f("nRead","Readings per SAT","number","1")+f("step","Minutes between readings","number","0.5")+f("stab","Max furnace range during test °C","number","0.5")+
+    f("lifeDays","Replace type K thermocouple after, days","number","1")+f("lifeSoon","Replacement warning window, days","number","1")+
+    f("tcCorrMax","Max test thermocouple correction ± °C","number","0.1")+f("testUsesMax","Max uses of a test thermocouple (0 = not checked)","number","1");
   if(!$("#furnace-reg").contains(document.activeElement)) $("#furnace-reg").innerHTML=`<table class="log edit"><thead><tr><th>Furnace ID</th><th>Description</th><th>Thermocouples (hardening / tempering)</th><th></th></tr></thead><tbody>${
     DB.furnaces.map((f,i)=>{const n=ch=>DB.sensors.filter(s=>s.furnace===f.id&&s.chamber===ch).length;
       return `<tr><td class="mono"><b>${esc(f.id)}</b></td><td><input data-fu="${i}" value="${esc(f.name||"")}" placeholder="e.g. pusher line 1" aria-label="Description of ${esc(f.id)}"></td><td class="n" style="text-align:left">${n("Hardening")} / ${n("Tempering")}</td>
@@ -725,6 +765,8 @@ function drawDlg(){
     ${fld(c,"plan.instrCalDue","Test instrument calibration due",{req:1,type:"date",ro:ro("plan")})}
     ${fld(c,"plan.testTc","Test thermocouple ID",{req:1,ro:ro("plan")})}
     ${fld(c,"plan.testTcCert","Test thermocouple certificate no.",{ro:ro("plan")})}
+    ${fld(c,"plan.testTcCalDue","Test thermocouple calibration due",{req:1,type:"date",ro:ro("plan")})}
+    ${fld(c,"plan.testTcUses","Previous uses of this test thermocouple",{type:"number",ro:ro("plan"),hint:+S().testUsesMax?"limit "+S().testUsesMax+" uses":"use limit not set (Settings)"})}
     ${fld(c,"plan.notes","Planning notes (production slot, access, permits)",{area:1,span:1,ro:ro("plan")})}
   </div></div>`;
   /* DO */
@@ -876,7 +918,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.delfu!=null){DB.furnaces.splice(+t.dataset.delfu,1);save();render();return;}
   if(t.dataset.view!=null){const [f,ch]=t.dataset.view.split("|");setView(f,ch);render();return;}
   if(t.dataset.repl){openRepl(t.dataset.repl);return;}
-  if(t.dataset.addrepl){const c=cyc(t.dataset.addrepl);openRepl(null,{sensor:c.sensor,satRef:c.id,reason:calc(c).res==="fail"?"SAT failure":calc(c).res==="warn"?"Drift / preventive (warning band)":""});return;}
+  if(t.dataset.replfor){openRepl(null,{sensor:t.dataset.replfor,reason:R_LIFE});return;}
+  if(t.dataset.addrepl){const c=cyc(t.dataset.addrepl);openRepl(null,{sensor:c.sensor,satRef:c.id,reason:calc(c).res==="fail"?R_SAT:calc(c).res==="warn"?R_DRIFT:""});return;}
   if(t.dataset.ract){replAction(t.dataset.ract);return;}
   const a=t.dataset.act;
   if(a){const c=cyc(EDIT);
@@ -967,17 +1010,19 @@ function drawReplDlg(){
     <div class="field"><label>Fitted element type</label><input value="Type K" disabled aria-label="Fitted element type"><span class="muted" style="font-size:11.5px">all furnace thermocouples are type K</span></div>
     ${f("cert","Fitted element certificate no.")}
     ${f("by","Replaced by",{req:1})}
-    ${f("notes","Notes (offset reset, sheath condition, immersion depth checked …)",{area:1,span:1})}
+    <div class="field req"><label for="r-offset">Controller offset reset for the new element</label><select id="r-offset" data-r="offset"><option value="">— select —</option>${["Yes","No offset was in use","No — reason in notes"].map(x=>`<option ${x===r.offset?"selected":""}>${x}</option>`).join("")}</select></div>
+    ${r.reason===R_MOVE?`<div class="field req"><label for="r-tus">TUS after relocation / immersion change</label><select id="r-tus" data-r="tus"><option value="">— select —</option>${["TUS planned","Assessed: TUS not required (reason in notes)"].map(x=>`<option ${x===r.tus?"selected":""}>${x}</option>`).join("")}</select><span class="muted" style="font-size:11.5px">moving a control thermocouple can change the furnace uniformity</span></div>`:""}
+    ${f("notes","Notes (sheath condition, immersion depth checked …)",{area:1,span:1})}
   </div><p class="muted" style="margin:0;font-size:12.5px">Saving updates the thermocouple's installed element in the register. The thermocouple then needs a SAT on or after the replacement date (verification SAT).</p></div>
   <div class="dlg-f"><span class="msg">${esc(RMSG)}</span>${r.id?`<button class="btn danger" data-ract="delete">Delete</button>`:""}<button class="btn ghost" data-ract="cancel">Cancel</button><button class="btn" data-ract="save">Save replacement</button></div>`;
 }
-rdlg.addEventListener("change",e=>{const k=e.target.dataset.r;if(!k)return;REDIT[k]=e.target.value;if(k==="sensor"){if(!REDIT.id)fillOld();REDIT.satRef="";drawReplDlg();}});
+rdlg.addEventListener("change",e=>{const k=e.target.dataset.r;if(!k)return;REDIT[k]=e.target.value;if(k==="sensor"){if(!REDIT.id)fillOld();REDIT.satRef="";drawReplDlg();}else if(k==="reason")drawReplDlg();});
 function replAction(a){
   const r=REDIT;if(!r)return;
   if(a==="cancel"){rdlg.close();return;}
   if(a==="delete"){if(!confirm(`Delete replacement record ${r.id}?`))return;DB.repl=DB.repl.filter(x=>x.id!==r.id);syncSensor(r.sensor);save();rdlg.close();afterRepl();return;}
   const m=[];if(!sensor(r.sensor))m.push("thermocouple");if(!isDate(r.date))m.push("replacement date");else if(r.date>today())m.push("a date that is not in the future");
-  if(!r.reason)m.push("reason");if(!String(r.newSerial||"").trim())m.push("fitted element serial");if(!String(r.by||"").trim())m.push("replaced by");
+  if(!r.reason)m.push("reason");if(!r.offset)m.push("controller offset reset");if(r.reason===R_MOVE&&!r.tus)m.push("TUS decision");if(!String(r.newSerial||"").trim())m.push("fitted element serial");if(!String(r.by||"").trim())m.push("replaced by");
   if(m.length){RMSG="Still needed: "+m.join(", ")+".";drawReplDlg();return;}
   const old=r.id&&DB.repl.find(x=>x.id===r.id);
   if(old){Object.assign(old,r);if(old.sensor!==r.sensor)syncSensor(old.sensor);}
@@ -988,9 +1033,9 @@ function afterRepl(){render();if(dlg.open&&cyc(EDIT)){MSG="";drawDlg();}}
 rdlg.addEventListener("close",()=>{REDIT=null;});
 function exportReplCsv(){
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const rows=[["Record","Date","Furnace","Chamber","Thermocouple","Zone","Removed serial","Removed installed","Service life d","Fitted serial","Fitted type","Certificate","Reason","Found by SAT","Verification SAT","Verification date","Verification difference °C","Verification result","Replaced by","Notes"]];
+  const rows=[["Record","Date","Furnace","Chamber","Thermocouple","Zone","Removed serial","Removed installed","Service life d","Fitted serial","Fitted type","Certificate","Reason","Offset reset","TUS decision","Found by SAT","Verification SAT","Verification date","Verification difference °C","Verification result","Replaced by","Notes"]];
   DB.repl.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>{const s=sensor(r.sensor)||{},v=verifySat(r),vk=v&&calc(v);
-    rows.push([r.id,r.date,s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
+    rows.push([r.id,r.date,s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.offset,r.tus,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
   download(`thermocouple-replacements-${today()}.csv`,"\ufeff"+rows.map(x=>x.map(q).join(",")).join("\r\n"),"text/csv");
 }
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
@@ -1023,7 +1068,7 @@ function example(){
   const mk=(sid,day,diff,o2={})=>{
     const sp=sid.includes("-T-")?560:/TC[12]$/.test(sid)?860:900,instrCorr=0.3,tcCorr=-0.5;
     const c={id:"SAT-"+String(o.seq++).padStart(4,"0"),sensor:sid,stage:"closed",parent:o2.parent||null,created:D(day-7),
-      plan:{date:D(day),by:"R. Kumar",setpoint:sp,instr:"DTI-07 Fluke 714B",instrCalDue:D(day+150),testTc:"TTC-K-"+(100+o.seq),testTcCert:"CC/"+(2200+o.seq)},
+      plan:{date:D(day),by:"R. Kumar",setpoint:sp,instr:"DTI-07 Fluke 714B",instrCalDue:D(day+150),testTc:"TTC-K-"+(100+o.seq),testTcCert:"CC/"+(2200+o.seq),testTcCalDue:D(day+200),testTcUses:String(o.seq%12)},
       do:{date:D(day),tech:"S. Patil",stable:"yes",start:"10:"+pad(5+o.seq%40),instrCorr,tcCorr,readings:exReadings(sp,diff,instrCorr+tcCorr,o.seq)},
       check:{by:"HT Manager",date:D(day+1),valid:"valid"},act:{by:"HT Manager",date:D(day+2)},log:[{d:D(day),t:"Recorded from example data"}]};
     Object.assign(c.act,o2.act||{});return c;
@@ -1045,12 +1090,12 @@ function example(){
   const c5=mk(H("TC5"),-1,-2.6);c5.stage="check";c5.check={date:T};c5.act={};c5.plan.instrCalDue=D(120);c5.log=[{d:D(-1),t:"Readings recorded → Check"}];
   o.cycles.push(p1,p2,d4,c5);
   /* installed elements and replacement history */
-  o.sensors.filter(x=>x.furnace==="F-01"&&x.chamber==="Hardening"||x.furnace==="F-02"&&x.chamber==="Tempering").forEach((x,i)=>{x.serial="K-"+(x.chamber==="Hardening"?"23":"22")+"-"+String(410+i);x.installed=D(-420-i*3);});
+  o.sensors.filter(x=>x.furnace==="F-01"&&x.chamber==="Hardening"||x.furnace==="F-02"&&x.chamber==="Tempering").forEach((x,i)=>{x.serial="K-"+(x.chamber==="Hardening"?"23":"22")+"-"+String(410+i);x.installed=D(-380+i*25);});
   const rep=(sid,day,o2)=>{const s=o.sensors.find(x=>x.id===sid);const r={id:"TR-"+String(o.rseq++).padStart(4,"0"),sensor:sid,date:D(day),oldSerial:s.serial,oldInstalled:s.installed,newType:TC_TYPE,by:"Maintenance — A. Singh",notes:"",cert:"",...o2};
     o.repl.push(r);s.serial=r.newSerial;s.installed=r.date;return r;};
-  rep(H("TC5"),-200,{newSerial:"K-24-031",reason:"Damage / breakage",cert:"TC/24/031",notes:"Sheath cracked at the roof entry after a tray jam. Immersion depth re-set to 150 mm."});
-  rep(TT("TC2"),-130,{newSerial:"K-24-077",reason:"Scheduled life replacement",cert:"TC/24/077",notes:"Element at end of planned life; previous SAT −3.2 °C trending negative."});
-  rep(H("TC3"),-36,{newSerial:"K-24-118",reason:"SAT failure",satRef:f.id,cert:"TC/24/118",notes:"Replaced after "+f.id+" (+6.8 °C). Controller offset reset to 0."});
+  rep(H("TC5"),-200,{newSerial:"K-24-031",reason:REASONS[3],offset:"Yes",cert:"TC/24/031",notes:"Sheath cracked at the roof entry after a tray jam. Immersion depth re-set to 150 mm."});
+  rep(TT("TC2"),-130,{newSerial:"K-24-077",reason:R_DRIFT,offset:"No offset was in use",cert:"TC/24/077",notes:"Element at end of planned life; previous SAT −3.2 °C trending negative."});
+  rep(H("TC3"),-36,{newSerial:"K-24-118",reason:R_SAT,offset:"Yes",satRef:f.id,cert:"TC/24/118",notes:"Replaced after "+f.id+" (+6.8 °C). Controller offset reset to 0."});
   f.log.push({d:D(-36),t:"Thermocouple replaced (TR-0003)"});
   return o;
 }
@@ -1059,6 +1104,6 @@ function example(){
 try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__SAT={get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
+window.__SAT={lifeOf,get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
 </script>
 </body></html>
