@@ -11,9 +11,19 @@ Analysis of SCADA temperature exports (Excel: `Date, Time, SET-1/PV-1 … SET-6/
 - **`Pusher_Furnace_SCADA_Review.html` is the current app and the one the user iterates on.** One self-contained file (HTML + CSS + JS), edited directly: there is no build step and no bundler. It loads `xlsx.full.min.js` 0.18.5 and `Chart.js` 4.4.1 from cdnjs and works offline once those are cached; the page also embeds an example dataset (`SAMPLE`).
 - `furnace_analyzer.html` (built from `standalone/src.html` with `python standalone/build.py`) and the Python/Streamlit app (`app.py`, `cqi9/`, `run_report.py`, `tests/`) are older, simpler versions. They do **not** have set-value changes, settling, hardening/tempering rules, furnace start/stop or the replacement register. Don't port new features to them unless asked. `README.md` describes only these older versions.
 
+## Heat Treat Quality Suite (`Heat_Treat_Quality_Suite.html`)
+
+The two applications below combined into one file with a navigation bar ("SCADA temperature review" | "Thermocouple SAT (PDCA)", `#scada` / `#sat`). **It is generated: never edit it.** Edit `Pusher_Furnace_SCADA_Review.html`, `Thermocouple_SAT_PDCA.html` or `suite/shell.html`, then run `python suite/build.py`; rebuild after every change to either app.
+
+- `suite/build.py` embeds each app's HTML unchanged as a JSON string in the shell; the shell loads them as `srcdoc` iframes. Same-origin frames, so both pages share `localStorage` and call each other through `window.HTQ` in the shell. Both apps stay fully usable as standalone files: each detects the suite with `const HTQ=window.parent.HTQ||null` and skips every suite feature when it is `null`.
+- Bridge: `HTQ.provide(name, api)` / `HTQ.api(name)` (the SAT page provides `"sat"`, the SCADA page `"scada"`), `HTQ.on/emit(event)` (`sat:ready`, `sat:changed` (debounced from the SAT `save()`), `scada:ready`, `scada:changed`), `HTQ.go(page, opts)` (switches the tab and emits `nav:<page>`, e.g. `{view:{f,ch}}` or `{cycle}` for the SAT page).
+- SCADA → SAT: the record is linked to a furnace and chamber of the SAT register (`link()`: `FURNACE-4` in the chart heading → `F-04`, `detectFurnace` → chamber; manual override per `furnaceKey` in `localStorage` `pfsr-link`). Replacements of that chamber from the SAT register join the SCADA analysis (`ALLREPL = REPL + satRepl()`; one without a time is `dayOnly` and judged on days only). `A.sat = satStatus(A)` drives the "Pyrometry status from the SAT register" section and `satObs` findings (SAT not in date on the record day, element older than the life limit).
+- SAT → SCADA: in Do, "Fill furnace readings from SCADA" (`fillFromScada`) takes the PV of the thermocouple's column (`TC3` → `PV-3`) at the reading times (nearest row within half a step) from the loaded record, if it is linked to the cycle's furnace and chamber. The SAT API gives `statusAt(id, day)` and `elementAt(id, day)` for the SCADA page. Replacement records have an optional `time` for this.
+- The shell owns the theme (`htq-theme`, applied to both frames; the SAT page hides its own Theme button in the suite), shows a badge on the SAT tab (thermocouples with SAT due now or element replacement overdue), and copies the page title for printing. Each page prints itself (SCADA `IN_FRAME` is false in the suite, so its PDF button works).
+
 ## Separate tool: `Thermocouple_SAT_PDCA.html`
 
-A stand-alone register that runs thermocouple System Accuracy Tests (CQI-9 SAT) through a Plan → Do → Check → Act cycle. It is deliberately **separate from the SCADA review**: no shared code, no shared `localStorage` keys (it uses `tsat-pdca` for data, `tsat-theme` and `tsat-view`), no CDN scripts. Same single-file, no-build convention and the same colour tokens.
+A stand-alone register that runs thermocouple System Accuracy Tests (CQI-9 SAT) through a Plan → Do → Check → Act cycle. It is **separate code from the SCADA review** (they only meet through the suite bridge): no shared code, no shared `localStorage` keys (it uses `tsat-pdca` for data, `tsat-theme` and `tsat-view`), no CDN scripts. Same single-file, no-build convention and the same colour tokens.
 
 - Data `DB = {settings, sensors[], cycles[], seq}`; each cycle is one SAT `{id, sensor, stage, parent, plan, do, check, act, log}` with `stage` in `plan|do|check|act|closed`. `parent` links a re-SAT to the failed SAT.
 - Do records `S.nRead` (default 30) timed pairs `do.readings = [{f, t}]`, one every `S.step` min from `do.start`, typed or pasted as two columns from Excel, with an optional timer that marks the reading due. Older records with single `do.furnace`/`do.test` are read by `readings(c)` as one pair.
@@ -35,6 +45,7 @@ pytest                                    # all tests (tests/ cover only cqi9/)
 pytest tests/test_analysis.py::test_load  # a single test
 streamlit run app.py                      # older Streamlit app
 python standalone/build.py                # rebuild furnace_analyzer.html from standalone/src.html
+python suite/build.py                     # rebuild Heat_Treat_Quality_Suite.html after changing either app or suite/shell.html
 ```
 
 There are no tests or linter for the current app. To check it, drive it with headless Chromium (Playwright): open the file via `file://`, route the two cdnjs URLs to local copies when offline, upload an `.xlsx` with `set_input_files('#file', …)`, and read `window.__A` (the analysis result) and console/page errors.

@@ -286,6 +286,16 @@ table.stat th:first-child{text-align:left}
     <div id="rList" class="scroll" style="margin-top:8px"></div>
   </section>
 
+  <section class="panel noprint" id="linkPanel" hidden aria-label="Link to the SAT register">
+    <div class="sec-head" style="margin-bottom:8px"><h2 style="font-size:14px">Link to the thermocouple SAT register</h2><p id="linkNote"></p></div>
+    <div class="controls">
+      <div class="field"><label for="lkF">Furnace</label><select id="lkF" style="width:auto;font-family:var(--sans)"></select></div>
+      <div class="field"><label for="lkC">Chamber</label><select id="lkC" style="width:auto;font-family:var(--sans)"></select></div>
+      <button class="btn ghost" type="button" id="lkAuto">Use the detected furnace</button>
+      <button class="btn ghost" type="button" id="lkOpen">Open this chamber in the SAT register</button>
+    </div>
+  </section>
+
   <div id="out"></div>
 </div>
 
@@ -325,6 +335,9 @@ const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 const fmtT=ms=>{const d=new Date(ms);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes());};
 const fmtD=ms=>{const d=new Date(ms);return pad(d.getUTCDate())+" "+MONS[d.getUTCMonth()]+" "+d.getUTCFullYear();};
 let MULTI=false, T0DAY=0;
+/* inside the Heat Treat Quality Suite the parent page offers a bridge to the SAT register; standalone it is null */
+const HTQ=(()=>{ try{ return window.parent!==window&&window.parent.HTQ||null; }catch(e){ return null; } })();
+let ALLREPL=[]; /* own register + replacements from the SAT register (suite only) */
 let REPL=[]; try{ REPL=(JSON.parse(localStorage.getItem("pfsr-repl")||"[]")||[]).filter(x=>x&&isFinite(x.t)&&x.k>=0&&x.k<12); }catch(e){} /* register of replaced thermocouples: {k, id, t, note} */
 const RUN={start:null,stop:null}; /* optional furnace start / stop time (ms, same clock as the record); readings outside are not judged */
 const parseLocal=v=>{ if(!v) return null; const t=Date.parse(v+":00Z"); return isFinite(t)?t:null; };
@@ -551,10 +564,10 @@ function analyze(D){
     const B=agg(bef), Af=agg(aft), tols=new Set([...bef,...aft].map(h=>h.tol));
     return {bef,aft,before:B,after:Af,mixedTol:tols.size>1,ctl:judgeCtl(B&&{...B,n:B.n},Af&&{...Af,n:Af.n},tol)};
   };
-  const repl=REPL.filter(r=>r.k<n).slice().sort((a,b)=>a.t-b.t||a.k-b.k).map(r=>{
-    const o={...r,inRec:r.t>=t0&&r.t<=t1};
+  const repl=ALLREPL.filter(r=>r.k<n).slice().sort((a,b)=>a.t-b.t||a.k-b.k).map(r=>{
+    const o={...r,inRec:!r.dayOnly&&r.t>=t0&&r.t<=t1};
     if(o.inRec){
-      const prev=REPL.filter(q=>q.k===r.k&&q.t<r.t).reduce((m,q)=>Math.max(m,q.t),t0), next=REPL.filter(q=>q.k===r.k&&q.t>r.t).reduce((m,q)=>Math.min(m,q.t),t1+1);
+      const prev=ALLREPL.filter(q=>q.k===r.k&&q.t<r.t).reduce((m,q)=>Math.max(m,q.t),t0), next=ALLREPL.filter(q=>q.k===r.k&&q.t>r.t).reduce((m,q)=>Math.min(m,q.t),t1+1);
       o.before=seg(r.k,Math.max(prev,t0),r.t); o.after=seg(r.k,r.t,next);
       o.shift=(o.before.n>=MINSTAT&&o.after.n>=MINSTAT)?o.after.mean-o.before.mean:null;
       o.shiftRel=(o.before.nd>=MINSTAT&&o.after.nd>=MINSTAT)?o.after.diff-o.before.diff:null; /* change relative to the other wall of the zone: furnace-wide changes cancel */
@@ -562,7 +575,7 @@ function analyze(D){
       o.ctl=judgeCtl(o.before,o.after,tol);
     } else o.days=dayCmp(r);
     return o; });
-  const ids=Array.from({length:n},(_,k)=>{ const e=REPL.filter(q=>q.k===k&&q.t<=t1).sort((a,b)=>b.t-a.t)[0]; return e?e.id:null; });
+  const ids=Array.from({length:n},(_,k)=>{ const e=ALLREPL.filter(q=>q.k===k&&q.t<=t1).sort((a,b)=>b.t-a.t)[0]; return e?e.id:null; });
   // set values: distinct levels overall, and the time line of the majority set value
   const lvAll=new Map(); tcs.forEach(t=>t.levels.forEach(o=>{ const g=lvAll.get(o.sp)||{sp:o.sp,n:0,first:o.first,last:o.last}; g.n+=o.n; g.first=Math.min(g.first,o.first); g.last=Math.max(g.last,o.last); lvAll.set(o.sp,g); }));
   const setLevels=[...lvAll.values()].sort((a,b)=>a.first-b.first);
@@ -922,6 +935,7 @@ function observations(D,A){
       detail:`In tolerance ${f1(B.inTol)} % → ${f1(Af.inTol)} %, offset from the set value ${sgn(B.mean)} → ${sgn(Af.mean)} °C, scatter ${f1(B.sd)} → ${f1(Af.sd)} °C${J.why.length?" ("+J.why.join(", ")+")":""}.`,
       action:J.verdict==="better"?`Keep the replacement record with the SAT result of the new thermocouple.`:J.verdict==="worse"?`The new thermocouple did not improve control. Check it against the SAT thermocouple, check the extension wire, polarity and controller input, and check immersion and position before relying on it.`:`The replacement made no clear difference. If it was made to fix a reading problem, check the SAT result and the other causes (wiring, controller settings, burner).`}); });
   const hrs=(A.t1-A.t0)/36e5;
+  satObs(A).forEach(o=>O.push(o));
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
   const rank={crit:0,warn:1,info:2,good:3}; O.sort((a,b)=>rank[a.lvl]-rank[b.lvl]);
@@ -933,7 +947,8 @@ let DATA=null, FILE="", charts=[];
 function run(){
   const out=$("#out");
   try{
-    const A=analyze(DATA), O=observations(DATA,A);
+    ALLREPL=REPL.concat(satRepl());
+    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A);
     render(DATA,A,O);
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
@@ -997,6 +1012,7 @@ function render(D,A,O){
   ${responseSection(A)}
 
   ${replSection(A)}
+  ${satSection(A)}
   ${controlSection(D,A)}
 
   <div class="stack">
@@ -1062,6 +1078,7 @@ function render(D,A,O){
   cardify();
   drawCharts(D,A);
   window.__A=A;
+  renderLink();
   { const f=ms=>new Date(ms).toISOString().slice(0,16); ["runStart","runStop"].forEach(id=>{ const el=document.getElementById(id); el.min=f(A.t0); el.max=f(A.t1); }); }
 }
 
@@ -1380,7 +1397,7 @@ function controlSection(D,A){
   const row=(lab,b,a,fn,better)=>{ const bv=fn(b), av=fn(a); const bn=b==null?null:b, an=a==null?null:a; let ch="–", cls=""; if(bn!=null&&an!=null){ const dlt=an-bn; ch=(dlt>0?"+":dlt<0?"−":"")+Math.abs(dlt).toFixed(1); if(better&&Math.abs(dlt)>1e-9){ const g=better(dlt); cls=g>0?"ok":g<0?"bad":""; } } return {lab,bv,av,ch,cls}; };
   const cards=rs.map(r=>{
     const inRec=r.inRec, B=inRec?r.before:r.days.before, Af=inRec?r.after:r.days.after, J=inRec?r.ctl:r.days.ctl;
-    const head=`<h3>${tcName(r.k)} <span class="muted" style="font-weight:400">${tcLoc(r.k)}</span> · new ID <b>${esc(r.id)}</b> · replaced ${fmtAbs(r.t)}${r.note?` <span class="muted">(${esc(r.note)})</span>`:""}</h3>`;
+    const head=`<h3>${tcName(r.k)} <span class="muted" style="font-weight:400">${tcLoc(r.k)}</span> · new ID <b>${esc(r.id)}</b> · replaced ${r.dayOnly?fmtD(r.t):fmtAbs(r.t)}${r.note?` <span class="muted">(${esc(r.note)})</span>`:""}</h3>`;
     if(!B||!Af||!J){
       const need=inRec?"Too few judged readings on one side of the replacement to compare.":!r.days.before?"No earlier day on record for this thermocouple, so there is nothing to compare against. Each file you analyse is remembered in this browser; analyse the days before the replacement too.":!r.days.after?"No later day on record yet. Analyse a later day to see the effect of the replacement.":"Too few judged readings to compare.";
       return `<div class="rcard">${head}<p class="muted" style="margin:6px 0 0">${need}</p></div>`;
@@ -1421,7 +1438,7 @@ function replSection(A){
     else if(r.shiftRel!=null) res=big(r.shiftRel)?chip("warn","Differs from "+tcName(r.partner)+" by "+sgn(r.shiftRel)+" °C more than before: check against SAT"):chip("good","Consistent with "+tcName(r.partner));
     else if(r.shift==null) res=chip("info","Too few readings to compare");
     else res=big(r.shift)?chip("warn","Reading moved "+sgn(r.shift)+" °C (no partner wall to compare)"):chip("good","No shift ("+sgn(r.shift)+" °C)");
-    return `<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td><td><b>${esc(r.id)}</b></td><td class="n">${r.inRec?fmtDT(r.t):fmtAbs(r.t)}</td><td class="n">${r.inRec?cell(r.before):"–"}</td><td class="n">${r.inRec?cell(r.after):"–"}</td><td class="n">${r.inRec&&r.shiftRel!=null?sgn(r.shiftRel)+" °C":"–"}</td><td>${res}</td><td>${esc(r.note||"")}</td></tr>`;
+    return `<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td><td><b>${esc(r.id)}</b>${r.src==="sat"?`<br><span class="muted small">SAT register</span>`:""}</td><td class="n">${r.dayOnly?fmtD(r.t)+" (no time)":r.inRec?fmtDT(r.t):fmtAbs(r.t)}</td><td class="n">${r.inRec?cell(r.before):"–"}</td><td class="n">${r.inRec?cell(r.after):"–"}</td><td class="n">${r.inRec&&r.shiftRel!=null?sgn(r.shiftRel)+" °C":"–"}</td><td>${res}</td><td>${esc(r.note||"")}</td></tr>`;
   }).join("");
   const n=A.repl.filter(r=>r.inRec).length;
   return `<section class="panel">
@@ -1559,7 +1576,7 @@ new MutationObserver(()=>DATA&&!PRINTING&&run()).observe(document.documentElemen
 /* ---------- PDF (browser print to A4 landscape) ---------- */
 let PRINTING=false, savedTheme=null;
 const savedTitle=document.title;
-const IN_FRAME=(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
+const IN_FRAME=!HTQ&&(()=>{ try{ return window.self!==window.top; }catch(e){ return true; } })();
 function reportFileName(){
   const A=window.__A; if(!A||!DATA) return savedTitle;
   const furn=(DATA.meta.find(m=>/furnace/i.test(m))||"Furnace").match(/furnace[-\s]*\d+/i);
@@ -1610,6 +1627,93 @@ $("#pdfBtn").addEventListener("click",()=>{
   note.hidden=true; enterPrint(); setTimeout(()=>window.print(),150);
 });
 
+/* ---------- link to the SAT register (Heat Treat Quality Suite only) ---------- */
+let LINKS={}; try{ LINKS=JSON.parse(localStorage.getItem("pfsr-link")||"{}")||{}; }catch(e){}
+const satApi=()=>HTQ&&HTQ.api("sat");
+const isoDay=ms=>new Date(ms).toISOString().slice(0,10);
+const dayMs=d=>Date.parse(d+"T00:00:00Z");
+/* furnace from the chart heading ("FURNACE-4 …" → F-04), chamber from the furnace type */
+function autoLink(D){
+  const m=((D.meta||[]).find(x=>/furnace/i.test(x))||"").match(/furnace[-\s]*(\d+)/i), ft=detectFurnace(D.meta);
+  return {f:m?"F-"+String(+m[1]).padStart(2,"0"):"",ch:ft==="hardening"?"Hardening":ft==="tempering"?"Tempering":""};
+}
+function link(){
+  if(!DATA) return null;
+  const a=autoLink(DATA), o=LINKS[furnaceKey(DATA)]||{};
+  return {f:o.f||a.f,ch:o.ch||a.ch,auto:!o.f&&!o.ch,det:a};
+}
+/* replacements recorded in the SAT register for the linked chamber, as entries of this app's register */
+function satRepl(){
+  const api=satApi(), L=link(); if(!api||!L||!L.f||!L.ch) return [];
+  const out=[];
+  for(let k=0;k<DATA.n;k++){ const sn=api.find(L.f,L.ch,"TC"+(k+1)); if(!sn) continue;
+    api.repl(sn.id).forEach(r=>{ const t=Date.parse(r.date+"T"+(r.time||"00:00")+":00Z"); if(isFinite(t)) out.push({k,id:r.newSerial,t,note:(r.reason||"")+" · SAT register "+r.id,src:"sat",dayOnly:!r.time}); }); }
+  return out;
+}
+/* SAT and element status of every thermocouple on the last day of the record */
+function satStatus(A){
+  if(!HTQ) return null;
+  const api=satApi(), L=link();
+  if(!api) return {wait:true,L};
+  if(!L||!L.f||!L.ch) return {L,rows:[]};
+  const day=isoDay(A.t1);
+  const rows=Array.from({length:DATA.n},(_,k)=>{ const sn=api.find(L.f,L.ch,"TC"+(k+1)); if(!sn) return {k};
+    return {k,sn,name:api.name(sn.id),at:api.statusAt(sn.id,day),el:api.elementAt(sn.id,day),now:api.now(sn.id)}; });
+  return {L,day,rows,lifeDays:api.lifeDays()};
+}
+const SATST={ok:["good","SAT in date"],overdue:["crit","SAT overdue"],fail:["crit","Last SAT failed"],repl:["warn","Replaced, no SAT since"],none:["warn","No SAT on record"]};
+function satObs(A){
+  const X=A.sat; if(!X||!X.rows) return [];
+  const O=[], bad=X.rows.filter(r=>r.at&&r.at.st!=="ok"), old=X.rows.filter(r=>r.el&&r.el.over), miss=X.rows.filter(r=>!r.sn);
+  if(bad.length) O.push({lvl:bad.some(r=>r.at.st==="fail"||r.at.st==="overdue")?"crit":"warn",tag:"SAT",title:`SAT not in date on ${fmtD(dayMs(X.day))} for ${bad.map(r=>tcName(r.k)).join(", ")}`,
+    detail:bad.map(r=>`${tcName(r.k)}: ${SATST[r.at.st][1]}${r.at.last?` (last SAT ${r.at.last.id} on ${fmtD(dayMs(r.at.last.date))}, ${sgn(r.at.last.diff)} °C)`:""}${r.at.due&&r.at.st==="overdue"?`, due ${fmtD(dayMs(r.at.due))}`:""}`).join("; ")+".",
+    action:`Readings of these thermocouples are not backed by a valid system accuracy test for this day. Complete the SAT in the SAT register (${X.L.f} · ${X.L.ch} chamber) and judge the record again; for a failed SAT follow its reaction plan.`});
+  if(old.length) O.push({lvl:"warn",tag:"Thermocouple life",title:`Thermocouple element older than ${X.lifeDays} days on ${old.map(r=>tcName(r.k)).join(", ")}`,
+    detail:old.map(r=>`${tcName(r.k)}: element ${r.el.serial||"?"} installed ${fmtD(dayMs(r.el.installed))}, replacement due ${fmtD(dayMs(r.el.due))}`).join("; ")+".",
+    action:`Replace the type K element(s) and record the replacement in the SAT register; a SAT is required after the replacement.`});
+  if(miss.length) O.push({lvl:"info",tag:"SAT",title:`${miss.map(r=>tcName(r.k)).join(", ")} not found in the SAT register for ${X.L.f} · ${X.L.ch} chamber`,detail:`The SAT register has no thermocouple with these tags in this chamber.`,action:`Add them to the thermocouple register on the SAT page, or link this record to the right furnace and chamber.`});
+  return O;
+}
+function satSection(A){
+  const X=A.sat; if(!X) return "";
+  const head=`<div class="sec-head"><h2>Pyrometry status from the SAT register</h2><p>System accuracy test and thermocouple element status for every thermocouple on the last day of this record${X.L&&X.L.f?` (${esc(X.L.f)} · ${esc(X.L.ch||"?")} chamber)`:""}, taken from the Thermocouple SAT page.</p></div>`;
+  if(X.wait) return `<section class="panel">${head}<div class="empty">The SAT register is still loading.</div></section>`;
+  if(!X.rows.length) return `<section class="panel">${head}<div class="empty">This record is not linked to a furnace and chamber of the SAT register. Choose them under “Link to the thermocouple SAT register” above.</div></section>`;
+  const rows=X.rows.map(r=>{
+    if(!r.sn) return `<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td><td colspan="5" class="muted">Not in the SAT register for this chamber</td></tr>`;
+    const at=r.at, st=SATST[at.st], el=r.el;
+    return `<tr><td><b>${tcName(r.k)}</b> <span class="muted">${tcLoc(r.k)}</span></td>
+      <td>${esc(r.name)}<br><span class="muted">element ${esc(el.serial||"—")}${el.installed?" · installed "+fmtD(dayMs(el.installed)):""}</span></td>
+      <td>${chip(st[0],st[1])}${at.due&&at.st!=="fail"?`<br><span class="muted small">due ${fmtD(dayMs(at.due))}</span>`:""}</td>
+      <td class="n">${at.last?`${esc(at.last.id)} · ${fmtD(dayMs(at.last.date))}<br>${sgn(at.last.diff)} °C`:"–"}</td>
+      <td>${!el.installed?chip("info","Install date not recorded"):el.over?chip("warn","Older than "+X.lifeDays+" d"):chip("good","Within "+X.lifeDays+" d")}${el.due?`<br><span class="muted small">replace by ${fmtD(dayMs(el.due))}</span>`:""}</td>
+      <td>${esc(r.now.label)}${r.now.open?`<br><span class="muted small">open: ${esc(r.now.open)}</span>`:""}</td></tr>`;
+  }).join("");
+  return `<section class="panel">${head}
+    <div class="scroll"><table class="log"><thead><tr><th>Thermocouple</th><th>SAT register</th><th>SAT on ${fmtD(dayMs(X.day))}</th><th>Last SAT up to that day</th><th>Element age on that day</th><th>Status today</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+function renderLink(){
+  if(!HTQ) return;
+  const api=satApi(), L=link();
+  $("#linkPanel").hidden=false;
+  const furn=api?api.furnaces():["F-01","F-02","F-03","F-04"];
+  const opt=(l,v)=>`<option value="">— choose —</option>`+l.map(x=>`<option ${x===v?"selected":""}>${esc(x)}</option>`).join("");
+  $("#lkF").innerHTML=opt(furn,L&&L.f); $("#lkC").innerHTML=opt(["Hardening","Tempering"],L&&L.ch);
+  ["lkF","lkC","lkAuto","lkOpen"].forEach(id=>$("#"+id).disabled=!DATA);
+  $("#linkNote").innerHTML=!DATA?"Load a SCADA record to link it to a furnace and chamber of the SAT register.":
+    `SAT status and replacements of the linked chamber are included in this report. ${L.auto?"Detected from the chart heading.":`Chosen by hand (detected: ${esc(L.det.f||"?")} · ${esc(L.det.ch||"?")}).`}`;
+}
+if(HTQ){
+  const relink=()=>{ const f=$("#lkF").value, ch=$("#lkC").value; LINKS[furnaceKey(DATA)]={f,ch}; try{ localStorage.setItem("pfsr-link",JSON.stringify(LINKS)); }catch(e){} run(); HTQ.emit("scada:changed"); };
+  $("#lkF").addEventListener("change",relink); $("#lkC").addEventListener("change",relink);
+  $("#lkAuto").addEventListener("click",()=>{ if(!DATA) return; delete LINKS[furnaceKey(DATA)]; try{ localStorage.setItem("pfsr-link",JSON.stringify(LINKS)); }catch(e){} run(); HTQ.emit("scada:changed"); });
+  $("#lkOpen").addEventListener("click",()=>{ const L=link(); if(L) HTQ.go("sat",{view:{f:L.f,ch:L.ch}}); });
+  const again=()=>{ if(DATA&&!PRINTING) run(); else renderLink(); };
+  HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
+  HTQ.provide("scada",{record:()=>DATA?{rows:DATA.rows,n:DATA.n,file:FILE,link:link(),t0:DATA.rows[0].t,t1:DATA.rows[DATA.rows.length-1].t}:null,tcName});
+}
+
 /* ---------- file loading ---------- */
 function loadBuffer(buf,name){
   try{
@@ -1621,7 +1725,7 @@ function loadBuffer(buf,name){
       try{ D=parseAOA(aoa); break; }catch(e){ firstErr=firstErr||e; }
     }
     if(!D) throw firstErr||new Error("No usable sheet found.");
-    DATA=D; FILE=name; resetRun(); run();
+    DATA=D; FILE=name; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed");
   }catch(err){ $("#out").innerHTML=`<div class="panel error"><b>${esc(name)} couldn't be analysed.</b> ${esc(err.message)}</div>`; }
 }
 $("#loadBtn").addEventListener("click",()=>$("#file").click());
@@ -1642,7 +1746,7 @@ $("#copyBtn").addEventListener("click",()=>{
 });
 
 /* ---------- start ---------- */
-function loadSample(){ try{ DATA=parseAOA(SAMPLE); FILE=SAMPLE_NAME+" (example)"; resetRun(); run(); }catch(e){ $("#out").innerHTML=`<div class="panel error">${esc(e.message)}</div>`; } }
+function loadSample(){ try{ DATA=parseAOA(SAMPLE); FILE=SAMPLE_NAME+" (example)"; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed"); }catch(e){ $("#out").innerHTML=`<div class="panel error">${esc(e.message)}</div>`; } }
 function landing(){
   $("#out").innerHTML=`<section class="panel landing">
     <div class="eyebrow">Daily report</div>
@@ -1654,6 +1758,7 @@ function landing(){
   if(SAMPLE) $("#landEx").addEventListener("click",loadSample);
 }
 if(IN_FRAME&&SAMPLE) loadSample(); else landing();
+renderLink();
 </script>
 
 </body></html>

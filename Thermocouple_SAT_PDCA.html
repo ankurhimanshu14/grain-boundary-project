@@ -365,7 +365,11 @@ function normalize(o){
 }
 let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 if(!DB) DB=blank();
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}};
+/* inside the Heat Treat Quality Suite the parent page offers a bridge to the SCADA review; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("sat:changed"),300);}};
 const S=()=>DB.settings;
 const cyc=id=>DB.cycles.find(c=>c.id===id);
 const sensor=id=>DB.sensors.find(s=>s.id===id);
@@ -679,7 +683,7 @@ function drawRepl(){
   $("#repl").innerHTML=l.length?`<table class="log cards"><thead><tr><th>Record</th><th>Date</th><th>Thermocouple</th><th>Removed element</th><th>Fitted element</th><th>Reason</th><th>Found by SAT</th><th>Verification SAT</th><th>By</th><th>Notes</th></tr></thead><tbody>${
     l.map(r=>{const v=verifySat(r),vk=v&&calc(v),life=isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):null;
       return `<tr><td data-label="Record"><button class="btn ghost small" data-repl="${esc(r.id)}">${esc(r.id)}</button></td>
-      <td data-label="Date" class="n">${fdate(r.date)}</td>
+      <td data-label="Date" class="n">${fdate(r.date)}${r.time?`<br><span class="muted">${esc(r.time)}</span>`:""}</td>
       <td data-label="Thermocouple"><b>${esc(sName(r.sensor))}</b><br><span class="muted">${esc(sensor(r.sensor)?.chamber||"")} chamber · ${esc(sensor(r.sensor)?.zone||"")}</span></td>
       <td data-label="Removed element"><span class="mono">${esc(r.oldSerial||"—")}</span>${life!=null?`<br><span class="muted">in service ${life} d${isDate(r.oldInstalled)?" since "+fdate(r.oldInstalled):""}</span>`:""}</td>
       <td data-label="Fitted element"><span class="mono">${esc(r.newSerial)}</span>${r.newType?`<br><span class="muted">type ${esc(r.newType)}${r.cert?" · cert "+esc(r.cert):""}</span>`:""}</td>
@@ -730,7 +734,7 @@ function drawSettings(){
 }
 
 /* ---------- cycle editor (dialog) ---------- */
-let EDIT=null,MSG="";
+let EDIT=null,MSG="",MSGOK=false;
 const dlg=$("#dlg");
 function openCycle(id){EDIT=id;MSG="";drawDlg();if(!dlg.open)dlg.showModal();}
 function getP(o,p){return p.split(".").reduce((a,k)=>a?.[k],o);}
@@ -830,7 +834,7 @@ function liveDlg(){
       <div>Thermocouple replacement: ${DB.repl.filter(r=>r.satRef===c.id).map(r=>`<button class="btn ghost small" data-repl="${esc(r.id)}">${esc(r.id)} · ${fdate(r.date)} · ${esc(r.oldSerial||"?")} → ${esc(r.newSerial)}</button>`).join(" ")||(c.act.action==="Replace control thermocouple"?`<span class="bad">not recorded yet</span>`:`<span class="muted">none</span>`)}
       ${c.stage!=="closed"?` <button class="btn ghost small" data-addrepl="${esc(c.id)}">Record replacement</button>`:""}</div></div>`;
   }
-  $("#dlg-msg").textContent=MSG;
+  $("#dlg-msg").textContent=MSG;$("#dlg-msg").style.color=MSGOK?"var(--good-ink)":"";if(!MSG)MSGOK=false;
   /* live per-reading difference in the Do table */
   const corr=k.k0??((num(c.do.instrCorr)||0)+(num(c.do.tcCorr)||0)),tol=+s.tol;
   (c.do.readings||[]).forEach((r,i)=>{const el=document.getElementById("rd-"+i);if(!el)return;
@@ -860,8 +864,8 @@ function readingsTable(c){
     <td><input type="number" step="any" inputmode="decimal" data-p="do.readings.${i}.t" value="${esc(r?.t??"")}" aria-label="Test reading ${i+1}"${ro}></td>
     <td class="n" id="rd-${i}">—</td></tr>`).join("");
   return `<div class="rd-head"><h3>Readings <small class="muted" style="font-weight:400">${c.do.readings.length} × every ${s.step} min · <span id="rd-count"></span></small></h3>
-    ${c.stage==="do"?`<div class="actions"><span id="tmr" class="mono muted"></span><button class="btn ghost small" data-act="timer">${TIMER?"Stop timer":"Start "+Math.round(c.do.readings.length*s.step)+"-min timer"}</button></div>`:""}</div>
-    ${c.stage==="do"?`<p class="muted" style="font-size:12px;margin:0 0 6px">Enter one pair per reading, or paste two columns (furnace, test) copied from Excel into any furnace cell. The timer marks the reading that is due.</p>`:""}
+    ${c.stage==="do"?`<div class="actions"><span id="tmr" class="mono muted"></span>${HTQ?`<button class="btn ghost small" data-act="scada" title="Take the furnace readings of this thermocouple from the SCADA record loaded on the SCADA review page">Fill furnace readings from SCADA</button>`:""}<button class="btn ghost small" data-act="timer">${TIMER?"Stop timer":"Start "+Math.round(c.do.readings.length*s.step)+"-min timer"}</button></div>`:""}</div>
+    ${c.stage==="do"?`<p class="muted" style="font-size:12px;margin:0 0 6px">Enter one pair per reading, or paste two columns (furnace, test) copied from Excel into any furnace cell. The timer marks the reading that is due.</p>${HTQ?`<p class="muted" style="font-size:12px;margin:0 0 6px" id="scada-hint">${esc(scadaHint())}</p>`:""}`:""}
     <div class="rd-wrap"><table class="rd"><thead><tr><th>#</th><th>Time</th><th>Furnace °C</th><th>Test °C</th><th class="n">Δ °C</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function statTable(k){
@@ -924,6 +928,7 @@ document.addEventListener("click",e=>{
   const a=t.dataset.act;
   if(a){const c=cyc(EDIT);
     if(a==="close"){dlg.close();return;}
+    if(a==="scada"){const r=fillFromScada(c);MSG=r.msg;MSGOK=r.ok;save();render();drawDlg();return;}
     if(a==="timer"){if(TIMER){stopTimer();drawDlg();return;}
       const now=new Date();if(!c.do.start){c.do.start=pad(now.getHours())+":"+pad(now.getMinutes());save();}
       TIMER={t0:Date.now(),h:setInterval(tick,1000)};drawDlg();tick();return;}
@@ -1002,6 +1007,7 @@ function drawReplDlg(){
   rdlg.innerHTML=`<div class="dlg-h"><h2>${r.id?esc(r.id)+" · ":""}Thermocouple replacement</h2></div><div class="dlg-b"><div class="fgrid">
     ${sensorField("r-sensor",'data-r="sensor"',r.sensor,false,"Thermocouple")}
     ${f("date","Replacement date",{req:1,type:"date"})}
+    ${f("time","Time of replacement",{type:"time",hint:"lets the SCADA review compare readings before and after within one record"})}
     <div class="field req"><label for="r-reason">Reason</label><select id="r-reason" data-r="reason"><option value="">— select —</option>${REASONS.map(x=>`<option ${x===r.reason?"selected":""}>${esc(x)}</option>`).join("")}</select></div>
     <div class="field"><label for="r-satRef">Found by SAT</label><select id="r-satRef" data-r="satRef"><option value="">— none —</option>${sats.map(c=>`<option value="${c.id}" ${c.id===r.satRef?"selected":""}>${c.id} · ${fdate(c.do.date)} · ${sgn(calc(c).diff)} °C</option>`).join("")}</select></div>
     ${f("oldSerial","Removed element serial",{hint:"prefilled from the register"})}
@@ -1035,7 +1041,7 @@ function exportReplCsv(){
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
   const rows=[["Record","Date","Furnace","Chamber","Thermocouple","Zone","Removed serial","Removed installed","Service life d","Fitted serial","Fitted type","Certificate","Reason","Offset reset","TUS decision","Found by SAT","Verification SAT","Verification date","Verification difference °C","Verification result","Replaced by","Notes"]];
   DB.repl.slice().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>{const s=sensor(r.sensor)||{},v=verifySat(r),vk=v&&calc(v);
-    rows.push([r.id,r.date,s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.offset,r.tus,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
+    rows.push([r.id,r.date+(r.time?" "+r.time:""),s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.offset,r.tus,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
   download(`thermocouple-replacements-${today()}.csv`,"\ufeff"+rows.map(x=>x.map(q).join(",")).join("\r\n"),"text/csv");
 }
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
@@ -1100,10 +1106,72 @@ function example(){
   return o;
 }
 
+/* ---------- link to the SCADA review (Heat Treat Quality Suite only) ---------- */
+const tagNo=sn=>(parseInt(String(sn?.tag||"").replace(/\D/g,""),10)||0)-1; /* TC3 → column 2 of the SCADA record */
+function scadaHint(){
+  const rec=HTQ&&HTQ.api("scada")&&HTQ.api("scada").record();
+  if(!rec) return "No SCADA record is loaded. Load the export that covers this test on the SCADA review page to fill the furnace readings from it.";
+  const L=rec.link||{},d=ms=>new Date(ms).toISOString().slice(0,16).replace("T"," ");
+  return `SCADA record loaded: ${rec.file} · ${L.f||"?"} · ${L.ch||"?"} chamber · ${d(rec.t0)} to ${d(rec.t1)}.`;
+}
+function fillFromScada(c){
+  const rec=HTQ&&HTQ.api("scada")&&HTQ.api("scada").record(),sn=sensor(c.sensor);
+  if(!rec) return {msg:"No SCADA record is loaded. Open the SCADA review page, load the export that covers this test, then try again."};
+  const L=rec.link||{};
+  if(L.f!==sn.furnace||L.ch!==sn.chamber) return {msg:`The loaded SCADA record (${rec.file}) is linked to ${L.f||"?"} · ${L.ch||"?"} chamber, not ${sn.furnace} · ${sn.chamber}. Load the right export or change its link on the SCADA page.`};
+  const k=tagNo(sn);if(k<0||k>=rec.n) return {msg:`${sn.tag} has no PV column in the SCADA record.`};
+  const m=/^(\d{1,2}):(\d{2})/.exec(c.do.start||"");
+  if(!isDate(c.do.date)||!m) return {msg:"Enter the test date and the start time of the first reading first."};
+  padReadings(c);
+  const t0=Date.parse(c.do.date+"T"+pad(+m[1])+":"+m[2]+":00Z"),step=(+S().step||1)*60000,rows=rec.rows;
+  let n=0,j=0;
+  c.do.readings.forEach((r,i)=>{const t=t0+i*step;while(j<rows.length-1&&rows[j+1].t<=t)j++;
+    let best=null;[rows[j],rows[j+1]].forEach(x=>{if(x&&Math.abs(x.t-t)<=step/2&&(!best||Math.abs(x.t-t)<Math.abs(best.t-t)))best=x;});
+    const v=best&&best.pv[k];if(v!=null){r.f=String(v);n++;}});
+  if(!n) return {msg:`The SCADA record ${rec.file} has no ${sn.tag} readings from ${fdate(c.do.date)} ${c.do.start} for the length of the test.`};
+  logIt(c,`Furnace readings taken from SCADA record ${rec.file} (${n} of ${c.do.readings.length})`);
+  return {ok:true,msg:`Filled ${n} of ${c.do.readings.length} furnace readings from ${rec.file} (PV of ${sn.tag}). Enter the test instrument readings.`};
+}
+/* SAT status of a thermocouple on a given day, for the SCADA review */
+function statusAt(id,day){
+  const h=history(id).filter(c=>c.do.date<=day),last=h.at(-1)||null,lk=last&&calc(last);
+  const lp=h.filter(c=>calc(c).res!=="fail").at(-1)||null;
+  const interval=lp&&num(lp.act?.interval)?num(lp.act.interval):+S().interval,due=lp?addDays(lp.do.date,interval):null;
+  const rp=replOf(id).filter(r=>r.date<=day).at(-1);
+  const rpOpen=rp&&!history(id).some(c=>c.do.date>=rp.date&&c.do.date<=day&&c.id!==rp.satRef);
+  const st=rpOpen?"repl":!last?"none":lk.res==="fail"?"fail":due>=day?"ok":"overdue";
+  return {st,due,last:last&&{id:last.id,date:last.do.date,diff:lk.diff,res:lk.res}};
+}
+/* the element that was installed on a given day */
+function elementAt(id,day){
+  const s=sensor(id)||{},l=replOf(id),b=l.filter(r=>r.date<=day).at(-1),a=l.find(r=>r.date>day);
+  const e=b?{serial:b.newSerial,installed:b.date}:a?{serial:a.oldSerial,installed:a.oldInstalled||""}:{serial:s.serial,installed:s.installed||""};
+  if(isDate(e.installed)){e.due=addDays(e.installed,+S().lifeDays||365);e.over=e.due<day;}
+  return e;
+}
+if(HTQ){
+  $("#b-theme").hidden=true; /* the suite's navigation bar switches the theme of both pages */
+  const norm=t=>String(t||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const NOW={none:"No SAT on record",fail:"Last SAT failed — re-SAT required",repl:"Replaced — SAT required",overdue:"SAT overdue",soon:"SAT due soon",ok:"SAT in date"};
+  HTQ.provide("sat",{
+    furnaces:()=>DB.furnaces.map(f=>f.id),
+    find:(f,ch,tag)=>DB.sensors.find(x=>x.furnace===f&&x.chamber===ch&&norm(x.tag)===norm(tag))||null,
+    name:id=>sLabel(id),
+    repl:id=>replOf(id).map(r=>({...r})),
+    statusAt,elementAt,
+    now:id=>{const sc=schedule(sensor(id)),L=lifeOf(sensor(id));
+      return {label:NOW[sc.status]+(sc.status==="ok"||sc.status==="soon"||sc.status==="overdue"?" (due "+fdate(sc.due)+")":"")+(L.st==="over"?" · element replacement overdue":L.st==="soon"?" · replace element by "+fdate(L.due):""),
+        open:sc.open.map(c=>c.id+" "+SNAME[c.stage]).join(", ")};},
+    lifeDays:()=>+S().lifeDays||365
+  });
+  HTQ.on("nav:sat",o=>{if(o&&o.view){setView(o.view.f||"",o.view.ch||"");render();}if(o&&o.cycle)openCycle(o.cycle);});
+  HTQ.on("scada:changed",()=>{const el=document.getElementById("scada-hint");if(el)el.textContent=scadaHint();});
+}
+
 /* ---------- start ---------- */
 try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__SAT={lifeOf,get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
+window.__SAT={fillFromScada,statusAt,elementAt,lifeOf,get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
 </script>
 </body></html>
