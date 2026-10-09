@@ -159,6 +159,26 @@ footer li{margin:2px 0}
 .landing p{margin:0;color:var(--ink2);max-width:70ch}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);text-decoration:underline;cursor:pointer}
 .print-only{display:none}
+/* review PDCA */
+.pd .pd-steps{display:flex;gap:4px;flex-wrap:wrap}
+.pd .pd-steps span{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface2)}
+.pd .pd-steps span.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pd .pd-steps span.done{color:var(--accent);border-color:var(--accent)}
+.pd-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;align-items:center;margin:4px 0 12px}
+.pd-item{border:1px solid var(--line);border-left:4px solid var(--k,var(--line));border-radius:6px;padding:10px 12px;margin-bottom:10px;background:var(--surface)}
+.pd-item h3{font-size:14px;margin:0 0 2px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.pd-item .sug{background:var(--surface2);border-radius:4px;padding:6px 9px;margin:6px 0;font-size:13px}
+.pd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;margin-top:8px}
+.pd-grid .wide{grid-column:1/-1}
+.pd-grid h4{grid-column:1/-1;margin:6px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.pd label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)}
+.pd input,.pd select,.pd textarea{font:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.pd textarea{min-height:54px;resize:vertical}
+.pd input:disabled,.pd select:disabled,.pd textarea:disabled{opacity:.8}
+.pd .req::after{content:" *";color:var(--crit-ink)}
+.pd-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+.pd-foot .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:80ch}
+.pd-docs{display:flex;flex-wrap:wrap;gap:4px 14px}.pd-docs label{flex-direction:row;align-items:center;gap:6px;font-size:13px;color:var(--ink)}.pd-docs input{width:auto}
 .rcard{border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-top:12px;background:var(--surface)}
 .rcard h3{margin:0 0 6px}
 .rverdict{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;color:var(--ink)}
@@ -297,6 +317,11 @@ table.stat th:first-child{text-align:left}
   </section>
 
   <div id="out"></div>
+
+  <section class="panel noprint pd" id="pdcaPanel" aria-label="Review PDCA">
+    <div class="sec-head"><h2>Review PDCA: reaction plan</h2><p>The application suggests an action for every issue it found in the record. The reviewer decides the reaction plan (adopt, change, or no action with a reason) in <b>Plan</b>, records what was done and the product disposition in <b>Do</b>, verifies the effect in <b>Check</b> and standardises and approves in <b>Act</b>. Reviews are kept in this browser.</p></div>
+    <div id="pdBody"></div>
+  </section>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -437,7 +462,7 @@ function parseAOA(aoa){
 }
 
 /* ---------- analysis ---------- */
-const tcName=k=>`TC-${k+1}`;
+const tcName=k=>`TC-${pad(k+1)}`; /* odd-numbered TCs are on the left wall, even-numbered on the right */
 const tcLoc=k=>`Zone ${Math.floor(k/2)+1} · ${k%2===0?"left":"right"} wall`;
 function quant(sorted,q){ if(!sorted.length) return null; const p=(sorted.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p); return sorted[lo]+(sorted[hi]-sorted[lo])*(p-lo); }
 function mode(arr){ const m=new Map(); let best=null,bc=0; arr.forEach(v=>{ if(v==null) return; const c=(m.get(v)||0)+1; m.set(v,c); if(c>bc){bc=c;best=v;} }); return best; }
@@ -948,7 +973,7 @@ function run(){
   const out=$("#out");
   try{
     ALLREPL=REPL.concat(satRepl());
-    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A);
+    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A); LASTO=O;
     render(DATA,A,O);
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
@@ -1049,6 +1074,8 @@ function render(D,A,O){
     <div class="obs">${O.map(o=>`<div class="ob"><div>${chip(o.lvl,o.tag)}</div><div><h3>${esc(o.title)}</h3><p>${esc(o.detail)}</p><p class="act"><b>Action:</b> ${esc(o.action)}</p></div></div>`).join("")}</div>
   </section>
 
+  ${pdPrint(D)}
+
   <section class="panel checks">
     <div class="sec-head"><h2>Data-integrity checks</h2><p>What the record itself says about monitoring quality.</p></div>
     <div class="obs">${integrity(A).map(c=>`<div class="ob"><div>${chip(c.lvl,c.lvl==="good"?"Pass":c.lvl==="warn"?"Review":"Info")}</div><h3>${esc(c.name)}</h3><p style="margin:0">${esc(c.txt)}</p></div>`).join("")}</div>
@@ -1057,7 +1084,7 @@ function render(D,A,O){
   <footer>
     <b>How the numbers are worked out</b>
     <ul>
-      <li>Thermocouple layout: TC-1/TC-2 = Zone 1 left/right wall, TC-3/TC-4 = Zone 2, TC-5/TC-6 = Zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
+      <li>Thermocouple layout: odd-numbered thermocouples are on the left wall, even-numbered on the right: TC-01/TC-02 = Zone 1 left/right wall, TC-03/TC-04 = Zone 2, TC-05/TC-06 = Zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
       <li>The furnace is one continuous chamber of ${totalPos()} tray positions (Zone 1: positions 1–${traysIn(0)}${A.zones.slice(1).map(z=>`, Zone ${z.z+1}: ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}`).join("")}). Trays inside a zone while it is out of tolerance are the affected trays; the analysis reports these time windows and uses no push timing. Because there is no partition, a disturbance in one zone also affects its neighbours; the zone split is for control and traceability.</li>
       <li>A zone excursion starts when either wall of a zone reads outside setpoint ±${tol} °C and ends when both walls have stayed inside for more than ${S.merge} min. “Span” is start to end; “Time out” counts only the minutes actually outside the window.</li>
       <li>Capability: USL/LSL = set value ±${tol} °C. When the set value changes during the record, every statistic, histogram and control chart is calculated separately for each set value (readings with fewer than ${MINSTAT} points at a set value are not analysed). Cp = (USL − LSL) / 6σ<sub>within</sub>, Cpk = min(USL − mean, mean − LSL) / 3σ<sub>within</sub>, with σ<sub>within</sub> = average moving range / 1.128. Pp and Ppk use the overall standard deviation instead. Wall difference = |left − right| for simultaneous readings.</li>
@@ -1078,7 +1105,7 @@ function render(D,A,O){
   cardify();
   drawCharts(D,A);
   window.__A=A;
-  renderLink();
+  renderLink(); renderPdca();
   { const f=ms=>new Date(ms).toISOString().slice(0,16); ["runStart","runStop"].forEach(id=>{ const el=document.getElementById(id); el.min=f(A.t0); el.max=f(A.t1); }); }
 }
 
@@ -1129,7 +1156,7 @@ function priorityList(D,A,PA){
     rows.push({pr:"P0",issue:"Parts that were in the affected zones during these windows are unavailable until released",impact:"Possible delay to downstream supply and customer deliveries",cause:"Containment",
       action:"Identify production lots that were in the affected zones during the windows; plan buffer stock or re-heat-treat capacity",owner:"Production Manager",when:"Today's production meeting"});
   }
-  PA.items.forEach(it=>rows.push({pr:it.pr,issue:it.label,impact:`${f1(it.share)} % of exposure (cumulative ${f0(it.cum)} %) · ${f0(it.dm)} °C·min · ${dur(it.min)} out`,cause:it.cause,action:it.action,owner:it.owner,when:PR[it.pr].when,share:it.share,cum:it.cum,dm:it.dm,min:it.min}));
+  PA.items.forEach(it=>rows.push({k:it.k,pr:it.pr,issue:it.label,impact:`${f1(it.share)} % of exposure (cumulative ${f0(it.cum)} %) · ${f0(it.dm)} °C·min · ${dur(it.min)} out`,cause:it.cause,action:it.action,owner:it.owner,when:PR[it.pr].when,share:it.share,cum:it.cum,dm:it.dm,min:it.min}));
   const ranked=new Set(PA.items.filter(i=>i.k!=null).map(i=>i.k));
   A.tcs.filter(t=>!ranked.has(t.k)&&Math.abs(t.devMean)>tol/2).forEach(t=>rows.push({pr:"B",issue:`${tcName(t.k)} (${tcLoc(t.k)}) runs ${f1(Math.abs(t.devMean))} °C ${t.devMean<0?"low":"high"} without leaving the window`,impact:"Uses up half the tolerance; small disturbances become excursions",cause:"Offset",action:"Burner balance and TC check",owner:"Maintenance Head",when:PR.B.when}));
   const noisy=A.tcs.filter(t=>(t.spikes.length>=5||t.stuck.length)&&!PA.items.some(i=>i.k===t.k&&/Erratic/.test(i.cause)));
@@ -1711,8 +1738,197 @@ if(HTQ){
   $("#lkOpen").addEventListener("click",()=>{ const L=link(); if(L) HTQ.go("sat",{view:{f:L.f,ch:L.ch}}); });
   const again=()=>{ if(DATA&&!PRINTING) run(); else renderLink(); };
   HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
-  HTQ.provide("scada",{record:()=>DATA?{rows:DATA.rows,n:DATA.n,file:FILE,link:link(),t0:DATA.rows[0].t,t1:DATA.rows[DATA.rows.length-1].t}:null,tcName});
 }
+
+/* ---------- review PDCA: the app suggests actions, the reviewer decides the reaction plan ---------- */
+const PD_KEY="pfsr-pdca";
+let PD={seq:1,reviews:[]}; try{ const o=JSON.parse(localStorage.getItem(PD_KEY)||"null"); if(o&&Array.isArray(o.reviews)) PD=o; }catch(e){}
+let PD_MEM=[], PD_CUR=null, PD_MSG="", LASTO=[]; /* reviews of the example record stay in memory only */
+const PD_ST=["plan","do","check","act","closed"], PD_NM={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
+const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
+const DISPO=["Released after hardness / microstructure verification","Re-heat-treated and verified","Scrapped","Released under customer concession","Still on hold"];
+const DOCS=["Control plan","PFMEA","Work instruction","Process table / recipe","Maintenance plan","Training","No document change needed"];
+const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head"};
+const todayISO=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+const addDay=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
+const pdAll=()=>PD.reviews.concat(PD_MEM);
+const pdGet=id=>pdAll().find(r=>r.id===id);
+const txt=v=>String(v||"").trim();
+const roleOf=s=>ROLES.find(r=>String(s||"").includes(r))||"HT Manager";
+const pdAct=R=>R.items.filter(i=>i.dec&&i.dec!=="none");
+const recKey=D=>furnaceKey(D)+"|"+isoDay(D.rows[0].t)+"|"+isoDay(D.rows[D.rows.length-1].t);
+const pdForRecord=()=>DATA?pdAll().find(r=>r.key===recKey(DATA)):null;
+const pdSave=()=>{ try{ localStorage.setItem(PD_KEY,JSON.stringify(PD)); }catch(e){} if(HTQ) HTQ.emit("scada:pdca"); };
+const pdOverdue=R=>R.stage==="closed"?[]:R.items.filter(i=>i.dec&&i.dec!=="none"&&i.due&&!i.doneDate&&i.due<todayISO());
+const pdLog=(R,t)=>R.log.push({d:todayISO(),t});
+
+/* suggested actions = the priority list (Pareto order, with owners) + findings it does not cover */
+function pdItems(A,O){
+  const items=[]; let n=1;
+  A.priority.filter(r=>r.issue!=="No issues").forEach(r=>items.push({id:"A"+n++,pr:r.pr,src:"Priority list",issue:r.issue,
+    detail:[r.impact&&r.impact!=="—"?"Impact: "+r.impact:"",r.cause&&r.cause!=="—"?"Cause: "+r.cause:""].filter(Boolean).join(" · "),
+    suggested:r.action,sugOwner:roleOf(r.owner),sugDays:PRDAYS[r.pr]??7,when:r.when||"",k:r.k??null,
+    base:r.k!=null&&A.tcs[r.k]?A.tcs[r.k].inTolPct:A.inTolPct,product:r.pr==="P0"&&/hold the affected trays/i.test(r.action)}));
+  O.filter(o=>(o.lvl==="crit"||o.lvl==="warn")&&TAGOWN[o.tag]).forEach(o=>items.push({id:"A"+n++,pr:o.lvl==="crit"?"A":"B",src:"Finding · "+o.tag,issue:o.title,detail:o.detail,
+    suggested:o.action,sugOwner:TAGOWN[o.tag],sugDays:o.lvl==="crit"?1:7,when:"",k:null,base:A.inTolPct,tag:o.tag}));
+  return items;
+}
+function pdStart(){
+  const A=window.__A; if(!DATA||!A) return;
+  const ex=/\(example\)$/.test(FILE), L=HTQ?link():null;
+  const R={id:"RV-"+String(PD.seq++).padStart(4,"0"),key:recKey(DATA),fkey:furnaceKey(DATA),furnace:($("#furnace").textContent||"").trim(),link:L&&L.f?{f:L.f,ch:L.ch}:null,
+    day0:isoDay(A.t0),day1:isoDay(A.t1),dayN:Math.floor(A.t1/864e5),file:FILE,example:ex,created:todayISO(),stage:"plan",cycle:1,tol:A.tol,
+    items:pdItems(A,LASTO),docs:[],log:[]};
+  pdLog(R,`Review started: ${R.items.length} suggested action${R.items.length===1?"":"s"}`);
+  if(ex) PD_MEM.push(R); else PD.reviews.push(R);
+  PD_CUR=R.id; pdSave(); renderPdca(); run();
+}
+function pdMissing(R){
+  const m=[];
+  if(R.stage==="plan"){
+    R.items.forEach(i=>{ if(!i.dec) return m.push(i.id+" decision");
+      if(i.dec==="none"){ if(i.product) m.push(i.id+": product containment cannot be skipped"); if(!txt(i.plan)) m.push(i.id+" reason for no action"); }
+      else{ if(!txt(i.plan)) m.push(i.id+" reaction plan"); if(!i.owner) m.push(i.id+" owner"); if(!i.due) m.push(i.id+" due date"); } });
+    if(!txt(R.planBy)) m.push("reaction plan decided by");
+  }else if(R.stage==="do"){
+    pdAct(R).forEach(i=>{ if(!i.doneDate) m.push(i.id+" date done"); if(!txt(i.doneNote)) m.push(i.id+" what was done");
+      if(i.product&&!i.dispo) m.push(i.id+" product disposition"); else if(i.product&&i.dispo===DISPO[4]) m.push(i.id+": product is still on hold"); });
+  }else if(R.stage==="check"){
+    pdAct(R).forEach(i=>{ if(!i.res) m.push(i.id+" effective?"); if(!txt(i.evid)) m.push(i.id+" evidence"); });
+    if(!txt(R.checkBy)) m.push("verified by");
+  }else if(R.stage==="act"){
+    if(pdAct(R).some(i=>i.res==="not")) m.push("re-plan the actions that were not effective (button below)");
+    if(!(R.docs||[]).length) m.push("standardisation (documents updated, or none needed)");
+    if(!txt(R.apprBy)) m.push("approved by"); if(!R.apprRole) m.push("approver role");
+  }
+  return m;
+}
+function pdAdvance(R){
+  const m=pdMissing(R); if(m.length) return "Still needed: "+m.join(", ")+".";
+  const i=PD_ST.indexOf(R.stage); R.stage=PD_ST[i+1];
+  const dk={do:"doDate",check:"checkDate",act:"actDate"}[R.stage]; if(dk&&!R[dk]) R[dk]=todayISO();
+  pdLog(R,{do:"Reaction plan decided by "+R.planBy+" → Do",check:"Actions done → Check",act:"Effect verified by "+R.checkBy+" → Act",closed:"Approved by "+R.apprBy+" ("+R.apprRole+"); review closed"}[R.stage]);
+  return "";
+}
+/* not effective → back to Plan for those actions only; the earlier attempt is kept in the item history */
+function pdReplan(R){
+  const not=pdAct(R).filter(i=>i.res==="not"); if(!not.length) return;
+  R.items.forEach(i=>delete i.replan);
+  not.forEach(i=>{ (i.hist=i.hist||[]).push({cycle:R.cycle,plan:i.plan,owner:i.owner,done:i.doneNote,evid:i.evid});
+    ["dec","plan","owner","due","doneDate","doneBy","doneNote","res","evid"].forEach(k=>delete i[k]); i.replan=true; });
+  R.cycle++; R.stage="plan"; ["planBy","checkBy"].forEach(k=>delete R[k]);
+  pdLog(R,`${not.length} action${not.length>1?"s were":" was"} not effective → Plan again (cycle ${R.cycle})`);
+}
+/* evidence for Check: records of the same furnace analysed after this one (kept in this browser) */
+function pdEvidence(R,i){
+  const later=Object.values(HIST).filter(h=>h.f===R.fkey&&h.day>R.dayN).sort((a,b)=>a.day-b.day).slice(0,5);
+  if(!later.length) return `No later record of ${R.fkey} has been analysed in this browser yet. Analyse the following days' exports to verify the effect.`;
+  const fmt=v=>v==null?"–":f1(v)+" %";
+  return later.map(h=>{ const v=i.k!=null?(h.tc[i.k]&&h.tc[i.k].inTol):(()=>{ const t=h.tc.filter(Boolean); return t.length?t.reduce((a,x)=>a+x.inTol,0)/t.length:null; })();
+    return `${fmtD(h.day*864e5)}: ${i.k!=null?tcName(i.k):"all TCs"} ${fmt(v)} within tolerance`; }).join("; ")+` (this record: ${fmt(i.base)}).`;
+}
+function renderPdca(){
+  const body=$("#pdBody"); if(!body) return;
+  const recR=pdForRecord(); let R=PD_CUR&&pdGet(PD_CUR)||recR;
+  const today=todayISO(), dis=c=>c?" disabled":"";
+  const sel=(id,v,opts,ro,ph="— select —")=>`<select data-pd="${id}"${dis(ro)}><option value="">${ph}</option>${opts.map(o=>{ const [val,lab]=Array.isArray(o)?o:[o,o]; return `<option value="${esc(val)}" ${String(v||"")===String(val)?"selected":""}>${esc(lab)}</option>`; }).join("")}</select>`;
+  const inp=(id,v,ro,type="text")=>`<input type="${type}" data-pd="${id}" value="${esc(v||"")}"${dis(ro)}>`;
+  const area=(id,v,ro)=>`<textarea data-pd="${id}"${dis(ro)}>${esc(v||"")}</textarea>`;
+  let h="";
+  if(DATA&&!recR) h+=`<div class="empty" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>No review has been started for this record (${esc(furnaceKey(DATA))}, ${esc(fmtD(window.__A?window.__A.t0:DATA.rows[0].t))}). The application suggests <b>${window.__A?pdItems(window.__A,LASTO).length:0}</b> action(s).${/\(example\)$/.test(FILE)?" A review of the example record is not saved.":""}</span><button class="btn" type="button" data-pdact="start">Start review (Plan)</button></div>`;
+  else if(!DATA&&!R) h+=`<div class="empty">Load a SCADA record to review it, or open an earlier review from the register below.</div>`;
+  if(R){
+    const si=PD_ST.indexOf(R.stage), closed=R.stage==="closed", od=pdOverdue(R).length;
+    h+=`<div class="pd-head"><div><b>${esc(R.id)}</b> · ${esc(R.fkey)} · ${esc(fmtD(Date.parse(R.day0+"T00:00:00Z")))}${R.day1!==R.day0?" – "+esc(fmtD(Date.parse(R.day1+"T00:00:00Z"))):""} · <span class="muted">${esc(R.file)}${R.example?" · not saved":""}</span>${R.cycle>1?` · cycle ${R.cycle}`:""}${od?" "+chip("crit",od+" overdue"):""}${DATA&&R.key!==recKey(DATA)?` <span class="muted small">(not the record loaded above)</span>`:""}</div>
+      <div class="pd-steps">${PD_ST.slice(0,4).map((s,i)=>`<span class="${i<si?"done":i===si?"on":""}">${PD_NM[s]}</span>`).join("")}${closed?`<span class="on" style="background:var(--good);border-color:var(--good)">Closed</span>`:""}</div></div>`;
+    if(!R.items.length) h+=`<div class="empty">The application found no issues that need an action in this record. Confirm the review in each stage.</div>`;
+    R.items.forEach(i=>{
+      const lv=PR[i.pr]?PR[i.pr].lvl:"info", k={crit:"var(--crit)",warn:"var(--warn)",info:"var(--muted)"}[lv], p=`it:${i.id}:`, doIt=i.dec&&i.dec!=="none";
+      const lock=R.cycle>1&&!i.replan; /* in a re-plan cycle only the actions that were not effective are open again */
+      const roPlan=R.stage!=="plan"||lock, roDo=R.stage!=="do"||lock, roCheck=R.stage!=="check"||lock;
+      const overdue=doIt&&i.due&&!i.doneDate&&i.due<today&&!closed;
+      h+=`<div class="pd-item" style="--k:${k}"><h3>${chip(lv,i.pr==="P0"?"P0 product":"Priority "+i.pr)}<span>${esc(i.id)} · ${esc(i.issue)}</span>${i.replan?chip("warn","Re-planned"):""}${overdue?chip("crit","Overdue"):""}</h3>
+        <div class="muted small">${esc(i.src)}${i.detail?" · "+esc(i.detail):""}</div>
+        <div class="sug"><b>Suggested action:</b> ${esc(i.suggested)} <span class="muted">· suggested owner ${esc(i.sugOwner)} · ${esc(i.when||("within "+i.sugDays+" day"+(i.sugDays===1?"":"s")))}</span>${HTQ&&i.tag==="SAT"&&R.link?` <button class="linkbtn" type="button" data-pdact="sat">Open in SAT register</button>`:""}</div>
+        <div class="pd-grid"><h4>Plan: reaction plan decided by the reviewer</h4>
+          <label><span class="req">Decision</span>${sel(p+"dec",i.dec,[["adopt","Adopt the suggested action"],["modify","Change the action"],...(i.product?[]:[["none","No action needed"]])],roPlan)}</label>
+          <label><span class="${doIt?"req":""}">Owner</span>${sel(p+"owner",i.owner,ROLES,roPlan||!doIt)}</label>
+          <label><span class="${doIt?"req":""}">Due date</span>${inp(p+"due",i.due,roPlan||!doIt,"date")}</label>
+          <label class="wide"><span class="req">${i.dec==="none"?"Reason why no action is needed":"Reaction plan"}</span>${area(p+"plan",i.plan,roPlan)}</label>
+          ${(i.hist||[]).map(x=>`<div class="wide muted small">Cycle ${x.cycle}: “${esc(x.plan)}” (${esc(x.owner||"")}) was not effective — ${esc(x.evid||"")}</div>`).join("")}
+          ${si>=1&&doIt?`<h4>Do: what was done</h4>
+            <label><span class="req">Date done</span>${inp(p+"doneDate",i.doneDate,roDo,"date")}</label>
+            <label><span>Done by</span>${inp(p+"doneBy",i.doneBy,roDo)}</label>
+            ${i.product?`<label><span class="req">Product disposition</span>${sel(p+"dispo",i.dispo,DISPO,roDo)}</label>`:""}
+            <label class="wide"><span class="req">What was done</span>${area(p+"doneNote",i.doneNote,roDo)}</label>`:""}
+          ${si>=2&&doIt?`<h4>Check: was it effective?</h4>
+            <label><span class="req">Result</span>${sel(p+"res",i.res,[["effective","Effective"],["not","Not effective"]],roCheck)}</label>
+            <label class="wide"><span class="req">Evidence</span>${area(p+"evid",i.evid,roCheck)}</label>
+            ${!roCheck?`<div class="wide small"><span class="muted">Suggested evidence: ${esc(pdEvidence(R,i))}</span> <button class="linkbtn" type="button" data-pdact="ev:${esc(i.id)}">Use this</button></div>`:""}`:""}
+        </div></div>`;
+    });
+    h+=`<div class="pd-grid">
+      <label><span class="req">Reaction plan decided by</span>${inp("rv:planBy",R.planBy,R.stage!=="plan")}</label>
+      ${si>=2?`<label><span class="req">Effect verified by</span>${inp("rv:checkBy",R.checkBy,R.stage!=="check")}</label>`:""}
+      ${si>=3?`<h4>Act: standardise and approve</h4>
+        <div class="wide pd-docs">${DOCS.map(d=>`<label><input type="checkbox" data-pd="doc:${esc(d)}" ${(R.docs||[]).includes(d)?"checked":""}${dis(R.stage!=="act")}>${esc(d)}</label>`).join("")}</div>
+        <label class="wide"><span>Lessons learned / what was standardised</span>${area("rv:lessons",R.lessons,R.stage!=="act")}</label>
+        <label><span class="req">Approved by</span>${inp("rv:apprBy",R.apprBy,R.stage!=="act")}</label>
+        <label><span class="req">Role</span>${sel("rv:apprRole",R.apprRole,["Quality Manager","HT Manager","Director"],R.stage!=="act")}</label>`:""}
+    </div>
+    ${R.log.length?`<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">History (${R.log.length})</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${R.log.map(x=>`<li>${esc(fmtD(Date.parse(x.d+"T00:00:00Z")))} — ${esc(x.t)}</li>`).join("")}</ul></details>`:""}
+    <div class="pd-foot"><span class="msg" id="pdMsg">${esc(PD_MSG)}</span>
+      ${R.stage==="plan"&&R.cycle===1?`<button class="btn ghost" type="button" data-pdact="delete">Delete review</button>`:""}
+      ${R.stage==="act"&&pdAct(R).some(i=>i.res==="not")?`<button class="btn ghost" type="button" data-pdact="replan">Re-plan actions that were not effective</button>`:""}
+      ${closed?"":`<button class="btn" type="button" data-pdact="advance">${{plan:"Confirm reaction plan → Do",do:"Actions done → Check",check:"Effect verified → Act",act:"Approve and close"}[R.stage]}</button>`}</div>`;
+  }
+  /* register of all reviews */
+  const all=pdAll().slice().sort((a,b)=>a.day1<b.day1?1:a.day1>b.day1?-1:a.id<b.id?1:-1);
+  if(all.length) h+=`<h3 style="margin:18px 0 6px;font-size:14px">Review register</h3><div class="scroll"><table class="log"><thead><tr><th>Review</th><th>Furnace</th><th>Record</th><th>Stage</th><th>Actions</th><th>Overdue</th><th></th></tr></thead><tbody>${
+    all.map(x=>`<tr><td><b>${esc(x.id)}</b>${x.example?' <span class="muted small">example</span>':""}</td><td>${esc(x.fkey)}${x.link?`<br><span class="muted small">${esc(x.link.f)} · ${esc(x.link.ch)}</span>`:""}</td><td class="n">${esc(fmtD(Date.parse(x.day0+"T00:00:00Z")))}</td>
+      <td>${chip(x.stage==="closed"?"good":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<span class="bad">${pdOverdue(x).length}</span>`:"0"}</td>
+      <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td></tr>`).join("")}</tbody></table></div>`;
+  body.innerHTML=h;
+}
+/* printable reaction plan inside the report */
+function pdPrint(D){
+  const R=pdForRecord();
+  const head=`<div class="sec-head"><h2>Reaction plan (review PDCA)</h2><p>${R?`${esc(R.id)} · stage ${PD_NM[R.stage]}${R.cycle>1?" · cycle "+R.cycle:""}${R.planBy?" · plan decided by "+esc(R.planBy):""}${R.checkBy?" · verified by "+esc(R.checkBy):""}${R.apprBy?" · approved by "+esc(R.apprBy)+" ("+esc(R.apprRole||"")+")":""}`:"No review has been recorded for this record."}</p></div>`;
+  if(!R) return `<section class="panel print-only">${head}</section>`;
+  const dec={adopt:"Adopted",modify:"Changed",none:"No action"};
+  return `<section class="panel print-only">${head}<table class="log"><thead><tr><th>#</th><th>Issue</th><th>Decision and reaction plan</th><th>Owner</th><th>Due</th><th>Done</th><th>Effective</th></tr></thead><tbody>${
+    R.items.map(i=>`<tr><td>${esc(i.id)} ${esc(i.pr)}</td><td>${esc(i.issue)}</td><td><b>${dec[i.dec]||"Not decided"}</b>: ${esc(i.plan||"")}${i.dispo?`<br>Product: ${esc(i.dispo)}`:""}</td><td>${esc(i.owner||"–")}</td><td class="n">${i.due?esc(fmtD(Date.parse(i.due+"T00:00:00Z"))):"–"}</td>
+      <td>${i.doneDate?esc(fmtD(Date.parse(i.doneDate+"T00:00:00Z")))+": "+esc(i.doneNote||""):"–"}</td><td>${i.res==="effective"?"Effective":i.res==="not"?"Not effective":"–"}${i.evid?`<br><span class="muted">${esc(i.evid)}</span>`:""}</td></tr>`).join("")}</tbody></table>
+    ${R.docs&&R.docs.length?`<p class="small">Standardised: ${esc(R.docs.join(", "))}${R.lessons?" · "+esc(R.lessons):""}</p>`:""}</section>`;
+}
+(()=>{
+  const panel=$("#pdcaPanel");
+  panel.addEventListener("change",e=>{
+    const el=e.target, id=el.dataset.pd; if(!id) return;
+    const R=pdGet(PD_CUR)||pdForRecord(); if(!R) return;
+    PD_MSG="";
+    if(id.startsWith("rv:")) R[id.slice(3)]=el.value;
+    else if(id.startsWith("doc:")){ const d=id.slice(4); R.docs=(R.docs||[]).filter(x=>x!==d); if(el.checked) R.docs.push(d); }
+    else{ const [,iid,f]=id.split(":"), i=R.items.find(x=>x.id===iid); if(!i) return; i[f]=el.value;
+      if(f==="dec"){ if(i.dec==="adopt"){ i.plan=i.suggested; i.owner=i.owner||i.sugOwner; i.due=i.due||addDay(todayISO(),i.sugDays); }
+        else if(i.dec==="modify"){ i.owner=i.owner||i.sugOwner; i.due=i.due||addDay(todayISO(),i.sugDays); if(i.plan===i.suggested) i.plan=i.suggested; }
+        else if(i.dec==="none"){ i.plan=""; i.owner=""; i.due=""; }
+        pdSave(); renderPdca(); return; } }
+    pdSave();
+  });
+  panel.addEventListener("click",e=>{
+    const b=e.target.closest("[data-pdact]"); if(!b) return;
+    const a=b.dataset.pdact, R=pdGet(PD_CUR)||pdForRecord();
+    if(a==="start") return pdStart();
+    if(a.startsWith("open:")){ PD_CUR=a.slice(5); PD_MSG=""; renderPdca(); return; }
+    if(!R) return;
+    if(a==="advance"){ PD_MSG=pdAdvance(R); pdSave(); renderPdca(); if(!PD_MSG&&DATA) run(); }
+    else if(a==="replan"){ pdReplan(R); PD_MSG=""; pdSave(); renderPdca(); }
+    else if(a==="delete"){ if(!confirm(`Delete review ${R.id}?`)) return; PD.reviews=PD.reviews.filter(x=>x!==R); PD_MEM=PD_MEM.filter(x=>x!==R); PD_CUR=null; pdSave(); renderPdca(); if(DATA) run(); }
+    else if(a.startsWith("ev:")){ const i=R.items.find(x=>x.id===a.slice(3)); if(i){ i.evid=pdEvidence(R,i); pdSave(); renderPdca(); } }
+    else if(a==="sat"&&HTQ&&R.link) HTQ.go("sat",{view:R.link});
+  });
+})();
 
 /* ---------- file loading ---------- */
 function loadBuffer(buf,name){
@@ -1725,7 +1941,7 @@ function loadBuffer(buf,name){
       try{ D=parseAOA(aoa); break; }catch(e){ firstErr=firstErr||e; }
     }
     if(!D) throw firstErr||new Error("No usable sheet found.");
-    DATA=D; FILE=name; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed");
+    DATA=D; FILE=name; PD_CUR=null; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed");
   }catch(err){ $("#out").innerHTML=`<div class="panel error"><b>${esc(name)} couldn't be analysed.</b> ${esc(err.message)}</div>`; }
 }
 $("#loadBtn").addEventListener("click",()=>$("#file").click());
@@ -1746,7 +1962,7 @@ $("#copyBtn").addEventListener("click",()=>{
 });
 
 /* ---------- start ---------- */
-function loadSample(){ try{ DATA=parseAOA(SAMPLE); FILE=SAMPLE_NAME+" (example)"; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed"); }catch(e){ $("#out").innerHTML=`<div class="panel error">${esc(e.message)}</div>`; } }
+function loadSample(){ try{ DATA=parseAOA(SAMPLE); FILE=SAMPLE_NAME+" (example)"; PD_CUR=null; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed"); }catch(e){ $("#out").innerHTML=`<div class="panel error">${esc(e.message)}</div>`; } }
 function landing(){
   $("#out").innerHTML=`<section class="panel landing">
     <div class="eyebrow">Daily report</div>
@@ -1758,7 +1974,9 @@ function landing(){
   if(SAMPLE) $("#landEx").addEventListener("click",loadSample);
 }
 if(IN_FRAME&&SAMPLE) loadSample(); else landing();
-renderLink();
+renderLink(); renderPdca();
+/* offered to the suite once everything above is defined */
+if(HTQ)HTQ.provide("scada",{pdca:()=>({open:pdAll().filter(r=>r.stage!=="closed"&&!r.example).length,overdue:pdAll().filter(r=>!r.example).reduce((a,r)=>a+pdOverdue(r).length,0)}),record:()=>DATA?{rows:DATA.rows,n:DATA.n,file:FILE,link:link(),t0:DATA.rows[0].t,t1:DATA.rows[DATA.rows.length-1].t}:null,tcName});
 </script>
 
 </body></html>

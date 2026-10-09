@@ -340,7 +340,11 @@ const CHCODE={Hardening:"H",Tempering:"T"};
 const defFurnaces=()=>["F-01","F-02","F-03","F-04"].map(id=>({id,name:""}));
 /* sensor ids are internal and stay fixed; screens show furnace · chamber · tag */
 const sensorId=(f,ch,tag,list)=>{let b=`${f}-${CHCODE[ch]||String(ch)[0]}-${tag}`,id=b,n=2;while((list||[]).some(x=>x.id===id))id=b+"-"+n++;return id;};
-const tcSet=(f,ch)=>[1,2,3,4,5,6].map(i=>({id:sensorId(f,ch,"TC"+i),furnace:f,chamber:ch,tag:"TC"+i,zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:TC_TYPE,use:"Control + record",serial:"",installed:"",active:true}));
+/* odd-numbered thermocouples are on the left wall, even-numbered on the right */
+const tcNo=t=>{const m=String(t||"").match(/(\d+)\s*$/);return m?+m[1]:null;};
+const tcTag=i=>"TC-"+String(i).padStart(2,"0");
+const wallClash=x=>{const n=tcNo(x.tag);if(n==null||!x.pos)return "";const want=n%2?"left":"right";return new RegExp(want,"i").test(x.pos)?"":`${x.tag} is ${n%2?"odd":"even"}-numbered: ${want} wall expected`;};
+const tcSet=(f,ch)=>[1,2,3,4,5,6].map(i=>({id:sensorId(f,ch,"TC"+i),furnace:f,chamber:ch,tag:tcTag(i),zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:TC_TYPE,use:"Control + record",serial:"",installed:"",active:true}));
 const defSensors=()=>defFurnaces().flatMap(f=>CHAMBERS.flatMap(ch=>tcSet(f.id,ch)));
 const blank=()=>({v:2,settings:{...DEF},furnaces:defFurnaces(),sensors:defSensors(),cycles:[],repl:[],seq:1,rseq:1});
 function normalize(o){
@@ -357,7 +361,7 @@ function normalize(o){
     o.v=2;
   }
   o.repl=Array.isArray(o.repl)?o.repl.filter(r=>r&&r.id&&r.sensor):[];
-  o.sensors.forEach(s=>{s.type=TC_TYPE;});o.repl.forEach(r=>{r.newType=TC_TYPE;if(OLD_REASONS[r.reason])r.reason=OLD_REASONS[r.reason];});
+  o.sensors.forEach(s=>{s.type=TC_TYPE;if(/^TC-?\d$/i.test(s.tag))s.tag=tcTag(tcNo(s.tag));}); /* TC1 / TC-1 → TC-01 */o.repl.forEach(r=>{r.newType=TC_TYPE;if(OLD_REASONS[r.reason])r.reason=OLD_REASONS[r.reason];});
   o.rseq=Math.max(+o.rseq||1,...o.repl.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
   o.cycles=o.cycles.filter(c=>c&&c.id&&STAGES.includes(c.stage)).map(c=>({plan:{},do:{},check:{},act:{},log:[],...c}));
   o.seq=Math.max(+o.seq||1,...o.cycles.map(c=>+(String(c.id).match(/\d+/)||[0])[0]+1));
@@ -727,7 +731,7 @@ function drawSettings(){
     DB.sensors.map((x,i)=>({x,i})).filter(o=>inView(o.x)).sort((a,b)=>sOrder(a.x,b.x)).map(({x,i})=>`<tr>
       <td><select data-sn="${i}" data-k="furnace" aria-label="furnace">${opt(DB.furnaces.map(f=>f.id),x.furnace)}</select></td>
       <td><select data-sn="${i}" data-k="chamber" aria-label="chamber">${opt(CHAMBERS,x.chamber)}</select></td>
-      ${["tag","zone","pos","use","serial"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.tag)}" ${k==="serial"&&replOf(x.id).length?'title="Set by the latest replacement record"':""}></td>`).join("")}
+      ${["tag","zone","pos","use","serial"].map(k=>`<td><input data-sn="${i}" data-k="${k}" value="${esc(x[k]||"")}" aria-label="${k} of ${esc(x.tag)}" ${k==="serial"&&replOf(x.id).length?'title="Set by the latest replacement record"':""}>${k==="pos"&&wallClash(x)?`<span class="caution" style="font-size:11.5px">${esc(wallClash(x))}</span>`:""}</td>`).join("")}
       <td><input type="date" data-sn="${i}" data-k="installed" value="${esc(x.installed||"")}" aria-label="installed"></td>
       <td><input type="checkbox" data-sn="${i}" data-k="active" ${x.active!==false?"checked":""} aria-label="active"></td>
       <td>${DB.cycles.some(c=>c.sensor===x.id)||DB.repl.some(r=>r.sensor===x.id)?`<span class="muted" style="font-size:12px">has records</span>`:`<button class="btn danger small" data-delsn="${i}">Remove</button>`}</td></tr>`).join("")}</tbody></table>`;
@@ -951,7 +955,7 @@ document.addEventListener("click",e=>{
   else if(id==="b-clear"){if(confirm("Delete all SAT records and reset settings? Export a backup first if you need one.")){DB=blank();save();render();}}
   else if(id==="b-addsensor"){
     const f=VIEW.f||DB.furnaces[0]?.id||"F-01",ch=VIEW.ch||"Hardening";
-    const v=prompt(`New thermocouple tag in ${f} · ${ch} chamber (e.g. TC7, OTC-1). Change furnace or chamber in the table afterwards if needed.`);
+    const v=prompt(`New thermocouple tag in ${f} · ${ch} chamber (e.g. TC-07). Change furnace or chamber in the table afterwards if needed.`);
     if(v&&v.trim()){const tag=v.trim();if(DB.sensors.some(x=>x.furnace===f&&x.chamber===ch&&x.tag===tag))alert(`${tag} already exists in ${f} · ${ch}.`);
       else{DB.sensors.push({id:sensorId(f,ch,tag,DB.sensors),furnace:f,chamber:ch,tag,zone:"",pos:"",type:TC_TYPE,use:"Control + record",serial:"",installed:"",active:true});save();render();}}}
   else if(id==="b-addfurnace"){const v=prompt("New furnace ID (e.g. F-05):");if(v&&v.trim()){const fid=v.trim();if(DB.furnaces.some(f=>f.id===fid))alert(fid+" already exists.");
@@ -1107,7 +1111,7 @@ function example(){
 }
 
 /* ---------- link to the SCADA review (Heat Treat Quality Suite only) ---------- */
-const tagNo=sn=>(parseInt(String(sn?.tag||"").replace(/\D/g,""),10)||0)-1; /* TC3 → column 2 of the SCADA record */
+const tagNo=sn=>(tcNo(sn?.tag)||0)-1; /* TC3 → column 2 of the SCADA record */
 function scadaHint(){
   const rec=HTQ&&HTQ.api("scada")&&HTQ.api("scada").record();
   if(!rec) return "No SCADA record is loaded. Load the export that covers this test on the SCADA review page to fill the furnace readings from it.";
@@ -1151,11 +1155,10 @@ function elementAt(id,day){
 }
 if(HTQ){
   $("#b-theme").hidden=true; /* the suite's navigation bar switches the theme of both pages */
-  const norm=t=>String(t||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
   const NOW={none:"No SAT on record",fail:"Last SAT failed — re-SAT required",repl:"Replaced — SAT required",overdue:"SAT overdue",soon:"SAT due soon",ok:"SAT in date"};
   HTQ.provide("sat",{
     furnaces:()=>DB.furnaces.map(f=>f.id),
-    find:(f,ch,tag)=>DB.sensors.find(x=>x.furnace===f&&x.chamber===ch&&norm(x.tag)===norm(tag))||null,
+    find:(f,ch,tag)=>DB.sensors.find(x=>x.furnace===f&&x.chamber===ch&&tcNo(x.tag)!=null&&tcNo(x.tag)===tcNo(tag))||null, /* by number: TC3, TC-3 and TC-03 match PV-3 */
     name:id=>sLabel(id),
     repl:id=>replOf(id).map(r=>({...r})),
     statusAt,elementAt,
