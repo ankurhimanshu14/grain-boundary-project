@@ -340,13 +340,13 @@ const CHCODE={Hardening:"H",Tempering:"T"};
 const defFurnaces=()=>["F-01","F-02","F-03","F-04"].map(id=>({id,name:""}));
 /* sensor ids are internal and stay fixed; screens show furnace · chamber · tag */
 const sensorId=(f,ch,tag,list)=>{let b=`${f}-${CHCODE[ch]||String(ch)[0]}-${tag}`,id=b,n=2;while((list||[]).some(x=>x.id===id))id=b+"-"+n++;return id;};
-/* odd-numbered thermocouples are on the left wall, even-numbered on the right */
+/* odd-numbered thermocouples (TC-01, TC-03 …) are on the right wall, even-numbered (TC-02, TC-04 …) on the left */
 const tcNo=t=>{const m=String(t||"").match(/(\d+)\s*$/);return m?+m[1]:null;};
 const tcTag=i=>"TC-"+String(i).padStart(2,"0");
-const wallClash=x=>{const n=tcNo(x.tag);if(n==null||!x.pos)return "";const want=n%2?"left":"right";return new RegExp(want,"i").test(x.pos)?"":`${x.tag} is ${n%2?"odd":"even"}-numbered: ${want} wall expected`;};
-const tcSet=(f,ch)=>[1,2,3,4,5,6].map(i=>({id:sensorId(f,ch,"TC"+i),furnace:f,chamber:ch,tag:tcTag(i),zone:"Zone "+Math.ceil(i/2),pos:i%2?"Left wall":"Right wall",type:TC_TYPE,use:"Control + record",serial:"",installed:"",active:true}));
+const wallClash=x=>{const n=tcNo(x.tag);if(n==null||!x.pos)return "";const want=n%2?"right":"left";return new RegExp(want,"i").test(x.pos)?"":`${x.tag} is ${n%2?"odd":"even"}-numbered: ${want} wall expected`;};
+const tcSet=(f,ch)=>[1,2,3,4,5,6].map(i=>({id:sensorId(f,ch,"TC"+i),furnace:f,chamber:ch,tag:tcTag(i),zone:"Zone "+Math.ceil(i/2),pos:i%2?"Right wall":"Left wall",type:TC_TYPE,use:"Control + record",serial:"",installed:"",active:true}));
 const defSensors=()=>defFurnaces().flatMap(f=>CHAMBERS.flatMap(ch=>tcSet(f.id,ch)));
-const blank=()=>({v:2,settings:{...DEF},furnaces:defFurnaces(),sensors:defSensors(),cycles:[],repl:[],seq:1,rseq:1});
+const blank=()=>({v:3,settings:{...DEF},furnaces:defFurnaces(),sensors:defSensors(),cycles:[],repl:[],seq:1,rseq:1});
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.cycles)||!Array.isArray(o.sensors)) return null;
   o.settings={...DEF,...(o.settings||{})};
@@ -355,11 +355,14 @@ function normalize(o){
   o.sensors.forEach(s=>{s.furnace=s.furnace||"F-01";s.chamber=s.chamber||"Hardening";s.tag=s.tag||s.id;});
   o.furnaces=Array.isArray(o.furnaces)&&o.furnaces.length?o.furnaces.filter(f=>f&&f.id):defFurnaces();
   o.sensors.forEach(s=>{if(!o.furnaces.some(f=>f.id===s.furnace))o.furnaces.push({id:s.furnace,name:""});});
+  if(!(o.v>=3)){ /* earlier versions put odd-numbered TCs on the left wall by default; swap positions that still carry that default */
+    o.sensors.forEach(s=>{const n=tcNo(s.tag);if(n==null)return;const old=n%2?"left wall":"right wall";if(String(s.pos||"").trim().toLowerCase()===old)s.pos=n%2?"Right wall":"Left wall";});
+  }
   if(!(o.v>=2)){ /* first load after furnaces were added: give every furnace/chamber without thermocouples the default six */
     o.furnaces.forEach(f=>CHAMBERS.forEach(ch=>{if(!o.sensors.some(s=>s.furnace===f.id&&s.chamber===ch))tcSet(f.id,ch).forEach(x=>{x.id=sensorId(f.id,ch,x.tag,o.sensors);o.sensors.push(x);});}));
     if(o.settings.plant==="Pusher furnace")o.settings.plant=DEF.plant;
-    o.v=2;
   }
+  o.v=3;
   o.repl=Array.isArray(o.repl)?o.repl.filter(r=>r&&r.id&&r.sensor):[];
   o.sensors.forEach(s=>{s.type=TC_TYPE;if(/^TC-?\d$/i.test(s.tag))s.tag=tcTag(tcNo(s.tag));}); /* TC1 / TC-1 → TC-01 */o.repl.forEach(r=>{r.newType=TC_TYPE;if(OLD_REASONS[r.reason])r.reason=OLD_REASONS[r.reason];});
   o.rseq=Math.max(+o.rseq||1,...o.repl.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));

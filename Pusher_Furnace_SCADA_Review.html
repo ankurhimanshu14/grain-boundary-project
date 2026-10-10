@@ -462,8 +462,12 @@ function parseAOA(aoa){
 }
 
 /* ---------- analysis ---------- */
-const tcName=k=>`TC-${pad(k+1)}`; /* odd-numbered TCs are on the left wall, even-numbered on the right */
-const tcLoc=k=>`Zone ${Math.floor(k/2)+1} · ${k%2===0?"left":"right"} wall`;
+const tcName=k=>`TC-${pad(k+1)}`;
+/* wall layout: odd-numbered TCs (TC-01, TC-03 …, index k even) are on the right wall, even-numbered (TC-02, TC-04 …, k odd) on the left */
+const isLeft=k=>k%2===1;
+const wallOf=k=>isLeft(k)?"left":"right";
+const wallCol=k=>isLeft(k)?"var(--s1)":"var(--s2)"; /* s1 = left wall, s2 = right wall, as in the chart legend */
+const tcLoc=k=>`Zone ${Math.floor(k/2)+1} · ${wallOf(k)} wall`;
 function quant(sorted,q){ if(!sorted.length) return null; const p=(sorted.length-1)*q, lo=Math.floor(p), hi=Math.ceil(p); return sorted[lo]+(sorted[hi]-sorted[lo])*(p-lo); }
 function mode(arr){ const m=new Map(); let best=null,bc=0; arr.forEach(v=>{ if(v==null) return; const c=(m.get(v)||0)+1; m.set(v,c); if(c>bc){bc=c;best=v;} }); return best; }
 
@@ -635,7 +639,7 @@ function analyze(D){
   events.forEach(e=>{
     e.min=(e.tEnd-e.tStart+step)/60000;
     e.outMin=e.count*step/60000;
-    e.scope=e.walls.size>1?"Both walls":(e.walls.has(e.z*2)?"Left wall only":"Right wall only");
+    e.scope=e.walls.size>1?"Both walls":(isLeft([...e.walls][0])?"Left wall only":"Right wall only");
     // window in which product sitting in this zone is exposed to the out-of-tolerance temperature
     e.aff=e.affFrom!=null; e.proc=[...e.procs].join(" / "); e.whyTxt=[...e.why].join("; ");
     e.winFrom=e.aff?e.affFrom:null; e.winTo=e.aff?e.affTo+step:null; e.posFrom=posStart(e.z); e.posTo=posStart(e.z)+traysIn(e.z)-1;
@@ -654,8 +658,8 @@ function analyze(D){
   // zones
   const zones=[];
   for(let z=0;z*2<n;z++){
-    const L=z*2,R=z*2+1;
-    if(R>=n){ zones.push({z,L,R:null}); continue; }
+    const L=z*2+1,R=z*2; /* left wall = even-numbered TC, right wall = odd-numbered TC */
+    if(L>=n){ zones.push({z,L:R,R:null}); continue; } /* a zone with one thermocouple keeps it in L */
     let sum=0,c=0,mx=0,tmx=null;
     rows.forEach(r=>{ const a=r.ev[L],b=r.ev[R]; if(a==null||b==null) return; const d=a-b; sum+=Math.abs(d); c++; if(Math.abs(d)>Math.abs(mx)){mx=d;tmx=r.t;} });
     zones.push({z,L,R,diffMean:c?sum/c:null,diffMax:mx,diffT:tmx,ev:events.filter(e=>e.z===z)});
@@ -780,7 +784,7 @@ function statSection(A){
   const pv=a=>!a?"–":a.p<0.001?"< 0.001":a.p.toFixed(3);
   const capC=v=>v==null?"":v>=1.33?"ok":v>=1?"caution":"bad";
   const tables=P=>{
-    const head=`<tr><th></th>${P.map(s=>`<th><span class="sw" style="background:${s.k%2?"var(--s2)":"var(--s1)"}"></span>${tcName(s.k)} <span class="muted">Z${Math.floor(s.k/2)+1} ${s.k%2?"R":"L"}</span></th>`).join("")}</tr>`;
+    const head=`<tr><th></th>${P.map(s=>`<th><span class="sw" style="background:${wallCol(s.k)}"></span>${tcName(s.k)} <span class="muted">Z${Math.floor(s.k/2)+1} ${isLeft(s.k)?"L":"R"}</span></th>`).join("")}</tr>`;
     const r=(lab,fn,cls)=>`<tr><td>${lab}</td>${P.map(s=>`<td class="n ${cls?cls(s):""}">${fn(s)}</td>`).join("")}</tr>`;
     const desc=`<table class="log stat">${head}
     ${r("Set value, °C",s=>f0(s.sp))}
@@ -865,7 +869,7 @@ function histSVG(s,A){
   const pdf=x=>s.sd>0?s.N*bw*Math.exp(-0.5*((x-s.mean)/s.sd)**2)/(s.sd*Math.sqrt(2*Math.PI)):0;
   const ymax=Math.max(...cnt,pdf(s.mean))*1.08||1;
   const X=v=>l+(v-lo)/(hi-lo)*(W-l-r), Y=c=>H-b-(c/ymax)*(H-b-t0);
-  const col=s.k%2?"var(--s2)":"var(--s1)";
+  const col=wallCol(s.k);
   let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tcName(s.k)} histogram">`;
   g+=`<text x="${l}" y="14" font-family="var(--sans)" font-size="12.5" font-weight="600" fill="var(--ink)">${tcName(s.k)} · ${tcLoc(s.k)}${A.multiSet?` · set ${f0(s.sp)}`:""}</text>`;
   g+=`<rect x="${X(s.LSL)}" y="${t0}" width="${X(s.USL)-X(s.LSL)}" height="${H-b-t0}" fill="var(--band)"/>`;
@@ -882,7 +886,7 @@ function histSVG(s,A){
 function ichartSVG(s,A){
   const W=340,H=180,l=34,r=10,t0=26,b=22, S_=s.sc, lo=S_.yLo, hi=S_.yHi, T0=A.t0, T1=A.t1;
   const X=t=>l+(t-T0)/Math.max(1,T1-T0)*(W-l-r), Y=v=>t0+(hi-v)/(hi-lo)*(H-b-t0);
-  const col=s.k%2?"var(--s2)":"var(--s1)";
+  const col=wallCol(s.k);
   let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${tcName(s.k)} individuals chart">`;
   g+=`<text x="${l}" y="14" font-family="var(--sans)" font-size="12.5" font-weight="600" fill="var(--ink)">${tcName(s.k)} · ${tcLoc(s.k)}${A.multiSet?` · set ${f0(s.sp)}`:""}</text>`;
   g+=`<rect x="${l}" y="${Y(s.USL)}" width="${W-l-r}" height="${Y(s.LSL)-Y(s.USL)}" fill="var(--band)"/>`;
@@ -918,7 +922,7 @@ function observations(D,A){
     if(t.sp!=null&&Math.abs(b)>tol/2){
       O.push({lvl:Math.abs(b)>tol?"crit":"warn",tag:"Bias",title:`${tcName(t.k)} (${tcLoc(t.k)}) averages ${f1(Math.abs(b))} °C ${b<0?"below":"above"} setpoint`,
         detail:`${f1(t.inTolPct)} % of its readings are within ±${tol} °C; standard deviation ${f1(t.sdDev)} °C about the set value. A steady offset of this size points to a systematic cause (sensor drift, placement, burner balance) rather than normal cycling.`,
-        action:`Check this TC against the last SAT result and the control thermocouple; confirm it is within its use-life and correctly placed. Inspect the ${t.k%2===0?"left":"right"}-wall burner (air/gas ratio, flame, blockage) and review the zone's last TUS.`});
+        action:`Check this TC against the last SAT result and the control thermocouple; confirm it is within its use-life and correctly placed. Inspect the ${wallOf(t.k)}-wall burner (air/gas ratio, flame, blockage) and review the zone's last TUS.`});
     }
     if(t.cpk!=null&&t.cpk<1&&Math.abs(b)<=tol/2) O.push({lvl:"warn",tag:"Variation",title:`${tcName(t.k)} varies too much for the ±${tol} °C window (Ppk ${t.cpk.toFixed(2)})`,
       detail:`Standard deviation ${f1(t.sdDev)} °C about the set value against a ${2*tol} °C total tolerance.`,action:`Review controller tuning (PID) and burner turndown for this zone; check whether dips line up with tray pushes.`});
@@ -950,7 +954,7 @@ function observations(D,A){
   if(spc.length) O.push({lvl:"info",tag:"Setpoint",title:`Set value changed during the record: ${A.multiSet?spTxt(A.setLevels):spc.map(t=>tcName(t.k)).join(", ")}`,detail:(A.setSegs.length>1?`Set values in time order: ${A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → ")}. `:"")+spc.map(t=>t.spChanges.slice(0,3).map(c=>`${tcName(t.k)} ${f0(c.from)}→${f0(c.to)} °C at ${fmtDT(c.t)}`).join("; ")).join("; "),action:`Confirm each change matches an approved process specification and was authorised.`});
   A.trans.filter(x=>x.reachedAt==null&&!x.ended&&!x.superseded).forEach(x=>O.push({lvl:"warn",tag:"Set change",title:`${tcName(x.k)} did not reach ${x.start?"its set value":"the new set value"} ${f0(x.to)} °C within ${S.settle} min of ${x.start?"furnace start":"the change"}`,
     detail:`${x.start?"Furnace started":"Set value changed "+f0(x.from)+" → "+f0(x.to)+" °C"} at ${fmtDT(x.t)}; the thermocouple was not within ±${tol} °C of it ${S.settle} min later, so readings after that are judged and count as out of tolerance.`,
-    action:`Check burner capacity, gas supply and control loop response on the ${x.k%2?"right":"left"} wall of Zone ${Math.floor(x.k/2)+1}; confirm the change is achievable in the time allowed. Lengthen the settling time only with the process owner's approval.`}));
+    action:`Check burner capacity, gas supply and control loop response on the ${wallOf(x.k)} wall of Zone ${Math.floor(x.k/2)+1}; confirm the change is achievable in the time allowed. Lengthen the settling time only with the process owner's approval.`}));
   const slow=A.trans.filter(x=>x.reachedAt!=null); if(slow.length) O.push({lvl:"info",tag:"Set change",title:`Response to set value changes: ${slow.map(x=>`${tcName(x.k)} ${x.start?"start":f0(x.from)}→${f0(x.to)} °C in ${dur(x.mins)}`).join("; ")}`,detail:`Readings during these periods are not judged (${fmtN(A.settlingTotal)} readings in total).`,action:`Compare the response time with previous days; a growing time points to weakening burners or a fouled thermocouple.`});
   A.repl.filter(r=>r.inRec).forEach(r=>O.push({lvl:(r.shiftRel!=null?Math.abs(r.shiftRel):r.shift!=null?Math.abs(r.shift):0)>A.tol/2?"warn":"info",tag:"Replacement",title:`${tcName(r.k)} replaced at ${fmtDT(r.t)}, new ID ${r.id}`,
     detail:r.shift!=null?`Mean deviation from the set value ${sgn(r.before.mean)} °C before and ${sgn(r.after.mean)} °C after.${r.shiftRel!=null?` Compared with ${tcName(r.partner)} the difference changed by ${sgn(r.shiftRel)} °C.`:""}${r.note?" Note: "+r.note+".":""}`:`Too few readings on one side to compare before and after.${r.note?" Note: "+r.note+".":""}`,
@@ -1031,7 +1035,7 @@ function render(D,A,O){
     <div class="sec-head"><div><h2>Temperature trend by zone</h2><p style="margin:2px 0 0;color:var(--ink2);font-size:13px">Same time axis and the same fixed temperature scale on every zone, so the charts can be compared directly.</p></div>
       <div class="legend"><span><i class="lg-line" style="background:var(--s1)"></i>Left wall</span><span><i class="lg-line" style="background:var(--s2)"></i>Right wall</span><span><i class="lg-dash"></i>Setpoint</span><span><i class="lg-band"></i>±${tol} °C window</span><span><i class="lg-dot"></i>Out of tolerance</span>${A.repl.some(r=>r.inRec)?`<span><i class="lg-dash"></i>Thermocouple replaced</span>`:""}${A.trans.length||A.run.offRows?`<span><i class="lg-band" style="background:var(--grid);border-color:var(--line)"></i>Furnace off / settling to set value (not judged)</span>`:""}</div>
     </div>
-    <div class="trend">${A.zones.map(z=>`<div class="trend-row"><h3>Zone ${z.z+1} <span class="muted">${tcName(z.L)} left${z.R!=null?` · ${tcName(z.R)} right`:""} · ${(rf=>rf.levels.length>1?"set values "+spTxt(rf.levels):"setpoint "+f0(rf.sp)+" °C")(refTC(z,A))} · ${traysIn(z.z)} trays</span></h3><div class="cbox"><canvas id="c${z.z}" role="img" aria-label="Zone ${z.z+1} temperature trend"></canvas></div></div>`).join("")}</div>
+    <div class="trend">${A.zones.map(z=>`<div class="trend-row"><h3>Zone ${z.z+1} <span class="muted">${tcName(z.L)} ${wallOf(z.L)}${z.R!=null?` · ${tcName(z.R)} right`:""} · ${(rf=>rf.levels.length>1?"set values "+spTxt(rf.levels):"setpoint "+f0(rf.sp)+" °C")(refTC(z,A))} · ${traysIn(z.z)} trays</span></h3><div class="cbox"><canvas id="c${z.z}" role="img" aria-label="Zone ${z.z+1} temperature trend"></canvas></div></div>`).join("")}</div>
   </section>
 
   ${responseSection(A)}
@@ -1084,7 +1088,7 @@ function render(D,A,O){
   <footer>
     <b>How the numbers are worked out</b>
     <ul>
-      <li>Thermocouple layout: odd-numbered thermocouples are on the left wall, even-numbered on the right: TC-01/TC-02 = Zone 1 left/right wall, TC-03/TC-04 = Zone 2, TC-05/TC-06 = Zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
+      <li>Thermocouple layout: odd-numbered thermocouples are on the right wall, even-numbered on the left: TC-01/TC-02 = Zone 1 right/left wall, TC-03/TC-04 = Zone 2, TC-05/TC-06 = Zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
       <li>The furnace is one continuous chamber of ${totalPos()} tray positions (Zone 1: positions 1–${traysIn(0)}${A.zones.slice(1).map(z=>`, Zone ${z.z+1}: ${posStart(z.z)}–${posStart(z.z)+traysIn(z.z)-1}`).join("")}). Trays inside a zone while it is out of tolerance are the affected trays; the analysis reports these time windows and uses no push timing. Because there is no partition, a disturbance in one zone also affects its neighbours; the zone split is for control and traceability.</li>
       <li>A zone excursion starts when either wall of a zone reads outside setpoint ±${tol} °C and ends when both walls have stayed inside for more than ${S.merge} min. “Span” is start to end; “Time out” counts only the minutes actually outside the window.</li>
       <li>Capability: USL/LSL = set value ±${tol} °C. When the set value changes during the record, every statistic, histogram and control chart is calculated separately for each set value (readings with fewer than ${MINSTAT} points at a set value are not analysed). Cp = (USL − LSL) / 6σ<sub>within</sub>, Cpk = min(USL − mean, mean − LSL) / 3σ<sub>within</sub>, with σ<sub>within</sub> = average moving range / 1.128. Pp and Ppk use the overall standard deviation instead. Wall difference = |left − right| for simultaneous readings.</li>
@@ -1138,7 +1142,7 @@ function pareto(D,A){
     else if(t.spikes.length>=5){ cause=`Erratic signal (${t.spikes.length} sudden jumps) around a centred mean`; action="Inspect TC junction, terminals and compensating cable; replace if needed"; owner="Maintenance Head"; }
     else if(z===1){ cause="Dips when cold trays are pushed into the charge zone"; action="Compare dips with push times; review Zone 1 heat input and recovery"; owner="HT Manager"; }
     else { cause="Short excursions around a centred mean"; action="Review PID tuning and burner turndown for the zone"; owner="HT Manager"; }
-    return {...o,key,k,short:`${tcName(k)} Z${z} ${k%2?"R":"L"} ${dir}`,label:`${tcName(k)} (${tcLoc(k)}) running ${dir}`,cause,action,owner};
+    return {...o,key,k,short:`${tcName(k)} Z${z} ${isLeft(k)?"L":"R"} ${dir}`,label:`${tcName(k)} (${tcLoc(k)}) running ${dir}`,cause,action,owner};
   });
   const total=items.reduce((a,b)=>a+b.dm,0);
   items.sort((a,b)=>b.dm-a.dm);
@@ -1221,7 +1225,7 @@ function mgmtSection(D,A,O){
   const zoneRows=A.zones.map(z=>{
     const L=A.tcs[z.L], R=z.R!=null?A.tcs[z.R]:null, sides=R?[L,R]:[L], evs=A.events.filter(e=>e.z===z.z);
     const issues=[];
-    sides.forEach(t=>{ if(Math.abs(t.devMean)>tol/2) issues.push(`${t.k%2?"Right":"Left"} wall ${f1(Math.abs(t.devMean))} °C ${t.devMean<0?"low":"high"}`); });
+    sides.forEach(t=>{ if(Math.abs(t.devMean)>tol/2) issues.push(`${isLeft(t.k)?"Left":"Right"} wall ${f1(Math.abs(t.devMean))} °C ${t.devMean<0?"low":"high"}`); });
     sides.forEach(t=>{ if(t.spikes.length>=5) issues.push(`${tcName(t.k)} erratic (${t.spikes.length} jumps)`); });
     const w=A.stats.walls.find(x=>x.z===z.z); if(w&&w.sig&&Math.abs(w.mean)>tol/2&&!issues.length) issues.push(`${w.mean<0?"Left":"Right"} wall colder by ${f1(Math.abs(w.mean))} °C`);
     sides.forEach(t=>{ if(!issues.length&&t.cpk!=null&&t.cpk<1) issues.push(`${tcName(t.k)} unstable (Ppk ${t.cpk.toFixed(2)})`); });
@@ -1351,7 +1355,7 @@ function heatmap(A){
   for(let b=0;b<A.nb;b++){ const t=A.hourStart+b*A.bucketH*36e5; h+=`<th>${MULTI&&A.bucketH>1?fmtDT(t):pad(new Date(t).getUTCHours())}</th>`; }
   h+=`</tr></thead><tbody>`;
   A.heat.forEach((row,k)=>{
-    h+=`<tr><th class="rl">${tcName(k)} <span class="muted">Z${Math.floor(k/2)+1} ${k%2?"R":"L"}</span></th>`;
+    h+=`<tr><th class="rl">${tcName(k)} <span class="muted">Z${Math.floor(k/2)+1} ${isLeft(k)?"L":"R"}</span></th>`;
     row.forEach((c,b)=>{
       if(!c){ h+=`<td title="No judged data (offline or settling)"></td>`; return; }
       const t=Math.min(1,Math.abs(c.m)/lim), bg=mix(mid,c.m<0?lo:hi,t), fg=t>0.55?"#fff":ink;
@@ -1374,10 +1378,10 @@ function rangeChart(A){
   for(let v=mn;v<=mx;v+=st){ s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${top+n*rh}" stroke="${v===0?"var(--muted)":"var(--grid)"}" stroke-width="1" ${v===0?'stroke-dasharray="3 3"':""}/><text x="${x(v)}" y="${top+n*rh+16}" text-anchor="middle" fill="var(--muted)">${v>0?"+":""}${v}</text>`; }
   s+=`<text x="${x(tol)+4}" y="${top+10}" fill="var(--good-ink)" font-size="10">+${tol}</text><text x="${x(-tol)-4}" y="${top+10}" text-anchor="end" fill="var(--good-ink)" font-size="10">−${tol}</text>`;
   A.tcs.forEach((t,i)=>{
-    const y=top+i*rh+rh/2, col=t.k%2?"var(--s2)":"var(--s1)";
+    const y=top+i*rh+rh/2, col=wallCol(t.k);
     if(!t.cnt){ s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">${t.nvalid?"only settling readings, none judged":"no valid reading in 500–1000 °C"}</text>`; return; }
     s+=`<g><title>${tcName(t.k)} ${tcLoc(t.k)}: min ${sgn(t.dmin)}, P5 ${sgn(t.p5)}, mean ${sgn(t.devMean)}, P95 ${sgn(t.p95)}, max ${sgn(t.dmax)} °C</title>`;
-    s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">Z${Math.floor(t.k/2)+1} ${t.k%2?"R":"L"}</text>`;
+    s+=`<text x="0" y="${y+4}" fill="var(--ink)" font-family="var(--sans)" font-size="12">${tcName(t.k)}</text><text x="40" y="${y+4}" fill="var(--muted)" font-size="11">Z${Math.floor(t.k/2)+1} ${isLeft(t.k)?"L":"R"}</text>`;
     s+=`<line x1="${x(t.dmin)}" x2="${x(t.dmax)}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="2" stroke-linecap="round"/>`;
     s+=`<rect x="${x(t.p5)}" y="${y-6}" width="${Math.max(2,x(t.p95)-x(t.p5))}" height="12" rx="3" fill="${col}" opacity=".55"/>`;
     s+=`<circle cx="${x(t.devMean)}" cy="${y}" r="5" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`;
@@ -1400,7 +1404,7 @@ function devChartSvg(D,A,r){
   let g=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Deviation of ${tcName(k)} before and after replacement">`;
   g+=`<rect x="${l}" y="${Y(A.tol)}" width="${W-l-rr}" height="${Y(-A.tol)-Y(A.tol)}" fill="var(--band)"/>`;
   [-lim,0,lim].forEach(v=>{ g+=`<line x1="${l}" x2="${W-rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="${v===0?"var(--muted)":"var(--grid)"}" stroke-dasharray="${v===0?"3 3":""}"/><text x="${l-5}" y="${Y(v)+3}" text-anchor="end" font-size="9.5" fill="var(--muted)">${v>0?"+":""}${Math.round(v)}</text>`; });
-  g+=`<path d="${d}" fill="none" stroke="${k%2?"var(--s2)":"var(--s1)"}" stroke-width="1"/>`;
+  g+=`<path d="${d}" fill="none" stroke="${wallCol(k)}" stroke-width="1"/>`;
   const xr=X(r.t); g+=`<line x1="${xr}" x2="${xr}" y1="${t}" y2="${H-b}" stroke="var(--ink)" stroke-width="1.4" stroke-dasharray="5 3"/><text x="${Math.min(xr+4,W-130)}" y="${t+10}" font-size="10.5" font-weight="600" fill="var(--ink)">replaced · ${esc(r.id)}</text>`;
   [[r.before,A.t0,r.t],[r.after,r.t,A.t1]].forEach(([m,x0,x1])=>{ if(m&&m.mean!=null) g+=`<line x1="${X(Math.max(x0,A.t0))}" x2="${X(Math.min(x1,A.t1))}" y1="${Y(m.mean)}" y2="${Y(m.mean)}" stroke="var(--ink)" stroke-width="2.2" opacity=".85"><title>mean ${sgn(m.mean)} °C</title></line>`; });
   const hrs=(A.t1-A.t0)/36e5, st=hrs>36?12:hrs>12?4:2; for(let h=0;h<=hrs;h+=st){ const tt=A.t0+h*36e5; g+=`<text x="${X(tt)}" y="${H-7}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${fmtT(tt)}</text>`; }
@@ -1578,7 +1582,7 @@ function drawCharts(D,A){
     const settleBand={id:"sb",beforeDatasetsDraw(c){ if(!spans.length) return; const a=c.chartArea, xs_=c.scales.x, g=c.ctx; g.save(); g.fillStyle=grid; g.globalAlpha=.75; spans.forEach(sp=>{ const x0=Math.max(a.left,xs_.getPixelForValue((sp.from-t0)/60000)), x1=Math.min(a.right,xs_.getPixelForValue((sp.to-t0)/60000)); if(x1>x0) g.fillRect(x0,a.top,x1-x0,a.bottom-a.top); }); g.restore(); }};
     const marks=A.repl.filter(r=>r.inRec&&(r.k===L||r.k===R));
     const replMark={id:"rm",afterDatasetsDraw(c){ if(!marks.length) return; const a=c.chartArea, g=c.ctx; g.save(); g.font="11px IBM Plex Mono, monospace"; g.textBaseline="top";
-      marks.forEach((m,i)=>{ const x=c.scales.x.getPixelForValue((m.t-t0)/60000); if(x<a.left||x>a.right) return; const col=m.k%2?c2:c1;
+      marks.forEach((m,i)=>{ const x=c.scales.x.getPixelForValue((m.t-t0)/60000); if(x<a.left||x>a.right) return; const col=isLeft(m.k)?c1:c2;
         g.strokeStyle=col; g.lineWidth=1.5; g.setLineDash([5,3]); g.beginPath(); g.moveTo(x,a.top); g.lineTo(x,a.bottom); g.stroke(); g.setLineDash([]);
         const txt=`${tcName(m.k)} replaced · ${m.id}`, w=g.measureText(txt).width+8, bx=Math.min(a.right-w,x+3), by=a.top+3+i*16;
         g.fillStyle=surf; g.globalAlpha=.9; g.fillRect(bx,by,w,15); g.globalAlpha=1; g.strokeStyle=col; g.lineWidth=1; g.strokeRect(bx,by,w,15); g.fillStyle=cssv("--ink"); g.fillText(txt,bx+4,by+2); });
