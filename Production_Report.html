@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Production Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --h:#d9822b;--t:#2a78d6;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;--h:#f0a050;--t:#5a9cf0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;--h:#f0a050;--t:#5a9cf0;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:80ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:22px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}.kpi .s{font-size:12px;color:var(--ink2)}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label,.lab{font-size:12px;color:var(--ink2)}
+input,select,textarea{font:inherit;font-size:13.5px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);min-width:0}
+input[type=number]{font-family:var(--mono)}
+input:disabled,select:disabled,textarea:disabled{opacity:.75}
+.req::after{content:" *";color:var(--crit-ink)}
+.controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end}
+/* batch cards */
+.batch{border:1px solid var(--line);border-left:5px solid var(--k,var(--line));border-radius:6px;background:var(--surface);padding:10px 12px;margin-bottom:10px}
+.batch-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;margin-bottom:8px}
+.batch-h b{font-size:14px}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 12px}
+.bgrid .field input,.bgrid .field select{width:100%}
+.calc{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:8px;font-size:13px;background:var(--surface2);border-radius:4px;padding:6px 10px}
+.calc span b{font-family:var(--mono);font-weight:500}
+.issues{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.issues .chip{white-space:normal;align-items:flex-start;border-radius:10px;padding-block:2px}.issues .chip i{flex:none;margin-top:1px}
+details.more summary{cursor:pointer;font-size:12.5px;color:var(--accent);margin-top:6px}
+.zt{border-collapse:collapse;font-size:12.5px;margin-top:6px}
+.zt th,.zt td{border:1px solid var(--grid);padding:3px 8px;text-align:left}
+.zt td.n{text-align:right}
+.zt input{width:76px;padding:3px 5px}
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n,table.log th.n{text-align:right}
+table.spec td{padding:3px 6px 3px 0}
+table.spec input,table.spec select{width:100%;min-width:64px;padding:4px 6px}
+table.spec td.w-part input{min-width:110px}table.spec td.w-name input{min-width:150px}table.spec td.w-proc select{min-width:170px}
+.scroll{overflow-x:auto}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.three{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.status{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.msg{font-size:12.5px;color:var(--crit-ink)}
+footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-size:12px}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · production record and traceability</div>
+      <h1>Production report</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="controls">
+      <div class="field"><label for="sel-furnace">Furnace</label><select id="sel-furnace"></select></div>
+      <div class="field"><label for="sel-date">Production date</label><input type="date" id="sel-date"></div>
+      <div class="actions">
+        <button class="btn ghost small" id="b-prevday" title="Previous day">◀ Day</button><button class="btn ghost small" id="b-nextday" title="Next day">Day ▶</button>
+      </div>
+      <div class="actions" style="margin-left:auto">
+        <button class="btn ghost" id="b-xlsx">Download Excel</button>
+        <button class="btn ghost" id="b-pdf">Download PDF</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2 id="rep-title">Batches</h2><p>One entry per batch. Choosing the part no. fills in its process specification; enter the batch, heat, times and quantity from the register. Trays, weight, time in the furnace and the expected exit time are calculated.</p></div>
+    <div class="status" id="rep-status"></div>
+    <div id="batches" style="margin-top:12px"></div>
+    <div class="actions" id="rep-actions" style="margin-top:6px"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Totals of the day</h2><p>Per part, per heat and per process for the furnace and date chosen above.</p></div>
+    <div class="three" id="totals"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Approval</h2><p>When every batch is complete, the supervisor approves the report. It is then locked; unlocking needs a reason and is recorded.</p></div>
+    <div id="approval"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Process specifications</h2><p>One specification per part no.; it is the same in every furnace. Set values per zone of the hardening and tempering chamber, push time, cooling times, loading per tray and part weight.</p>
+      <div class="actions"><button class="btn small" id="b-addspec">Add part</button></div></div>
+    <div class="scroll" id="specs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Search by heat no. or batch no.</h2><p>Every batch of every day and furnace that matches.</p></div>
+    <div class="controls"><div class="field" style="flex:1;min-width:220px"><label for="q">Heat no., heat code, batch no. or part no.</label><input id="q" type="search" placeholder="e.g. H-24519"></div></div>
+    <div class="scroll" id="results" style="margin-top:10px"></div>
+  </section>
+
+  <details class="panel" id="setup">
+    <summary style="cursor:pointer;font-weight:600;font-size:16px">Settings and data</summary>
+    <div class="controls" id="settings" style="margin-top:12px"></div>
+    <p class="muted small" style="margin:10px 0 0">Tray positions per zone are written as three numbers, e.g. 5,4,4 (Zone 1, 2, 3). Times between the chambers: hardening &amp; tempering = quench delay + dip time + transfer to the tempering chamber; isothermal annealing = the controlled cooling time of the part; normalizing and full annealing = the values set here.</p>
+    <div class="actions" style="margin-top:14px" id="data-actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all data</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>How the times are worked out</b>
+    <ul>
+      <li>Trays = quantity ÷ loading per tray (rounded up). One tray moves one position per push; the first tray enters the hardening chamber at the entry time and each further tray one push later.</li>
+      <li>Expected exit from the tempering chamber = entry + (trays − 1 + tray positions of the hardening chamber + tray positions of the tempering chamber) × push time + time between the chambers. The entry is flagged when the recorded exit differs by more than the set number of push times.</li>
+      <li>Implied push time = (exit − entry − time between the chambers) ÷ (trays − 1 + tray positions of both chambers). It shows what push time the recorded times correspond to.</li>
+      <li>Zone windows: from the arrival of the first tray to the departure of the last tray of the batch in each zone. They are the basis for tracing batches in a temperature excursion.</li>
+      <li>Normalizing uses the hardening chamber as preheating (about 700–750 °C) and austenitizes in the tempering chamber; fan cooling, when required, follows the exit and does not change the exit time. Controlled cooling of isothermal annealing happens between the chambers.</li>
+    </ul>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const todayISO=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const addDays=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
+const fdate=d=>isDate(d)?`${d.slice(8,10)}-${MON[+d.slice(5,7)-1]}-${d.slice(0,4)}`:"—";
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const txt=v=>String(v??"").trim();
+/* times are clock times without a time zone (as in the SCADA review): "YYYY-MM-DDTHH:MM" ↔ ms */
+const tms=v=>{if(!v||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))return null;const t=Date.parse(v.slice(0,16)+":00Z");return isFinite(t)?t:null;};
+const iso=ms=>new Date(ms).toISOString().slice(0,16);
+const fdt=ms=>ms==null?"—":`${fdate(iso(ms).slice(0,10))} ${iso(ms).slice(11,16)}`;
+const fdtShort=(ms,day)=>ms==null?"—":(iso(ms).slice(0,10)===day?iso(ms).slice(11,16):`${iso(ms).slice(8,10)} ${MON[+iso(ms).slice(5,7)-1]} ${iso(ms).slice(11,16)}`);
+const fmin=m=>{if(m==null||!isFinite(m))return "—";const a=Math.abs(Math.round(m));return (m<0?"−":"")+(a>=60?`${Math.floor(a/60)} h ${pad(a%60)} min`:`${a} min`);};
+const f1=v=>v==null||!isFinite(v)?"—":(Math.round(v*10)/10).toLocaleString("en-IN",{maximumFractionDigits:1});
+const f0=v=>v==null||!isFinite(v)?"—":Math.round(v).toLocaleString("en-IN");
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const sum=a=>a.reduce((x,y)=>x+y,0);
+
+/* ---------- data model ---------- */
+const KEY="prod-reg";
+const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing",P_FA="Full annealing";
+const PROCS=[P_HT,P_IA,P_NO,P_FA];
+const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"5,4,4",qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,flagPush:1,wtTol:5};
+const DEFF=["F-01","F-02","F-03","F-04"];
+const blank=()=>({v:1,settings:{...DEF},furnaces:DEFF.slice(),specs:[],reports:[],seq:1,rseq:1});
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.specs)||!Array.isArray(o.reports)) return null;
+  o.settings={...DEF,...(o.settings||{})};
+  o.furnaces=Array.isArray(o.furnaces)&&o.furnaces.length?o.furnaces:DEFF.slice();
+  o.specs=o.specs.filter(s=>s&&typeof s==="object").map(s=>({h:["","",""],t:["","",""],...s}));
+  o.reports=o.reports.filter(r=>r&&r.id&&isDate(r.date)&&r.furnace).map(r=>({rows:[],log:[],status:"draft",...r}));
+  o.seq=Math.max(+o.seq||1,...o.reports.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
+  o.rseq=Math.max(+o.rseq||1,1+Math.max(0,...o.reports.flatMap(r=>r.rows.map(x=>+(String(x.id).match(/\d+/)||[0])[0]))));
+  return o;
+}
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+/* inside the Heat Treat Quality Suite the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("prod:changed"),300);}};
+const S=()=>DB.settings;
+const pos=k=>String(S()[k]||"").split(/[,;\s]+/).map(Number).filter(n=>n>0);
+const specOf=part=>DB.specs.find(s=>txt(s.part)&&txt(s.part).toUpperCase()===txt(part).toUpperCase())||null;
+/* furnaces: the SAT register's list in the suite, otherwise this page's own */
+const furnaces=()=>{try{const a=HTQ&&HTQ.api("sat");if(a){const l=a.furnaces();if(l&&l.length)return l;}}catch(e){}return DB.furnaces;};
+let VIEW={f:"",d:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem("prod-view")||"{}")};}catch(e){}
+if(!isDate(VIEW.d)) VIEW.d=addDays(todayISO(),-1); /* the report is for the previous day */
+const saveView=()=>{try{localStorage.setItem("prod-view",JSON.stringify(VIEW));}catch(e){}};
+const repOf=(f,d)=>DB.reports.find(r=>r.furnace===f&&r.date===d)||null;
+const curRep=()=>repOf(VIEW.f,VIEW.d);
+const logIt=(r,t)=>r.log.push({d:todayISO(),t});
+
+/* ---------- calculation per batch ---------- */
+function between(sp){
+  const s=S();
+  if(!sp) return null;
+  if(sp.proc===P_HT) return (num(s.qDelay)||0)+(num(s.dip)||0)+(num(s.toTemp)||0);
+  if(sp.proc===P_IA) return num(sp.cc);
+  if(sp.proc===P_NO) return num(s.gapNorm)||0;
+  if(sp.proc===P_FA) return num(s.gapFA)||0;
+  return null;
+}
+const setsOf=(row,sp)=>({h:[0,1,2].map(i=>num(row.sets?.h?.[i])??num(sp?.h?.[i])),t:[0,1,2].map(i=>num(row.sets?.t?.[i])??num(sp?.t?.[i]))});
+function calcRow(row,rep){
+  const sp=specOf(row.part),s=S(),out={sp,issues:[]};
+  const I=(lvl,t)=>out.issues.push([lvl,t]);
+  if(!txt(row.part)) I("crit","Part no. missing"); else if(!sp) I("crit",`Part no. ${row.part} has no process specification`);
+  if(!txt(row.batch)) I("crit","Batch no. missing");
+  if(!txt(row.heat)) I("crit","Heat no. missing");
+  if(!txt(row.heatCode)) I("crit","Heat code missing");
+  const qty=num(row.qty); if(qty==null||qty<=0) I("crit","Quantity missing");
+  const per=sp?num(sp.perTray):null, wt=sp?num(sp.wt):null;
+  if(qty>0&&per>0){ out.trays=Math.ceil(qty/per); if(qty%per) I("info",`Last tray holds ${qty%per} of ${per} pieces`); }
+  if(qty>0&&wt>0) out.kg=qty*wt;
+  const wg=num(row.weighed); if(wg!=null&&out.kg){ const dp=(wg-out.kg)/out.kg*100; out.wDiff=dp; if(Math.abs(dp)>+s.wtTol) I("warn",`Weighed ${f1(wg)} kg is ${f1(Math.abs(dp))} % ${dp>0?"above":"below"} the calculated ${f1(out.kg)} kg`); }
+  const e=tms(row.entry),x=tms(row.exit);
+  if(e==null) I("crit","Entry time missing"); if(x==null) I("crit","Exit time missing");
+  if(e!=null&&x!=null){ if(x<=e) I("crit","Exit time is not after the entry time"); else out.mins=(x-e)/60000; }
+  if(e!=null&&rep&&iso(e).slice(0,10)!==rep.date) I("info",`Entry on ${fdate(iso(e).slice(0,10))}, not on the report date`);
+  const push=num(row.push)??(sp?num(sp.push):null); out.push=push;
+  if(sp&&num(row.push)!=null&&num(sp.push)!=null&&num(row.push)!==num(sp.push)) I("warn",`Push time ${row.push} min (specification ${sp.push} min)`);
+  out.between=between(sp);
+  if(sp&&sp.proc===P_IA&&out.between==null) I("crit","Controlled cooling time missing in the specification");
+  const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),nT=sum(PT);
+  if(e!=null&&push>0&&out.trays&&out.between!=null){
+    out.steps=out.trays-1+nH+nT;
+    out.expected=e+(out.steps*push+out.between)*60000;
+    if(x!=null&&x>e){
+      out.dev=(x-out.expected)/60000;
+      out.implied=((x-e)/60000-out.between)/out.steps;
+      if(Math.abs(out.dev)>(+s.flagPush||1)*push) I("warn",`Exit is ${fmin(Math.abs(out.dev))} ${out.dev>0?"later":"earlier"} than expected (${fdt(out.expected)}); the times correspond to a push time of ${f1(out.implied)} min${sp.proc===P_IA?" — check the controlled cooling":""}`);
+    }
+    /* zone windows: first tray arrives … last tray leaves */
+    const zones=[];let acc=0;
+    PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:e+acc*push*60000,to:e+(out.trays-1+acc+n)*push*60000});acc+=n;});
+    const off=nH*push*60000+out.between*60000;acc=0;
+    PT.forEach((n,z)=>{zones.push({ch:"Tempering",z:z+1,from:e+off+acc*push*60000,to:e+off+(out.trays-1+acc+n)*push*60000});acc+=n;});
+    out.zones=zones;
+  }
+  /* set values different from the specification */
+  if(sp&&row.sets){ const d=[];["h","t"].forEach(c=>[0,1,2].forEach(i=>{const v=num(row.sets[c]?.[i]),w=num(sp[c]?.[i]);if(v!=null&&w!=null&&v!==w)d.push(`${c==="h"?"hardening":"tempering"} Z${i+1} ${v} °C (spec ${w})`);}));
+    if(d.length) I("warn","Set values differ from the specification: "+d.join(", ")); }
+  /* the same batch no. in this furnace with another heat no. */
+  if(rep&&txt(row.batch)){
+    const other=DB.reports.filter(r=>r.furnace===rep.furnace).flatMap(r=>r.rows.filter(x=>x!==row&&txt(x.batch).toUpperCase()===txt(row.batch).toUpperCase()).map(x=>({x,r})));
+    const clash=other.filter(o=>txt(o.x.heat)&&txt(row.heat)&&txt(o.x.heat).toUpperCase()!==txt(row.heat).toUpperCase());
+    if(clash.length) I("warn",`Batch ${row.batch} also appears in ${rep.furnace} with heat no. ${clash.map(o=>o.x.heat+" ("+fdate(o.r.date)+")").join(", ")}`);
+    else if(other.some(o=>o.r===rep)) I("info",`Batch ${row.batch} is entered more than once in this report`);
+  }
+  out.lvl=out.issues.some(i=>i[0]==="crit")?"crit":out.issues.some(i=>i[0]==="warn")?"warn":"good";
+  return out;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const s=S(), F=furnaces();
+  if(!F.includes(VIEW.f)) VIEW.f=F[0]||"";
+  $("#meta").innerHTML=`<span>Plant <b>${esc(s.plant)}</b></span><span>Furnace <b>${esc(VIEW.f)}</b></span><span>Production date <b>${fdate(VIEW.d)}</b></span><span>Today <b>${fdate(todayISO())}</b></span>`;
+  $("#sel-furnace").innerHTML=F.map(f=>`<option ${f===VIEW.f?"selected":""}>${esc(f)}</option>`).join("");
+  $("#sel-date").value=VIEW.d;
+  drawReport(); drawSpecs(); drawSearch(); drawSettings();
+}
+function drawReport(){
+  const R=curRep(), locked=R&&R.status==="approved", dis=locked?" disabled":"";
+  $("#rep-title").textContent=`Batches · ${VIEW.f} · ${fdate(VIEW.d)}`;
+  $("#rep-status").innerHTML=!R?`<span class="muted">No report for ${esc(VIEW.f)} on ${fdate(VIEW.d)} yet.</span>`:
+    `${locked?chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)} · locked`):chip("warn","…","Draft")}<span class="muted small">${esc(R.id)} · ${R.rows.length} batch${R.rows.length===1?"":"es"}</span>`;
+  const parts=`<datalist id="partlist">${DB.specs.filter(x=>txt(x.part)).map(x=>`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")}</option>`).join("")}</datalist>`;
+  $("#batches").innerHTML=parts+(!R||!R.rows.length?`<div class="empty">${DB.specs.length?"Add the batches of this day from the production register.":"First add the process specifications of your parts (section below), then add the batches of this day."}</div>`:
+    R.rows.map((row,i)=>{const k=calcRow(row,R),sp=k.sp,f=(fld,lab,type="text",req=1,extra="")=>`<div class="field"><label class="${req?"req":""}" for="r-${row.id}-${fld}">${lab}</label><input id="r-${row.id}-${fld}" type="${type}" data-r="${row.id}:${fld}" value="${esc(row[fld]??"")}"${type==="number"?' step="any" inputmode="decimal"':""}${extra}${dis}></div>`;
+      return `<div class="batch" id="b-${row.id}" style="--k:${{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]}">
+        <div class="batch-h"><b>${i+1}.</b><span id="bh-${row.id}">${batchHead(row,k)}</span></div>
+        <div class="bgrid">
+          ${f("part","Part no.","text",1,' list="partlist" autocomplete="off"')}${f("batch","Batch no.")}${f("heat","Heat no.")}${f("heatCode","Heat code")}
+          ${f("entry","Entry · hardening chamber","datetime-local")}${f("exit","Exit · tempering chamber","datetime-local")}${f("qty","Quantity (pcs)","number")}
+          ${f("push",`Push time, min${sp&&num(sp.push)!=null?` (spec ${sp.push})`:""}`,"number",0,sp&&num(sp.push)!=null?` placeholder="${esc(sp.push)}"`:"")}${f("weighed","Weighed total, kg (optional)","number",0)}
+        </div>
+        <div id="bc-${row.id}">${batchCalc(row,k,R)}</div>
+        <details class="more"><summary>Set values used and zone windows</summary><div id="bz-${row.id}">${batchZones(row,k,locked)}</div>
+          <div class="field" style="margin-top:6px"><label for="r-${row.id}-note">Note</label><input id="r-${row.id}-note" data-r="${row.id}:note" value="${esc(row.note||"")}"${dis}></div></details>
+        ${locked?"":`<div class="actions" style="margin-top:6px"><button class="btn danger small" data-del="${row.id}">Remove batch</button></div>`}
+      </div>`;}).join(""));
+  $("#rep-actions").innerHTML=locked?"":`<button class="btn" id="b-addrow">Add batch</button>${prevRep()?`<button class="btn ghost" id="b-copy" title="Adds the parts and heats of the previous report of this furnace; batch, times and quantities stay empty">Copy parts and heats from ${fdate(prevRep().date)}</button>`:""}${R&&!R.rows.length?`<button class="btn danger small" id="b-delrep">Delete empty report</button>`:""}`;
+  drawTotals(); drawApproval(); drawKpis();
+}
+const prevRep=()=>DB.reports.filter(r=>r.furnace===VIEW.f&&r.date<VIEW.d&&r.rows.length).sort((a,b)=>a.date<b.date?1:-1)[0]||null;
+function batchHead(row,k){
+  const sp=k.sp;
+  return sp?`<b>${esc(sp.part)}</b> · ${esc(sp.name||"")} · <span class="muted">${esc(sp.grade||"")} · ${esc(sp.proc||"")}</span>${txt(row.batch)?` · batch <b>${esc(row.batch)}</b>`:""}${txt(row.heat)?` · heat ${esc(row.heat)}${txt(row.heatCode)?" / "+esc(row.heatCode):""}`:""}`
+    :`<span class="muted">${txt(row.part)?"Unknown part "+esc(row.part):"Choose the part no."}</span>`;
+}
+function batchCalc(row,k,R){
+  const ex=k.expected!=null?`${fdtShort(k.expected,R.date)}${k.dev!=null?` <span class="${Math.abs(k.dev)>(+S().flagPush||1)*k.push?"caution":"ok"}">(${k.dev>=0?"+":""}${fmin(k.dev)})</span>`:""}`:"—";
+  return `<div class="calc"><span>Trays <b>${k.trays??"—"}</b></span><span>Weight <b>${k.kg!=null?f1(k.kg)+" kg":"—"}</b></span><span>Time in furnace <b>${fmin(k.mins)}</b></span>
+    <span>Between chambers <b>${k.between!=null?f1(k.between)+" min":"—"}</b></span><span>Expected exit <b>${ex}</b></span><span>Implied push time <b>${k.implied!=null?f1(k.implied)+" min":"—"}</b></span></div>
+    ${k.issues.length?`<div class="issues">${k.issues.map(([l,t])=>chip(l,l==="crit"?"!":l==="warn"?"!":"i",t)).join("")}</div>`:`<div class="issues">${chip("good","✓","Complete and consistent")}</div>`}`;
+}
+function batchZones(row,k,locked){
+  const sp=k.sp; if(!sp) return `<p class="muted small">Choose a part with a specification.</p>`;
+  const v=setsOf(row,sp), dis=locked?" disabled":"";
+  const cell=(c,i)=>`<td><input type="number" step="any" data-set-r="${row.id}:${c}:${i}" value="${esc(row.sets?.[c]?.[i]??"")}" placeholder="${esc(sp[c]?.[i]??"")}" aria-label="${c==="h"?"Hardening":"Tempering"} zone ${i+1} set value"${dis}></td>`;
+  const zw=c=>(k.zones||[]).filter(z=>z.ch===c).map(z=>`<td class="n">${fdtShort(z.from,iso(z.from).slice(0,10))}–${fdtShort(z.to,iso(z.from).slice(0,10))}</td>`).join("")||`<td colspan="3" class="muted">enter entry time and quantity</td>`;
+  return `<div class="scroll"><table class="zt"><thead><tr><th></th><th>Zone 1</th><th>Zone 2</th><th>Zone 3</th></tr></thead><tbody>
+    <tr><th>Hardening set °C</th>${[0,1,2].map(i=>cell("h",i)).join("")}</tr>
+    <tr><th>Tempering set °C</th>${[0,1,2].map(i=>cell("t",i)).join("")}</tr>
+    <tr><th>Hardening, batch in zone</th>${zw("Hardening")}</tr>
+    <tr><th>Tempering, batch in zone</th>${zw("Tempering")}</tr></tbody></table></div>
+    <p class="muted small" style="margin:4px 0 0">Leave a set value empty when it was as specified (${v.h.join(" / ")} · ${v.t.join(" / ")} °C).</p>`;
+}
+function drawKpis(){
+  const R=curRep(), ks=R?R.rows.map(r=>calcRow(r,R)):[];
+  const qty=sum(R?R.rows.map(r=>num(r.qty)||0):[]), kg=sum(ks.map(k=>k.kg||0)), trays=sum(ks.map(k=>k.trays||0));
+  const crit=ks.filter(k=>k.lvl==="crit").length, warn=ks.filter(k=>k.lvl==="warn").length;
+  const heats=new Set(R?R.rows.map(r=>txt(r.heat).toUpperCase()).filter(Boolean):[]);
+  $("#kpis").innerHTML=[[R?R.rows.length:0,"Batches",`${heats.size} heat${heats.size===1?"":"s"}`],[f0(qty),"Pieces processed",""],[f1(kg)+" <small style='font-size:13px'>kg</small>","Weight processed",`${f1(kg/1000)} t`],
+    [trays,"Trays",""],[crit,"Incomplete entries",crit?"missing data must be completed":"none",crit?"bad":"ok"],[warn,"Entries to check","times, weights or settings",warn?"caution":"ok"]]
+    .map(([v,l,s,c])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
+}
+function groupTotals(R){
+  const g=(keyf,label)=>{const m=new Map();R.rows.forEach(r=>{const k=calcRow(r,R),key=keyf(r,k);if(!key)return;const o=m.get(key)||{key,label:label(r,k),n:0,qty:0,kg:0,trays:0};o.n++;o.qty+=num(r.qty)||0;o.kg+=k.kg||0;o.trays+=k.trays||0;m.set(key,o);});return [...m.values()];};
+  return {parts:g(r=>txt(r.part).toUpperCase(),(r,k)=>k.sp?`${k.sp.part} · ${k.sp.name||""}`:r.part),
+    heats:g(r=>txt(r.heat).toUpperCase(),r=>`${r.heat}${txt(r.heatCode)?" / "+r.heatCode:""}`),
+    procs:g((r,k)=>k.sp?.proc||"",(r,k)=>k.sp?.proc||"")};
+}
+function drawTotals(){
+  const R=curRep();
+  if(!R||!R.rows.length){$("#totals").innerHTML=`<div class="empty">No batches entered.</div>`;return;}
+  const T=groupTotals(R);
+  const tb=(title,l)=>`<div><h3 style="margin-bottom:6px">${title}</h3><table class="log"><thead><tr><th></th><th class="n">Batches</th><th class="n">Pieces</th><th class="n">kg</th></tr></thead><tbody>${l.map(o=>`<tr><td>${esc(o.label)}</td><td class="n">${o.n}</td><td class="n">${f0(o.qty)}</td><td class="n">${f1(o.kg)}</td></tr>`).join("")}</tbody></table></div>`;
+  $("#totals").innerHTML=tb("Per part",T.parts)+tb("Per heat",T.heats)+tb("Per process",T.procs);
+}
+function drawApproval(){
+  const R=curRep(),el=$("#approval");
+  if(!R){el.innerHTML=`<div class="empty">Nothing to approve yet.</div>`;return;}
+  const crit=R.rows.map(r=>calcRow(r,R)).filter(k=>k.lvl==="crit").length;
+  const log=R.log.length?`<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">History (${R.log.length})</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${R.log.map(x=>`<li>${fdate(x.d)} — ${esc(x.t)}</li>`).join("")}</ul></details>`:"";
+  /* while the approver is being typed, only refresh the button and the message: rebuilding would drop the field */
+  if(R.status!=="approved"&&$("#appr-by")&&el.dataset.rep===R.id){
+    $("#b-approve").disabled=!R.rows.length||!!crit;
+    $("#appr-msg").textContent=!R.rows.length?"Add the batches first.":crit?`${crit} batch${crit>1?"es are":" is"} incomplete.`:"";
+    return;
+  }
+  el.dataset.rep=R.status==="approved"?"":R.id;
+  if(R.status==="approved"){el.innerHTML=`<div class="status">${chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`)}<button class="btn ghost small" id="b-unlock">Unlock for correction</button></div>${log}`;return;}
+  el.innerHTML=`<div class="controls"><div class="field"><label class="req" for="appr-by">Approved by (supervisor)</label><input id="appr-by" value="${esc(R.apprBy||"")}" style="min-width:220px"></div>
+    <button class="btn" id="b-approve" ${!R.rows.length||crit?"disabled":""}>Approve and lock</button><span class="msg" id="appr-msg">${!R.rows.length?"Add the batches first.":crit?`${crit} batch${crit>1?"es are":" is"} incomplete.`:""}</span></div>${log}`;
+}
+function drawSpecs(){
+  if($("#specs").contains(document.activeElement)) return;
+  const used=new Set(DB.reports.flatMap(r=>r.rows.map(x=>txt(x.part).toUpperCase())));
+  $("#specs").innerHTML=DB.specs.length?`<table class="log spec"><thead><tr><th class="req">Part no.</th><th class="req">Part name</th><th class="req">Steel grade</th><th class="req">Process</th>
+    <th>Hard. Z1 °C</th><th>Hard. Z2 °C</th><th>Hard. Z3 °C</th><th>Temp. Z1 °C</th><th>Temp. Z2 °C</th><th>Temp. Z3 °C</th><th class="req">Push, min</th><th>Contr. cooling, min</th><th>Fan cooling, min</th><th class="req">Pcs / tray</th><th class="req">Part wt, kg</th><th></th></tr></thead><tbody>${
+    DB.specs.map((x,i)=>{const inp=(k,type="text",cls="")=>`<td class="${cls}"><input type="${type}" data-s="${i}:${k}" value="${esc(x[k]??"")}"${type==="number"?' step="any"':""} aria-label="${k} of ${esc(x.part||"new part")}"></td>`;
+      const zi=(c,j)=>`<td><input type="number" step="any" data-s="${i}:${c}${j}" value="${esc(x[c]?.[j]??"")}" aria-label="${c==="h"?"hardening":"tempering"} zone ${j+1} of ${esc(x.part||"new part")}"></td>`;
+      return `<tr>${inp("part","text","w-part")}${inp("name","text","w-name")}${inp("grade")}<td class="w-proc"><select data-s="${i}:proc" aria-label="process"><option value="">— select —</option>${PROCS.map(p=>`<option ${p===x.proc?"selected":""}>${esc(p)}</option>`).join("")}</select></td>
+        ${[0,1,2].map(j=>zi("h",j)).join("")}${[0,1,2].map(j=>zi("t",j)).join("")}${inp("push","number")}
+        <td><input type="number" step="any" data-s="${i}:cc" value="${esc(x.cc??"")}" ${x.proc===P_IA?"":"disabled"} title="Isothermal annealing only" aria-label="controlled cooling"></td>
+        <td><input type="number" step="any" data-s="${i}:fan" value="${esc(x.fan??"")}" ${x.proc===P_NO?"":"disabled"} title="Normalizing only, if required" aria-label="fan cooling"></td>
+        ${inp("perTray","number")}${inp("wt","number")}
+        <td>${used.has(txt(x.part).toUpperCase())&&txt(x.part)?`<span class="muted small">in use</span>`:`<button class="btn danger small" data-delspec="${i}">Remove</button>`}</td></tr>`;}).join("")}</tbody></table>
+    <p class="muted small" style="margin:6px 0 0">${specIssues()}</p>`:`<div class="empty">No process specifications yet. Click “Add part”.</div>`;
+}
+function specIssues(){
+  const m=[],seen=new Set();
+  DB.specs.forEach(x=>{const p=txt(x.part).toUpperCase();if(!p)return m.push("a part without part no.");if(seen.has(p))m.push(`part no. ${x.part} entered twice`);seen.add(p);
+    const miss=["name","grade","proc","push","perTray","wt"].filter(k=>!txt(x[k]));if(x.proc===P_IA&&!txt(x.cc))miss.push("controlled cooling");if(x.h.concat(x.t).some(v=>!txt(v)))miss.push("set values");
+    if(miss.length)m.push(`${x.part}: ${miss.join(", ")} missing`);});
+  return m.length?`<span class="caution">To complete: ${esc(m.join("; "))}.</span>`:"All specifications complete.";
+}
+function drawSearch(){
+  const q=txt($("#q").value).toUpperCase();
+  if(!q){$("#results").innerHTML=`<p class="muted small" style="margin:0">Type to search all reports.</p>`;return;}
+  const hits=DB.reports.flatMap(r=>r.rows.filter(x=>[x.heat,x.heatCode,x.batch,x.part].some(v=>txt(v).toUpperCase().includes(q))).map(x=>({r,x,k:calcRow(x,r)}))).sort((a,b)=>a.r.date<b.r.date?1:-1);
+  $("#results").innerHTML=hits.length?`<table class="log cards"><thead><tr><th>Date</th><th>Furnace</th><th>Part</th><th>Batch no.</th><th>Heat no. / code</th><th class="n">Pieces</th><th class="n">kg</th><th>Entry → exit</th><th>Report</th></tr></thead><tbody>${
+    hits.map(({r,x,k})=>`<tr><td data-label="Date" class="n">${fdate(r.date)}</td><td data-label="Furnace">${esc(r.furnace)}</td><td data-label="Part">${esc(x.part)}${k.sp?` <span class="muted">${esc(k.sp.name||"")}</span>`:""}</td>
+      <td data-label="Batch no.">${esc(x.batch)}</td><td data-label="Heat no. / code">${esc(x.heat)} / ${esc(x.heatCode)}</td><td data-label="Pieces" class="n">${f0(num(x.qty))}</td><td data-label="kg" class="n">${f1(k.kg)}</td>
+      <td data-label="Entry → exit">${fdt(tms(x.entry))} → ${fdt(tms(x.exit))}</td><td data-label="Report"><button class="btn ghost small" data-goto="${esc(r.furnace)}|${r.date}">Open</button> ${r.status==="approved"?chip("good","✓","Approved"):chip("warn","…","Draft")}</td></tr>`).join("")}</tbody></table>
+    <p class="muted small">${hits.length} batch${hits.length===1?"":"es"} · ${f0(sum(hits.map(h=>num(h.x.qty)||0)))} pieces · ${f1(sum(hits.map(h=>h.k.kg||0)))} kg</p>`:`<div class="empty">Nothing found for “${esc(q)}”.</div>`;
+}
+function drawSettings(){
+  if($("#settings").contains(document.activeElement)) return;
+  const s=S(),f=(k,l,t="number",w=110)=>`<div class="field"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="any" value="${esc(s[k])}" style="width:${w}px"></div>`;
+  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+
+    f("qDelay","Quench delay, min")+f("dip","Dip time, min")+f("toTemp","Quench → tempering chamber, min")+f("gapNorm","Between chambers, normalizing, min")+f("gapFA","Between chambers, full annealing, min")+
+    f("flagPush","Flag exit off by more than … push times")+f("wtTol","Flag weighed vs calculated beyond, %")+
+    (HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
+}
+
+/* ---------- editing ---------- */
+const newRow=()=>({id:"B"+String(DB.rseq++).padStart(5,"0"),part:"",batch:"",heat:"",heatCode:"",entry:"",exit:"",qty:"",push:"",weighed:"",note:""});
+function ensureRep(){
+  let R=curRep(); if(R) return R;
+  R={id:"PR-"+String(DB.seq++).padStart(4,"0"),date:VIEW.d,furnace:VIEW.f,rows:[],status:"draft",created:todayISO(),log:[]};
+  logIt(R,"Report created"); DB.reports.push(R); return R;
+}
+function refreshRow(R,row){
+  const k=calcRow(row,R),el=$("#b-"+row.id);if(!el)return;
+  el.style.setProperty("--k",{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]);
+  $("#bh-"+row.id).innerHTML=batchHead(row,k);$("#bc-"+row.id).innerHTML=batchCalc(row,k,R);
+  if(!$("#bz-"+row.id).contains(document.activeElement)) $("#bz-"+row.id).innerHTML=batchZones(row,k,R.status==="approved");
+  /* other rows can change too (duplicate batch / heat checks) */
+  R.rows.forEach(o=>{if(o!==row&&$("#bc-"+o.id))$("#bc-"+o.id).innerHTML=batchCalc(o,calcRow(o,R),R);});
+  drawTotals();drawApproval();drawKpis();
+}
+document.addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.r){const [id,f]=el.dataset.r.split(":"),R=curRep(),row=R&&R.rows.find(x=>x.id===id);if(!row||R.status==="approved")return;
+    row[f]=el.value.trim();if(f==="part"&&specOf(row.part))row.part=specOf(row.part).part;save();refreshRow(R,row);drawSearch();return;}
+  if(el.dataset.setR){const [id,c,i]=el.dataset.setR.split(":"),R=curRep(),row=R&&R.rows.find(x=>x.id===id);if(!row||R.status==="approved")return;
+    row.sets=row.sets||{h:["","",""],t:["","",""]};row.sets[c][+i]=el.value;if(![...row.sets.h,...row.sets.t].some(v=>txt(v)))delete row.sets;save();refreshRow(R,row);return;}
+  if(el.dataset.s){const [i,k]=el.dataset.s.split(":"),x=DB.specs[+i];if(!x)return;
+    if(/^[ht][012]$/.test(k))x[k[0]][+k[1]]=el.value;else x[k]=el.value.trim();
+    save();if(k==="proc"){el.blur();drawSpecs();}else{const p=$("#specs p");if(p)p.innerHTML=specIssues();}drawReport();return;}
+  if(el.dataset.set){const k=el.dataset.set;S()[k]=["plant","posH","posT"].includes(k)?el.value:(num(el.value)??DEF[k]);save();el.blur();render();return;}
+  if(el.id==="set-furn"){const l=el.value.split(/[,;]+/).map(txt).filter(Boolean);if(l.length)DB.furnaces=l;save();el.blur();render();return;}
+  if(el.id==="sel-furnace"){VIEW.f=el.value;saveView();render();return;}
+  if(el.id==="sel-date"){if(isDate(el.value)){VIEW.d=el.value;saveView();render();}return;}
+  if(el.id==="appr-by"){const R=curRep();if(R){R.apprBy=el.value.trim();save();}return;}
+});
+$("#q").addEventListener("input",drawSearch);
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button");if(!t)return;
+  const R=curRep();
+  if(t.dataset.del){if(!R||R.status==="approved")return;const row=R.rows.find(x=>x.id===t.dataset.del);
+    if(row&&(!txt(row.part)&&!txt(row.batch)||confirm(`Remove batch ${row.batch||""} (${row.part||"no part"}) from this report?`))){R.rows=R.rows.filter(x=>x!==row);logIt(R,`Batch ${row.batch||row.id} removed`);save();drawReport();drawSearch();}return;}
+  if(t.dataset.delspec!=null){DB.specs.splice(+t.dataset.delspec,1);save();drawSpecs();drawReport();return;}
+  if(t.dataset.goto){const [f,d]=t.dataset.goto.split("|");VIEW.f=f;VIEW.d=d;saveView();render();scrollTo({top:0});return;}
+  switch(t.id){
+    case "b-addrow":{const R2=ensureRep();const row=newRow();R2.rows.push(row);save();drawReport();$(`#r-${row.id}-part`)?.focus();break;}
+    case "b-copy":{const P=prevRep(),R2=ensureRep();P.rows.forEach(x=>{const row=newRow();Object.assign(row,{part:x.part,heat:x.heat,heatCode:x.heatCode,push:x.push||""});R2.rows.push(row);});
+      logIt(R2,`${P.rows.length} parts and heats copied from ${fdate(P.date)}`);save();drawReport();break;}
+    case "b-delrep":{DB.reports=DB.reports.filter(x=>x!==R);save();drawReport();break;}
+    case "b-approve":{const by=txt($("#appr-by").value);if(!by){$("#appr-msg").textContent="Enter who approves the report.";return;}
+      R.status="approved";R.apprBy=by;R.apprDate=todayISO();logIt(R,`Approved by ${by}`);save();drawReport();drawSearch();break;}
+    case "b-unlock":{const why=prompt("Reason for unlocking the approved report (recorded):");if(!why||!why.trim())return;
+      R.status="draft";logIt(R,`Unlocked: ${why.trim()} (approved by ${R.apprBy} on ${fdate(R.apprDate)})`);save();drawReport();drawSearch();break;}
+    case "b-addspec":{DB.specs.push({part:"",name:"",grade:"",proc:"",h:["","",""],t:["","",""],push:"",cc:"",fan:"",perTray:"",wt:""});save();drawSpecs();
+      const ins=document.querySelectorAll("#specs tbody tr:last-child input");if(ins[0])ins[0].focus();break;}
+    case "b-prevday":VIEW.d=addDays(VIEW.d,-1);saveView();render();break;
+    case "b-nextday":VIEW.d=addDays(VIEW.d,1);saveView();render();break;
+    case "b-xlsx":{const m=prodXlsx();if(m)alert(m);break;}
+    case "b-pdf":{const m=prodPdf();if(m)alert(m);break;}
+    case "b-theme":{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("prod-theme",r.dataset.theme);}catch(err){}break;}
+    case "b-export":dl(`production-backup-${todayISO()}.json`,new Blob([JSON.stringify(DB,null,1)],{type:"application/json"}));break;
+    case "b-import":$("#imp").click();break;
+    case "b-example":if(!DB.reports.length&&!DB.specs.length||confirm("Replace all production data with the example data?")){DB=example();VIEW.f="F-04";VIEW.d=addDays(todayISO(),-1);saveView();save();render();}break;
+    case "b-clear":if(confirm("Delete all production reports and specifications? Export a backup first if you need one.")){DB=blank();save();render();}break;
+  }
+});
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o)throw new Error("not a production backup");
+    if(confirm(`Import ${o.specs.length} specifications and ${o.reports.length} reports? This replaces the current data.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+function dl(name,blob){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+
+/* ---------- download: Excel workbook and printable document (PDF) ---------- */
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+
+const repName=()=>`Production report ${VIEW.f} ${VIEW.d}`.replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-");
+function prodTables(R){
+  const ks=R.rows.map(r=>calcRow(r,R)),T=groupTotals(R),s=S();
+  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Entry (hardening)","Exit (tempering)","Pieces","Trays","Weight kg","Weighed kg","Push min","Time in furnace","Expected exit","Exit − expected, min","Implied push min","Remarks"];
+  const rows=R.rows.map((r,i)=>{const k=ks[i];return [i+1,k.sp?.part||r.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",r.batch,r.heat,r.heatCode,fdt(tms(r.entry)),fdt(tms(r.exit)),num(r.qty)??"",k.trays??"",k.kg!=null?Math.round(k.kg*10)/10:"",num(r.weighed)??"",k.push??"",k.mins!=null?fmin(k.mins):"",k.expected!=null?fdt(k.expected):"",k.dev!=null?Math.round(k.dev):"",k.implied!=null?Math.round(k.implied*10)/10:"",[...k.issues.filter(x=>x[0]!=="crit").map(x=>x[1]),r.note].filter(Boolean).join(" | ")];});
+  const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Set °C","Batch in zone from","to"],rows:R.rows.flatMap((r,i)=>{const k=ks[i],v=setsOf(r,k.sp);return (k.zones||[]).map(z=>[i+1,r.batch,r.part,z.ch,z.z,(z.ch==="Hardening"?v.h:v.t)[z.z-1]??"",fdt(z.from),fdt(z.to)]);})};
+  const usedParts=[...new Set(R.rows.map(r=>txt(r.part).toUpperCase()))].map(p=>specOf(p)).filter(Boolean);
+  const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
+    rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
+  const tot=l=>l.map(o=>[o.label,o.n,o.qty,Math.round(o.kg*10)/10]);
+  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],
+    ["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"],["Exit flagged when off by more than",s.flagPush+" push time(s)"]];
+  const summary=[["Report",R.id],["Furnace",R.furnace],["Production date",fdate(R.date)],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],["Batches",R.rows.length],
+    ["Pieces",sum(R.rows.map(r=>num(r.qty)||0))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Trays",sum(ks.map(k=>k.trays||0))],["Incomplete entries",ks.filter(k=>k.lvl==="crit").length],["Entries to check",ks.filter(k=>k.lvl==="warn").length],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
+  return {summary,batch:{head,rows},zones,specs,parts:tot(T.parts),heats:tot(T.heats),procs:tot(T.procs),settings,hist:R.log.map(x=>[fdate(x.d),x.t])};
+}
+function prodXlsx(){
+  const R=curRep(); if(!R||!R.rows.length) return `No batches entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
+  const T=prodTables(R),B=cells=>({b:true,cells}),N=cells=>({cells}),tbl=(h,rows)=>[B(h),...(rows.length?rows.map(N):[N(["—"])])];
+  const sheets=[
+    {name:"Summary",widths:[34,46],rows:[B(["Production report"]),N([]),...T.summary.map(N)]},
+    {name:"Batches",widths:[5,14,24,14,22,14,12,12,18,18,9,7,11,11,9,14,18,10,10,60],rows:[B([`Batches · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
+    {name:"Totals",widths:[40,10,12,12],rows:[B(["Per part"]),...tbl(["Part","Batches","Pieces","kg"],T.parts),N([]),B(["Per heat"]),...tbl(["Heat no. / code","Batches","Pieces","kg"],T.heats),N([]),B(["Per process"]),...tbl(["Process","Batches","Pieces","kg"],T.procs)]},
+    {name:"Zone windows",widths:[5,14,14,12,7,9,20,20],rows:[B(["When each batch was in each zone (first tray in → last tray out)"]),N([]),...tbl(T.zones.head,T.zones.rows)]},
+    {name:"Specifications",widths:[14,24,14,22,9,9,9,9,9,9,9,12,12,10,10],rows:[B(["Process specifications of the parts in this report"]),N([]),...tbl(T.specs.head,T.specs.rows)]},
+    {name:"Settings",widths:[46,20],rows:[B(["Times and layout in force"]),N([]),...T.settings.map(N),N([]),B(["History of the report"]),...tbl(["Date","Event"],T.hist)]}];
+  try{dl(repName()+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function prodPdf(){
+  const R=curRep(); if(!R||!R.rows.length) return `No batches entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
+  const T=prodTables(R),e=esc;
+  const table=(h,rows,cls="")=>`<table class="${cls}"><thead><tr>${h.map(x=>`<th>${e(x)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  const bh=["#","Part","Process","Batch","Heat / code","Entry → exit","Pcs","Trays","kg","Push","In furnace","Expected exit (Δ min)","Remarks"];
+  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,`${r[8]} → ${r[9]}`,r[10],r[11],r[12],r[14],r[15],r[16]?`${r[16]} (${r[17]})`:"",r[19]]);
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join("")}</tbody></table>`;
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(repName())}</title><style>
+    @page{size:A4 landscape;margin:10mm}
+    body{font:10.5px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 5px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    table.kv{width:auto;min-width:50%}table.kv th{background:#f2f4f5;font-weight:500;width:260px}
+    .three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .sign{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:16px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>Production report · ${e(R.furnace)} · ${e(fdate(R.date))}</h1>
+  <p class="sub">${e(S().plant)} · ${e(R.id)} · ${e(R.status==="approved"?`approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"draft, not approved")}</p>
+  <h2>Summary</h2>${kv(T.summary)}
+  <h2>Batches</h2>${table(bh,br)}
+  <h2>Totals</h2><div class="three"><div>${table(["Part","Batches","Pieces","kg"],T.parts)}</div><div>${table(["Heat no. / code","Batches","Pieces","kg"],T.heats)}</div><div>${table(["Process","Batches","Pieces","kg"],T.procs)}</div></div>
+  <h2>Process specifications of the parts in this report</h2>${table(T.specs.head,T.specs.rows)}
+  <h2>When each batch was in each zone</h2>${table(T.zones.head,T.zones.rows)}
+  <h2>Times and layout in force</h2>${kv(T.settings)}
+  <div class="sign"><div><span class="muted">Entered by</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Approved by (supervisor)</span><b>${e(R.status==="approved"?R.apprBy:"")}</b><span class="muted">Sign · Date</span></div></div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+
+/* ---------- example data (previous day, F-04) ---------- */
+function example(){
+  const o=blank(),d=addDays(todayISO(),-1),dt=(day,hm)=>day+"T"+hm;
+  o.specs=[
+    {part:"MW-4512",name:"Gear blank 42 T",grade:"20MnCr5",proc:P_HT,h:["850","880","880"],t:["560","560","560"],push:"12",cc:"",fan:"",perTray:"40",wt:"1.85"},
+    {part:"MW-3307",name:"Shaft Ø32 × 410",grade:"42CrMo4",proc:P_HT,h:["840","860","860"],t:["580","580","580"],push:"15",cc:"",fan:"",perTray:"24",wt:"2.6"},
+    {part:"MW-7120",name:"Forged flange",grade:"16MnCr5",proc:P_IA,h:["900","940","940"],t:["650","650","650"],push:"10",cc:"25",fan:"",perTray:"30",wt:"1.2"},
+    {part:"MW-2205",name:"Connecting rod",grade:"C45",proc:P_NO,h:["720","740","740"],t:["870","890","890"],push:"12",cc:"",fan:"20",perTray:"50",wt:"0.95"}];
+  const R={id:"PR-0001",date:d,furnace:"F-04",rows:[],status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
+  const add=(part,batch,heat,code,entry,qty,push,exitAdj)=>{const sp=o.specs.find(x=>x.part===part),tr=Math.ceil(qty/ +sp.perTray),bt=sp.proc===P_HT?13.5:sp.proc===P_IA?+sp.cc:0;
+    const e=Date.parse(entry+":00Z"),x=e+((tr-1+26)*+push+bt+exitAdj)*60000;
+    R.rows.push({id:"B"+String(o.rseq++).padStart(5,"0"),part,batch,heat,heatCode:code,entry,exit:new Date(x).toISOString().slice(0,16),qty:String(qty),push:String(push)===sp.push?"":String(push),weighed:"",note:""});};
+  add("MW-4512","F4-2610-01","H-24519","K7",dt(d,"06:10"),400,12,2);
+  add("MW-4512","F4-2610-02","H-24519","K7",dt(d,"08:12"),360,12,-3);
+  add("MW-3307","F4-2610-03","H-24577","M2",dt(d,"10:05"),216,15,0);
+  add("MW-7120","F4-2610-04","H-24601","T9",dt(d,"12:20"),270,10,38); /* exit later than expected → flagged */
+  add("MW-2205","F4-2610-05","H-24633","N4",dt(d,"15:00"),480,12,1);
+  R.rows[1].weighed="660";
+  o.reports.push(R);o.seq=2;
+  return o;
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("prod-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
+if(HTQ){
+  $("#b-theme").hidden=true; /* the suite's bar switches the theme of every page */
+  HTQ.on("sat:ready",render);
+  HTQ.on("nav:prod",o=>{if(o&&o.f)VIEW.f=o.f;if(o&&isDate(o.d))VIEW.d=o.d;saveView();render();});
+}
+render();
+if(!DB.specs.length&&!DB.reports.length) $("#setup").open=true;
+window.__PROD={get DB(){return DB;},calcRow,specOf,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();}};
+/* offered to the suite once everything above is defined (used by later links to the SCADA review and the home page) */
+if(HTQ) HTQ.provide("prod",{reports:()=>DB.reports.map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.status,rows:r.rows.map(x=>{const k=calcRow(x,r);return {...x,spec:k.sp,trays:k.trays,kg:k.kg,zones:k.zones,lvl:k.lvl};})}))});
+</script>
+</body></html>

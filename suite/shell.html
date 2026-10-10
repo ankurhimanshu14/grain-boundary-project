@@ -94,6 +94,7 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
     <button class="tab" role="tab" id="tab-home" data-page="home" aria-controls="page-home"><span class="long">Home</span><span class="short">Home</span></button>
     <button class="tab" role="tab" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA temperature review</span><span class="short">SCADA</span><span class="badge" id="badge-scada" hidden></span></button>
     <button class="tab" role="tab" id="tab-sat" data-page="sat" aria-controls="page-sat"><span class="long">Thermocouple SAT (PDCA)</span><span class="short">SAT</span><span class="badge" id="badge-sat" hidden></span></button>
+    <button class="tab" role="tab" id="tab-prod" data-page="prod" aria-controls="page-prod"><span class="long">Production report</span><span class="short">Prod.</span><span class="badge" id="badge-prod" hidden></span></button>
   </div>
   <div class="spacer"></div>
   <button class="ghost" id="data">Data</button>
@@ -103,11 +104,12 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
   <section class="home" id="page-home" role="tabpanel" aria-labelledby="tab-home"><div class="wrap" id="home"></div></section>
   <iframe id="page-scada" role="tabpanel" aria-labelledby="tab-scada" title="SCADA temperature review"></iframe>
   <iframe id="page-sat" role="tabpanel" aria-labelledby="tab-sat" title="Thermocouple SAT PDCA"></iframe>
+  <iframe id="page-prod" role="tabpanel" aria-labelledby="tab-prod" title="Production report"></iframe>
 </main>
 
 <dialog id="dataDlg" aria-labelledby="dataTitle">
   <h2 id="dataTitle">Data of the suite</h2>
-  <p>Everything you enter is saved in this browser on this computer. Both pages share it, and so do the separate SCADA review and SAT files when they are opened from this computer in the same browser.</p>
+  <p>Everything you enter is saved in this browser on this computer. All pages share it, and so do the separate SCADA review, SAT and production files when they are opened from this computer in the same browser.</p>
   <p>To move the data to another computer or browser, or to keep a copy, download a backup and restore it there.</p>
   <table id="dsum"></table>
   <p id="dmsg"></p>
@@ -117,6 +119,7 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
 
 <script type="application/json" id="src-scada">/*@SCADA@*/</script>
 <script type="application/json" id="src-sat">/*@SAT@*/</script>
+<script type="application/json" id="src-prod">/*@PROD@*/</script>
 <script>
 "use strict";
 /* ---------- bridge shared by both pages (they run as same-origin frames of this page) ---------- */
@@ -130,7 +133,7 @@ window.HTQ={
   /* open a page, optionally passing what to show there (e.g. {view:{f:"F-04",ch:"Tempering"}}) */
   go(page,opts){ show(page); if(opts) this.emit("nav:"+page,opts); }
 };
-const PAGES=["home","scada","sat"], FRAMES=["scada","sat"];
+const PAGES=["home","scada","sat","prod"], FRAMES=["scada","sat","prod"];
 const $=s=>document.querySelector(s);
 function show(page){
   if(!PAGES.includes(page)) page="home";
@@ -178,6 +181,13 @@ function badge(){
   b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":""); b.title=n?n+" thermocouple"+(n>1?"s need":" needs")+" attention (SAT due or element replacement overdue)":"";
 }
 HTQ.on("sat:ready",badge); HTQ.on("sat:changed",badge);
+/* Production badge: draft reports of earlier days that are not yet approved */
+function badgeProd(){
+  const b=$("#badge-prod"), api=HTQ.api("prod"); let n=0;
+  try{ if(api){ const d=new Date(), t=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); n=api.reports().filter(r=>r.status!=="approved"&&r.rows.length&&r.date<t).length; } }catch(e){}
+  b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":""); b.title=n?n+" production report"+(n>1?"s":"")+" not yet approved":"";
+}
+HTQ.on("prod:ready",badgeProd); HTQ.on("prod:changed",badgeProd);
 
 /* ---------- home page: overview of all furnaces ---------- */
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -262,12 +272,12 @@ function badgeScada(){
 HTQ.on("scada:ready",badgeScada); HTQ.on("scada:pdca",badgeScada);
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */
-const KEYS={"tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","pfsr-last":"SCADA latest record per furnace / chamber","pfsr-pdca":"SCADA review PDCA (reaction plans)","pfsr-repl":"SCADA replacement register","pfsr-hist":"SCADA day summaries (history)","pfsr-settings":"SCADA settings","pfsr-link":"SCADA links to furnaces / chambers","tsat-view":"SAT page filter","htq-theme":"Theme"};
+const KEYS={"prod-reg":"Production reports and process specifications","prod-view":"Production page: furnace and date shown","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","pfsr-last":"SCADA latest record per furnace / chamber","pfsr-pdca":"SCADA review PDCA (reaction plans)","pfsr-repl":"SCADA replacement register","pfsr-hist":"SCADA day summaries (history)","pfsr-settings":"SCADA settings","pfsr-link":"SCADA links to furnaces / chambers","tsat-view":"SAT page filter","htq-theme":"Theme"};
 const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 function summary(){
   const n=(k,f)=>{ try{ const v=JSON.parse(get(k)||"null"); return v==null?"—":f(v); }catch(e){ return "unreadable"; } };
   const rows=[["SAT cycles",n("tsat-pdca",v=>(v.cycles||[]).length)],["Thermocouple replacements (SAT register)",n("tsat-pdca",v=>(v.repl||[]).length)],["Thermocouples in the register",n("tsat-pdca",v=>(v.sensors||[]).length)],
-    ["SCADA reviews (PDCA)",n("pfsr-pdca",v=>(v.reviews||[]).length)],["SCADA days analysed",n("pfsr-hist",v=>Object.keys(v).length)],["SCADA replacement entries",n("pfsr-repl",v=>v.length)]];
+    ["SCADA reviews (PDCA)",n("pfsr-pdca",v=>(v.reviews||[]).length)],["Production reports",n("prod-reg",v=>(v.reports||[]).length)],["Process specifications",n("prod-reg",v=>(v.specs||[]).length)],["SCADA days analysed",n("pfsr-hist",v=>Object.keys(v).length)],["SCADA replacement entries",n("pfsr-repl",v=>v.length)]];
   $("#dsum").innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join("");
 }
 $("#data").addEventListener("click",()=>{ $("#dmsg").textContent=""; summary(); $("#dataDlg").showModal(); });
