@@ -228,7 +228,7 @@ function normalize(o){
 }
 let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 if(!DB) DB=blank();
-/* inside the Heat Treat Quality Suite the parent page offers a bridge to the other pages; standalone it is null */
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
 const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
 let EMIT=0;
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}

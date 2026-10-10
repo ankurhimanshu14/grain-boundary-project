@@ -1,6 +1,6 @@
-"""Build Heat_Treat_Quality_Suite.html: one file with a navigation bar that runs
-Pusher_Furnace_SCADA_Review.html, Thermocouple_SAT_PDCA.html and
-Production_Report.html as pages.
+"""Build CALOR.html, the main application: one file with a navigation bar that
+runs Pusher_Furnace_SCADA_Review.html and Thermocouple_SAT_PDCA.html as pages
+(Production_Report.html is kept separate until it is finished).
 
 Each application stays a standalone file and is embedded unchanged as the srcdoc
 of a same-origin frame, so both share the browser's storage and the HTQ bridge.
@@ -13,9 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SHELL = ROOT / "suite" / "shell.html"
 APPS = {"/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
-        "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html",
-        "/*@PROD@*/": ROOT / "Production_Report.html"}
-OUT = ROOT / "Heat_Treat_Quality_Suite.html"
+        "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html"}
+OUT = ROOT / "CALOR.html"
 
 
 def embed(path: Path) -> str:

@@ -360,7 +360,7 @@ const MONS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","D
 const fmtT=ms=>{const d=new Date(ms);return pad(d.getUTCHours())+":"+pad(d.getUTCMinutes());};
 const fmtD=ms=>{const d=new Date(ms);return pad(d.getUTCDate())+" "+MONS[d.getUTCMonth()]+" "+d.getUTCFullYear();};
 let MULTI=false, T0DAY=0;
-/* inside the Heat Treat Quality Suite the parent page offers a bridge to the SAT register; standalone it is null */
+/* inside CALOR the parent page offers a bridge to the SAT register; standalone it is null */
 const HTQ=(()=>{ try{ return window.parent!==window&&window.parent.HTQ||null; }catch(e){ return null; } })();
 let ALLREPL=[]; /* own register + replacements from the SAT register (suite only) */
 let REPL=[]; try{ REPL=(JSON.parse(localStorage.getItem("pfsr-repl")||"[]")||[]).filter(x=>x&&isFinite(x.t)&&x.k>=0&&x.k<12); }catch(e){} /* register of replaced thermocouples: {k, id, t, note} */
@@ -1658,7 +1658,7 @@ $("#pdfBtn").addEventListener("click",()=>{
   note.hidden=true; enterPrint(); setTimeout(()=>window.print(),150);
 });
 
-/* ---------- link to the SAT register (Heat Treat Quality Suite only) ---------- */
+/* ---------- link to the SAT register (CALOR only) ---------- */
 let LINKS={}; try{ LINKS=JSON.parse(localStorage.getItem("pfsr-link")||"{}")||{}; }catch(e){}
 const satApi=()=>HTQ&&HTQ.api("sat");
 const isoDay=ms=>new Date(ms).toISOString().slice(0,10);
