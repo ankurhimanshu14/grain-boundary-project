@@ -1810,7 +1810,7 @@ function pdMissing(R){
 function pdAdvance(R){
   const m=pdMissing(R); if(m.length) return "Still needed: "+m.join(", ")+".";
   const i=PD_ST.indexOf(R.stage); R.stage=PD_ST[i+1];
-  const dk={do:"doDate",check:"checkDate",act:"actDate"}[R.stage]; if(dk&&!R[dk]) R[dk]=todayISO();
+  const dk={do:"doDate",check:"checkDate",act:"actDate",closed:"closedDate"}[R.stage]; if(dk&&!R[dk]) R[dk]=todayISO();
   pdLog(R,{do:"Reaction plan decided by "+R.planBy+" → Do",check:"Actions done → Check",act:"Effect verified by "+R.checkBy+" → Act",closed:"Approved by "+R.apprBy+" ("+R.apprRole+"); review closed"}[R.stage]);
   return "";
 }
@@ -1882,6 +1882,8 @@ function renderPdca(){
     </div>
     ${R.log.length?`<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">History (${R.log.length})</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${R.log.map(x=>`<li>${esc(fmtD(Date.parse(x.d+"T00:00:00Z")))} — ${esc(x.t)}</li>`).join("")}</ul></details>`:""}
     <div class="pd-foot"><span class="msg" id="pdMsg">${esc(PD_MSG)}</span>
+      <button class="btn ghost" type="button" data-pdact="xlsx" title="All Plan, Do, Check and Act details as an Excel workbook">Download Excel</button>
+      <button class="btn ghost" type="button" data-pdact="pdf" title="Opens the reaction plan as a document; choose Save as PDF in the print dialog">Download PDF</button>
       ${R.stage==="plan"&&R.cycle===1?`<button class="btn ghost" type="button" data-pdact="delete">Delete review</button>`:""}
       ${R.stage==="act"&&pdAct(R).some(i=>i.res==="not")?`<button class="btn ghost" type="button" data-pdact="replan">Re-plan actions that were not effective</button>`:""}
       ${closed?"":`<button class="btn" type="button" data-pdact="advance">${{plan:"Confirm reaction plan → Do",do:"Actions done → Check",check:"Effect verified → Act",act:"Approve and close"}[R.stage]}</button>`}</div>`;
@@ -1894,6 +1896,91 @@ function renderPdca(){
       <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td></tr>`).join("")}</tbody></table></div>`;
   body.innerHTML=h;
 }
+/* ---------- download of a review: Excel workbook and printable document (PDF) ---------- */
+const PD_DEC={adopt:"Adopted the suggested action",modify:"Changed the action",none:"No action needed"};
+const PD_RES={effective:"Effective",not:"Not effective"};
+const dIso=d=>d?fmtD(Date.parse(d+"T00:00:00Z")):"";
+function pdFileName(R){ return `Reaction plan ${R.id} ${R.fkey} ${R.day0}`.replace(/[\\/:*?"<>|]+/g,"-"); }
+function pdCounts(R){
+  const a=pdAct(R), od=pdOverdue(R).length;
+  return {total:R.items.length,adopt:R.items.filter(i=>i.dec==="adopt").length,modify:R.items.filter(i=>i.dec==="modify").length,none:R.items.filter(i=>i.dec==="none").length,
+    undecided:R.items.filter(i=>!i.dec).length,done:a.filter(i=>i.doneDate).length,eff:a.filter(i=>i.res==="effective").length,not:a.filter(i=>i.res==="not").length,act:a.length,od};
+}
+/* the same content for both formats: summary, Plan, Do, Check, Act, history */
+function pdTables(R){
+  const n=pdCounts(R), today=todayISO();
+  const rec=`${dIso(R.day0)}${R.day1!==R.day0?" – "+dIso(R.day1):""}`;
+  const summary=[["Review",R.id],["Furnace (SCADA heading)",R.furnace||R.fkey],["Furnace key",R.fkey],["SAT register link",R.link?`${R.link.f} · ${R.link.ch} chamber`:"not linked"],
+    ["Record",rec],["SCADA file",R.file+(R.example?" (example, not saved)":"")],["Tolerance",`±${R.tol} °C`],["Stage",PD_NM[R.stage]+(R.cycle>1?` (cycle ${R.cycle})`:"")],
+    ["Review started",dIso(R.created)],["Plan: reaction plan decided by",R.planBy||""],["Do: started",dIso(R.doDate)],["Check: effect verified by",R.checkBy||""],["Check: date",dIso(R.checkDate)],
+    ["Act: documents standardised",(R.docs||[]).join(", ")],["Act: lessons learned",R.lessons||""],["Act: approved by",R.apprBy?`${R.apprBy} (${R.apprRole||""})`:""],["Act: date",dIso(R.actDate)],["Closed",dIso(R.closedDate)],
+    ["Suggested actions",n.total],["Adopted / changed / no action / not decided",`${n.adopt} / ${n.modify} / ${n.none} / ${n.undecided}`],["Actions done",`${n.done} of ${n.act}`],["Effective / not effective",`${n.eff} / ${n.not}`],["Overdue actions",n.od],["Downloaded",dIso(today)]];
+  const plan={head:["#","Priority","Source","Issue found","Details","Suggested action","Suggested owner","Suggested timing","Decision","Reaction plan / reason for no action","Owner","Due date"],
+    rows:R.items.map(i=>[i.id,i.pr==="P0"?"P0 product":i.pr,i.src,i.issue,i.detail||"",i.suggested,i.sugOwner,i.when||`within ${i.sugDays} day(s)`,PD_DEC[i.dec]||"Not decided",i.plan||"",i.owner||"",dIso(i.due)])};
+  const doT={head:["#","Issue found","Reaction plan","Owner","Due date","Date done","Done by","What was done","Product disposition","On time"],
+    rows:R.items.filter(i=>i.dec&&i.dec!=="none").map(i=>[i.id,i.issue,i.plan||"",i.owner||"",dIso(i.due),dIso(i.doneDate),i.doneBy||"",i.doneNote||"",i.product?(i.dispo||"not recorded"):"n/a",
+      !i.due?"":i.doneDate?(i.doneDate<=i.due?"Yes":"Late"):(i.due<today?"Overdue":"Open")])};
+  const check={head:["#","Issue found","What was done","Result","Evidence"],
+    rows:R.items.filter(i=>i.dec&&i.dec!=="none").map(i=>[i.id,i.issue,i.doneNote||"",PD_RES[i.res]||"Not checked",i.evid||""])};
+  const none={head:["#","Issue found","Reason why no action is needed"],rows:R.items.filter(i=>i.dec==="none").map(i=>[i.id,i.issue,i.plan||""])};
+  const earlier={head:["#","Issue found","Cycle","Reaction plan","Owner","What was done","Evidence (not effective)"],
+    rows:R.items.flatMap(i=>(i.hist||[]).map(h=>[i.id,i.issue,h.cycle,h.plan||"",h.owner||"",h.done||"",h.evid||""]))};
+  const act=[["Documents standardised",(R.docs||[]).join(", ")||"not yet"],["Lessons learned / what was standardised",R.lessons||""],["Approved by",R.apprBy||""],["Role",R.apprRole||""],["Date",dIso(R.actDate)],["Review closed",R.stage==="closed"?dIso(R.closedDate)||"Yes":"No"]];
+  const hist={head:["Date","Event"],rows:R.log.map(x=>[dIso(x.d),x.t])};
+  return {summary,plan,doT,check,none,earlier,act,hist};
+}
+function pdXlsx(R){
+  if(!window.XLSX||!XLSX.utils||!XLSX.writeFile) return "The spreadsheet library did not load (check the internet connection), so the Excel file cannot be made. Use Download PDF instead.";
+  const T=pdTables(R), wb=XLSX.utils.book_new();
+  const sheet=(aoa,widths)=>{ const ws=XLSX.utils.aoa_to_sheet(aoa); ws["!cols"]=widths.map(w=>({wch:w})); return ws; };
+  const tbl=(t,widths,title)=>sheet([[title],[],t.head,...(t.rows.length?t.rows:[["—"]])],widths);
+  XLSX.utils.book_append_sheet(wb,sheet([["Review PDCA: reaction plan"],[],...T.summary],[44,70]),"Summary");
+  XLSX.utils.book_append_sheet(wb,tbl(T.plan,[6,11,22,48,48,48,18,20,26,52,18,13],"PLAN: suggested actions and the reaction plan decided by the reviewer"),"Plan");
+  XLSX.utils.book_append_sheet(wb,tbl(T.doT,[6,48,52,18,13,13,18,52,34,10],"DO: what was done"),"Do");
+  XLSX.utils.book_append_sheet(wb,tbl(T.check,[6,48,52,16,60],"CHECK: was it effective?"),"Check");
+  const actRows=[["ACT: standardise and approve"],[],...T.act,[],["Actions with no reaction plan"],T.none.head,...(T.none.rows.length?T.none.rows:[["—"]]),[],["Earlier cycles: actions that were not effective"],T.earlier.head,...(T.earlier.rows.length?T.earlier.rows:[["—"]])];
+  XLSX.utils.book_append_sheet(wb,sheet(actRows,[36,48,10,48,18,40,48]),"Act");
+  XLSX.utils.book_append_sheet(wb,tbl(T.hist,[14,90],"History of the review"),"History");
+  try{ XLSX.writeFile(wb,pdFileName(R)+".xlsx"); return ""; }catch(e){ return "The Excel file could not be saved: "+e.message; }
+}
+function pdPdf(R){
+  const T=pdTables(R), e=esc;
+  const table=(t,cls="")=>t.rows.length?`<table class="${cls}"><thead><tr>${t.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map(c=>`<td>${e(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join("")}</tbody></table>`;
+  const plan={head:["#","Priority","Issue found","Suggested action","Decision","Reaction plan / reason","Owner","Due"],rows:T.plan.rows.map(r=>[r[0],r[1],r[3]+(r[4]?" — "+r[4]:""),r[5]+" ("+r[6]+", "+r[7]+")",r[8],r[9],r[10],r[11]])};
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(pdFileName(R))}</title><style>
+    @page{size:A4 landscape;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:18px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .sub{color:#4a5761;margin:0 0 10px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:4px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    table.kv{width:auto;min-width:60%}table.kv th{background:#f2f4f5;font-weight:500;width:240px}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:70px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>Review PDCA: reaction plan · ${e(R.id)}</h1>
+  <p class="sub">${e(R.furnace||R.fkey)} · record ${e(T.summary[4][1])} · ${e(R.file)} · stage ${e(PD_NM[R.stage])}${R.cycle>1?" · cycle "+R.cycle:""}</p>
+  <h2>Summary</h2>${kv(T.summary)}
+  <h2>Plan: suggested actions and the reaction plan decided by the reviewer</h2>${table(plan)}<p>Reaction plan decided by: <b>${e(R.planBy||"—")}</b></p>
+  <h2>Do: what was done</h2>${table(T.doT)}
+  <h2>Check: was it effective?</h2>${table(T.check)}<p>Effect verified by: <b>${e(R.checkBy||"—")}</b>${R.checkDate?" on "+e(dIso(R.checkDate)):""}</p>
+  <h2>Act: standardise and approve</h2>${kv(T.act)}
+  <h3 style="font-size:12px;margin:10px 0 4px">Actions with no reaction plan</h3>${table(T.none)}
+  <h3 style="font-size:12px;margin:10px 0 4px">Earlier cycles: actions that were not effective</h3>${table(T.earlier)}
+  <h2>History of the review</h2>${table(T.hist)}
+  <div class="sign"><div><span class="muted">Reaction plan decided by</span><b>${e(R.planBy||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Effect verified by</span><b>${e(R.checkBy||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Approved by</span><b>${e(R.apprBy?R.apprBy+" ("+(R.apprRole||"")+")":"")}</b><span class="muted">Sign · Date</span></div></div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and click Download PDF again.";
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(err){} },300);
+  return "";
+}
+
 /* printable reaction plan inside the report */
 function pdPrint(D){
   const R=pdForRecord();
@@ -1931,6 +2018,8 @@ function pdPrint(D){
     else if(a==="delete"){ if(!confirm(`Delete review ${R.id}?`)) return; PD.reviews=PD.reviews.filter(x=>x!==R); PD_MEM=PD_MEM.filter(x=>x!==R); PD_CUR=null; pdSave(); renderPdca(); if(DATA) run(); }
     else if(a.startsWith("ev:")){ const i=R.items.find(x=>x.id===a.slice(3)); if(i){ i.evid=pdEvidence(R,i); pdSave(); renderPdca(); } }
     else if(a==="sat"&&HTQ&&R.link) HTQ.go("sat",{view:R.link});
+    else if(a==="xlsx"){ PD_MSG=pdXlsx(R); renderPdca(); }
+    else if(a==="pdf"){ PD_MSG=pdPdf(R); renderPdca(); }
   });
 })();
 
