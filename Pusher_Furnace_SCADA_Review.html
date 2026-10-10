@@ -977,7 +977,7 @@ function run(){
   const out=$("#out");
   try{
     ALLREPL=REPL.concat(satRepl());
-    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A); LASTO=O;
+    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A); LASTO=O; lastSave(A,O);
     render(DATA,A,O);
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
@@ -1744,6 +1744,19 @@ if(HTQ){
   HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
 }
 
+/* ---------- latest record per furnace and chamber (for the suite's home page) ---------- */
+let LAST={}; try{ LAST=JSON.parse(localStorage.getItem("pfsr-last")||"{}")||{}; }catch(e){}
+function lastSave(A,O){
+  if(/\(example\)$/.test(FILE)) return; /* example data is never saved */
+  const L=link(); if(!L||!L.f||!L.ch) return;
+  const key=L.f+"|"+L.ch, day1=isoDay(A.t1), old=LAST[key];
+  if(old&&old.day1>day1&&old.file!==FILE) return; /* keep the newest record */
+  const crit=O.filter(o=>o.lvl==="crit").length, warn=O.filter(o=>o.lvl==="warn").length, varOnly=!crit&&A.events.length>0;
+  LAST[key]={f:L.f,ch:L.ch,fkey:furnaceKey(DATA),file:FILE,day0:isoDay(A.t0),day1,tol:A.tol,inTol:A.inTolPct,events:A.events.length,windows:A.windows.length,
+    lvl:crit?"crit":warn?"warn":"good",verdict:crit?"Out of tolerance: reaction plan required":varOnly?"Variation found, no trays affected":warn?"Within tolerance, with items to review":"Process record conforms",saved:todayISO()};
+  try{ localStorage.setItem("pfsr-last",JSON.stringify(LAST)); }catch(e){}
+}
+
 /* ---------- review PDCA: the app suggests actions, the reviewer decides the reaction plan ---------- */
 const PD_KEY="pfsr-pdca";
 let PD={seq:1,reviews:[]}; try{ const o=JSON.parse(localStorage.getItem(PD_KEY)||"null"); if(o&&Array.isArray(o.reviews)) PD=o; }catch(e){}
@@ -2074,7 +2087,11 @@ function landing(){
 if(IN_FRAME&&SAMPLE) loadSample(); else landing();
 renderLink(); renderPdca();
 /* offered to the suite once everything above is defined */
-if(HTQ)HTQ.provide("scada",{pdca:()=>({open:pdAll().filter(r=>r.stage!=="closed"&&!r.example).length,overdue:pdAll().filter(r=>!r.example).reduce((a,r)=>a+pdOverdue(r).length,0)}),record:()=>DATA?{rows:DATA.rows,n:DATA.n,file:FILE,link:link(),t0:DATA.rows[0].t,t1:DATA.rows[DATA.rows.length-1].t}:null,tcName});
+if(HTQ){
+  /* home page → open a review */
+  HTQ.on("nav:scada",o=>{ if(o&&o.review&&pdGet(o.review)){ PD_CUR=o.review; PD_MSG=""; renderPdca(); $("#pdcaPanel").scrollIntoView(); } });
+}
+if(HTQ)HTQ.provide("scada",{overview:()=>({last:LAST,reviews:pdAll().filter(r=>!r.example).map(r=>({id:r.id,fkey:r.fkey,link:r.link,day0:r.day0,day1:r.day1,stage:r.stage,cycle:r.cycle,actions:pdAct(r).length,overdue:pdOverdue(r).length}))}),pdca:()=>({open:pdAll().filter(r=>r.stage!=="closed"&&!r.example).length,overdue:pdAll().filter(r=>!r.example).reduce((a,r)=>a+pdOverdue(r).length,0)}),record:()=>DATA?{rows:DATA.rows,n:DATA.n,file:FILE,link:link(),t0:DATA.rows[0].t,t1:DATA.rows[DATA.rows.length-1].t}:null,tcName});
 </script>
 
 </body></html>

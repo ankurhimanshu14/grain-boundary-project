@@ -1306,7 +1306,12 @@ if(HTQ){
     now:id=>{const sc=schedule(sensor(id)),L=lifeOf(sensor(id));
       return {label:NOW[sc.status]+(sc.status==="ok"||sc.status==="soon"||sc.status==="overdue"?" (due "+fdate(sc.due)+")":"")+(L.st==="over"?" · element replacement overdue":L.st==="soon"?" · replace element by "+fdate(L.due):""),
         open:sc.open.map(c=>c.id+" "+SNAME[c.stage]).join(", ")};},
-    lifeDays:()=>+S().lifeDays||365
+    lifeDays:()=>+S().lifeDays||365,
+    /* home page: every furnace and chamber with the status of each active thermocouple */
+    overview:()=>({plant:S().plant,lifeDays:+S().lifeDays||365,furnaces:DB.furnaces.map(f=>({id:f.id,name:f.name||"",chambers:CHAMBERS.map(ch=>({ch,
+      rows:DB.sensors.filter(x=>x.active!==false&&x.furnace===f.id&&x.chamber===ch).sort(sOrder).map(x=>{const sc=schedule(x),L=lifeOf(x);
+        return {tag:x.tag,pos:x.pos||"",st:sc.status,due:sc.due,left:sc.left,last:sc.last?{id:sc.last.id,date:sc.last.do.date,diff:sc.lastK.diff,res:sc.lastK.res}:null,
+          life:L.st,lifeDue:L.due||"",lifeLeft:L.left??null,open:sc.open.map(c=>({id:c.id,stage:SNAME[c.stage]}))};})}))}))})
   });
   HTQ.on("nav:sat",o=>{if(o&&o.view){setView(o.view.f||"",o.view.ch||"");render();}if(o&&o.cycle)openCycle(o.cycle);});
   HTQ.on("scada:changed",()=>{const el=document.getElementById("scada-hint");if(el)el.textContent=scadaHint();});

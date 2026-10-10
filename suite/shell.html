@@ -9,13 +9,15 @@
 :root{
   color-scheme:light;
   --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#d5dbdf;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--grid:#e3e7ea;
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
   --nav-h:52px;
 }
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){color-scheme:dark;--bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;--line:#2b373e;--accent:#5fb3c7;--accent-ink:#06232b}
+  :root:not([data-theme="light"]){color-scheme:dark;--good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--grid:#243037;--bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;--line:#2b373e;--accent:#5fb3c7;--accent-ink:#06232b}
 }
-:root[data-theme="dark"]{color-scheme:dark;--bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;--line:#2b373e;--accent:#5fb3c7;--accent-ink:#06232b}
+:root[data-theme="dark"]{color-scheme:dark;--good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--grid:#243037;--bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;--line:#2b373e;--accent:#5fb3c7;--accent-ink:#06232b}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;overflow:hidden}
@@ -44,7 +46,41 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
 #dmsg{font-size:13px;color:var(--ink)}
 .frames{position:relative;height:calc(100vh - var(--nav-h));height:calc(100dvh - var(--nav-h))}
 .frames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
-.frames iframe[data-off]{visibility:hidden;pointer-events:none}
+.frames iframe[data-off],.frames .home[data-off]{visibility:hidden;pointer-events:none}
+/* home page */
+.home{position:absolute;inset:0;overflow:auto;background:var(--bg)}
+.home .wrap{max-width:1240px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:18px}
+.home h1{font-size:22px;margin:0;font-weight:600}
+.home h2{font-size:16px;margin:0 0 10px;font-weight:600}
+.home .eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.home .sub{color:var(--ink2);font-size:13px;margin:4px 0 0}
+.home .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}.kpi .s{font-size:12px;color:var(--ink2)}
+.kpi .v.crit{color:var(--crit-ink)}.kpi .v.warn{color:var(--warn-ink)}.kpi .v.good{color:var(--good-ink)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:14px}
+.fc{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
+.fc>header{display:flex;align-items:baseline;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.fc>header h3{margin:0;font-size:18px}.fc>header span{color:var(--ink2);font-size:13px}
+.chb{padding:12px 14px;border-left:5px solid var(--k);display:flex;flex-direction:column;gap:8px}
+.chb+.chb{border-top:1px solid var(--line)}
+.chh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.chh b{font-size:14px}
+.state{font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;color:#fff;background:var(--k)}
+.state.warn{color:#2b1e00}
+.chb dl{margin:0;display:grid;grid-template-columns:130px 1fr;gap:4px 12px;font-size:13px}
+.chb dt{color:var(--ink2)}.chb dd{margin:0}
+.tcs{display:flex;flex-wrap:wrap;gap:4px}
+.tc{font-family:var(--mono);font-size:11.5px;border-radius:4px;padding:2px 6px;border:1px solid var(--line);background:var(--surface2);display:inline-flex;gap:4px;align-items:center;cursor:default}
+.tc i{width:8px;height:8px;border-radius:50%;background:var(--kk);display:inline-block}
+.links{display:flex;flex-wrap:wrap;gap:6px}
+.links button,.att button{font:inherit;font-size:12.5px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);padding:3px 10px;cursor:pointer}
+.muted{color:var(--muted)}.bad{color:var(--crit-ink);font-weight:500}.caution{color:var(--warn-ink);font-weight:500}.ok{color:var(--good-ink)}
+.att{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.att li{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--grid);font-size:13.5px}
+.att li:first-child{border-top:0}.att li i{width:10px;height:10px;border-radius:50%;background:var(--kk)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2)}.legend span{display:inline-flex;gap:6px;align-items:center}.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+@media (max-width:640px){.chb dl{grid-template-columns:1fr}.chb dt{font-size:12px;margin-top:4px}}
 @media (max-width:640px){
   .brand span{display:none}
   .tab .long{display:none}.tab .short{display:inline}
@@ -55,6 +91,7 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
 <nav class="top" aria-label="Applications">
   <div class="brand"><i aria-hidden="true"></i><span>Heat Treat Quality Suite</span></div>
   <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-home" data-page="home" aria-controls="page-home"><span class="long">Home</span><span class="short">Home</span></button>
     <button class="tab" role="tab" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA temperature review</span><span class="short">SCADA</span><span class="badge" id="badge-scada" hidden></span></button>
     <button class="tab" role="tab" id="tab-sat" data-page="sat" aria-controls="page-sat"><span class="long">Thermocouple SAT (PDCA)</span><span class="short">SAT</span><span class="badge" id="badge-sat" hidden></span></button>
   </div>
@@ -63,6 +100,7 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
   <button class="ghost" id="theme" aria-label="Toggle colour theme">Theme</button>
 </nav>
 <main class="frames">
+  <section class="home" id="page-home" role="tabpanel" aria-labelledby="tab-home"><div class="wrap" id="home"></div></section>
   <iframe id="page-scada" role="tabpanel" aria-labelledby="tab-scada" title="SCADA temperature review"></iframe>
   <iframe id="page-sat" role="tabpanel" aria-labelledby="tab-sat" title="Thermocouple SAT PDCA"></iframe>
 </main>
@@ -92,13 +130,14 @@ window.HTQ={
   /* open a page, optionally passing what to show there (e.g. {view:{f:"F-04",ch:"Tempering"}}) */
   go(page,opts){ show(page); if(opts) this.emit("nav:"+page,opts); }
 };
-const PAGES=["scada","sat"];
+const PAGES=["home","scada","sat"], FRAMES=["scada","sat"];
 const $=s=>document.querySelector(s);
 function show(page){
-  if(!PAGES.includes(page)) page="scada";
+  if(!PAGES.includes(page)) page="home";
   PAGES.forEach(p=>{ const on=p===page; $("#tab-"+p).setAttribute("aria-selected",on); $("#tab-"+p).tabIndex=on?0:-1;
     const f=$("#page-"+p); if(on) f.removeAttribute("data-off"); else f.setAttribute("data-off",""); });
   if(location.hash!=="#"+page) history.replaceState(null,"","#"+page);
+  if(page==="home") renderHome();
 }
 document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>show(b.dataset.page)));
 $(".tabs").addEventListener("keydown",e=>{ if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
@@ -109,7 +148,7 @@ addEventListener("hashchange",()=>show(location.hash.slice(1)));
 /* ---------- theme for the bar and both pages ---------- */
 let THEME=null; try{ THEME=localStorage.getItem("htq-theme"); }catch(e){}
 function applyTheme(){
-  const docs=[document,...PAGES.map(p=>{ try{ return $("#page-"+p).contentDocument; }catch(e){ return null; } })];
+  const docs=[document,...FRAMES.map(p=>{ try{ return $("#page-"+p).contentDocument; }catch(e){ return null; } })];
   docs.forEach(d=>{ if(!d||!d.documentElement) return; if(THEME) d.documentElement.setAttribute("data-theme",THEME); else d.documentElement.removeAttribute("data-theme"); });
 }
 $("#theme").addEventListener("click",()=>{
@@ -119,7 +158,7 @@ $("#theme").addEventListener("click",()=>{
 });
 
 /* ---------- load the two applications ---------- */
-PAGES.forEach(p=>{
+FRAMES.forEach(p=>{
   const f=$("#page-"+p);
   f.addEventListener("load",()=>{
     applyTheme();
@@ -130,7 +169,7 @@ PAGES.forEach(p=>{
   });
   f.srcdoc=JSON.parse($("#src-"+p).textContent);
 });
-show(location.hash.slice(1)||"scada");
+show(location.hash.slice(1)||"home");
 
 /* SAT badge: thermocouples needing attention (SAT due now or element replacement overdue) */
 function badge(){
@@ -139,6 +178,82 @@ function badge(){
   b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":""); b.title=n?n+" thermocouple"+(n>1?"s need":" needs")+" attention (SAT due or element replacement overdue)":"";
 }
 HTQ.on("sat:ready",badge); HTQ.on("sat:changed",badge);
+
+/* ---------- home page: overview of all furnaces ---------- */
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fd=d=>d&&/^\d{4}-\d{2}-\d{2}/.test(d)?`${+d.slice(8,10)} ${MON[+d.slice(5,7)-1]} ${d.slice(0,4)}`:"—";
+const sg=v=>v==null?"—":(v>0?"+":v<0?"−":"±")+Math.abs(v).toFixed(1);
+const COL={crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)",idle:"var(--muted)"};
+const STATE={crit:"Action needed",warn:"Attention",good:"In order",idle:"No data yet"};
+const ST_TXT={ok:"SAT in date",soon:"SAT due soon",overdue:"SAT overdue",fail:"last SAT failed",repl:"replaced, verification SAT needed",none:"no SAT on record"};
+/* thermocouple → status level */
+const tcLvl=r=>["fail","overdue","repl"].includes(r.st)||r.life==="over"?"crit":["soon","none"].includes(r.st)||r.life==="soon"?"warn":"good";
+function renderHome(){
+  const el=$("#home"); if(!el) return;
+  const sat=HTQ.api("sat"), sc=HTQ.api("scada");
+  if(!sat||!sc){ el.innerHTML=`<div class="panel muted">Loading the SAT register and the SCADA review…</div>`; return; }
+  const O=sat.overview(), V=sc.overview(), last=V.last||{}, revs=V.reviews||[];
+  let tcs=0,satDue=0,lifeOver=0,lifeSoon=0,cyc=0,none=0; const att=[];
+  const cards=O.furnaces.map(f=>{
+    const blocks=f.chambers.map(({ch,rows})=>{
+      const n=st=>rows.filter(r=>r.st===st).length, due=n("fail")+n("overdue")+n("repl"), lo=rows.filter(r=>r.life==="over").length, ls=rows.filter(r=>r.life==="soon").length;
+      const open=rows.reduce((a,r)=>a+r.open.length,0), L=last[f.id+"|"+ch], rv=revs.filter(r=>r.link&&r.link.f===f.id&&r.link.ch===ch);
+      const rvOpen=rv.filter(r=>r.stage!=="closed"), rvOd=rv.reduce((a,r)=>a+r.overdue,0);
+      const lrev=L&&rv.find(r=>r.fkey===L.fkey&&r.day0===L.day0&&r.day1===L.day1);
+      const recOpen=L&&L.lvl==="crit"&&!(lrev&&lrev.stage==="closed");
+      tcs+=rows.length; satDue+=due; lifeOver+=lo; lifeSoon+=ls; cyc+=open; none+=n("none");
+      const lvl=!rows.length&&!L?"idle":due||lo||rvOd||recOpen?"crit":n("soon")||n("none")||ls||rvOpen.length||(L&&L.lvl==="warn"&&!(lrev&&lrev.stage==="closed"))?"warn":"good";
+      /* needs attention */
+      const where=`${f.id} · ${ch}`, goSat=`<button data-go="sat|${esc(f.id)}|${esc(ch)}">SAT register</button>`;
+      rows.forEach(r=>{
+        if(["fail","overdue","repl"].includes(r.st)) att.push({lvl:"crit",o:r.st==="fail"?0:1,txt:`<b>${esc(where)} · ${esc(r.tag)}</b>: ${ST_TXT[r.st]}${r.st==="fail"&&r.last?` (${esc(r.last.id)} on ${fd(r.last.date)}, ${sg(r.last.diff)} °C)`:r.st==="overdue"?` since ${fd(r.due)}`:""}`,btn:goSat});
+        if(r.life==="over") att.push({lvl:"crit",o:2,txt:`<b>${esc(where)} · ${esc(r.tag)}</b>: type K element older than ${O.lifeDays} days, replacement was due ${fd(r.lifeDue)}`,btn:goSat});
+      });
+      if(n("none")) att.push({lvl:"warn",o:5,txt:`<b>${esc(where)}</b>: ${n("none")} thermocouple${n("none")>1?"s have":" has"} no SAT on record`,btn:goSat});
+      rv.filter(r=>r.overdue).forEach(r=>att.push({lvl:"crit",o:3,txt:`<b>${esc(r.id)}</b> (${esc(where)}, record ${fd(r.day0)}): ${r.overdue} reaction-plan action${r.overdue>1?"s":""} overdue`,btn:`<button data-review="${esc(r.id)}">Open review</button>`}));
+      if(recOpen) att.push({lvl:"crit",o:4,txt:`<b>${esc(where)}</b>: latest SCADA record ${fd(L.day1)} is out of tolerance${lrev?` — review ${esc(lrev.id)} is in ${esc({plan:"Plan",do:"Do",check:"Check",act:"Act"}[lrev.stage]||lrev.stage)}`:" — no review started"}`,btn:lrev?`<button data-review="${esc(lrev.id)}">Open review</button>`:`<button data-go="scada">SCADA review</button>`});
+      const nextLife=rows.filter(r=>r.lifeDue).sort((a,b)=>a.lifeDue<b.lifeDue?-1:1)[0];
+      return `<section class="chb" style="--k:${COL[lvl]}">
+        <div class="chh"><b>${esc(ch)} chamber</b><span class="state ${lvl}">${STATE[lvl]}</span></div>
+        <dl>
+          <dt>SAT</dt><dd>${rows.length?[`${rows.length} TC`,n("ok")&&`<span class="ok">${n("ok")} in date</span>`,n("soon")&&`<span class="caution">${n("soon")} due soon</span>`,due&&`<span class="bad">${due} due now</span>`,n("none")&&`<span class="caution">${n("none")} never tested</span>`].filter(Boolean).join(" · "):`<span class="muted">no thermocouples registered</span>`}${open?` · ${open} open cycle${open>1?"s":""}`:""}</dd>
+          <dt>Type K elements</dt><dd>${lo?`<span class="bad">${lo} replacement overdue</span>`:ls?`<span class="caution">${ls} replacement due soon</span>`:rows.some(r=>r.lifeDue)?`<span class="ok">all within ${O.lifeDays} days</span>`:`<span class="muted">install dates not recorded</span>`}${nextLife&&!lo?` · next ${fd(nextLife.lifeDue)}`:""}</dd>
+          <dt>Latest SCADA record</dt><dd>${L?`${fd(L.day1)} · <span class="${{crit:"bad",warn:"caution",good:"ok"}[L.lvl]}">${esc(L.verdict)}</span> · ${L.inTol!=null?L.inTol.toFixed(1)+" % within ±"+L.tol+" °C":""}<br><span class="muted">${esc(L.file)}</span>`:`<span class="muted">no record analysed yet</span>`}</dd>
+          <dt>Reviews</dt><dd>${rv.length?[`${rvOpen.length} open`,rvOd&&`<span class="bad">${rvOd} action${rvOd>1?"s":""} overdue</span>`,`${rv.length-rvOpen.length} closed`].filter(Boolean).join(" · "):`<span class="muted">none</span>`}</dd>
+        </dl>
+        ${rows.length?`<div class="tcs">${rows.map(r=>{const k=tcLvl(r);return `<span class="tc" style="--kk:${COL[k]}" title="${esc(r.tag)} ${esc(r.pos)}: ${esc(ST_TXT[r.st])}${r.last?` · last SAT ${fd(r.last.date)} ${sg(r.last.diff)} °C`:""}${r.lifeDue?` · element replace by ${fd(r.lifeDue)}`:""}"><i></i>${esc(r.tag)}</span>`;}).join("")}</div>`:""}
+        <div class="links">${goSat}${rvOpen[0]?`<button data-review="${esc(rvOpen[0].id)}">Open review ${esc(rvOpen[0].id)}</button>`:`<button data-go="scada">SCADA review</button>`}</div>
+      </section>`;
+    }).join("");
+    return `<article class="fc"><header><h3>${esc(f.id)}</h3><span>${esc(f.name||"")}</span></header>${blocks}</article>`;
+  }).join("");
+  const rvOpenAll=revs.filter(r=>r.stage!=="closed").length, rvOdAll=revs.reduce((a,r)=>a+r.overdue,0);
+  const k=(v,l,s,c)=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${s}</span></div>`;
+  att.sort((a,b)=>(a.lvl==="crit"?0:1)-(b.lvl==="crit"?0:1)||a.o-b.o);
+  const MAX=15;
+  const d=new Date(), today=`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+  el.innerHTML=`<header><div class="eyebrow">Heat Treat Quality Suite · ${esc(O.plant||"")}</div><h1>Furnace overview</h1><p class="sub">${today} · ${O.furnaces.length} furnaces · hardening and tempering chambers · SAT register, type K element life, latest analysed SCADA record and review PDCA in one place.</p></header>
+    <section class="kpis">
+      ${k(tcs,"Thermocouples","active in the SAT register")}
+      ${k(satDue,"SAT due now","overdue, failed or replaced",satDue?"crit":"good")}
+      ${k(none,"Never tested","no SAT on record",none?"warn":"good")}
+      ${k(lifeOver,"Element replacement overdue",`${lifeSoon} more due within the warning window`,lifeOver?"crit":lifeSoon?"warn":"good")}
+      ${k(cyc,"Open SAT cycles","Plan, Do, Check or Act")}
+      ${k(rvOpenAll,"Open SCADA reviews",`${rvOdAll} overdue action${rvOdAll===1?"":"s"}`,rvOdAll?"crit":"")}
+    </section>
+    <section><h2>Furnaces</h2>
+      <div class="legend" style="margin-bottom:10px"><span><i style="background:var(--crit)"></i>action needed</span><span><i style="background:var(--warn)"></i>attention</span><span><i style="background:var(--good)"></i>in order</span><span class="muted">Each chip is a thermocouple; hover for its SAT and element status.</span></div>
+      <div class="fgrid">${cards}</div></section>
+    <section class="panel"><h2>Needs attention</h2>${att.length?`<ul class="att">${att.slice(0,MAX).map(a=>`<li style="--kk:${COL[a.lvl]}"><i></i><span>${a.txt}</span>${a.btn}</li>`).join("")}</ul>${att.length>MAX?`<p class="muted" style="margin:8px 0 0;font-size:13px">and ${att.length-MAX} more — see the furnace cards below.</p>`:""}`:`<p class="ok" style="margin:0">Nothing needs attention: all SATs are in date, no element is past its life and no review action is overdue.</p>`}</section>`;
+}
+$("#home").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.review) HTQ.go("scada",{review:b.dataset.review});
+  else if(b.dataset.go){ const [pg,f,ch]=b.dataset.go.split("|"); HTQ.go(pg,f?{view:{f,ch}}:null); }
+});
+let homeT=0; const homeSoon=()=>{ clearTimeout(homeT); homeT=setTimeout(()=>{ if(!$("#page-home").hasAttribute("data-off")) renderHome(); },150); };
+["sat:ready","sat:changed","scada:ready","scada:changed","scada:pdca"].forEach(ev=>HTQ.on(ev,homeSoon));
 function badgeScada(){
   const b=$("#badge-scada"), api=HTQ.api("scada"), c=api&&api.pdca?api.pdca():{overdue:0,open:0};
   b.hidden=!c.overdue; b.textContent=c.overdue; b.className="badge"+(c.overdue?" alert":"");
@@ -147,7 +262,7 @@ function badgeScada(){
 HTQ.on("scada:ready",badgeScada); HTQ.on("scada:pdca",badgeScada);
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */
-const KEYS={"tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","pfsr-pdca":"SCADA review PDCA (reaction plans)","pfsr-repl":"SCADA replacement register","pfsr-hist":"SCADA day summaries (history)","pfsr-settings":"SCADA settings","pfsr-link":"SCADA links to furnaces / chambers","tsat-view":"SAT page filter","htq-theme":"Theme"};
+const KEYS={"tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","pfsr-last":"SCADA latest record per furnace / chamber","pfsr-pdca":"SCADA review PDCA (reaction plans)","pfsr-repl":"SCADA replacement register","pfsr-hist":"SCADA day summaries (history)","pfsr-settings":"SCADA settings","pfsr-link":"SCADA links to furnaces / chambers","tsat-view":"SAT page filter","htq-theme":"Theme"};
 const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 function summary(){
   const n=(k,f)=>{ try{ const v=JSON.parse(get(k)||"null"); return v==null?"—":f(v); }catch(e){ return "unreadable"; } };
