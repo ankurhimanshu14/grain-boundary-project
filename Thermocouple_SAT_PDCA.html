@@ -143,6 +143,9 @@ table.rd td{padding:2px 8px;border-top:1px solid var(--grid)}
 table.rd td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
 table.rd input{font:inherit;font-family:var(--mono);width:100%;min-width:70px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
 table.rd tr.due td{background:color-mix(in srgb,var(--d) 16%,transparent)}
+.dl-bar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:0 0 10px}
+.dl-bar select{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);max-width:100%}
+.dl-bar .msg{font-size:12.5px;color:var(--crit-ink)}
 .loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
 
 .fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px}
@@ -258,6 +261,7 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
   <section class="panel">
     <div class="sec-head"><h2>SAT records</h2><p>SAT difference = mean over all readings of furnace system reading − (test instrument reading + test instrument correction + test thermocouple correction).</p>
       <div class="actions noprint"><button class="btn ghost small" id="b-csv">Export CSV</button><button class="btn ghost small" id="b-csvr">Export all readings (CSV)</button></div></div>
+    <div class="dl-bar noprint" id="dl-bar"></div>
     <div class="scroll" id="records"></div>
   </section>
 
@@ -704,14 +708,21 @@ function drawRepl(){
 /* ---------- render: SAT records ---------- */
 function drawRecords(){
   const l=DB.cycles.filter(c=>cInView(c)&&calc(c).diff!=null).sort((a,b)=>order(b,a));
-  $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Readings</th><th class="n">Furnace mean °C</th><th class="n">Test mean (corrected) °C</th><th class="n">SAT difference</th><th class="n">Min / max</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th></tr></thead><tbody>${
+  $("#records").innerHTML=l.length?`<table class="log cards"><thead><tr><th>SAT</th><th>Thermocouple</th><th>Test date</th><th class="n">Set °C</th><th class="n">Readings</th><th class="n">Furnace mean °C</th><th class="n">Test mean (corrected) °C</th><th class="n">SAT difference</th><th class="n">Min / max</th><th>Result</th><th>Test instrument · test TC</th><th>Technician</th><th>Stage</th><th class="noprint">Download</th></tr></thead><tbody>${
     l.map(c=>{const k=calc(c);return `<tr><td data-label="SAT"><button class="btn ghost small" data-open="${c.id}">${c.id}</button>${c.parent?`<br><span class="muted">re-SAT of ${esc(c.parent)}</span>`:""}</td>
     <td data-label="Thermocouple">${esc(sName(c.sensor))}</td><td data-label="Test date" class="n">${fdate(c.do.date)}</td>
     <td data-label="Set °C" class="n">${esc(c.plan.setpoint??"—")}</td><td data-label="Readings" class="n">${k.n}</td><td data-label="Furnace °C" class="n">${k.fMean.toFixed(1)}</td>
     <td data-label="Test mean (corrected) °C" class="n">${k.corr.toFixed(1)}</td><td data-label="SAT difference" class="n">${sgn(k.diff)}</td><td data-label="Min / max" class="n">${sgn(k.dMin)} / ${sgn(k.dMax)}</td>
     <td data-label="Result">${resChip(k,c)}</td><td data-label="Test instrument · test TC">${esc(c.plan.instr||"—")} · ${esc(c.plan.testTc||"—")}</td>
-    <td data-label="Technician">${esc(c.do.tech||"—")}</td><td data-label="Stage">${SNAME[c.stage]}</td></tr>`;}).join("")}</tbody></table>`
+    <td data-label="Technician">${esc(c.do.tech||"—")}</td><td data-label="Stage">${SNAME[c.stage]}</td>
+    <td data-label="Download" class="noprint" style="white-space:nowrap"><button class="btn ghost small" data-dl="xlsx:${c.id}" title="Plan, Do, Check and Act of ${c.id} as an Excel workbook">Excel</button> <button class="btn ghost small" data-dl="pdf:${c.id}" title="Plan, Do, Check and Act of ${c.id} as a document to save as PDF">PDF</button></td></tr>`;}).join("")}</tbody></table>`
     :`<div class="empty">No SAT readings recorded yet.</div>`;
+  /* any cycle, also those still in Plan or Do */
+  const all=DB.cycles.filter(cInView).sort((a,b)=>a.id<b.id?1:-1);
+  const keep=$("#dl-pick")?.value;
+  $("#dl-bar").innerHTML=all.length?`<label for="dl-pick" class="muted" style="font-size:12.5px">Download a SAT cycle with all Plan, Do, Check and Act details</label>
+    <select id="dl-pick">${all.map(c=>`<option value="${c.id}" ${c.id===keep?"selected":""}>${esc(c.id)} · ${esc(sName(c.sensor))} · ${SNAME[c.stage]}${isDate(c.do?.date)?" · tested "+fdate(c.do.date):isDate(c.plan?.date)?" · planned "+fdate(c.plan.date):""}</option>`).join("")}</select>
+    <button class="btn ghost small" data-dl="xlsx:">Excel</button><button class="btn ghost small" data-dl="pdf:">PDF</button><span class="msg" id="dl-msg"></span>`:"";
 }
 
 /* ---------- render: settings + thermocouple register ---------- */
@@ -813,6 +824,7 @@ function drawDlg(){
   if(c.stage==="plan") h+=`<button class="btn danger" data-act="delete">Delete</button>`;
   if(c.stage==="check") h+=`<button class="btn ghost" data-act="invalid">Repeat test (back to Do)</button>`;
   if(c.stage==="act"&&calc(c).res==="fail") h+=`<button class="btn ghost" data-act="resat">Plan re-SAT</button>`;
+  h+=`<button class="btn ghost" data-dl="xlsx:${c.id}">Download Excel</button><button class="btn ghost" data-dl="pdf:${c.id}">Download PDF</button>`;
   h+=`<button class="btn ghost" data-act="close">Close window</button>`;
   if(c.stage!=="closed") h+=`<button class="btn" data-act="advance">${{plan:"Approve plan → Do",do:"Submit readings → Check",check:"Accept check → Act",act:"Close cycle"}[c.stage]}</button>`;
   h+=`</div>`;
@@ -923,6 +935,8 @@ function newCycle(sid,date){
 }
 document.addEventListener("click",e=>{
   const t=e.target.closest("button");if(!t)return;
+  if(t.dataset.dl!=null){const [f,id0]=t.dataset.dl.split(":"),c=cyc(id0||$("#dl-pick")?.value);if(!c)return;
+    const msg=f==="xlsx"?satXlsx(c):satPdf(c);const el=dlg.open?$("#dlg-msg"):$("#dl-msg");if(el){el.textContent=msg;el.style.color="";}return;}
   if(t.dataset.open){openCycle(t.dataset.open);return;}
   if(t.dataset.plan){const sc=schedule(sensor(t.dataset.plan));const c=newCycle(t.dataset.plan,sc.due);render();openCycle(c.id);return;}
   if(t.dataset.delsn!=null){DB.sensors.splice(+t.dataset.delsn,1);save();render();return;}
@@ -1051,6 +1065,130 @@ function exportReplCsv(){
     rows.push([r.id,r.date+(r.time?" "+r.time:""),s.furnace,s.chamber,s.tag,s.zone,r.oldSerial,r.oldInstalled,isDate(r.oldInstalled)?daysBetween(r.oldInstalled,r.date):"",r.newSerial,r.newType,r.cert,r.reason,r.offset,r.tus,r.satRef,v?.id||"",v?.do.date||"",vk?.diff??"",vk?.res||"",r.by,r.notes]);});
   download(`thermocouple-replacements-${today()}.csv`,"\ufeff"+rows.map(x=>x.map(q).join(",")).join("\r\n"),"text/csv");
 }
+/* ---------- download of one SAT cycle: Excel workbook and printable document (PDF) ---------- */
+/* plain ASCII file name: Chrome ignores a download name with characters such as "·" */
+const dlName=c=>{const sn=sensor(c.sensor)||{};return `SAT ${c.id} ${sn.furnace||""} ${sn.chamber||""} ${sn.tag||c.sensor} ${c.do?.date||c.plan?.date||""}`.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();};
+/* the same content for both formats */
+function satTables(c){
+  const sn=sensor(c.sensor)||{},k=calc(c),p=c.plan||{},d=c.do||{},ck=c.check||{},a=c.act||{},s=S();
+  const yn=v=>v==="yes"?"Yes":v==="no"?"No":"";
+  const resTxt=k.res==null?"No readings":ck.valid==="invalid"?"Invalid test":{pass:"Pass",warn:"Pass – warning band",fail:"Fail"}[k.res];
+  const kids=reSats(c),reps=DB.repl.filter(r=>r.satRef===c.id),/* the element that was tested: if this SAT led to a replacement, it is the element that was removed */
+    el=reps.length?{serial:reps[0].oldSerial,installed:reps[0].oldInstalled}:isDate(d.date)?elementAt(c.sensor,d.date):{serial:sn.serial,installed:sn.installed};
+  const summary=[["SAT cycle",c.id],["Furnace",sn.furnace||""],["Chamber",sn.chamber?sn.chamber+" chamber":""],["Thermocouple",`${sn.tag||c.sensor} · ${sn.zone||""} ${String(sn.pos||"").toLowerCase()}`],
+    ["Type","K"],["Element tested",`${el.serial||"—"}${el.installed?" (installed "+fdate(el.installed)+")":""}`],["Stage",SNAME[c.stage]],
+    ["Re-SAT of",c.parent||""],["Re-SATs of this cycle",kids.map(x=>`${x.id} (${SNAME[x.stage]}${calc(x).diff!=null?", "+sgn(calc(x).diff)+" °C":""})`).join(", ")],
+    ["Tolerance",`±${s.tol} °C (warning band ±${(s.tol*s.warnPct/100).toFixed(1)} °C)`],["Readings",k.n?`${k.n} × every ${s.step} min`:"none"],
+    ["SAT difference",k.diff!=null?sgn(k.diff)+" °C":""],["Result",resTxt],["Created",fdate(c.created)],["Downloaded",fdate(today())]];
+  const plan=[["Planned date",fdate(p.date)],["Responsible person",p.by||""],["Test set value",p.setpoint!==""&&p.setpoint!=null?p.setpoint+" °C":""],
+    ["Test instrument",p.instr||""],["Test instrument calibration due",fdate(p.instrCalDue)],["Test thermocouple",p.testTc||""],["Test thermocouple certificate",p.testTcCert||""],
+    ["Test thermocouple calibration due",fdate(p.testTcCalDue)],["Previous uses of the test thermocouple",p.testTcUses??""],["Planning notes",p.notes||""]];
+  const doKv=[["Test date",fdate(d.date)],["Technician",d.tech||""],["Furnace stable at set value",yn(d.stable)],["Start time of first reading",d.start||""],
+    ["Test instrument correction",num(d.instrCorr)!=null?sgn(num(d.instrCorr))+" °C":""],["Test thermocouple correction",num(d.tcCorr)!=null?sgn(num(d.tcCorr))+" °C":""],["Observations during the test",d.notes||""]];
+  const corr=(num(d.instrCorr)||0)+(num(d.tcCorr)||0);
+  const rd={head:["#","Time","Furnace °C","Test °C","Corrected test °C","Difference °C"],
+    rows:(Array.isArray(d.readings)?d.readings:readings(c).map(r=>({f:r.f,t:r.t}))).map((r,i)=>{const f=num(r?.f),t=num(r?.t);
+      return [i+1,rTime(c,i),f??"",t??"",t!=null?r1(t+corr):"",f!=null&&t!=null?r1(f-(t+corr)):""];})};
+  const check=k.diff==null?[["Result","No readings recorded"]]:[["SAT difference (mean)",sgn(k.diff)+" °C"],["Calculation",`mean ${k.fMean.toFixed(1)} − (mean ${k.tMean.toFixed(1)} ${sgn(num(d.instrCorr)||0)} ${sgn(num(d.tcCorr)||0)}) = ${sgn(k.diff)} °C`],
+    ["Result",resTxt],["Readings used",k.n],["Difference min / max",`${sgn(k.dMin)} / ${sgn(k.dMax)} °C`],["Standard deviation",k.sd.toFixed(2)+" °C"],
+    ["Furnace mean / range",`${k.fMean.toFixed(1)} / ${k.fRange} °C`],["Test mean / range",`${k.tMean.toFixed(1)} / ${k.tRange} °C`],["Readings outside tolerance",k.over],
+    ["Previous valid SAT",k.prev?`${k.prev.id} on ${fdate(k.prev.do.date)}: ${sgn(calc(k.prev).diff)} °C (change ${sgn(k.drift)} °C)`:"none"],
+    ["Validity and other findings",k.issues.length?k.issues.join(" | "):"No validity issues found"],
+    ["Check accepted as",ck.valid==="valid"?"Valid":ck.valid==="invalid"?"Invalid – repeated":""],["Reviewed by",ck.by||""],["Review date",fdate(ck.date)],["Review remarks",ck.remarks||""]];
+  const act=[["Required",k.res==="fail"?"Corrective action (failed SAT)":k.res==="warn"?"Preventive action (warning band)":k.res==="pass"?"Confirm the standard":""],
+    ["Root cause",a.cause||""],["Action taken",a.action||""],["Action details",a.detail||""],
+    ["Product at risk",k.res==="fail"&&isDate(d.date)?riskWindow(c):""],["Product-impact assessment",a.impact||""],["Standardise / lessons learned",a.standard||""],
+    ["Next SAT interval for this thermocouple",num(a.interval)?a.interval+" days":`default ${s.interval} days`],["Next SAT due",isDate(d.date)&&k.res&&k.res!=="fail"?fdate(addDays(d.date,num(a.interval)||+s.interval)):""],
+    ["Action owner",a.by||""],["Closing date",fdate(a.date)],["Cycle closed",c.stage==="closed"?"Yes":"No"]];
+  const repl={head:["Record","Date","Removed element","Fitted element","Reason","Controller offset reset","Replaced by","Verification SAT"],
+    rows:reps.map(r=>{const v=verifySat(r);return [r.id,fdate(r.date)+(r.time?" "+r.time:""),r.oldSerial||"",r.newSerial||"",r.reason||"",r.offset||"",r.by||"",v?`${v.id} ${fdate(v.do.date)} ${sgn(calc(v).diff)} °C`:"SAT required"];})};
+  const hist={head:["Date","Event"],rows:c.log.map(x=>[fdate(x.d),x.t])};
+  return {summary,plan,doKv,rd,check,act,repl,hist,k};
+}
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+function satXlsx(c){
+  const T=satTables(c),B=cells=>({b:true,cells}),N=cells=>({cells}),kv=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
+  const tbl=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
+  const sheets=[
+    {name:"Summary",widths:[38,70],rows:[B(["SAT cycle: Plan – Do – Check – Act"]),N([]),...kv(T.summary)]},
+    {name:"Plan",widths:[40,60],rows:[B(["PLAN: schedule the test and the calibrated test equipment"]),N([]),...kv(T.plan)]},
+    {name:"Do",widths:[30,16,14,14,18,16],rows:[B(["DO: run the test and record the readings"]),N([]),...T.doKv.map(r=>N([r[0],r[1]])),N([]),B(["Readings"]),...tbl(T.rd)]},
+    {name:"Check",widths:[34,90],rows:[B(["CHECK: SAT difference, validity and trend"]),N([]),...kv(T.check)]},
+    {name:"Act",widths:[38,70,18,18,30,22,22,30],rows:[B(["ACT: correct, verify, standardise"]),N([]),...kv(T.act),N([]),B(["Thermocouple replacements linked to this SAT"]),...tbl(T.repl)]},
+    {name:"History",widths:[14,90],rows:[B(["History of the cycle"]),N([]),...tbl(T.hist)]}];
+  try{const b=xlsxBlob(sheets),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=dlName(c)+".xlsx";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);return "";}
+  catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function satPdf(c){
+  const T=satTables(c),e=esc;
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v??"")}</td></tr>`).join("")}</tbody></table>`;
+  const table=t=>t.rows.length?`<table><thead><tr>${t.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+  const chart=T.k.n>1?readingsChart(c,T.k):"";
+  const sn=sensor(c.sensor)||{};
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(dlName(c))}</title><style>
+    :root{--band:rgba(12,163,12,.10);--grid:#e3e7ea;--warn:#fab219;--accent:#0e5566;--ink2:#4a5761;--crit:#d03b3b;--good:#0ca30c}
+    @page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:16px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    table.kv th{background:#f2f4f5;font-weight:500;width:34%}
+    table.rd td,table.rd th{text-align:right;padding:2px 6px}
+    svg{width:100%;height:auto;max-width:680px}svg text{font:10px "IBM Plex Mono",monospace;fill:#4a5761}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>Thermocouple SAT · ${e(c.id)}</h1>
+  <p class="sub">${e(sn.furnace||"")} · ${e(sn.chamber||"")} chamber · ${e(sn.tag||"")} ${e(sn.zone||"")} ${e(String(sn.pos||"").toLowerCase())} · type K · stage ${e(SNAME[c.stage])}</p>
+  <h2>Summary</h2>${kv(T.summary)}
+  <h2>Plan: schedule the test and the calibrated test equipment</h2>${kv(T.plan)}
+  <h2>Do: run the test and record the readings</h2>${kv(T.doKv)}
+  ${T.rd.rows.length?`<table class="rd"><thead><tr>${T.rd.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${T.rd.rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">No readings recorded.</p>`}
+  <h2>Check: SAT difference, validity and trend</h2>${chart}${kv(T.check)}
+  <h2>Act: correct, verify, standardise</h2>${kv(T.act)}
+  <h3 style="font-size:12px;margin:10px 0 4px">Thermocouple replacements linked to this SAT</h3>${table(T.repl)}
+  <h2>History of the cycle</h2>${table(T.hist)}
+  <div class="sign"><div><span class="muted">Test done by</span><b>${e(c.do?.tech||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Reviewed by</span><b>${e(c.check?.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Action owner / approved by</span><b>${e(c.act?.by||"")}</b><span class="muted">Sign · Date</span></div></div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 function exportCsv(){
   const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
@@ -1178,6 +1316,6 @@ if(HTQ){
 try{const th=localStorage.getItem("tsat-theme");if(th)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.cycles.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__SAT={fillFromScada,statusAt,elementAt,lifeOf,get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
+window.__SAT={satTables,fillFromScada,statusAt,elementAt,lifeOf,get DB(){return DB;},calc,schedule,missing,readings,verifySat,setView:(f,ch)=>{setView(f,ch);render();}};
 </script>
 </body></html>
