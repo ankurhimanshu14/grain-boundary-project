@@ -1820,7 +1820,9 @@ function pdReplan(R){
   R.items.forEach(i=>delete i.replan);
   not.forEach(i=>{ (i.hist=i.hist||[]).push({cycle:R.cycle,plan:i.plan,owner:i.owner,done:i.doneNote,evid:i.evid});
     ["dec","plan","owner","due","doneDate","doneBy","doneNote","res","evid"].forEach(k=>delete i[k]); i.replan=true; });
-  R.cycle++; R.stage="plan"; ["planBy","checkBy"].forEach(k=>delete R[k]);
+  /* keep who decided and verified the finished cycle, then start the new one with its own sign-offs and dates */
+  (R.past=R.past||[]).push({cycle:R.cycle,planBy:R.planBy||"",doDate:R.doDate||"",checkBy:R.checkBy||"",checkDate:R.checkDate||"",notEffective:not.map(i=>i.id)});
+  R.cycle++; R.stage="plan"; ["planBy","checkBy","doDate","checkDate","actDate"].forEach(k=>delete R[k]);
   pdLog(R,`${not.length} action${not.length>1?"s were":" was"} not effective → Plan again (cycle ${R.cycle})`);
 }
 /* evidence for Check: records of the same furnace analysed after this one (kept in this browser) */
@@ -1890,10 +1892,11 @@ function renderPdca(){
   }
   /* register of all reviews */
   const all=pdAll().slice().sort((a,b)=>a.day1<b.day1?1:a.day1>b.day1?-1:a.id<b.id?1:-1);
-  if(all.length) h+=`<h3 style="margin:18px 0 6px;font-size:14px">Review register</h3><div class="scroll"><table class="log"><thead><tr><th>Review</th><th>Furnace</th><th>Record</th><th>Stage</th><th>Actions</th><th>Overdue</th><th></th></tr></thead><tbody>${
+  if(all.length) h+=`<h3 style="margin:18px 0 6px;font-size:14px">Review register</h3><div class="scroll"><table class="log"><thead><tr><th>Review</th><th>Furnace</th><th>Record</th><th>Stage</th><th>Actions</th><th>Overdue</th><th></th><th>Download</th></tr></thead><tbody>${
     all.map(x=>`<tr><td><b>${esc(x.id)}</b>${x.example?' <span class="muted small">example</span>':""}</td><td>${esc(x.fkey)}${x.link?`<br><span class="muted small">${esc(x.link.f)} · ${esc(x.link.ch)}</span>`:""}</td><td class="n">${esc(fmtD(Date.parse(x.day0+"T00:00:00Z")))}</td>
       <td>${chip(x.stage==="closed"?"good":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<span class="bad">${pdOverdue(x).length}</span>`:"0"}</td>
-      <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td></tr>`).join("")}</tbody></table></div>`;
+      <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td>
+      <td style="white-space:nowrap"><button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="xlsx:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as an Excel workbook">Excel</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="pdf:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as a document to save as PDF">PDF</button></td></tr>`).join("")}</tbody></table></div><p class="muted small">Choose a review in the register and download it with all Plan, Do, Check and Act details, or open it first to see it here.</p>`;
   body.innerHTML=h;
 }
 /* ---------- download of a review: Excel workbook and printable document (PDF) ---------- */
@@ -1914,6 +1917,7 @@ function pdTables(R){
     ["Record",rec],["SCADA file",R.file+(R.example?" (example, not saved)":"")],["Tolerance",`±${R.tol} °C`],["Stage",PD_NM[R.stage]+(R.cycle>1?` (cycle ${R.cycle})`:"")],
     ["Review started",dIso(R.created)],["Plan: reaction plan decided by",R.planBy||""],["Do: started",dIso(R.doDate)],["Check: effect verified by",R.checkBy||""],["Check: date",dIso(R.checkDate)],
     ["Act: documents standardised",(R.docs||[]).join(", ")],["Act: lessons learned",R.lessons||""],["Act: approved by",R.apprBy?`${R.apprBy} (${R.apprRole||""})`:""],["Act: date",dIso(R.actDate)],["Closed",dIso(R.closedDate)],
+    ...(R.past||[]).map(c=>[`Cycle ${c.cycle} (earlier)`,`plan decided by ${c.planBy||"—"}; Do started ${dIso(c.doDate)||"—"}; effect verified by ${c.checkBy||"—"}${c.checkDate?" on "+dIso(c.checkDate):""}; not effective: ${c.notEffective.join(", ")}`]),
     ["Suggested actions",n.total],["Adopted / changed / no action / not decided",`${n.adopt} / ${n.modify} / ${n.none} / ${n.undecided}`],["Actions done",`${n.done} of ${n.act}`],["Effective / not effective",`${n.eff} / ${n.not}`],["Overdue actions",n.od],["Downloaded",dIso(today)]];
   const plan={head:["#","Priority","Source","Issue found","Details","Suggested action","Suggested owner","Suggested timing","Decision","Reaction plan / reason for no action","Owner","Due date"],
     rows:R.items.map(i=>[i.id,i.pr==="P0"?"P0 product":i.pr,i.src,i.issue,i.detail||"",i.suggested,i.sugOwner,i.when||`within ${i.sugDays} day(s)`,PD_DEC[i.dec]||"Not decided",i.plan||"",i.owner||"",dIso(i.due)])};
@@ -2012,6 +2016,7 @@ function pdPrint(D){
     const a=b.dataset.pdact, R=pdGet(PD_CUR)||pdForRecord();
     if(a==="start") return pdStart();
     if(a.startsWith("open:")){ PD_CUR=a.slice(5); PD_MSG=""; renderPdca(); return; }
+    if(a.startsWith("xlsx:")||a.startsWith("pdf:")){ const X=pdGet(a.slice(a.indexOf(":")+1)); if(X){ PD_MSG=a.startsWith("xlsx:")?pdXlsx(X):pdPdf(X); renderPdca(); } return; }
     if(!R) return;
     if(a==="advance"){ PD_MSG=pdAdvance(R); pdSave(); renderPdca(); if(!PD_MSG&&DATA) run(); }
     else if(a==="replan"){ pdReplan(R); PD_MSG=""; pdSave(); renderPdca(); }
