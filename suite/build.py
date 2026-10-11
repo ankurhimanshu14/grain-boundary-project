@@ -17,9 +17,24 @@ APPS = {"/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
 OUT = ROOT / "CALOR.html"
 
 
+THEME = ROOT / "suite" / "calor-theme.css"
+FONTS = ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700'
+         '&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">')
+
+
+def themed(html: str) -> str:
+    """The page with the CALOR theme (the MSA Manager look) added to its <head>.
+
+    The theme's selectors carry extra specificity, so placing it before the page's own
+    styles is fine; the standalone page files are not changed."""
+    assert "<head>" in html, "page has no <head>"
+    css = THEME.read_text(encoding="utf-8")
+    return html.replace("<head>", f'<head>{FONTS}<style id="calor-theme">\n{css}</style>', 1)
+
+
 def embed(path: Path) -> str:
     """JSON string that is safe inside <script type="application/json">."""
-    text = json.dumps(path.read_text(encoding="utf-8"), ensure_ascii=False)
+    text = json.dumps(themed(path.read_text(encoding="utf-8")), ensure_ascii=False)
     # keep the HTML parser from ending or escaping the script element early
     return text.replace("</", "<\\/").replace("<!--", "<\\u0021--")
 

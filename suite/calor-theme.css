@@ -1,0 +1,105 @@
+/* CALOR theme: the look of the MWS MSA Manager, applied to the pages inside CALOR.
+   suite/build.py inserts this file into each page when it builds CALOR.html; the standalone
+   page files keep their own look. Every rule starts with :root (tokens with :root:root:root)
+   so it wins over the page's own CSS whatever the order. Keep the page layouts; restyle only. */
+
+/* ---------- tokens (same names as the pages use) ---------- */
+:root:root:root{
+  color-scheme:light;
+  --bg:#f1f3f1;--surface:#ffffff;--surface2:#e7eae7;--ink:#1a2026;--ink2:#46515b;--muted:#5a6570;
+  --line:#d3d8d5;--grid:#e2e6e3;--accent:#1d5b78;--accent-ink:#ffffff;--accent-2:#e1edf2;
+  --good:#2a7849;--good-ink:#2a7849;--warn:#c48a1e;--warn-ink:#9c6410;--crit:#ae321b;--crit-ink:#ae321b;--info-ink:#5a6570;
+  --ok-bg:#e0f0e6;--warn-bg:#f7ead2;--bad-bg:#f6dfd8;
+  --display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:root:root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#111518;--surface:#191f23;--surface2:#222a2f;--ink:#e2e7ea;--ink2:#b5c0c7;--muted:#96a2aa;
+    --line:#2c353b;--grid:#252e33;--accent:#74b5d2;--accent-ink:#0d1a20;--accent-2:#1b2f39;
+    --good:#5ec389;--good-ink:#5ec389;--warn:#e1ae4d;--warn-ink:#e1ae4d;--crit:#f07b62;--crit-ink:#f07b62;--info-ink:#96a2aa;
+    --ok-bg:#183124;--warn-bg:#382c13;--bad-bg:#3b1e18;
+  }
+}
+:root:root:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#111518;--surface:#191f23;--surface2:#222a2f;--ink:#e2e7ea;--ink2:#b5c0c7;--muted:#96a2aa;
+  --line:#2c353b;--grid:#252e33;--accent:#74b5d2;--accent-ink:#0d1a20;--accent-2:#1b2f39;
+  --good:#5ec389;--good-ink:#5ec389;--warn:#e1ae4d;--warn-ink:#e1ae4d;--crit:#f07b62;--crit-ink:#f07b62;--info-ink:#96a2aa;
+  --ok-bg:#183124;--warn-bg:#382c13;--bad-bg:#3b1e18;
+}
+
+/* ---------- type ---------- */
+:root body{font-family:var(--sans);background:var(--bg);color:var(--ink)}
+:root h1,:root h2,:root h3{font-family:var(--display);font-weight:600;letter-spacing:.01em}
+:root h1{font-size:26px;line-height:1.1}
+:root h2{font-size:20px;line-height:1.2}
+:root h3{font-size:15.5px}
+:root .eyebrow{font-family:var(--display);font-size:12.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+:root .sec-head p,:root .meta{color:var(--muted)}
+
+/* ---------- page header ---------- */
+:root header.top{padding-bottom:12px;border-bottom:2px solid var(--ink)}
+
+/* ---------- panels, tiles ---------- */
+:root .panel{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+:root .kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+:root .kpi .eyebrow{font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:.08em}
+:root .kpi .v{font-family:var(--display);font-size:32px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+:root .kpi .v small{font-family:var(--sans)}
+:root .kpi .s{color:var(--muted)}
+:root .empty{background:var(--surface2);color:var(--muted)}
+
+/* ---------- status pills (were chips with a round icon) ---------- */
+:root .chip{border:0;padding:1px 9px;gap:0;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--surface2);color:var(--ink)}
+:root .chip i{display:none}
+:root .chip.good{background:var(--ok-bg);color:var(--good-ink)}
+:root .chip.warn{background:var(--warn-bg);color:var(--warn-ink)}
+:root .chip.crit{background:var(--bad-bg);color:var(--crit-ink)}
+:root .chip.info{background:var(--surface2);color:var(--muted)}
+
+/* ---------- tables ---------- */
+:root table.log th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface2);padding:7px 9px;border-bottom:1px solid var(--line)}
+:root table.log td{padding:7px 9px;border-bottom:1px solid var(--line)}
+@media screen and (max-width:760px){
+  :root table.log.cards td{padding:3px 0}
+}
+
+/* ---------- buttons and fields ---------- */
+:root .btn{border-radius:4px;font-weight:500}
+:root .btn.ghost{background:var(--surface);border-color:var(--line);color:var(--ink)}
+:root .btn.ghost:hover{border-color:var(--ink);filter:none}
+:root .btn.danger{background:var(--surface);border-color:var(--crit);color:var(--crit-ink)}
+:root input:not([type=checkbox]):not([type=radio]),:root select,:root textarea{background:var(--surface);border-color:var(--line);border-radius:4px}
+:root .linkbtn{color:var(--accent)}
+
+/* ---------- SCADA review: verdict, landing, management summary ---------- */
+:root .verdict{border:1px solid transparent;border-left:6px solid var(--line)}
+:root .verdict.crit{background:var(--bad-bg);border-left-color:var(--crit)}
+:root .verdict.warn{background:var(--warn-bg);border-left-color:var(--warn)}
+:root .verdict.good{background:var(--ok-bg);border-left-color:var(--good)}
+:root .verdict .big{font-family:var(--display);font-size:24px}
+:root .landing{border-style:dashed;border-color:var(--line)}
+:root .mgmt{border-top:4px solid var(--accent)}
+:root .mg-h{font-family:var(--display)}
+
+/* ---------- SAT register: PDCA board, furnace tiles, cycle window ---------- */
+:root .col{background:var(--surface2)}
+:root .col h3{font-family:var(--display);font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+:root .card{background:var(--surface)}
+:root .fhead{font-family:var(--display);font-size:17px}
+:root dialog{background:var(--surface);border-color:var(--line)}
+:root .stage h3{font-family:var(--display);font-size:17px}
+
+/* ---------- print: always the light tokens ---------- */
+@media print{
+  :root:root:root:root{
+    color-scheme:light;
+    --bg:#ffffff;--surface:#ffffff;--surface2:#f1f3f1;--ink:#1a2026;--ink2:#46515b;--muted:#5a6570;
+    --line:#d3d8d5;--grid:#e2e6e3;--accent:#1d5b78;--accent-ink:#ffffff;--accent-2:#e1edf2;
+    --good:#2a7849;--good-ink:#2a7849;--warn:#c48a1e;--warn-ink:#9c6410;--crit:#ae321b;--crit-ink:#ae321b;
+    --ok-bg:#e0f0e6;--warn-bg:#f7ead2;--bad-bg:#f6dfd8;
+  }
+}
