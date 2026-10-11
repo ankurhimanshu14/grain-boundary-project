@@ -1909,7 +1909,7 @@ function renderPdca(){
     all.map(x=>`<tr><td><b>${esc(x.id)}</b>${x.example?' <span class="muted small">example</span>':""}</td><td>${esc(x.fkey)}${x.link?`<br><span class="muted small">${esc(x.link.f)} · ${esc(x.link.ch)}</span>`:""}</td><td class="n">${esc(fmtD(Date.parse(x.day0+"T00:00:00Z")))}</td>
       <td>${chip(x.stage==="closed"?"good":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<span class="bad">${pdOverdue(x).length}</span>`:"0"}</td>
       <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td>
-      <td style="white-space:nowrap"><button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="xlsx:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as an Excel workbook">Excel</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="pdf:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as a document to save as PDF">PDF</button></td></tr>`).join("")}</tbody></table></div><p class="muted small">Choose a review in the register and download it with all Plan, Do, Check and Act details, or open it first to see it here.</p>`;
+      <td style="white-space:nowrap"><button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="xlsx:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as an Excel workbook">Excel</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="pdf:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as a document to save as PDF">PDF</button> <button class="btn ghost" type="button" style="padding:2px 10px;border-color:var(--crit);color:var(--crit-ink)" data-pdact="del:${esc(x.id)}" title="Delete review ${esc(x.id)} permanently">Delete</button></td></tr>`).join("")}</tbody></table></div><p class="muted small">Choose a review in the register and download it with all Plan, Do, Check and Act details, or open it first to see it here.</p>`;
   body.innerHTML=h;
 }
 /* ---------- download of a review: Excel workbook and printable document (PDF) ---------- */
@@ -2029,6 +2029,10 @@ function pdPrint(D){
     const a=b.dataset.pdact, R=pdGet(PD_CUR)||pdForRecord();
     if(a==="start") return pdStart();
     if(a.startsWith("open:")){ PD_CUR=a.slice(5); PD_MSG=""; renderPdca(); return; }
+    if(a.startsWith("del:")){ const X=pdGet(a.slice(4)); if(!X) return;
+      if(!confirm(`Delete review ${X.id} (${X.fkey}, record ${fmtD(Date.parse(X.day0+"T00:00:00Z"))}, stage ${PD_NM[X.stage]}) permanently?\n\nIts reaction plan, actions and history are removed from this browser. Download it first (Excel or PDF) if you need the record.`)) return;
+      PD.reviews=PD.reviews.filter(x=>x!==X); PD_MEM=PD_MEM.filter(x=>x!==X); if(PD_CUR===X.id) PD_CUR=null; PD_MSG="";
+      pdSave(); renderPdca(); if(DATA) run(); return; }
     if(a.startsWith("xlsx:")||a.startsWith("pdf:")){ const X=pdGet(a.slice(a.indexOf(":")+1)); if(X){ PD_MSG=a.startsWith("xlsx:")?pdXlsx(X):pdPdf(X); renderPdca(); } return; }
     if(!R) return;
     if(a==="advance"){ PD_MSG=pdAdvance(R); pdSave(); renderPdca(); if(!PD_MSG&&DATA) run(); }
