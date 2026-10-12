@@ -1,9 +1,10 @@
 """Build CALOR.html, the main application: one file with a navigation bar that
-runs Pusher_Furnace_SCADA_Review.html and Thermocouple_SAT_PDCA.html as pages
+runs Pusher_Furnace_SCADA_Review.html, Quench_Media_Testing.html and
+Thermocouple_SAT_PDCA.html as pages
 (Production_Report.html is kept separate until it is finished).
 
 Each application stays a standalone file and is embedded unchanged as the srcdoc
-of a same-origin frame, so both share the browser's storage and the HTQ bridge.
+of a same-origin frame, so all share the browser's storage and the HTQ bridge.
 
     python suite/build.py
 """
@@ -13,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SHELL = ROOT / "suite" / "shell.html"
 APPS = {"/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
+        "/*@QUENCH@*/": ROOT / "Quench_Media_Testing.html",
         "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html"}
 OUT = ROOT / "CALOR.html"
 
