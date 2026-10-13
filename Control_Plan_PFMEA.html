@@ -186,6 +186,11 @@ table.form th{text-align:left;font-weight:500;color:var(--ink2);font-size:11.5px
 table.form td{padding:5px 6px;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
 table.form td.n{text-align:center;font-family:var(--mono)}
 table.form tr.step td{background:var(--surface2);font-weight:600}
+table.form.pfm{width:auto;min-width:100%}
+table.form.pfm td,table.form.pfm thead tr+tr th{min-width:118px;overflow-wrap:break-word}
+table.form.pfm td.n,table.form.pfm thead tr+tr th.n{min-width:0;width:34px}
+table.form.pfm tr.step td{min-width:0}
+table.form.pfm thead tr:first-child th{position:static}
 .form-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:5px}
 .ap{display:inline-block;min-width:22px;text-align:center;border-radius:4px;font-weight:700;font-family:var(--mono);padding:0 4px}
 .ap.H{background:var(--crit);color:#fff}.ap.M{background:var(--warn);color:#2b1e00}.ap.L{background:var(--surface2);color:var(--ink2);border:1px solid var(--line)}
@@ -217,7 +222,7 @@ table.steps td{padding:3px 6px 3px 0}
   <section class="panel">
     <div class="sec-head"><h2>How the two documents work together</h2></div>
     <ul class="cycle-explain">
-      <li><b>PFMEA</b> — one per process (hardening &amp; tempering, isothermal annealing, normalizing) on this line: each step's failure modes, effects, causes and controls, rated S / O / D with an Action Priority.</li>
+      <li><b>PFMEA</b> — one per process (hardening &amp; tempering, isothermal annealing, normalizing) on this line, in the 7 steps of the AIAG &amp; VDA FMEA Handbook: planning, structure (steps and 4M work elements), function, failure (effect, mode, cause), risk (S / O / D, Action Priority), optimization and results.</li>
       <li><b>Control plan</b> — one per part, made from its process specification: every product and process characteristic with its tolerance, method, sample, frequency, control and reaction plan, and the CALOR page that holds the records.</li>
       <li><b>Links</b> — the control plan names its PFMEA; steps of the PFMEA missing from the control plan, a control plan made from an older specification revision, and failures since the PFMEA was approved are flagged for review.</li>
     </ul>
@@ -242,7 +247,7 @@ table.steps td{padding:3px 6px 3px 0}
   <details class="panel more noprint" id="setup">
     <summary>Settings and data</summary>
     <div class="controls" id="settings"></div>
-    <p class="muted" style="margin:10px 0 0;font-size:13px">The Action Priority follows the AIAG-VDA FMEA Handbook (2019) logic built into this page (severity first, then occurrence, then detection); verify it against your copy of the handbook and the customer-specific requirements. RPN (S × O × D) is shown for reference only.</p>
+    <p class="muted" style="margin:10px 0 0;font-size:13px">The PFMEA follows the AIAG &amp; VDA FMEA Handbook, 1st edition (2019), the current edition. The Action Priority table built into this page (severity first, then occurrence, then detection) and the abbreviated rating criteria in the S / O / D lists must be verified against your copy of the handbook and the customer-specific requirements. RPN is not used: the handbook replaces it with the Action Priority.</p>
     <h3 style="margin:18px 0 6px">Data</h3>
     <div class="actions">
       <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
@@ -256,7 +261,7 @@ table.steps td{padding:3px 6px 3px 0}
   <footer>
     <b>Method</b>
     <ul>
-      <li>PFMEA in the AIAG-VDA form: structure (process steps), function (requirement), failure analysis (failure mode, effect with severity S, cause), risk analysis (prevention control with occurrence O, detection control with detection D, Action Priority), optimisation (action, owner, target date, action taken, re-rating).</li>
+      <li>PFMEA in the AIAG &amp; VDA 7 steps: 1 planning and preparation (header, 5T), 2 structure analysis (process item → process step → process work element by 4M type), 3 function analysis (process item, process step with product characteristic, work element with process characteristic), 4 failure analysis (failure effect on your plant, ship-to plant and end user with severity, failure mode, failure cause), 5 risk analysis (prevention control with occurrence, detection control with detection, Action Priority, special characteristics, filter code), 6 optimization (prevention and detection actions, responsible, target date, status, action taken with evidence, completion date, re-rating) and 7 results documentation.</li>
       <li>Special characteristics (CC critical, SC significant) are marked in the PFMEA and carried into the control plan. Customer symbols and requirements take precedence.</li>
       <li>The control plan is generated from the process specification in force for the part (CALOR); edit every row to match the actual practice, and approve it with the cross-functional team.</li>
       <li>The default PFMEA rows describe typical failure modes of a direct-fired pusher line; they are a starting point to be reviewed and rated by your team.</li>
@@ -290,6 +295,15 @@ const KEY="cpf-reg", VKEY="cpf-view"; /* own storage keys */
 const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
 const CLS=["","CC","SC"],CLSN={"":"—",CC:"CC (critical)",SC:"SC (significant)"};
 const PHASES=["Prototype","Pre-launch","Production"];
+/* AIAG & VDA FMEA Handbook (1st edition, 2019): 7-step approach, 4M work elements, action status */
+const M4=["Man","Machine","Material","EnvironMent","Method","Measurement"];
+const ASTAT=["Open","Decision pending","Implementation pending","Completed","Not implemented"];
+const CONF=["Business use","Proprietary","Confidential"];
+/* abbreviated rating criteria (PFMEA); the full tables in the handbook decide */
+const CRIT={
+  s:{10:"Health or safety risk for the worker; affects safe operation of the vehicle / end user",9:"In-plant regulatory noncompliance; noncompliance with regulations",8:"100 % of the run may have to be scrapped; loss of a primary function",7:"Run sorted and a portion scrapped; deviation from the primary process; degraded primary function",6:"100 % of the run reworked off line; loss of a secondary function",5:"A portion reworked off line; degraded secondary function",4:"100 % reworked in station; very objectionable appearance / sound",3:"A portion reworked in station; moderately objectionable",2:"Slight inconvenience to the process or operator; slightly objectionable",1:"No discernible effect"},
+  o:{10:"Extremely high: no prevention controls",9:"Very high: prevention controls have little effect",8:"Very high: prevention controls have little effect",7:"High: prevention controls somewhat effective",6:"High: prevention controls somewhat effective",5:"Moderate: prevention controls effective",4:"Moderate: prevention controls effective",3:"Low: best-practice prevention controls, highly effective",2:"Low: best-practice prevention controls, highly effective",1:"Extremely low: failure cause eliminated by the prevention control"},
+  d:{10:"No test or inspection method established or known",9:"Method unlikely to detect the failure mode or cause",8:"Method not proven to be effective and reliable",7:"Proven manual / visual inspection or gauging, downstream",6:"Proven manual inspection or gauging in station",5:"Proven machine-based detection downstream",4:"Proven machine-based detection in station, or detection of the cause",3:"Machine-based detection in station that stops further processing",2:"Detection of the cause that prevents the failure mode (error-proofing, proven)",1:"Failure mode cannot be produced, or is always detected (verified)"}};
 const RECS=["","Daily production","Specifications","SCADA review","Quench media","Hardness","Thermocouple SAT","TUS","Equipment","Other (paper record)"];
 const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",reviewDays:365,team:"HT Manager, Quality Manager, Maintenance Head, Production Manager"};
@@ -309,36 +323,38 @@ function ap(s,o,d){
   if(s>=2){ if(o>=8) return row(["M","M","L","L"]); return "L"; }
   return "L";
 }
-const rpn=(s,o,d)=>[s,o,d].every(v=>num(v)!=null)?num(s)*num(o)*num(d):"";
 const apTag=a=>a?`<span class="ap ${a}">${a}</span>`:"";
 
-/* ---------- default PFMEA rows (typical failure modes of a direct-fired pusher line; to be reviewed by the team) ---------- */
+/* ---------- default PFMEA rows: structure (step, 4M work element), functions, failure chain (FE / FM / FC) and current
+   controls of a direct-fired pusher line; a starting point to be reviewed and rated by the team ---------- */
 function pfRows(proc){
-  const R=(step,func,mode,effect,s,cls,cause,prev,o,det,d)=>({step,func,mode,effect,s,cls,cause,prev,o,det,d});
-  const aus=proc==="NORM"?50:30, ausN=proc==="NORM"?"Tempering chamber (austenitizing)":"Hardening chamber";
+  const FI="Your plant: parts heat-treated to the specification · Ship-to plant: parts fit for machining and assembly · End user: part strength and fatigue life as designed";
+  const R=(step,we,m4,fStep,fWe,fe,s,cls,mode,cause,pc,o,dc,d)=>({step,we,m4,fItem:FI,fStep,fWe,fe,s,cls,mode,cause,pc,o,dc,d});
+  const aus=proc==="NORM"?50:30, ausN=proc==="NORM"?"Tempering chamber (austenitizing)":"Hardening chamber", ctl="Burners and temperature control (PID loops, type K thermocouples)";
+  const soft="Your plant: batch re-heat-treated or scrapped · Ship-to plant: soft parts rejected at incoming inspection · End user: reduced strength and fatigue life";
   const rows=[
-    R(10,"Identify the parts, heat and quantity against the order","Wrong part or heat taken into the furnace / mixed batches","Wrong process for the part; lost traceability","8","","Similar parts, no tag on the bin","Bin tags; production report entry per batch","4","Check of part no. and heat no. against the order at loading","5"),
-    R(20,"Load the specified pieces per tray","Tray overloaded","Uneven heating; low or uneven hardness in the batch","7","","Loading not to the specification","Pieces per tray in the process specification and loading instruction","4","Count at loading; hardness of first and last tray","5"),
-    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Temperature below the specification","Incomplete transformation: low hardness, soft spots, ferrite in the structure","8","SC","Control thermocouple drift; burner failure; wrong set value loaded","SAT per schedule; type K element replaced yearly; set values from the controlled process specification","4","SCADA with ±tolerance review per day; hardness per batch","4"),
-    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Temperature above the specification","Grain growth, distortion, increased decarburization","7","","Control loop fault; wrong set value","Over-temperature protection; set values from the process specification","3","SCADA review per day; grain size / decarburization check","5"),
-    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Time at temperature too short (push time too fast)","Incomplete austenitization: low hardness","8","SC","Push time set wrong or changed","Push time in the process specification; push timer","3","Production report: implied push time vs specification; hardness per batch","5"),
-    R(aus,"Keep decarburization within the limit (open furnace, products of combustion contact the parts)","Decarburization beyond the limit","Low surface hardness; reduced fatigue life","8","SC","Excess air in the burners; time / temperature high","Burner tuning in the maintenance plan","4","Decarburization check per tested batch","5"),
-    R(30,"Uniform temperature in the work zone","Non-uniform temperature (cold or hot spots)","Hardness varies within the batch","7","","Burner imbalance; refractory damage; door seal","TUS per schedule; burner maintenance","3","TUS; wall difference in the SCADA review","5")];
+    R(10,"Operator (receiving)","Man","Identify the parts, heat and quantity against the order (product characteristic: part identity, heat no.)","Operator checks the bin tag against the order","Your plant: wrong process applied, batch scrapped · Ship-to plant: mixed parts · End user: part with wrong properties","8","","Wrong part or heat taken into the furnace / batches mixed","Bin without a tag; similar parts","Bin tags; production report entry per batch","4","Check of part no. and heat no. against the order at loading","5"),
+    R(20,"Operator (loading)","Man","Load the specified pieces per tray (product characteristic: load per tray)","Operator loads to the loading instruction","Your plant: uneven hardness, batch sorted or re-heat-treated · Ship-to plant: hardness variation within the lot","7","","Tray overloaded","Loading not to the instruction","Pieces per tray in the process specification and loading instruction","4","Count at loading; hardness of the first and last tray","5"),
+    R(aus,ctl,"Machine",`${ausN}: heat the parts to the austenitizing set value (product characteristic: hardness, microstructure)`,"Control loop holds every zone at set value ± tolerance (process characteristic: zone temperature)",soft,"8","SC","Parts below the austenitizing temperature","Control thermocouple drift; burner failure; wrong set value loaded","SAT per schedule; type K element replaced yearly; set values from the controlled process specification","4","SCADA ± tolerance review per day; hardness per batch","4"),
+    R(aus,ctl,"Machine",`${ausN}: heat the parts to the austenitizing set value (product characteristic: grain size, distortion)`,"Control loop holds every zone at set value ± tolerance (process characteristic: zone temperature)","Your plant: batch sorted / scrapped for distortion or coarse grain · Ship-to plant: machining problems · End user: reduced toughness","7","","Parts above the specified temperature","Control loop fault; wrong set value","Over-temperature protection; set values from the process specification","3","SCADA review per day; grain size and decarburization check","5"),
+    R(aus,"Pusher and push timer","Machine",`${ausN}: hold the parts for the specified time (product characteristic: hardness)`,"Push timer pushes one tray per push time (process characteristic: push time)",soft,"8","SC","Time at temperature too short","Push time set wrong or changed","Push time in the process specification; push timer","3","Production report: implied push time against the specification; hardness per batch","5"),
+    R(aus,"Furnace atmosphere (open; products of combustion contact the parts)","EnvironMent",`${ausN}: keep decarburization within the limit (product characteristic: decarburization depth)`,"Burner air / gas ratio keeps oxidation low (process characteristic: excess air)","Your plant: batch scrapped or reworked · Ship-to plant: low surface hardness found · End user: reduced fatigue life","8","SC","Decarburization beyond the limit","Excess air in the burners; time or temperature high","Burner tuning in the maintenance plan","4","Decarburization check per tested batch","5"),
+    R(30,"Furnace work zone (refractory, burners, door seals)","Machine","Heat every tray uniformly (product characteristic: hardness uniformity)","Work zone uniform within the class tolerance (process characteristic: temperature uniformity)","Your plant: hardness varies within the batch, batch sorted · Ship-to plant: hardness variation","7","","Non-uniform temperature (cold or hot spots)","Burner imbalance; refractory damage; door seal leak","TUS per schedule; burner maintenance","3","TUS; wall difference in the SCADA review","5")];
   if(proc==="HT") rows.push(
-    R(40,"Quench the parts within the quench delay into quenchant at the specified temperature and agitation","Quench delay too long","Low hardness (partial transformation before the quench)","8","SC","Transfer mechanism delay or stoppage","Maximum quench delay in the specification; mechanism maintenance","3","Transfer time monitoring; hardness per batch","5"),
-    R(40,"Quench the parts within the quench delay into quenchant at the specified temperature and agitation","Quenchant temperature high or agitation failed","Low hardness, soft spots","8","SC","Cooler or agitator failure","Daily quench checks; quench test plan","4","Tank temperature indicator; hardness per batch","4"),
-    R(40,"Quenchant in the specified condition","Water in the quench oil","Quench cracks, soft spots, fire risk","9","CC","Leaking oil cooler","Weekly water content test; cooler maintenance","3","Water content test (Quench media); crack check","5"),
-    R(50,"Temper at the specified set value and time","Tempering temperature or time out of the specification","Hardness above (brittle) or below the specification","8","SC","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
+    R(40,"Transfer mechanism","Machine","Quench the parts (product characteristic: hardness)","Transfer within the quench delay (process characteristic: quench delay)",soft,"8","SC","Quench delay too long","Transfer mechanism delay or stoppage","Maximum quench delay in the specification; mechanism maintenance","3","Transfer time monitoring; hardness per batch","5"),
+    R(40,"Quench oil and tank (cooler, agitator)","Material","Quench the parts (product characteristic: hardness)","Quenchant at the specified temperature and agitation (process characteristic: oil temperature, agitation)",soft,"8","SC","Quench too slow (oil too hot or agitation failed)","Cooler or agitator failure","Daily quench checks; quench test plan","4","Tank temperature indicator; hardness per batch","4"),
+    R(40,"Quench oil and tank (cooler, agitator)","Material","Quench the parts without cracks (product characteristic: freedom from cracks)","Quenchant in the specified condition (process characteristic: water content)","Your plant: quench cracks, fire risk for the operator · Ship-to plant: cracked parts · End user: part fracture","9","CC","Water in the quench oil","Leaking oil cooler","Weekly water content test; cooler maintenance","3","Water content test (Quench media); crack check","5"),
+    R(50,ctl,"Machine","Temper the parts (product characteristic: hardness, toughness)","Control loop holds every zone at set value ± tolerance (process characteristic: zone temperature)","Your plant: batch re-tempered or scrapped · Ship-to plant: hardness out of the specification · End user: brittle or soft part","8","SC","Tempering temperature or time out of the specification","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
   if(proc==="IA") rows.push(
-    R(40,"Cool to the isothermal temperature in the specified time","Controlled cooling too slow or too fast","Wrong structure (bainite / coarse pearlite), hardness out of the specification","7","SC","Fan failure; time not kept","Controlled cooling time in the specification","4","Microstructure and hardness per batch","4"),
-    R(50,"Hold at the isothermal temperature until transformation is complete","Hold temperature out of the specification","Wrong structure and hardness; poor machinability","7","","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
+    R(40,"Controlled-cooling fans","Machine","Cool to the isothermal temperature in the specified time (product characteristic: microstructure)","Fans run for the specified time (process characteristic: cooling time)","Your plant: batch re-annealed · Ship-to plant: poor machinability · End user: none expected","7","SC","Cooling too slow or too fast","Fan failure; time not kept","Controlled cooling time in the specification","4","Microstructure and hardness per batch","4"),
+    R(50,ctl,"Machine","Hold until transformation is complete (product characteristic: microstructure, hardness)","Control loop holds the isothermal set value (process characteristic: zone temperature)","Your plant: batch re-annealed · Ship-to plant: poor machinability","7","","Hold temperature out of the specification","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
   if(proc==="NORM") rows.push(
-    R(30,"Preheat at 700–750 °C","Preheat temperature out of range","Thermal stress, distortion","5","","Wrong set value","Set values from the specification","3","SCADA review per day","5"),
-    R(60,"Cool in still air / with fans as specified","Cooling rate wrong (fans off when required, or on when not)","Hardness or structure out of the specification","7","","Fan not switched on; fan failure","Fan cooling in the specification","4","Hardness and microstructure per batch","4"));
+    R(30,ctl,"Machine","Preheat the parts at 700–750 °C (product characteristic: distortion)","Control loop holds the preheat set value (process characteristic: zone temperature)","Your plant: distortion, parts straightened or scrapped","5","","Preheat temperature out of range","Wrong set value","Set values from the specification","3","SCADA review per day","5"),
+    R(60,"Cooling fans","Machine","Cool in still air or with fans as specified (product characteristic: hardness, microstructure)","Fans on / off as specified (process characteristic: cooling rate)","Your plant: batch re-normalized · Ship-to plant: hardness or structure out of the specification","7","","Cooling rate wrong (fans off when required, or on when not)","Fan not switched on; fan failure","Fan cooling in the specification","4","Hardness and microstructure per batch","4"));
   rows.push(
-    R(70,"Test every batch to the specification on a calibrated, verified tester","Measurement error accepts nonconforming parts","Nonconforming parts shipped to the customer","8","","Tester out of calibration; no daily verification","Calibration plan; daily test-block verification","3","Hardness page: invalid test when calibration expired / verification failed","3"),
-    R(80,"Ship only released, identified batches","Nonconforming or held batch shipped","Customer complaint, field failure","9","","Hold not marked; release not checked","Hold tags; release only after the test conforms","3","Final inspection against the test register","4"));
-  return rows.map((r,i)=>({id:"r"+(i+1),...r,act:"",owner:"",due:"",done:"",doneDate:"",s2:"",o2:"",d2:""}));
+    R(70,"Hardness tester","Measurement","Test every batch to the specification (product characteristic: hardness)","Calibrated, verified tester measures correctly (process characteristic: measurement accuracy)","Your plant: nonconforming batch released · Ship-to plant: rejection, complaint · End user: part failure","8","","Nonconforming batch accepted (measurement error)","Tester out of calibration; no daily verification","Calibration plan; daily test-block verification","3","Hardness page: test invalid when calibration expired or verification failed","3"),
+    R(80,"Dispatch operator","Man","Ship only released, identified batches (product characteristic: release status)","Operator checks the release before dispatch","Your plant: recall cost · Ship-to plant: nonconforming parts received · End user: part failure in the field","9","","Held or nonconforming batch shipped","Hold not marked; release not checked","Hold tags; release only after the test conforms","3","Final inspection against the test register","4"));
+  return rows.map((r,i)=>({id:"r"+(i+1),...r,filter:"",pa:"",da:"",resp:"",target:"",status:"",taken:"",doneDate:"",s2:"",o2:"",d2:"",cls2:"",remarks:""}));
 }
 /* ---------- control plan rows from a process specification (CALOR) ---------- */
 function cpRows(s){
@@ -377,6 +393,10 @@ function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.docs)) return null;
   o.settings={...DEF,...(o.settings||{})};o.seq=o.seq||{pf:1,cp:1};
   o.docs=o.docs.filter(d=>d&&d.id).map(d=>({rows:[],steps:[],revs:[],log:[],rseq:1,status:"draft",rev:0,...d}));
+  /* rows saved before the AIAG-VDA form (func / effect / prev / det / act / owner / due / done) */
+  const mig=r=>r.fStep!==undefined||r.fe!==undefined?r:{id:r.id,step:r.step,we:"",m4:"",fItem:"",fStep:r.func||"",fWe:"",fe:r.effect||"",s:r.s||"",cls:r.cls||"",mode:r.mode||"",cause:r.cause||"",pc:r.prev||"",o:r.o||"",dc:r.det||"",d:r.d||"",filter:"",
+    pa:r.act||"",da:"",resp:r.owner||"",target:r.due||"",status:txt(r.done)?"Completed":txt(r.act)?"Open":"",taken:r.done||"",doneDate:r.doneDate||"",s2:r.s2||"",o2:r.o2||"",d2:r.d2||"",cls2:"",remarks:""};
+  o.docs.filter(d=>d.kind==="pfmea").forEach(d=>{d.rows=d.rows.map(mig);d.revs.forEach(v=>{if(Array.isArray(v.rows))v.rows=v.rows.map(mig);});});
   ["pf","cp"].forEach(k=>{o.seq[k]=Math.max(+o.seq[k]||1,...o.docs.filter(d=>d.kind===(k==="pf"?"pfmea":"cp")).map(d=>+(String(d.id).match(/\d+/)||[0])[0]+1));});
   o.v=1; return o;
 }
@@ -400,10 +420,15 @@ function missing(d){
   if(!txt(d.title)) m.push("title");if(!txt(d.team)) m.push("team");
   if(!d.rows.length) m.push("at least one row");
   if(d.kind==="pfmea"){
+    ["item","subject","startDate","resp"].forEach(k=>{if(!txt(d[k])) m.push({item:"process item (structure analysis)",subject:"subject",startDate:"PFMEA start date",resp:"process responsibility"}[k]);});
     d.rows.forEach(r=>{const no=`step ${r.step} “${r.mode||"?"}”`;
-      if(!txt(r.mode)||!txt(r.effect)||!txt(r.cause)) m.push(`${no}: failure mode, effect and cause`);
+      if(!txt(r.we)||!r.m4) m.push(`${no}: process work element and its 4M type`);
+      if(!txt(r.fStep)) m.push(`${no}: function of the process step`);
+      if(!txt(r.mode)||!txt(r.fe)||!txt(r.cause)) m.push(`${no}: failure effect, failure mode and failure cause`);
+      if(!txt(r.pc)||!txt(r.dc)) m.push(`${no}: current prevention and detection controls (write “none” if there is none)`);
       if([r.s,r.o,r.d].some(v=>num(v)==null)) m.push(`${no}: S, O and D`);
-      if(ap(r.s,r.o,r.d)==="H"&&!(txt(r.act)&&txt(r.owner)&&isDate(r.due))&&!txt(r.done)) m.push(`${no}: action, owner and target date (Action Priority High)`);});
+      if(apNow(r)==="H"&&!(hasAct(r)&&txt(r.resp)&&isDate(r.target))&&!(r.status==="Not implemented"&&txt(r.remarks))) m.push(`${no}: prevention or detection action with responsible person and target date, or “not implemented” with the justification in the remarks (Action Priority High)`);
+      if(r.status==="Completed"&&!(txt(r.taken)&&isDate(r.doneDate)&&num(r.o2)!=null&&num(r.d2)!=null)) m.push(`${no}: action taken with evidence, completion date and the new O and D`);});
   }else{
     if(!txt(d.part)) m.push("part no.");if(!txt(d.pfmea)) m.push("linked PFMEA");
     d.rows.forEach(r=>{const no=`step ${r.step} “${r.prod||r.proc||"?"}”`;
@@ -419,8 +444,8 @@ function issues(d){
   const I=[],e=eff(d)||d,td=today();
   if(e.status==="approved"&&isDate(e.apprDate)&&addDays(e.apprDate,+S().reviewDays||365)<td) I.push(["warn",`Periodic review overdue since ${fdate(addDays(e.apprDate,+S().reviewDays||365))}.`]);
   if(d.kind==="pfmea"){
-    const open=d.rows.filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)),late=d.rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<td);
-    if(open.length) I.push(["warn",`${plural(open.length,"row")} with Action Priority High without a completed action.`]);
+    const open=d.rows.filter(openH),late=d.rows.filter(lateA),noAct=d.rows.filter(r=>apNow(r)==="H"&&!hasAct(r)&&r.status!=="Not implemented");
+    if(open.length) I.push(["warn",`${plural(open.length,"row")} with Action Priority High not yet completed${noAct.length?` (${noAct.length} without an action)`:""}.`]);
     if(late.length) I.push(["crit",`${plural(late.length,"action")} past the target date.`]);
     if(isDate(e.apprDate)){const since=e.apprDate,parts=[];
       const m=api("metal"),qn=api("quench"),tu=api("tus"),sa=api("sat");
@@ -445,6 +470,19 @@ function issues(d){
   }
   return I;
 }
+/* optimisation: an action is closed when completed or not implemented (with the reason in the remarks) */
+const hasAct=r=>!!(txt(r.pa)||txt(r.da));
+const closedA=r=>r.status==="Completed"||r.status==="Not implemented";
+const apNow=r=>ap(r.s,r.o,r.d);
+const apAfter=r=>r.status==="Completed"&&[r.o2,r.d2].every(v=>num(v)!=null)?ap(r.s2||r.s,r.o2,r.d2):"";
+const openH=r=>apNow(r)==="H"&&!closedA(r);
+const lateA=r=>hasAct(r)&&!closedA(r)&&isDate(r.target)&&r.target<today();
+/* step 7, results documentation: risk before and after the actions, and the state of the actions */
+function results(d){
+  const cnt=f=>({H:d.rows.filter(r=>f(r)==="H").length,M:d.rows.filter(r=>f(r)==="M").length,L:d.rows.filter(r=>f(r)==="L").length});
+  return {n:d.rows.length,before:cnt(apNow),after:cnt(r=>apAfter(r)||apNow(r)),st:ASTAT.map(x=>[x,d.rows.filter(r=>r.status===x).length]).filter(x=>x[1]),
+    noAct:d.rows.filter(r=>apNow(r)==="H"&&!hasAct(r)&&r.status!=="Not implemented").length,special:d.rows.filter(r=>r.cls).length};
+}
 const lvlOf=I=>I.some(i=>i[0]==="crit")?"crit":I.length?"warn":"good";
 
 /* ---------- render ---------- */
@@ -455,16 +493,16 @@ function render(){
 }
 function drawKpis(){
   const L=DB.docs.filter(d=>d.status!=="obsolete"),inF=L.filter(eff),dr=L.filter(d=>d.status==="draft"),iss=L.map(issues),rows=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete").flatMap(d=>d.rows);
-  const H=rows.filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)).length,late=rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<today()).length;
+  const H=rows.filter(openH).length,late=rows.filter(lateA).length;
   const k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
   $("#kpis").innerHTML=k("In force",inF.length,`${inF.filter(d=>d.kind==="pfmea").length} PFMEA · ${inF.filter(d=>d.kind==="cp").length} control plans`)
-    +k("Drafts",dr.length,"awaiting approval",dr.length?"caution":"")+k("Action Priority High open",H,"rows without a completed action",H?"bad":"ok")
+    +k("Drafts",dr.length,"awaiting approval",dr.length?"caution":"")+k("Action Priority High open",H,"rows whose action is not completed",H?"bad":"ok")
     +k("Actions overdue",late,"past the target date",late?"bad":"ok")+k("Documents to review",iss.filter(i=>i.length).length,"links, feedback or periodic review",iss.some(i=>i.length)?"caution":"ok");
 }
 function drawRegister(){
   if(!DB.docs.length){$("#register").innerHTML=`<div class="empty">No documents yet. Start with “New PFMEA” for each process, then “New control plan” for each part (generated from its process specification in CALOR), or load the example data under Settings.</div>`;return;}
   const L=DB.docs.slice().sort((a,b)=>a.kind.localeCompare(b.kind)||a.id.localeCompare(b.id));
-  $("#register").innerHTML=`<table class="log cards"><thead><tr><th>Document</th><th>Type</th><th>Title</th><th>Process / part</th><th>Rows</th><th>Status</th><th>To review</th><th class="noprint"></th></tr></thead><tbody>${L.map(d=>{const I=issues(d),H=d.kind==="pfmea"?d.rows.filter(r=>ap(r.s,r.o,r.d)==="H").length:0,st=STATUS[d.status];
+  $("#register").innerHTML=`<table class="log cards"><thead><tr><th>Document</th><th>Type</th><th>Title</th><th>Process / part</th><th>Rows</th><th>Status</th><th>To review</th><th class="noprint"></th></tr></thead><tbody>${L.map(d=>{const I=issues(d),H=d.kind==="pfmea"?d.rows.filter(openH).length:0,st=STATUS[d.status];
     return `<tr><td data-label="Document"><b>${esc(d.id)}</b> rev ${d.rev}${d.apprDate?`<br><span class="muted">${fdate(d.apprDate)}</span>`:""}</td><td data-label="Type">${d.kind==="pfmea"?"PFMEA":"Control plan"}${d.kind==="cp"?`<br><span class="muted">${esc(d.phase||"")}</span>`:""}</td>
       <td data-label="Title">${esc(d.title)}</td><td data-label="Process / part">${esc(PROC[d.proc]||"")}${d.part?`<br><b>${esc(d.part)}</b>${d.specRef?` <span class="muted">${esc(d.specRef)}</span>`:""}`:""}${d.pfmea?`<br><span class="muted">PFMEA ${esc(d.pfmea)}</span>`:""}</td>
       <td data-label="Rows" class="n">${d.rows.length}${H?`<br>${apTag("H")} ${H}`:""}</td><td data-label="Status">${chip(st[0],st[1],d.status==="draft"&&d.rev>0?`Rev ${d.rev} draft`:st[2])}</td>
@@ -472,12 +510,14 @@ function drawRegister(){
       <td class="act noprint"><button class="btn ghost small" data-open="${esc(d.id)}">Open</button> <button class="btn ghost small" data-xl="${esc(d.id)}">Excel</button> <button class="btn ghost small" data-pdf="${esc(d.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
 }
 function drawActions(){
-  const L=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete").flatMap(d=>d.rows.filter(r=>["H","M"].includes(ap(r.s,r.o,r.d))).map(r=>({d,r}))).sort((a,b)=>(ap(a.r.s,a.r.o,a.r.d)<ap(b.r.s,b.r.o,b.r.d)?-1:1));
-  if(!L.length){$("#actions").innerHTML=`<div class="empty">No row with Action Priority High or Medium.</div>`;return;}
-  $("#actions").innerHTML=`<table class="log cards"><thead><tr><th>PFMEA</th><th>Step / failure mode</th><th>S O D</th><th>AP</th><th>Recommended action</th><th>Owner / target</th><th>Status</th></tr></thead><tbody>${L.map(({d,r})=>{const a=ap(r.s,r.o,r.d),a2=ap(r.s2||r.s,r.o2,r.d2);
-    return `<tr><td data-label="PFMEA">${esc(d.id)}<br><span class="muted">${esc(PROC[d.proc]||"")}</span></td><td data-label="Step / failure mode"><b>${esc(r.step)}</b> ${esc(r.mode)}</td><td data-label="S O D" class="mono">${esc(r.s)} · ${esc(r.o)} · ${esc(r.d)}</td><td data-label="AP">${apTag(a)}</td>
-      <td data-label="Action">${r.act?esc(r.act):`<span class="${a==="H"?"bad":"muted"}">no action recorded</span>`}</td><td data-label="Owner / target">${esc(r.owner||"—")}${r.due?`<br>${fdate(r.due)}${!txt(r.done)&&r.due<today()?` <span class="bad">overdue</span>`:""}`:""}</td>
-      <td data-label="Status">${txt(r.done)?chip("good","✓","Done "+fdate(r.doneDate))+(a2?` → ${apTag(a2)}`:""):chip(a==="H"?"crit":"warn",a==="H"?"✕":"!","Open")}</td></tr>`;}).join("")}</tbody></table>`;
+  const L=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete").flatMap(d=>d.rows.filter(r=>["H","M"].includes(apNow(r))||hasAct(r)).map(r=>({d,r}))).sort((a,b)=>(apNow(a.r)<apNow(b.r)?-1:apNow(a.r)>apNow(b.r)?1:0));
+  if(!L.length){$("#actions").innerHTML=`<div class="empty">No row with Action Priority High or Medium, and no action recorded.</div>`;return;}
+  const SC={"Open":["warn","!"],"Decision pending":["warn","…"],"Implementation pending":["warn","…"],"Completed":["good","✓"],"Not implemented":["info","–"]};
+  $("#actions").innerHTML=`<table class="log cards"><thead><tr><th>PFMEA</th><th>Step / failure mode</th><th>S O D</th><th>AP</th><th>Prevention / detection action</th><th>Responsible / target</th><th>Status</th></tr></thead><tbody>${L.map(({d,r})=>{const a=apNow(r),a2=apAfter(r),st=r.status||(hasAct(r)?"Open":"");
+    return `<tr><td data-label="PFMEA">${esc(d.id)}<br><span class="muted">${esc(PROC[d.proc]||"")}</span></td><td data-label="Step / failure mode"><b>${esc(r.step)}</b> ${esc(r.mode)}<br><span class="muted">${esc(r.m4||"")}${r.we?": "+esc(r.we):""}</span></td><td data-label="S O D" class="mono">${esc(r.s)} · ${esc(r.o)} · ${esc(r.d)}</td><td data-label="AP">${apTag(a)}</td>
+      <td data-label="Action">${hasAct(r)?[r.pa&&`<b>Prevention:</b> ${esc(r.pa)}`,r.da&&`<b>Detection:</b> ${esc(r.da)}`].filter(Boolean).join("<br>"):`<span class="${a==="H"?"bad":"muted"}">no action recorded</span>`}${r.status==="Not implemented"&&r.remarks?`<br><span class="muted">Reason: ${esc(r.remarks)}</span>`:""}</td>
+      <td data-label="Responsible / target">${esc(r.resp||"—")}${r.target?`<br>${fdate(r.target)}${lateA(r)?` <span class="bad">overdue</span>`:""}`:""}</td>
+      <td data-label="Status">${st?chip(...(SC[st]||["warn","!"]),st+(r.status==="Completed"&&r.doneDate?" "+fdate(r.doneDate):"")):chip(a==="H"?"crit":"warn",a==="H"?"✕":"!","No action")}${a2?` → ${apTag(a2)}`:""}</td></tr>`;}).join("")}</tbody></table>`;
 }
 function drawSettings(){
   const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
@@ -486,7 +526,9 @@ function drawSettings(){
 
 /* ---------- new documents ---------- */
 function newPfmea(proc){
-  const d={id:"PF-"+String(DB.seq.pf++).padStart(4,"0"),kind:"pfmea",title:`Process FMEA · ${PROC[proc]} · pusher line`,proc,team:S().team,steps:STEPS[proc].map(([no,name])=>({no,name})),rows:pfRows(proc),rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",notes:"",revs:[],log:[],rseq:100};
+  const d={id:"PF-"+String(DB.seq.pf++).padStart(4,"0"),kind:"pfmea",title:`Process FMEA · ${PROC[proc]} · pusher line`,proc,team:S().team,
+    company:S().plant,location:"Bhiwadi",customer:"",program:"",subject:`${PROC[proc]} of steel parts on the direct-fired pusher line`,startDate:today(),resp:"HT Manager",conf:"Proprietary",
+    item:`Heat treatment line (pusher furnaces): ${PROC[proc].toLowerCase()}`,intent:"Analyse the process risks of the line and decide the actions that reduce them",timing:"",tasks:"",tools:"AIAG & VDA FMEA Handbook (2019); process specifications; SCADA review; SAT / TUS registers",steps:STEPS[proc].map(([no,name])=>({no,name})),rows:pfRows(proc),rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",notes:"",revs:[],log:[],rseq:100};
   logIt(d,"PFMEA created from the default failure modes of the line");DB.docs.push(d);save();render();return d;
 }
 /* carry the PFMEA's special characteristics to the control plan: a PFMEA step with CC / SC marks the
@@ -532,12 +574,20 @@ const hf=(k,label,o={})=>{const v=ED[k]??"",id="d-"+k,dis=locked()?"disabled":""
   return `<div class="field ${o.span?"span":""} ${o.req?"req":""}"><label for="${id}">${label}</label>${inp}</div>`;};
 const stepName=(d,no)=>(d.steps.find(s=>+s.no===+no)||{}).name||"";
 function pfTable(d,ro){
-  const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);let last=null,h="";
-  L.forEach(r=>{if(+r.step!==last){last=+r.step;h+=`<tr class="step"><td colspan="${ro?16:17}">${esc(r.step)} · ${esc(stepName(d,r.step))}</td></tr>`;}
-    const a=ap(r.s,r.o,r.d),a2=txt(r.done)?ap(r.s2||r.s,r.o2,r.d2):"";
-    h+=`<tr><td>${esc(r.func)}</td><td>${esc(r.mode)}</td><td>${esc(r.effect)}</td><td class="n">${esc(r.s)}</td><td class="n cls">${esc(r.cls||"")}</td><td>${esc(r.cause)}</td><td>${esc(r.prev)}</td><td class="n">${esc(r.o)}</td><td>${esc(r.det)}</td><td class="n">${esc(r.d)}</td><td class="n">${apTag(a)}</td><td class="n muted">${rpn(r.s,r.o,r.d)}</td>
-      <td>${esc(r.act)}</td><td>${esc(r.owner)}${r.due?`<br>${fdate(r.due)}`:""}</td><td>${esc(r.done)}${r.doneDate?`<br>${fdate(r.doneDate)}`:""}</td><td class="n">${a2?`${esc(r.s2||r.s)}·${esc(r.o2)}·${esc(r.d2)} ${apTag(a2)}`:""}</td>${ro?"":`<td>${locked()?"":`<button class="btn ghost small" data-row="${esc(r.id)}">Edit</button>`}</td>`}</tr>`;});
-  return `<table class="form"><thead><tr><th>Function / requirement</th><th>Failure mode</th><th>Failure effect</th><th>S</th><th>Class</th><th>Failure cause</th><th>Prevention control</th><th>O</th><th>Detection control</th><th>D</th><th>AP</th><th>RPN</th><th>Recommended action</th><th>Owner / target</th><th>Action taken</th><th>S·O·D · AP after</th>${ro?"":"<th></th>"}</tr></thead><tbody>${h||`<tr><td colspan="17" class="muted">No rows.</td></tr>`}</tbody></table>`;
+  const L=d.rows.slice().sort((a,b)=>+a.step-+b.step),N=ro?26:27;let last=null,h="";
+  L.forEach(r=>{if(+r.step!==last){last=+r.step;h+=`<tr class="step"><td colspan="${N}">Process step ${esc(r.step)} · ${esc(stepName(d,r.step))}</td></tr>`;}
+    const a=apNow(r),a2=apAfter(r);
+    h+=`<tr><td>${esc(r.m4||"")}</td><td>${esc(r.we)}</td><td>${esc(r.fItem)}</td><td>${esc(r.fStep)}</td><td>${esc(r.fWe)}</td>
+      <td>${esc(r.fe)}</td><td class="n">${esc(r.s)}</td><td>${esc(r.mode)}</td><td>${esc(r.cause)}</td>
+      <td>${esc(r.pc)}</td><td class="n">${esc(r.o)}</td><td>${esc(r.dc)}</td><td class="n">${esc(r.d)}</td><td class="n">${apTag(a)}</td><td class="n cls">${esc(r.cls||"")}</td><td class="n">${esc(r.filter||"")}</td>
+      <td>${esc(r.pa)}</td><td>${esc(r.da)}</td><td>${esc(r.resp)}</td><td>${r.target?fdate(r.target):""}${lateA(r)?` <span class="bad">overdue</span>`:""}</td><td>${esc(r.status||"")}</td><td>${esc(r.taken)}</td><td>${r.doneDate?fdate(r.doneDate):""}</td>
+      <td class="n">${a2?`${esc(r.s2||r.s)}·${esc(r.o2)}·${esc(r.d2)}`:""}${r.cls2?` <span class="cls">${esc(r.cls2)}</span>`:""}</td><td class="n">${apTag(a2)}</td><td>${esc(r.remarks||"")}</td>${ro?"":`<td>${locked()?"":`<button class="btn ghost small" data-row="${esc(r.id)}">Edit</button>`}</td>`}</tr>`;});
+  return `<table class="form pfm"><thead><tr><th colspan="2">2 · Structure analysis</th><th colspan="3">3 · Function analysis</th><th colspan="4">4 · Failure analysis</th><th colspan="7">5 · Risk analysis</th><th colspan="10">6 · Optimization</th>${ro?"":"<th></th>"}</tr>
+    <tr><th>4M</th><th>Process work element</th><th>Function of the process item</th><th>Function of the process step and product characteristic</th><th>Function of the work element and process characteristic</th>
+    <th>Failure effect (FE)</th><th class="n">S</th><th>Failure mode (FM)</th><th>Failure cause (FC)</th>
+    <th>Prevention control (PC)</th><th class="n">O</th><th>Detection control (DC)</th><th class="n">D</th><th class="n">AP</th><th class="n">Special char.</th><th class="n">Filter code</th>
+    <th>Prevention action</th><th>Detection action</th><th>Responsible</th><th>Target date</th><th>Status</th><th>Action taken (evidence)</th><th>Completion date</th><th class="n">S·O·D</th><th class="n">AP</th><th>Remarks</th>${ro?"":"<th></th>"}</tr></thead>
+    <tbody>${h||`<tr><td colspan="${N}" class="muted">No rows.</td></tr>`}</tbody></table>`;
 }
 function cpTable(d,ro){
   const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);let last=null,h="",n=0;
@@ -550,14 +600,21 @@ function drawDlg(){
   dlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${esc(d.id)} rev ${d.rev}</h2>${chip(st[0],st[1],st[2])}<span class="muted">${d.kind==="pfmea"?"Process FMEA":"Control plan"} · ${esc(PROC[d.proc]||"")}</span></div>
     ${d.status==="approved"?`<div class="lockmsg">Approved ${fdate(d.apprDate)} by ${esc(d.appr)}: locked. Make a new revision to change it.</div>`:d.rev>0&&d.status==="draft"?`<div class="lockmsg">Revision ${d.rev} draft; revision ${d.rev-1} stays in force until this one is approved.</div>`:""}</div>
   <div class="dlg-b">
-    <section class="stage" style="--k:var(--p)"><h3>Document</h3><div class="fgrid">
-      ${hf("title","Title",{span:true,req:true})}${d.kind==="cp"?hf("part","Part no.",{req:true})+hf("partName","Part name")+hf("customer","Customer")+hf("phase","Phase",{opts:PHASES})+hf("pfmea","Linked PFMEA",{opts:pfs.map(p=>[p.id,`${p.id} · ${PROC[p.proc]}`]),blank:true,req:true})+`<div class="field"><span style="font-size:12px;color:var(--ink2)">Process specification</span><span>${esc(d.specRef||"—")}</span></div>`:""}
+    <section class="stage" style="--k:var(--p)"><h3>${d.kind==="pfmea"?"1 · Planning and preparation <small>header and 5T: intent, timing, team, tasks, tools</small>":"Document"}</h3><div class="fgrid">
+      ${hf("title","Title",{span:true,req:true})}${d.kind==="pfmea"?hf("company","Company name")+hf("location","Engineering / manufacturing location")+hf("customer","Customer name")+hf("program","Model year / program")
+        +hf("subject","Subject",{req:true,span:true})+hf("startDate","PFMEA start date",{type:"date",req:true})+`<div class="field"><span style="font-size:12px;color:var(--ink2)">PFMEA revision date</span><span>${fdate((d.log.at(-1)||{}).d)}</span></div>`
+        +hf("resp","Process responsibility",{req:true})+hf("conf","Confidentiality level",{opts:CONF})+hf("item","Process item (structure analysis)",{req:true,span:true})
+        +hf("intent","Intent: why the FMEA is done",{span:true})+hf("timing","Timing",{})+hf("tasks","Tasks",{})+hf("tools","Tools",{span:true}):""}${d.kind==="cp"?hf("part","Part no.",{req:true})+hf("partName","Part name")+hf("customer","Customer")+hf("phase","Phase",{opts:PHASES})+hf("pfmea","Linked PFMEA",{opts:pfs.map(p=>[p.id,`${p.id} · ${PROC[p.proc]}`]),blank:true,req:true})+`<div class="field"><span style="font-size:12px;color:var(--ink2)">Process specification</span><span>${esc(d.specRef||"—")}</span></div>`:""}
       ${hf("team","Cross-functional team",{span:true,req:true})}${d.kind==="cp"?hf("keyContact","Key contact"):""}${hf("notes","Notes",{type:"textarea",span:true})}</div></section>
-    <section class="stage" style="--k:var(--d)"><h3>Process steps</h3><table class="steps"><tbody>${d.steps.map((s,i)=>`<tr><td style="width:90px"><input aria-label="Step number" data-st="${i}.no" type="number" value="${esc(s.no)}" ${locked()?"disabled":""}></td><td><input aria-label="Step name" data-st="${i}.name" value="${esc(s.name)}" ${locked()?"disabled":""}></td></tr>`).join("")}</tbody></table>
+    <section class="stage" style="--k:var(--d)"><h3>${d.kind==="pfmea"?"2 · Structure analysis: process steps <small>process item → process steps → work elements (4M, in each row)</small>":"Process steps"}</h3><table class="steps"><tbody>${d.steps.map((s,i)=>`<tr><td style="width:90px"><input aria-label="Step number" data-st="${i}.no" type="number" value="${esc(s.no)}" ${locked()?"disabled":""}></td><td><input aria-label="Step name" data-st="${i}.name" value="${esc(s.name)}" ${locked()?"disabled":""}></td></tr>`).join("")}</tbody></table>
       ${locked()?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" data-d="addstep">Add step</button></div>`}</section>
-    <section class="stage" style="--k:var(--accent)"><h3>${d.kind==="pfmea"?"Failure analysis and risk":"Characteristics and controls"} <small>${plural(d.rows.length,"row")}</small></h3>
+    <section class="stage" style="--k:var(--accent)"><h3>${d.kind==="pfmea"?"2–6 · Structure, function, failure and risk analysis, optimization":"Characteristics and controls"} <small>${plural(d.rows.length,"row")}</small></h3>
       ${locked()?"":`<div class="actions" style="margin-bottom:8px"><button class="btn small" data-d="addrow">Add row</button>${d.kind==="cp"&&d.specId&&specsInForce().some(s=>s.id===d.specId)?`<button class="btn ghost small" data-d="regen">Regenerate rows from the specification in force</button>`:""}</div>`}
       <div class="form-wrap">${d.kind==="pfmea"?pfTable(d):cpTable(d)}</div></section>
+    ${d.kind==="pfmea"?(()=>{const R=results(d);return `<section class="stage" style="--k:var(--good)"><h3>7 · Results documentation</h3>
+      <div class="calc" style="margin:0"><div>${plural(R.n,"failure chain")} · ${R.special} with a special characteristic</div>
+      <div>Action Priority now: ${apTag("H")} ${R.before.H} · ${apTag("M")} ${R.before.M} · ${apTag("L")} ${R.before.L} &nbsp;→&nbsp; after the completed actions: ${apTag("H")} ${R.after.H} · ${apTag("M")} ${R.after.M} · ${apTag("L")} ${R.after.L}</div>
+      <div>Actions: ${R.st.length?R.st.map(([k,v])=>`${esc(k)} ${v}`).join(" · "):"none recorded"}${R.noAct?` · <span class="bad">${R.noAct} AP-High row${R.noAct>1?"s":""} without an action</span>`:""}</div></div></section>`;})():""}
     <section class="stage" style="--k:var(--warn)"><h3>Checks</h3>${I.length?`<ul class="issues">${I.map(i=>`<li class="${i[0]}">${esc(i[1])}</li>`).join("")}</ul>`:`<p class="ok" style="margin:0;font-size:13px">No open link, feedback or review item.</p>`}
       ${d.status==="draft"?`<p class="muted" style="margin:8px 0 0;font-size:12.5px">${m.length?"To approve: "+esc(m.slice(0,8).join("; "))+(m.length>8?` … (${m.length} items)`:"")+".":"Everything needed is recorded: the document can be approved."}</p>`:""}</section>
     <section class="stage" style="--k:var(--good)"><h3>Approval</h3><div class="fgrid">${hf("prep","Prepared by",{req:true})}${hf("appr","Approved by (Quality Manager)",{req:true})}${hf("apprDate","Approval date",{type:"date",req:true})}${d.rev>0?hf("change","Reason for the change",{type:"textarea",span:true,req:true}):""}</div></section>
@@ -601,25 +658,31 @@ dlg.addEventListener("click",e=>{
 });
 
 /* ---------- one row (second dialog) ---------- */
-const PFF=[["step","Process step","step"],["func","Function / requirement","text"],["mode","Failure mode","text"],["effect","Failure effect","area"],["s","Severity S (1–10)","sod"],["cls","Special characteristic","cls"],["cause","Failure cause","area"],["prev","Prevention control","area"],["o","Occurrence O (1–10)","sod"],["det","Detection control","area"],["d","Detection D (1–10)","sod"],
-  ["act","Recommended action","area"],["owner","Owner","text"],["due","Target date","date"],["done","Action taken","area"],["doneDate","Completion date","date"],["s2","S after the action","sod"],["o2","O after the action","sod"],["d2","D after the action","sod"]];
+const PFF=[["#","2 · Structure analysis"],["step","Process step","step"],["m4","4M type of the work element","m4"],["we","Process work element","text"],
+  ["#","3 · Function analysis"],["fItem","Function of the process item (your plant · ship-to plant · end user)","area"],["fStep","Function of the process step and product characteristic","area"],["fWe","Function of the process work element and process characteristic","area"],
+  ["#","4 · Failure analysis"],["fe","Failure effect (FE) on your plant, ship-to plant and end user","area"],["s","Severity of the FE (S)","sod"],["mode","Failure mode (FM) of the process step","area"],["cause","Failure cause (FC) of the work element","area"],
+  ["#","5 · Risk analysis"],["pc","Current prevention control (PC) of the FC","area"],["o","Occurrence of the FC (O)","sod"],["dc","Current detection control (DC) of the FC or FM","area"],["d","Detection of the FC / FM (D)","sod"],["cls","Special characteristic","cls"],["filter","Filter code (optional)","text"],
+  ["#","6 · Optimization"],["pa","Prevention action","area"],["da","Detection action","area"],["resp","Responsible person","text"],["target","Target completion date","date"],["status","Status","astat"],["taken","Action taken, with pointer to the evidence","area"],["doneDate","Completion date","date"],
+  ["s2","Severity after the action","sod"],["o2","Occurrence after the action","sod"],["d2","Detection after the action","sod"],["cls2","Special characteristic after the action","cls"],["remarks","Remarks (e.g. why an action is not implemented)","area"]];
 const CPF=[["step","Process step","step"],["machine","Machine / device / jig","text"],["prod","Product characteristic","text"],["proc","Process characteristic","text"],["cls","Special characteristic","cls"],["spec","Specification / tolerance","text"],["tech","Evaluation / measurement technique","text"],["size","Sample size","text"],["freq","Frequency","text"],["ctrl","Control method","text"],["react","Reaction plan","area"],["rec","Record (CALOR page)","rec"]];
 let RE=null;
 function openRow(id){
   const F=ED.kind==="pfmea"?PFF:CPF;
-  RE=id?clone(ED.rows.find(r=>r.id===id)):Object.fromEntries(F.map(([k])=>[k,""]));if(!id)RE.step=ED.steps[0]?ED.steps[0].no:10;
-  const fl=([k,l,t])=>{const v=RE[k]??"",i="r-"+k;
+  RE=id?clone(ED.rows.find(r=>r.id===id)):Object.fromEntries(F.filter(f=>f[0]!=="#").map(([k])=>[k,""]));if(!id)RE.step=ED.steps[0]?ED.steps[0].no:10;
+  const fl=([k,l,t])=>{if(k==="#") return `<h4 style="grid-column:1/-1;margin:10px 0 0;font-size:14px">${esc(l)}</h4>`;const v=RE[k]??"",i="r-"+k,ck=k.charAt(0);
     const inp=t==="step"?`<select id="${i}" data-r="${k}">${ED.steps.map(s=>`<option value="${esc(s.no)}" ${+s.no===+v?"selected":""}>${esc(s.no)} · ${esc(s.name)}</option>`).join("")}</select>`
-      :t==="sod"?`<select id="${i}" data-r="${k}"><option value=""></option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select>`
+      :t==="sod"?`<select id="${i}" data-r="${k}"><option value=""></option>${[10,9,8,7,6,5,4,3,2,1].map(n=>`<option value="${n}" ${String(n)===String(v)?"selected":""}>${n} — ${esc(CRIT[ck][n])}</option>`).join("")}</select>`
+      :t==="m4"?`<select id="${i}" data-r="${k}"><option value=""></option>${M4.map(c=>`<option ${c===v?"selected":""}>${c}</option>`).join("")}</select>`
+      :t==="astat"?`<select id="${i}" data-r="${k}"><option value=""></option>${ASTAT.map(c=>`<option ${c===v?"selected":""}>${c}</option>`).join("")}</select>`
       :t==="cls"?`<select id="${i}" data-r="${k}">${CLS.map(c=>`<option value="${c}" ${c===v?"selected":""}>${esc(CLSN[c])}</option>`).join("")}</select>`
       :t==="rec"?`<select id="${i}" data-r="${k}">${RECS.map(c=>`<option ${c===v?"selected":""}>${esc(c)}</option>`).join("")}</select>`
       :t==="area"?`<textarea id="${i}" data-r="${k}">${esc(v)}</textarea>`:`<input id="${i}" data-r="${k}" type="${t==="date"?"date":"text"}" value="${esc(v)}">`;
-    return `<div class="field ${t==="area"?"span":""}"><label for="${i}">${l}</label>${inp}</div>`;};
+    return `<div class="field ${t==="area"||t==="sod"?"span":""}"><label for="${i}">${l}</label>${inp}</div>`;};
   rdlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${id?"Edit row":"New row"}</h2><span id="r-ap"></span></div></div><div class="dlg-b"><div class="fgrid">${F.map(fl).join("")}</div></div>
     <div class="dlg-f"><span class="msg" id="rmsg"></span>${id?`<button class="btn danger small" data-rr="del">Delete row</button>`:""}<button class="btn ghost" data-rr="cancel">Cancel</button><button class="btn" data-rr="ok">${id?"Apply":"Add"}</button></div>`;
   apShow();rdlg.showModal();
 }
-const apShow=()=>{const el=$("#r-ap");if(!el||ED.kind!=="pfmea") return;const a=ap(RE.s,RE.o,RE.d),a2=txt(RE.done)?ap(RE.s2||RE.s,RE.o2,RE.d2):"";el.innerHTML=a?`Action Priority ${apTag(a)} · RPN ${rpn(RE.s,RE.o,RE.d)}${a2?` → after the action ${apTag(a2)}`:""}`:"";};
+const apShow=()=>{const el=$("#r-ap");if(!el||ED.kind!=="pfmea") return;const a=apNow(RE),a2=apAfter(RE);el.innerHTML=a?`Action Priority ${apTag(a)}${a2?` → after the action ${apTag(a2)}`:""}`:"";};
 rdlg.addEventListener("input",e=>{const k=e.target.dataset.r;if(k){RE[k]=e.target.value;apShow();}});
 rdlg.addEventListener("change",e=>{const k=e.target.dataset.r;if(k){RE[k]=e.target.value;apShow();}});
 rdlg.addEventListener("click",e=>{const b=e.target.closest("[data-rr]");if(!b) return;const a=b.dataset.rr;
@@ -662,15 +725,22 @@ const dlName=d=>ascii(`${d.kind==="pfmea"?"PFMEA":"Control plan"} ${d.id} rev ${
 function docTables(d){
   const head=[["Document",`${d.id} rev ${d.rev}`],["Type",d.kind==="pfmea"?"Process FMEA":"Control plan"],["Title",d.title],["Process",PROC[d.proc]||""]];
   if(d.kind==="cp") head.push(["Part no.",d.part],["Part name",d.partName||""],["Customer",d.customer||""],["Phase",d.phase],["Process specification",d.specRef||""],["Linked PFMEA",d.pfmea||""],["Key contact",d.keyContact||""]);
+  if(d.kind==="pfmea") head.push(["Company",d.company||""],["Location",d.location||""],["Customer",d.customer||""],["Model year / program",d.program||""],["Subject",d.subject||""],["PFMEA start date",fdate(d.startDate)],["PFMEA revision date",fdate((d.log.at(-1)||{}).d)],
+    ["Process responsibility",d.resp||""],["Confidentiality level",d.conf||""],["Process item",d.item||""],["Intent",d.intent||""],["Timing",d.timing||""],["Tasks",d.tasks||""],["Tools",d.tools||""]);
   head.push(["Team",d.team],["Status",STATUS[d.status][2]],["Prepared by",d.prep],["Approved by",d.appr],["Approval date",fdate(d.apprDate)],["Reason for the change",d.change||""]);
   const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);
-  const rows=d.kind==="pfmea"?{head:["Step","Process step","Function / requirement","Failure mode","Failure effect","S","Class","Failure cause","Prevention control","O","Detection control","D","AP","RPN","Recommended action","Owner","Target","Action taken","Completed","S after","O after","D after","AP after"],
-      rows:L.map(r=>[num(r.step)??r.step,stepName(d,r.step),r.func,r.mode,r.effect,num(r.s)??"",r.cls||"",r.cause,r.prev,num(r.o)??"",r.det,num(r.d)??"",ap(r.s,r.o,r.d),rpn(r.s,r.o,r.d),r.act,r.owner,fdate(r.due),r.done,fdate(r.doneDate),num(r.s2)??"",num(r.o2)??"",num(r.d2)??"",txt(r.done)?ap(r.s2||r.s,r.o2,r.d2):""])}
+  const rows=d.kind==="pfmea"?{head:["Step","Process step","4M","Process work element","Function of the process item","Function of the process step and product characteristic","Function of the work element and process characteristic","Failure effect (FE)","S","Failure mode (FM)","Failure cause (FC)","Prevention control (PC)","O","Detection control (DC)","D","AP","Special characteristic","Filter code","Prevention action","Detection action","Responsible","Target date","Status","Action taken (evidence)","Completion date","S","O","D","Special characteristic","AP","Remarks"],
+      rows:L.map(r=>[num(r.step)??r.step,stepName(d,r.step),r.m4||"",r.we||"",r.fItem||"",r.fStep||"",r.fWe||"",r.fe||"",num(r.s)??"",r.mode||"",r.cause||"",r.pc||"",num(r.o)??"",r.dc||"",num(r.d)??"",apNow(r),r.cls||"",r.filter||"",
+        r.pa||"",r.da||"",r.resp||"",fdate(r.target),r.status||"",r.taken||"",fdate(r.doneDate),num(r.s2)??"",num(r.o2)??"",num(r.d2)??"",r.cls2||"",apAfter(r),r.remarks||""])}
     :{head:["Step","Process step","Machine / device","Product characteristic","Process characteristic","Class","Specification / tolerance","Evaluation / measurement","Sample size","Frequency","Control method","Reaction plan","Record"],
       rows:L.map(r=>[num(r.step)??r.step,stepName(d,r.step),r.machine,r.prod,r.proc,r.cls||"",r.spec,r.tech,r.size,r.freq,r.ctrl,r.react,r.rec])};
   const iss={head:["Level","Check"],rows:issues(d).map(i=>[i[0]==="crit"?"Not met":"Review",i[1]])};
   const hist={head:["Date","Event"],rows:d.log.map(x=>[fdate(x.d),x.t])};
-  return {head,rows,iss,hist};
+  const R=d.kind==="pfmea"?results(d):null;
+  const res=R?{head:["Results documentation (step 7)","Value"],rows:[["Failure chains",R.n],["With a special characteristic",R.special],["AP High / Medium / Low now",`${R.before.H} / ${R.before.M} / ${R.before.L}`],["AP High / Medium / Low after the completed actions",`${R.after.H} / ${R.after.M} / ${R.after.L}`],
+    ...R.st.map(([k,v])=>[`Actions ${k.toLowerCase()}`,v]),["AP-High rows without an action",R.noAct]]}:null;
+  const apCols=rows.head.map((h,i)=>h==="AP"?i:-1).filter(i=>i>=0);
+  return {head,rows,iss,hist,res,apCols};
 }
 /* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
 const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
@@ -705,9 +775,9 @@ function xlsxBlob(sheets){
 const B=cells=>({b:true,cells}),N=cells=>({cells}),kvRows=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
 const tblRows=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
 function docXlsx(d){
-  const T=docTables(d),w=d.kind==="pfmea"?[6,24,30,28,32,4,6,30,30,4,30,4,5,6,30,16,11,30,11,6,6,6,7]:[6,24,22,24,26,6,24,28,14,16,26,36,16];
+  const T=docTables(d),w=d.kind==="pfmea"?[6,24,12,26,30,32,32,36,4,28,30,30,4,30,4,5,10,10,28,28,16,11,16,30,11,4,4,4,10,5,24]:[6,24,22,24,26,6,24,28,14,16,26,36,16];
   const sheets=[{name:d.kind==="pfmea"?"PFMEA":"Control plan",widths:w,rows:[B([`${d.kind==="pfmea"?"Process FMEA":"Control plan"} ${d.id} rev ${d.rev} · ${d.title}`]),N([S().plant]),N([]),...tblRows(T.rows)]},
-    {name:"Header",widths:[28,70],rows:[B(["Document"]),N([]),...kvRows(T.head)]},{name:"Checks",widths:[12,100],rows:[B(["Checks"]),N([]),...tblRows(T.iss)]},{name:"History",widths:[14,90],rows:[B(["History"]),N([]),...tblRows(T.hist)]}];
+    {name:"Header",widths:[28,70],rows:[B(["Document"]),N([]),...kvRows(T.head)]},...(T.res?[{name:"Results",widths:[44,20],rows:[B(["Results documentation (step 7)"]),N([]),...kvRows(T.res.rows)]}]:[]),{name:"Checks",widths:[12,100],rows:[B(["Checks"]),N([]),...tblRows(T.iss)]},{name:"History",widths:[14,90],rows:[B(["History"]),N([]),...tblRows(T.hist)]}];
   try{download(dlName(d)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
 }
 function docPdf(d){
@@ -727,7 +797,9 @@ function docPdf(d){
   <h1>${d.kind==="pfmea"?"Process FMEA":"Control plan"} · ${e(d.id)} rev ${d.rev}</h1><p class="muted" style="margin:0 0 6px">${e(S().plant)} · ${e(d.title)}</p>
   ${kv(T.head)}
   <h2>${d.kind==="pfmea"?"Failure analysis, risk analysis and optimisation":"Characteristics and controls"}</h2>
-  <table><thead><tr>${T.rows.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${T.rows.rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${(d.kind==="pfmea"&&(i===12||i===22))?v:""}">${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  ${(d.kind==="pfmea"?[["Structure, function, failure and risk analysis (steps 2–5)",[...Array(18).keys()]],["Optimization (step 6)",[0,1,9,15,...Array(13).keys()].map((v,i)=>i<4?v:v+18)]]:[["",[...T.rows.head.keys()]]])
+    .map(([cap,cols])=>`${cap?`<h3 style="font-size:10.5px;margin:8px 0 2px">${e(cap)}</h3>`:""}<table${d.kind==="pfmea"?' style="font-size:8.5px"':""}><thead><tr>${cols.map(i=>`<th>${e(T.rows.head[i])}</th>`).join("")}</tr></thead><tbody>${T.rows.rows.map(r=>`<tr>${cols.map(i=>`<td class="${T.apCols.includes(i)?r[i]:""}">${e(r[i])}</td>`).join("")}</tr>`).join("")}</tbody></table>`).join("")}
+  ${T.res?`<h2>Results documentation</h2><table class="kv"><tbody>${T.res.rows.map(r=>`<tr><th>${e(r[0])}</th><td>${e(r[1])}</td></tr>`).join("")}</tbody></table>`:""}
   ${T.iss.rows.length?`<h2>Checks</h2><table><tbody>${T.iss.rows.map(r=>`<tr><td>${e(r[0])}</td><td>${e(r[1])}</td></tr>`).join("")}</tbody></table>`:""}
   </body></html>`;
   const w=window.open("","_blank");
@@ -741,8 +813,9 @@ function docPdf(d){
 function example(){
   const o=blank(),td=today();DB=o;
   const pf=newPfmea("HT");pf.prep="HT Manager";pf.appr="Quality Manager";pf.apprDate=addDays(td,-45);pf.status="approved";logIt(pf,"Revision 0 approved by Quality Manager");
-  const w=pf.rows.find(r=>/Water in the quench oil/.test(r.mode));if(w){w.act="Install a water-in-oil sensor with alarm on the cooler outlet";w.owner="Maintenance Head";w.due=addDays(td,30);}
-  const d=pf.rows.find(r=>/Decarburization/.test(r.mode));if(d){d.act="Burner air/gas ratio check monthly";d.owner="Maintenance Head";d.due=addDays(td,-5);}
+  const w=pf.rows.find(r=>/Water in the quench oil/.test(r.mode));if(w){w.da="Water-in-oil sensor with alarm on the cooler outlet";w.resp="Maintenance Head";w.target=addDays(td,30);w.status="Implementation pending";}
+  const d=pf.rows.find(r=>/Decarburization/.test(r.mode));if(d){d.pa="Monthly burner air / gas ratio check in the maintenance plan";d.resp="Maintenance Head";d.target=addDays(td,-5);d.status="Open";}
+  const q=pf.rows.find(r=>/Quench delay too long/.test(r.mode));if(q){q.da="Transfer time recorded by the PLC with an alarm above the maximum quench delay";q.resp="Maintenance Head";q.target=addDays(td,-20);q.status="Completed";q.taken="PLC transfer timer and alarm installed; alarm test record M-114";q.doneDate=addDays(td,-25);q.s2=q.s;q.o2="3";q.d2="3";}
   newPfmea("IA");
   const sp=specsInForce()[0];
   if(sp) newCp(sp,sp.proc==="HT"?pf.id:"");
@@ -757,8 +830,8 @@ if(HTQ){
   HTQ.provide("cpf",{
     overview:()=>{const L=DB.docs.filter(d=>d.status!=="obsolete");
       return {docs:L.map(d=>({id:d.id,kind:d.kind,title:d.title,part:d.part||"",proc:d.proc,status:d.status,rev:d.rev,issues:issues(d)})),
-        apH:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows).filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)).length,
-        late:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<today()).map(r=>({doc:d.id,step:r.step,mode:r.mode,due:r.due,owner:r.owner})))};}
+        apH:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows).filter(openH).length,
+        late:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows.filter(lateA).map(r=>({doc:d.id,step:r.step,mode:r.mode,due:r.target,owner:r.resp})))};}
   });
   HTQ.on("nav:cpf",o=>{if(o&&o.doc)openDoc(o.doc);});
   let T=0;const again=()=>{clearTimeout(T);T=setTimeout(()=>{render();HTQ.emit("cpf:changed");},250);};
