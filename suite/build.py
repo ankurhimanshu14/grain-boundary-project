@@ -18,6 +18,7 @@ SHELL = ROOT / "suite" / "shell.html"
 APPS = {"/*@PROD@*/": ROOT / "Production_Report.html",
         "/*@SPEC@*/": ROOT / "Process_Specifications.html",
         "/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
+        "/*@OPS@*/": ROOT / "Furnace_Operations.html",
         "/*@QUENCH@*/": ROOT / "Quench_Media_Testing.html",
         "/*@METAL@*/": ROOT / "Hardness_Metallurgical_Testing.html",
         "/*@CPF@*/": ROOT / "Control_Plan_PFMEA.html",

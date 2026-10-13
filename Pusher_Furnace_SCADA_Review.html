@@ -279,6 +279,7 @@ table.stat th:first-child{text-align:left}
       <div class="field"><label for="settle" title="After a set value change the furnace needs time to reach the new value. Readings are not judged until the thermocouple is back within the tolerance, or until this time has passed, whichever comes first. 0 = judge every reading.">Max. settling after set change, min</label><input id="settle" type="number" min="0" step="5"></div>
       <div class="field"><label for="runStart" title="Optional. Enter the time the furnace was lit / started up. Readings before it are not judged; after it, readings are judged once the thermocouple has reached its set value.">Furnace start (if started in this record)</label><input id="runStart" type="datetime-local" step="60" style="width:190px"></div>
       <div class="field"><label for="runStop" title="Optional. Enter the time the furnace was switched off / began shutting down. Readings from this time on are not judged.">Furnace stop (if shut down in this record)</label><input id="runStop" type="datetime-local" step="60" style="width:190px"></div>
+      <span class="drop-hint" id="runSrc" style="flex-basis:100%;margin-left:0" hidden></span>
       <span class="drop-hint">Drop a new SCADA export anywhere on the page. Everything is recalculated in your browser; nothing is uploaded.</span>
     </div>
     <details class="more">
@@ -971,6 +972,7 @@ function observations(D,A){
   const hrs=(A.t1-A.t0)/36e5;
   satObs(A).forEach(o=>O.push(o));
   prodObs(A).forEach(o=>O.push(o));
+  opsObs(A).forEach(o=>O.push(o));
   tusObs(D,A).forEach(o=>O.push(o));
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
@@ -983,9 +985,9 @@ let DATA=null, FILE="", charts=[];
 function run(){
   const out=$("#out");
   try{
-    ALLREPL=REPL.concat(satRepl());
+    ALLREPL=REPL.concat(satRepl()); opsRun();
     const A=analyze(DATA); A.sat=satStatus(A); A.prod=prodTrace(DATA,A); prodPriority(A); const O=observations(DATA,A); LASTO=O; lastSave(A,O);
-    render(DATA,A,O);
+    render(DATA,A,O); showRunSrc();
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
 
@@ -1807,6 +1809,36 @@ function prodTrace(D,A){
   return {L,batches,held:batches.filter(b=>b.wins.length),untimed,covered,day0,day1};
 }
 const bName=b=>`${b.x.batch||"?"} (${b.x.part||"?"}${b.x.heat?", heat "+b.x.heat:""})`;
+/* ---------- link to the start-up, shutdown and alarm log (CALOR only) ---------- */
+/* furnace start / stop from the log when the record's own start / stop fields are empty */
+let RUN_OPS=null;
+function opsRun(){
+  RUN_OPS=null;
+  if($("#runStart").value||$("#runStop").value) return;
+  RUN.start=RUN.stop=null;
+  const api=HTQ&&HTQ.api("ops"), L=link(); if(!api||!L||!L.f||!DATA||!DATA.rows.length) return;
+  try{ const r=api.runPeriods(L.f,L.ch,DATA.rows[0].t,DATA.rows[DATA.rows.length-1].t); if(r.start==null&&r.stop==null) return; RUN.start=r.start; RUN.stop=r.stop; RUN_OPS=r; }catch(e){}
+}
+function showRunSrc(){
+  const el=$("#runSrc"); if(!el) return;
+  el.hidden=!RUN_OPS;
+  if(RUN_OPS) el.textContent="From the Alarms page (start-up, shutdown and alarm log): "+[RUN_OPS.start!=null&&`furnace start ${fmtD(RUN_OPS.start)} ${fmtT(RUN_OPS.start)} (${RUN_OPS.startId})`,RUN_OPS.stop!=null&&`stop ${fmtD(RUN_OPS.stop)} ${fmtT(RUN_OPS.stop)} (${RUN_OPS.stopId}, ${RUN_OPS.stopTxt.toLowerCase()})`].filter(Boolean).join(" · ")+". Enter a start or stop above to override.";
+}
+/* alarms recorded during the record, and excursions affecting trays with no alarm record */
+function opsObs(A){
+  const api=HTQ&&HTQ.api("ops"), L=link(); if(!api||!L||!L.f||!L.ch) return [];
+  let al=[]; try{ al=api.alarmsIn(L.f,L.ch,A.t0,A.t1+A.step); }catch(e){ return []; }
+  const O=[], t=m=>fmtD(m).slice(0,6)+" "+fmtT(m);
+  if(al.length) O.push({lvl:"info",tag:"Alarm response",title:`${al.length} alarm record${al.length>1?"s":""} of ${L.f} during this record (Alarms page)`,
+    detail:al.map(a=>`${a.id} ${a.name}${a.zone?" (zone "+a.zone+")":""}: ${t(a.from)} – ${a.to!=null?t(a.to):"not cleared"}, ${{active:"alarm active",react:"reaction plan open",review:"awaiting review",incomplete:"record incomplete",done:"complete",closed:"closed"}[a.status]||a.status}`).join(" · ")+".",
+    action:`Use the product decision of each alarm record together with the time windows below; finish the open alarm records on the Alarms page.`});
+  let used=false; try{ used=api.used(L.f); }catch(e){}
+  if(used){ const miss=A.events.filter(e=>e.aff&&!al.some(a=>(!a.zone||+a.zone===e.z+1)&&a.from<=e.tEnd+A.step&&(a.to==null||a.to>=e.tStart)));
+    if(miss.length) O.push({lvl:"warn",tag:"Alarm response",title:`${miss.length} excursion${miss.length>1?"s":""} affecting trays without an alarm record`,
+      detail:miss.map(e=>`#${e.no} zone ${e.z+1}, ${t(e.tStart)} – ${fmtT(e.tEnd)}, worst ${e.worst>0?"+":"−"}${Math.abs(e.worst).toFixed(1)} °C`).join(" · ")+".",
+      action:`Record the alarm, the response and the product decision on the Alarms page; if no alarm sounded, check the controller's alarm limits and that the alarm is not disabled.`}); }
+  return O;
+}
 function prodObs(A){
   const P=A.prod; if(!P||P.nolink) return [];
   const O=[];
@@ -1846,7 +1878,7 @@ if(HTQ){
   const again=()=>{ if(DATA&&!PRINTING) run(); else renderLink(); };
   HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
   let PT=0; const prodAgain=()=>{ clearTimeout(PT); PT=setTimeout(()=>{ if(DATA&&!PRINTING) run(); },200); };
-  ["prod:ready","prod:changed","spec:changed","tus:ready","tus:changed"].forEach(ev=>HTQ.on(ev,prodAgain));
+  ["prod:ready","prod:changed","spec:changed","tus:ready","tus:changed","ops:ready","ops:changed"].forEach(ev=>HTQ.on(ev,prodAgain));
 }
 
 /* ---------- latest record per furnace and chamber (for the suite's home page) ---------- */
@@ -1878,7 +1910,7 @@ const PD_ST=["plan","do","check","act","closed"], PD_NM={plan:"Plan",do:"Do",che
 const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
 const DISPO=["Released after hardness / microstructure verification","Re-heat-treated and verified","Scrapped","Released under customer concession","Still on hold"];
 const DOCS=["Control plan","PFMEA","Work instruction","Process table / recipe","Maintenance plan","Training","No document change needed"];
-const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager",TUS:"Maintenance Head"};
+const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager",TUS:"Maintenance Head","Alarm response":"Production Manager"};
 const todayISO=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
 const addDay=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
 const pdAll=()=>PD.reviews.concat(PD_MEM);
