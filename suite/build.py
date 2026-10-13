@@ -1,8 +1,8 @@
 """Build CALOR.html, the main application: one file with a navigation bar that
-runs Process_Specifications.html, Pusher_Furnace_SCADA_Review.html,
+runs Production_Report.html, Process_Specifications.html, Pusher_Furnace_SCADA_Review.html,
 Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html and
 Thermocouple_SAT_PDCA.html as pages
-(Production_Report.html is kept separate until it is finished).
+
 
 Each application stays a standalone file and is embedded unchanged as the srcdoc
 of a same-origin frame, so all share the browser's storage and the HTQ bridge.
@@ -14,7 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SHELL = ROOT / "suite" / "shell.html"
-APPS = {"/*@SPEC@*/": ROOT / "Process_Specifications.html",
+APPS = {"/*@PROD@*/": ROOT / "Production_Report.html",
+        "/*@SPEC@*/": ROOT / "Process_Specifications.html",
         "/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
         "/*@QUENCH@*/": ROOT / "Quench_Media_Testing.html",
         "/*@METAL@*/": ROOT / "Hardness_Metallurgical_Testing.html",

@@ -151,6 +151,7 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
   <section class="panel">
     <div class="sec-head"><h2>Process specifications</h2><p>One specification per part no.; it is the same in every furnace. Set values per zone of the hardening and tempering chamber, push time, cooling times, loading per tray and part weight.</p>
       <div class="actions"><button class="btn small" id="b-addspec">Add part</button></div></div>
+    <p class="muted small" id="spec-src" hidden></p>
     <div class="scroll" id="specs"></div>
   </section>
 
@@ -235,7 +236,18 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
   if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("prod:changed"),300);}};
 const S=()=>DB.settings;
 const pos=k=>String(S()[k]||"").split(/[,;\s]+/).map(Number).filter(n=>n>0);
-const specOf=part=>DB.specs.find(s=>txt(s.part)&&txt(s.part).toUpperCase()===txt(part).toUpperCase())||null;
+/* in CALOR the process specification register comes first (the revision in force, approved for the furnace if there is one);
+   this page's own list is used for parts the register does not have */
+const PMAP={HT:P_HT,IA:P_IA,NORM:P_NO};
+function regSpecs(){try{const a=HTQ&&HTQ.api("spec");return a&&a.inForce?a.inForce():[];}catch(e){return [];}}
+function regSpec(part,furnace){
+  const L=regSpecs().filter(s=>txt(s.part).toUpperCase()===txt(part).toUpperCase());if(!L.length) return null;
+  const s=L.find(x=>!furnace||x.furnaces.includes(furnace))||L[0];
+  return {part:s.part,name:s.name,grade:s.grade,proc:PMAP[s.proc]||s.proc,h:s.h.map(v=>v??""),t:s.t.map(v=>v??""),push:s.push??"",cc:s.cc??"",fan:s.fan??"",perTray:s.pcs??"",wt:s.wt??"",
+    between:s.between,src:`${s.id} rev ${s.rev}`,furnaces:s.furnaces,otherFurnace:!!furnace&&!s.furnaces.includes(furnace)};
+}
+const ownSpec=part=>DB.specs.find(s=>txt(s.part)&&txt(s.part).toUpperCase()===txt(part).toUpperCase())||null;
+const specOf=(part,furnace)=>regSpec(part,furnace)||ownSpec(part);
 /* furnaces: the SAT register's list in the suite, otherwise this page's own */
 const furnaces=()=>{try{const a=HTQ&&HTQ.api("sat");if(a){const l=a.furnaces();if(l&&l.length)return l;}}catch(e){}return DB.furnaces;};
 let VIEW={f:"",d:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem("prod-view")||"{}")};}catch(e){}
@@ -249,6 +261,7 @@ const logIt=(r,t)=>r.log.push({d:todayISO(),t});
 function between(sp){
   const s=S();
   if(!sp) return null;
+  if(sp.between!=null) return sp.between; /* from the process specification register */
   if(sp.proc===P_HT) return (num(s.qDelay)||0)+(num(s.dip)||0)+(num(s.toTemp)||0);
   if(sp.proc===P_IA) return num(sp.cc);
   if(sp.proc===P_NO) return num(s.gapNorm)||0;
@@ -257,8 +270,9 @@ function between(sp){
 }
 const setsOf=(row,sp)=>({h:[0,1,2].map(i=>num(row.sets?.h?.[i])??num(sp?.h?.[i])),t:[0,1,2].map(i=>num(row.sets?.t?.[i])??num(sp?.t?.[i]))});
 function calcRow(row,rep){
-  const sp=specOf(row.part),s=S(),out={sp,issues:[]};
+  const sp=specOf(row.part,rep&&rep.furnace),s=S(),out={sp,issues:[]};
   const I=(lvl,t)=>out.issues.push([lvl,t]);
+  if(sp&&sp.otherFurnace) I("warn",`Specification ${sp.src} is not approved for ${rep.furnace} (approved: ${sp.furnaces.join(", ")||"none"})`);
   if(!txt(row.part)) I("crit","Part no. missing"); else if(!sp) I("crit",`Part no. ${row.part} has no process specification`);
   if(!txt(row.batch)) I("crit","Batch no. missing");
   if(!txt(row.heat)) I("crit","Heat no. missing");
@@ -320,8 +334,10 @@ function drawReport(){
   $("#rep-title").textContent=`Batches · ${VIEW.f} · ${fdate(VIEW.d)}`;
   $("#rep-status").innerHTML=!R?`<span class="muted">No report for ${esc(VIEW.f)} on ${fdate(VIEW.d)} yet.</span>`:
     `${locked?chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)} · locked`):chip("warn","…","Draft")}<span class="muted small">${esc(R.id)} · ${R.rows.length} batch${R.rows.length===1?"":"es"}</span>`;
-  const parts=`<datalist id="partlist">${DB.specs.filter(x=>txt(x.part)).map(x=>`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")}</option>`).join("")}</datalist>`;
-  $("#batches").innerHTML=parts+(!R||!R.rows.length?`<div class="empty">${DB.specs.length?"Add the batches of this day from the production register.":"First add the process specifications of your parts (section below), then add the batches of this day."}</div>`:
+  const plist=new Map();regSpecs().forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(PMAP[x.proc]||x.proc)} · ${esc(x.id)}</option>`));
+  DB.specs.filter(x=>txt(x.part)&&!plist.has(txt(x.part).toUpperCase())).forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")}</option>`));
+  const parts=`<datalist id="partlist">${[...plist.values()].join("")}</datalist>`;
+  $("#batches").innerHTML=parts+(!R||!R.rows.length?`<div class="empty">${DB.specs.length||regSpecs().length?"Add the batches of this day from the production register.":"First add the process specifications of your parts (section below), then add the batches of this day."}</div>`:
     R.rows.map((row,i)=>{const k=calcRow(row,R),sp=k.sp,f=(fld,lab,type="text",req=1,extra="")=>`<div class="field"><label class="${req?"req":""}" for="r-${row.id}-${fld}">${lab}</label><input id="r-${row.id}-${fld}" type="${type}" data-r="${row.id}:${fld}" value="${esc(row[fld]??"")}"${type==="number"?' step="any" inputmode="decimal"':""}${extra}${dis}></div>`;
       return `<div class="batch" id="b-${row.id}" style="--k:${{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]}">
         <div class="batch-h"><b>${i+1}.</b><span id="bh-${row.id}">${batchHead(row,k)}</span></div>
@@ -341,7 +357,7 @@ function drawReport(){
 const prevRep=()=>DB.reports.filter(r=>r.furnace===VIEW.f&&r.date<VIEW.d&&r.rows.length).sort((a,b)=>a.date<b.date?1:-1)[0]||null;
 function batchHead(row,k){
   const sp=k.sp;
-  return sp?`<b>${esc(sp.part)}</b> · ${esc(sp.name||"")} · <span class="muted">${esc(sp.grade||"")} · ${esc(sp.proc||"")}</span>${txt(row.batch)?` · batch <b>${esc(row.batch)}</b>`:""}${txt(row.heat)?` · heat ${esc(row.heat)}${txt(row.heatCode)?" / "+esc(row.heatCode):""}`:""}`
+  return sp?`<b>${esc(sp.part)}</b> · ${esc(sp.name||"")} · <span class="muted">${esc(sp.grade||"")} · ${esc(sp.proc||"")}${sp.src?" · "+esc(sp.src):""}</span>${txt(row.batch)?` · batch <b>${esc(row.batch)}</b>`:""}${txt(row.heat)?` · heat ${esc(row.heat)}${txt(row.heatCode)?" / "+esc(row.heatCode):""}`:""}`
     :`<span class="muted">${txt(row.part)?"Unknown part "+esc(row.part):"Choose the part no."}</span>`;
 }
 function batchCalc(row,k,R){
@@ -401,6 +417,9 @@ function drawApproval(){
     <button class="btn" id="b-approve" ${!R.rows.length||crit?"disabled":""}>Approve and lock</button><span class="msg" id="appr-msg">${!R.rows.length?"Add the batches first.":crit?`${crit} batch${crit>1?"es are":" is"} incomplete.`:""}</span></div>${log}`;
 }
 function drawSpecs(){
+  if(HTQ){const L=regSpecs(),own=DB.specs.filter(x=>txt(x.part)&&regSpecs().some(r=>txt(r.part).toUpperCase()===txt(x.part).toUpperCase()));
+    $("#spec-src").hidden=false;
+    $("#spec-src").innerHTML=`Inside CALOR the <b>Process specifications</b> tab is used first: ${L.length?`${L.length} specification${L.length>1?"s":""} in force (${esc(L.slice(0,6).map(x=>x.part).join(", "))}${L.length>6?" …":""})`:"no specification in force yet"}. The parts below are used only when the register has no specification in force for the part${own.length?`; <span class="caution">${esc(own.map(x=>x.part).join(", "))} ${own.length>1?"are":"is"} also in the register, which is used</span>`:""}.`;}
   if($("#specs").contains(document.activeElement)) return;
   const used=new Set(DB.reports.flatMap(r=>r.rows.map(x=>txt(x.part).toUpperCase())));
   $("#specs").innerHTML=DB.specs.length?`<table class="log spec"><thead><tr><th class="req">Part no.</th><th class="req">Part name</th><th class="req">Steel grade</th><th class="req">Process</th>
@@ -548,7 +567,7 @@ function prodTables(R){
   const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Entry (hardening)","Exit (tempering)","Pieces","Trays","Weight kg","Weighed kg","Push min","Time in furnace","Expected exit","Exit − expected, min","Implied push min","Remarks"];
   const rows=R.rows.map((r,i)=>{const k=ks[i];return [i+1,k.sp?.part||r.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",r.batch,r.heat,r.heatCode,fdt(tms(r.entry)),fdt(tms(r.exit)),num(r.qty)??"",k.trays??"",k.kg!=null?Math.round(k.kg*10)/10:"",num(r.weighed)??"",k.push??"",k.mins!=null?fmin(k.mins):"",k.expected!=null?fdt(k.expected):"",k.dev!=null?Math.round(k.dev):"",k.implied!=null?Math.round(k.implied*10)/10:"",[...k.issues.filter(x=>x[0]!=="crit").map(x=>x[1]),r.note].filter(Boolean).join(" | ")];});
   const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Set °C","Batch in zone from","to"],rows:R.rows.flatMap((r,i)=>{const k=ks[i],v=setsOf(r,k.sp);return (k.zones||[]).map(z=>[i+1,r.batch,r.part,z.ch,z.z,(z.ch==="Hardening"?v.h:v.t)[z.z-1]??"",fdt(z.from),fdt(z.to)]);})};
-  const usedParts=[...new Set(R.rows.map(r=>txt(r.part).toUpperCase()))].map(p=>specOf(p)).filter(Boolean);
+  const usedParts=[...new Set(R.rows.map(r=>txt(r.part).toUpperCase()))].map(p=>specOf(p,R.furnace)).filter(Boolean);
   const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
     rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
   const tot=l=>l.map(o=>[o.label,o.n,o.qty,Math.round(o.kg*10)/10]);
@@ -635,6 +654,7 @@ try{const th=localStorage.getItem("prod-theme");if(th)document.documentElement.d
 if(HTQ){
   $("#b-theme").hidden=true; /* the suite's bar switches the theme of every page */
   HTQ.on("sat:ready",render);
+  HTQ.on("spec:ready",render);HTQ.on("spec:changed",render);
   HTQ.on("nav:prod",o=>{if(o&&o.f)VIEW.f=o.f;if(o&&isDate(o.d))VIEW.d=o.d;saveView();render();});
 }
 render();
