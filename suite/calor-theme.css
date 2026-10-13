@@ -115,6 +115,10 @@
 :root table.grid th{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 :root .vlegend{color:var(--ink2)}
 
+/* ---------- equipment qualification: verdict strip, checklist ---------- */
+:root .verdict-q b{font-family:var(--display);font-size:19px}
+:root .checklist li b{font-weight:600}
+
 /* ---------- print: always the light tokens ---------- */
 @media print{
   :root:root:root:root{

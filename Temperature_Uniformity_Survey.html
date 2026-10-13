@@ -806,11 +806,13 @@ function example(){
 /* ---------- CALOR: status for the other pages and the home page ---------- */
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
-  const rsum=(r,day)=>{const R=rangeState(r,day);return {id:r.id,lo:num(r.lo),hi:num(r.hi),tol:num(r.tol),st:R.st,due:R.due||"",label:RST[R.st][2]};};
+  const rsum=(r,day)=>{const R=rangeState(r,day);return {id:r.id,lo:num(r.lo),hi:num(r.hi),tol:num(r.tol),interval:num(r.interval)||+S().interval,st:R.st,due:R.due||"",label:RST[R.st][2]};};
   HTQ.provide("tus",{
     /* qualified ranges of one chamber with their state on a day (default today) */
     statusAt:(f,ch,day)=>rangesOf(f,ch).map(r=>rsum(r,day)),
     endTol:()=>endTol(),
+    /* date of the latest passing survey of a chamber (for requalification after an equipment change) */
+    lastPass:(f,ch)=>{const L=DB.surveys.filter(t=>t.furnace===f&&t.chamber===ch&&okRes(calc(t).res)).sort(byDate);return L.length?L.at(-1).date:"";},
     overview:()=>({ranges:DB.ranges.map(r=>({furnace:r.furnace,chamber:r.chamber,...rsum(r)})),open:DB.surveys.filter(t=>status(t)==="open").map(t=>({id:t.id,furnace:t.furnace,chamber:t.chamber,sp:t.sp,date:t.date}))}),
     counts:()=>{const st=DB.ranges.map(r=>rangeState(r).st);return {overdue:st.filter(s=>s==="overdue").length,fail:st.filter(s=>s==="fail").length,open:DB.surveys.filter(t=>status(t)==="open").length};}
   });

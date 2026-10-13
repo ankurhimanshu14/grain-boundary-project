@@ -1308,7 +1308,7 @@ if(HTQ){
         open:sc.open.map(c=>c.id+" "+SNAME[c.stage]).join(", ")};},
     lifeDays:()=>+S().lifeDays||365,
     /* home page: every furnace and chamber with the status of each active thermocouple */
-    overview:()=>({plant:S().plant,lifeDays:+S().lifeDays||365,furnaces:DB.furnaces.map(f=>({id:f.id,name:f.name||"",chambers:CHAMBERS.map(ch=>({ch,
+    overview:()=>({plant:S().plant,lifeDays:+S().lifeDays||365,satInterval:+S().interval||90,furnaces:DB.furnaces.map(f=>({id:f.id,name:f.name||"",chambers:CHAMBERS.map(ch=>({ch,
       rows:DB.sensors.filter(x=>x.active!==false&&x.furnace===f.id&&x.chamber===ch).sort(sOrder).map(x=>{const sc=schedule(x),L=lifeOf(x);
         return {tag:x.tag,pos:x.pos||"",st:sc.status,due:sc.due,left:sc.left,last:sc.last?{id:sc.last.id,date:sc.last.do.date,diff:sc.lastK.diff,res:sc.lastK.res}:null,
           life:L.st,lifeDue:L.due||"",lifeLeft:L.left??null,open:sc.open.map(c=>({id:c.id,stage:SNAME[c.stage]}))};})}))}))})
