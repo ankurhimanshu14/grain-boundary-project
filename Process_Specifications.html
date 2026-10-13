@@ -386,6 +386,15 @@ function advice(s){
   if(qa&&s.proc==="HT"){const tanks=qa.overview().tanks;s.furnaces.forEach(f=>{const tk=tanks.find(x=>x.furnace===f);
     if(!tk) a.push(["warn",`${f} has no quench tank in the quench media register.`]);
     else if(tk.media!==MEDIA[s.q.medium]) a.push(["warn",`${f} quench tank ${tk.id} holds ${tk.media.toLowerCase()}, not ${MEDIA[s.q.medium].toLowerCase()}.`]);});}
+  /* the set values must lie within a qualified TUS range of each chamber (CALOR only) */
+  const tu=HTQ&&HTQ.api("tus");
+  if(tu) s.furnaces.forEach(f=>[["Hardening",h],["Tempering",t]].forEach(([ch,vals])=>{
+    const R=tu.statusAt(f,ch),et=tu.endTol(),vs=[...new Set(vals.filter(v=>v!=null))];if(!vs.length) return;
+    if(!R.length){a.push(["warn",`${f} ${ch.toLowerCase()} chamber has no qualified TUS range.`]);return;}
+    const out=vs.filter(v=>!R.some(r=>v>=r.lo-et&&v<=r.hi+et));
+    if(out.length) a.push(["warn",`${f} ${ch.toLowerCase()} chamber: ${out.join(", ")} °C outside the qualified TUS range${R.length>1?"s":""} (${R.map(r=>r.lo+"–"+r.hi+" °C").join(", ")}).`]);
+    R.filter(r=>vs.some(v=>v>=r.lo-et&&v<=r.hi+et)&&(r.st==="overdue"||r.st==="fail")).forEach(r=>a.push(["warn",`${f} ${ch.toLowerCase()} chamber: TUS of ${r.lo}–${r.hi} °C ${r.st==="fail"?"failed":"overdue"}.`]));
+  }));
   return a;
 }
 /* periodic review of an approved specification */

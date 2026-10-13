@@ -971,6 +971,7 @@ function observations(D,A){
   const hrs=(A.t1-A.t0)/36e5;
   satObs(A).forEach(o=>O.push(o));
   prodObs(A).forEach(o=>O.push(o));
+  tusObs(D,A).forEach(o=>O.push(o));
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
   const rank={crit:0,warn:1,info:2,good:3}; O.sort((a,b)=>rank[a.lvl]-rank[b.lvl]);
@@ -1752,6 +1753,28 @@ function renderLink(){
     `SAT status and replacements of the linked chamber are included in this report. ${L.auto?"Detected from the chart heading.":`Chosen by hand (detected: ${esc(L.det.f||"?")} · ${esc(L.det.ch||"?")}).`}`;
 }
 
+/* ---------- TUS status of the linked chamber (CALOR only) ----------
+   The set values used in the record must lie within a qualified operating range of the chamber, and that range must have a
+   valid temperature uniformity survey on the record day (from the Uniformity (TUS) page). */
+function tusObs(D,A){
+  const api=HTQ&&HTQ.api("tus"),L=link(); if(!api||!L||!L.f||!L.ch) return [];
+  const day=isoDay(A.t1),R=api.statusAt(L.f,L.ch,day),et=api.endTol(),O=[];
+  if(!R.length) return [{lvl:"info",tag:"TUS",title:`No qualified TUS range for ${L.f} · ${L.ch} chamber`,detail:`The Uniformity (TUS) page has no qualified operating range for this chamber.`,action:`Add the chamber's operating range on the TUS page and survey it at both ends.`}];
+  const sps=new Set(); D.rows.forEach(r=>(r.sp||[]).forEach(v=>{ if(v!=null) sps.add(v); }));
+  const out=[...sps].filter(v=>!R.some(r=>v>=r.lo-et&&v<=r.hi+et)).sort((a,b)=>a-b);
+  if(out.length) O.push({lvl:"warn",tag:"TUS",title:`Set value${out.length>1?"s":""} ${out.map(f0).join(", ")} °C outside the qualified range${R.length>1?"s":""} of ${L.f} · ${L.ch} chamber`,
+    detail:`Qualified: ${R.map(r=>`${r.lo}–${r.hi} °C`).join(", ")}. The uniformity of the chamber at ${out.length>1?"these temperatures":"this temperature"} has not been surveyed.`,
+    action:`Run a temperature uniformity survey at this set value (or widen the qualified range with surveys at its new ends) before producing at it; treat the product made at it as suspect until then.`});
+  const used=R.filter(r=>[...sps].some(v=>v>=r.lo-et&&v<=r.hi+et));
+  const bad=used.filter(r=>r.st==="overdue"||r.st==="fail"), weak=used.filter(r=>r.st==="none"||r.st==="partial");
+  if(bad.length) O.push({lvl:"crit",tag:"TUS",title:`Temperature uniformity survey not valid on ${fmtD(dayMs(day))} for ${L.f} · ${L.ch} chamber`,
+    detail:bad.map(r=>`${r.lo}–${r.hi} °C: ${r.label.toLowerCase()}${r.due?` (due ${fmtD(dayMs(r.due))})`:""}`).join("; ")+".",
+    action:`Survey the chamber (TUS page) and follow the reaction plan of a failed survey; product processed while the range was not qualified is at risk.`});
+  if(weak.length) O.push({lvl:"warn",tag:"TUS",title:`Range${weak.length>1?"s":""} ${weak.map(r=>`${r.lo}–${r.hi} °C`).join(", ")} of ${L.f} · ${L.ch} chamber not fully qualified`,
+    detail:weak.map(r=>`${r.lo}–${r.hi} °C: ${r.label.toLowerCase()}`).join("; ")+".",action:`Complete the surveys at both ends of the range on the TUS page.`});
+  return O;
+}
+
 /* ---------- link to the production report (CALOR only) ----------
    Batches of the linked furnace whose time in this chamber overlaps the record (from the Daily production page:
    recorded entry / exit of each batch and its zone windows). Used to name the batches in each affected window and to
@@ -1823,7 +1846,7 @@ if(HTQ){
   const again=()=>{ if(DATA&&!PRINTING) run(); else renderLink(); };
   HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
   let PT=0; const prodAgain=()=>{ clearTimeout(PT); PT=setTimeout(()=>{ if(DATA&&!PRINTING) run(); },200); };
-  ["prod:ready","prod:changed","spec:changed"].forEach(ev=>HTQ.on(ev,prodAgain));
+  ["prod:ready","prod:changed","spec:changed","tus:ready","tus:changed"].forEach(ev=>HTQ.on(ev,prodAgain));
 }
 
 /* ---------- latest record per furnace and chamber (for the suite's home page) ---------- */
@@ -1855,7 +1878,7 @@ const PD_ST=["plan","do","check","act","closed"], PD_NM={plan:"Plan",do:"Do",che
 const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
 const DISPO=["Released after hardness / microstructure verification","Re-heat-treated and verified","Scrapped","Released under customer concession","Still on hold"];
 const DOCS=["Control plan","PFMEA","Work instruction","Process table / recipe","Maintenance plan","Training","No document change needed"];
-const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager"};
+const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager",TUS:"Maintenance Head"};
 const todayISO=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
 const addDay=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
 const pdAll=()=>PD.reviews.concat(PD_MEM);

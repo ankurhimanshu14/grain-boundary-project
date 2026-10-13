@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Temperature Uniformity Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+.fch.on{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+/* temperature uniformity survey */
+.viz{--series-1:#2a78d6;--series-2:#eb6834;--env:rgba(42,120,214,.14)}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .viz{--series-1:#3987e5;--series-2:#d95926;--env:rgba(57,135,229,.20)}}
+:root[data-theme="dark"] .viz{--series-1:#3987e5;--series-2:#d95926;--env:rgba(57,135,229,.20)}
+.viz{position:relative}
+.viz svg{display:block;width:100%;height:auto}
+.viz .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12px;line-height:1.4;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap;display:none;z-index:2}
+.viz .tip b{font-weight:600}
+.vlegend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin:6px 0}
+.vlegend span{display:inline-flex;align-items:center;gap:6px}
+.vlegend i{display:inline-block;width:16px;height:0;border-top:2px solid}
+.vlegend i.env{height:10px;border:0;background:var(--env)}
+.vlegend i.lim{border-top:1.5px dashed var(--ink2)}
+.vlegend i.stab{width:0;height:12px;border-top:0;border-left:1.5px dotted var(--ink2)}
+table.grid{border-collapse:collapse;font-size:12.5px}
+table.grid th{font-weight:500;color:var(--ink2);font-size:11.5px;padding:4px 4px;text-align:center;position:sticky;top:0;background:var(--surface2)}
+table.grid td{padding:2px 3px;border-top:1px solid var(--grid)}
+table.grid td.t{font-family:var(--mono);color:var(--ink2);white-space:nowrap;padding-right:8px}
+table.grid input{font:inherit;font-family:var(--mono);width:68px;padding:4px 5px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
+table.grid tr.pre td{opacity:.6}
+.grid-wrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:5px}
+table.tcs input{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:70px}
+table.tcs td{padding:3px 6px 3px 0}
+.dev{font-family:var(--mono);white-space:nowrap}
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.fail,.findings li.invalid{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}
+.paste textarea{width:100%;min-height:110px;font:12px var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · Pyrometry · Temperature Uniformity Survey (TUS)</div>
+      <h1>Temperature uniformity survey</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-new">Record a survey</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Furnaces</h2><p>Each chamber has one or more qualified operating ranges. A range is qualified when a passing survey exists at both its lowest and its highest temperature within the survey interval. Select a chamber to show only its ranges and surveys.</p></div>
+    <div class="fgrid4" id="furnaces"></div>
+    <div class="viewbar" id="viewbar"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Qualified operating ranges</h2><p id="rng-note"></p></div>
+    <div class="scroll" id="ranges"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Survey records</h2><p>One record per survey at one set value. Open a record to enter the readings, check the result, or work on the reaction plan of a failed survey; download one record as Excel or PDF.</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-xlsx">Download register (Excel)</button></div></div>
+    <div class="scroll" id="surveys"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Failed surveys: reaction plans</h2><p>A failed survey disqualifies the range at that temperature. Product processed in the chamber since the last passing survey at that temperature is at risk; the reaction closes only with root cause, correction, product-impact assessment and a passing re-survey.</p></div>
+    <div class="scroll" id="react"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Surveyed by (Maintenance / Metrology)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings, qualified ranges and data</summary>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Qualified operating ranges per chamber</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">A chamber used for several processes is qualified over the whole span it runs at (e.g. the hardening chamber preheats for normalizing and austenitizes for hardening). Tolerance and interval come from the furnace class and instrumentation type: confirm them against the controlled CQI-9 copy (pyrometry section and the applicable process table).</p>
+    <div class="scroll" id="range-reg"></div>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost small" id="b-addrange">Add range</button></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only. Export a backup regularly and import it on another computer.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li>CQI-9 requires a TUS of every furnace work zone at the extremes of each qualified operating range, initially and then periodically (the interval depends on the furnace class and instrumentation type), and after changes that can affect uniformity (rebuild, burner or control-thermocouple relocation, a failed survey).</li>
+      <li>Every TUS thermocouple reading is corrected with its correction factor. After the furnace has stabilised, every corrected reading must lie within set value ± tolerance; readings before stabilisation are shown but not judged. A survey with a reading beyond the warning margin (default 80 % of the tolerance) passes but is flagged.</li>
+      <li>A survey is invalid when the test instrument or the TUS thermocouples were out of calibration on the survey day.</li>
+      <li>The tolerance, interval, number of TUS thermocouples and readings here are editable defaults: confirm them against the controlled CQI-9 copy, the furnace class of each chamber and the customer requirements.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const daysBetween=(a,b)=>dnum(b)-dnum(a);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const r1=v=>v==null?"":Math.round(v*10)/10;
+const sgn=v=>v==null?"—":(v>0?"+":v<0?"−":"±")+Math.abs(Math.round(v*10)/10).toFixed(1);
+const hm=(start,i,step)=>{const m=/^(\d{1,2}):(\d{2})/.exec(start||"");if(!m)return "";const t=+m[1]*60+ +m[2]+i*step;return pad(Math.floor(t/60)%24)+":"+pad(Math.round(t%60));};
+
+/* ---------- data model ---------- */
+const KEY="tus-reg", VKEY="tus-view"; /* own storage keys */
+const CHAMBERS=["Hardening","Tempering"];
+const KINDS=["Periodic","Initial","After repair / rebuild","After control thermocouple relocation","Re-survey after failure"];
+const METHODS=["Stationary: sensors fixed in the work zone","Travelling: data logger with the load through the chamber"];
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",tol:10,warnPct:80,interval:365,soon:30,endTol:15,minTc:9,nTc:9,nRead:16,step:2};
+const DEFLOC=["Zone 1 right","Zone 1 centre","Zone 1 left","Zone 2 right","Zone 2 centre","Zone 2 left","Zone 3 right","Zone 3 centre","Zone 3 left"];
+const defRanges=fs=>fs.flatMap(f=>[{furnace:f,chamber:"Hardening",lo:700,hi:960,tol:10,interval:365,note:"Preheat for normalizing to austenitizing"},{furnace:f,chamber:"Tempering",lo:500,hi:900,tol:10,interval:365,note:"Tempering / isothermal hold to austenitizing for normalizing"}]).map((r,i)=>({id:"R-"+String(i+1).padStart(2,"0"),...r}));
+const blank=fs=>({v:1,settings:{...DEF},ranges:defRanges(fs||["F-01","F-02","F-03","F-04"]),surveys:[],seq:1,rseq:9});
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.surveys)) return null;
+  o.settings={...DEF,...(o.settings||{})};
+  if(!Array.isArray(o.ranges)) o.ranges=defRanges(["F-01","F-02","F-03","F-04"]);
+  o.surveys=o.surveys.filter(t=>t&&t.id).map(t=>({tcs:[],rd:[],check:{},act:{},log:[],closed:false,...t}));
+  o.seq=Math.max(+o.seq||1,...o.surveys.map(t=>+(String(t.id).match(/\d+/)||[0])[0]+1));
+  o.rseq=Math.max(+o.rseq||1,...o.ranges.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
+  o.v=1; return o;
+}
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const satFurnaces=()=>{try{const a=HTQ&&HTQ.api("sat");return a?a.furnaces():null;}catch(e){return null;}};
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank(satFurnaces());
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("tus:changed"),300);}};
+const S=()=>DB.settings;
+const furnaces=()=>[...new Set((satFurnaces()||["F-01","F-02","F-03","F-04"]).concat(DB.ranges.map(r=>r.furnace)))].filter(Boolean).sort();
+const newId=()=>"TUS-"+String(DB.seq++).padStart(4,"0");
+const logIt=(t,text)=>t.log.push({d:today(),t:text});
+const byDate=(a,b)=>((a.date||"")+(a.start||""))<((b.date||"")+(b.start||""))?-1:1;
+let VIEW={f:"",ch:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=(f,ch)=>{VIEW={f,ch};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const inView=x=>(!VIEW.f||x.furnace===VIEW.f)&&(!VIEW.ch||x.chamber===VIEW.ch);
+
+/* ---------- check: result of one survey ---------- */
+const endTol=()=>+S().endTol||15;
+const rangesOf=(f,ch)=>DB.ranges.filter(r=>r.furnace===f&&r.chamber===ch);
+const rangeFor=t=>{const sp=num(t.sp);if(sp==null)return null;return rangesOf(t.furnace,t.chamber).find(r=>sp>=num(r.lo)-endTol()&&sp<=num(r.hi)+endTol())||null;};
+function calc(t){
+  const sp=num(t.sp),tcs=t.tcs||[],rg=rangeFor(t),tol=num(rg&&rg.tol)??+S().tol,from=Math.max(1,num(t.stab)||1)-1;
+  const rows=(t.rd||[]).map((r,i)=>({i,v:tcs.map((c,j)=>{const x=num(r&&r[j]);return x==null?null:x+(num(c.corr)||0);})})).filter(r=>r.v.some(x=>x!=null));
+  const issues=[];
+  if(sp==null||!rows.length) return {sp,tol,rg,rows,n:0,res:null,issues,per:[]};
+  const judged=rows.filter(r=>r.i>=from),pre=rows.filter(r=>r.i<from);
+  const per=tcs.map((c,j)=>{const xs=judged.map(r=>r.v[j]).filter(x=>x!=null);
+    return {j,tag:c.tag||`TC ${j+1}`,loc:c.loc||"",corr:num(c.corr),n:xs.length,min:xs.length?Math.min(...xs):null,max:xs.length?Math.max(...xs):null,mean:mean(xs)};});
+  const all=judged.flatMap(r=>r.v.filter(x=>x!=null));
+  if(!all.length) return {sp,tol,rg,rows,n:0,res:null,issues:[{j:"warn",txt:"No reading after stabilisation."}],per};
+  const hi=Math.max(...all),lo=Math.min(...all),over=hi-sp,under=lo-sp,w=tol*(+S().warnPct||80)/100;
+  const hot=per.filter(p=>p.n).sort((a,b)=>b.max-a.max)[0],cold=per.filter(p=>p.n).sort((a,b)=>a.min-b.min)[0];
+  const preAll=pre.flatMap(r=>r.v.filter(x=>x!=null)),preMax=preAll.length?Math.max(...preAll.map(x=>Math.abs(x-sp))):null;
+  /* validity and completeness */
+  if(isDate(t.instrCal)&&isDate(t.date)&&t.instrCal<t.date) issues.push({j:"invalid",txt:`Test instrument calibration expired on ${fdate(t.instrCal)}, before the survey: the survey is invalid.`});
+  if(isDate(t.tcCal)&&isDate(t.date)&&t.tcCal<t.date) issues.push({j:"invalid",txt:`TUS thermocouple calibration expired on ${fdate(t.tcCal)}, before the survey: the survey is invalid.`});
+  if(!isDate(t.instrCal)) issues.push({j:"warn",txt:"Test instrument calibration due date not recorded."});
+  if(!isDate(t.tcCal)) issues.push({j:"warn",txt:"TUS thermocouple calibration due date not recorded."});
+  const used=per.filter(p=>p.n).length;
+  if(used<(+S().minTc||0)) issues.push({j:"warn",txt:`${used} TUS thermocouple${used===1?"":"s"} with readings; the settings ask for at least ${S().minTc}.`});
+  per.filter(p=>!p.n).forEach(p=>issues.push({j:"warn",txt:`${p.tag} (${p.loc||"no location"}) has no reading after stabilisation.`}));
+  if(!rg) issues.push({j:"warn",txt:`The set value ${sp} °C is not within a qualified range of ${t.furnace} ${t.chamber.toLowerCase()} chamber (± ${endTol()} °C): add or widen the range in Settings.`});
+  else if(Math.abs(sp-num(rg.lo))>endTol()&&Math.abs(sp-num(rg.hi))>endTol()) issues.push({j:"info",txt:`${sp} °C is inside the range ${rg.lo}–${rg.hi} °C but not at one of its ends: it does not count towards qualifying the range.`});
+  const res=issues.some(i=>i.j==="invalid")?"invalid":(over>tol||-under>tol)?"fail":(over>w||-under>w||issues.some(i=>i.j==="warn"))?"warn":"pass";
+  return {sp,tol,w,rg,rows,judged,from,n:judged.length,per,hi,lo,over,under,spread:hi-lo,hot,cold,preMax,issues,res};
+}
+const status=t=>{const k=calc(t);return !k.res?"planned":k.res==="fail"?(t.closed?"closed":"open"):k.res;};
+const STATUS={planned:["info","…","Planned / no readings"],pass:["good","✓","Pass"],warn:["warn","!","Pass, with notes"],invalid:["crit","✕","Invalid survey"],open:["crit","✕","Failed · reaction open"],closed:["good","✓","Failed · reaction closed"]};
+const stChip=t=>{const s=STATUS[status(t)];return chip(s[0],s[1],s[2]);};
+const okRes=r=>r==="pass"||r==="warn";
+/* the first later survey of the same chamber at (about) the same set value that passed */
+const resurveyOf=t=>DB.surveys.filter(x=>x.id!==t.id&&x.furnace===t.furnace&&x.chamber===t.chamber&&byDate(t,x)<0&&Math.abs(num(x.sp)-num(t.sp))<=endTol()).sort(byDate).find(x=>okRes(calc(x).res))||null;
+const lastPassBefore=t=>DB.surveys.filter(x=>x.id!==t.id&&x.furnace===t.furnace&&x.chamber===t.chamber&&byDate(x,t)<0&&Math.abs(num(x.sp)-num(t.sp))<=endTol()&&okRes(calc(x).res)).sort(byDate).at(-1)||null;
+const riskTxt=t=>{const a=lastPassBefore(t),b=resurveyOf(t);return `${t.furnace} ${t.chamber.toLowerCase()} chamber, product at about ${t.sp} °C, from ${a?fdate(a.date)+" ("+a.id+", last passing survey)":"the start of the records (no earlier passing survey)"} to ${b?fdate(b.date)+" ("+b.id+", passing re-survey)":"the passing re-survey (not yet done)"}`;};
+function missingAct(t){
+  if(calc(t).res!=="fail") return [];
+  const a=t.act||{},m=[];
+  if(!a.cause) m.push("root cause"); if(!a.action) m.push("corrective action"); if(!a.impact) m.push("product-impact assessment");
+  if(!a.by) m.push("action owner"); if(!isDate(a.date)) m.push("action date"); if(!resurveyOf(t)) m.push("a passing re-survey at this set value");
+  return m;
+}
+/* ---------- qualification of a range on a day ---------- */
+function rangeState(r,day){
+  day=day||today();
+  const lo=num(r.lo),hi=num(r.hi),et=endTol();
+  const sv=DB.surveys.filter(s=>s.furnace===r.furnace&&s.chamber===r.chamber&&isDate(s.date)&&s.date<=day).sort(byDate).map(s=>({s,k:calc(s)})).filter(x=>x.k.res&&x.k.res!=="invalid");
+  const end=v=>{const L=sv.filter(x=>Math.abs(num(x.s.sp)-v)<=et);return {latest:L.at(-1)||null,pass:L.filter(x=>okRes(x.k.res)).at(-1)||null};};
+  const E={lo:end(lo),hi:end(hi)};
+  if([E.lo,E.hi].some(e=>e.latest&&e.latest.k.res==="fail")) return {st:"fail",E};
+  if(!E.lo.pass||!E.hi.pass) return {st:E.lo.pass||E.hi.pass?"partial":"none",E};
+  const first=[E.lo.pass.s.date,E.hi.pass.s.date].sort()[0],due=addDays(first,+r.interval||+S().interval),left=daysBetween(day,due);
+  return {st:left<0?"overdue":left<=(+S().soon||30)?"soon":"ok",E,due,left};
+}
+const RST={ok:["good","✓","Qualified"],soon:["warn","!","Survey due soon"],overdue:["crit","✕","Survey overdue"],fail:["crit","✕","Last survey failed"],partial:["warn","!","Only one end surveyed"],none:["warn","!","Never surveyed"]};
+const LV={ok:"good",soon:"warn",partial:"warn",none:"warn",overdue:"crit",fail:"crit"};
+const KCOL={crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"};
+const worstLv=sts=>sts.some(s=>LV[s]==="crit")?"crit":sts.some(s=>LV[s]==="warn")?"warn":"good";
+
+/* ---------- render: page ---------- */
+function render(){
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(DB.ranges.length,"qualified range")} · ${plural(DB.surveys.length,"survey")}</span><span>Today ${fdate(today())}</span>`;
+  drawFurnaces();drawKpis();drawRanges();drawSurveys();drawReact();drawSettings();drawRangeReg();
+}
+function drawFurnaces(){
+  $("#furnaces").innerHTML=`<button class="fall ${!VIEW.f?"on":""}" data-view="|"><b>All furnaces</b><span>${plural(DB.ranges.length,"range")}</span></button>`+furnaces().map(f=>`<div class="fcard ${VIEW.f===f&&!VIEW.ch?"on":""}"><button class="fhead" data-view="${esc(f)}|">${esc(f)} <small>${plural(DB.ranges.filter(r=>r.furnace===f).length,"range")}</small></button>${CHAMBERS.map(ch=>{
+    const rs=rangesOf(f,ch),sts=rs.map(r=>rangeState(r).st),lv=rs.length?worstLv(sts):"warn";
+    return `<button class="fch ${VIEW.f===f&&VIEW.ch===ch?"on":""}" style="--k:${KCOL[lv]}" data-view="${esc(f)}|${ch}"><b>${ch} chamber</b><span>${rs.length?rs.map((r,i)=>`${r.lo}–${r.hi} °C: ${RST[sts[i]][2].toLowerCase()}`).join(" · "):"no qualified range"}</span></button>`;}).join("")}</div>`).join("");
+  $("#viewbar").innerHTML=`Showing: <b>${VIEW.f?esc(VIEW.f)+(VIEW.ch?" · "+VIEW.ch+" chamber":""):"All furnaces"}</b>${VIEW.f?` <button class="btn ghost small" data-view="|">Show all</button>`:""}`;
+}
+function drawKpis(){
+  const rs=DB.ranges.filter(inView),st=rs.map(r=>rangeState(r).st),yr=addDays(today(),-365),sv=DB.surveys.filter(s=>inView(s)&&s.date>=yr);
+  const k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
+  const q=st.filter(s=>s==="ok"||s==="soon").length,od=st.filter(s=>s==="overdue").length,fl=st.filter(s=>s==="fail").length,nv=st.filter(s=>s==="none"||s==="partial").length,open=DB.surveys.filter(s=>inView(s)&&status(s)==="open").length;
+  $("#kpis").innerHTML=k("Ranges qualified",`${q}<small> / ${rs.length}</small>`,`${st.filter(s=>s==="soon").length} due within ${S().soon} days`,q<rs.length?"caution":"ok")
+    +k("Survey overdue",od,"past the survey interval",od?"bad":"ok")+k("Last survey failed",fl,`${open} reaction${open===1?"":"s"} open`,fl?"bad":"ok")
+    +k("Not yet qualified",nv,"never surveyed or one end only",nv?"caution":"ok")+k("Surveys, last 12 months",sv.length,`${sv.filter(s=>calc(s).res==="fail").length} failed`);
+}
+function drawRanges(){
+  $("#rng-note").textContent=`A survey counts for a range end when its set value is within ± ${endTol()} °C of that end. The range is due again ${S().interval} days (or the range's own interval) after the older of the two passing end surveys.`;
+  const rs=DB.ranges.filter(inView).sort((a,b)=>a.furnace.localeCompare(b.furnace)||CHAMBERS.indexOf(a.chamber)-CHAMBERS.indexOf(b.chamber)||num(a.lo)-num(b.lo));
+  if(!rs.length){$("#ranges").innerHTML=`<div class="empty">No qualified range${VIEW.f?" for this selection":""}. Add ranges under Settings.</div>`;return;}
+  const endCell=(e,v)=>e.latest?`${fdate(e.latest.s.date)} · ${esc(e.latest.s.id)} at ${esc(e.latest.s.sp)} °C<br>${chip(...(okRes(e.latest.k.res)?["good","✓","Pass "+sgn(e.latest.k.under)+" / "+sgn(e.latest.k.over)+" °C"]:["crit","✕","Failed "+sgn(e.latest.k.under)+" / "+sgn(e.latest.k.over)+" °C"]))}`:`<span class="muted">not surveyed at ${v} °C</span>`;
+  $("#ranges").innerHTML=`<table class="log cards"><thead><tr><th>Furnace / chamber</th><th>Range</th><th>Tolerance</th><th>Low end survey</th><th>High end survey</th><th>Next survey due</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${rs.map(r=>{const R=rangeState(r);
+    return `<tr><td data-label="Furnace / chamber"><b>${esc(r.furnace)}</b> · ${esc(r.chamber)}${r.note?`<br><span class="muted small">${esc(r.note)}</span>`:""}</td><td data-label="Range" class="mono">${esc(r.lo)}–${esc(r.hi)} °C</td><td data-label="Tolerance" class="mono">± ${esc(r.tol)} °C</td>
+      <td data-label="Low end survey">${endCell(R.E.lo,r.lo)}</td><td data-label="High end survey">${endCell(R.E.hi,r.hi)}</td><td data-label="Next survey due">${R.due?fdate(R.due):"now"}</td><td data-label="Status">${chip(...RST[R.st])}</td>
+      <td class="act noprint"><button class="btn ghost small" data-plan="${esc(r.id)}|lo">Survey at ${esc(r.lo)}</button> <button class="btn ghost small" data-plan="${esc(r.id)}|hi">at ${esc(r.hi)}</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawSurveys(){
+  const L=DB.surveys.filter(inView).sort(byDate).reverse();
+  if(!L.length){$("#surveys").innerHTML=`<div class="empty">No surveys${VIEW.f?" for this selection":""}. Use “Record a survey”, or load the example data under Settings.</div>`;return;}
+  $("#surveys").innerHTML=`<table class="log cards"><thead><tr><th>Survey</th><th>Date</th><th>Furnace / chamber</th><th>Set value</th><th>Type</th><th>Deviation (min / max)</th><th>Hottest / coldest</th><th>Result</th><th class="noprint"></th></tr></thead><tbody>${L.map(t=>{const k=calc(t);
+    return `<tr><td data-label="Survey"><b>${esc(t.id)}</b></td><td data-label="Date">${fdate(t.date)} ${esc(t.start||"")}</td><td data-label="Furnace / chamber">${esc(t.furnace)} · ${esc(t.chamber)}</td><td data-label="Set value" class="mono">${esc(t.sp)} °C<br><span class="muted">± ${esc(k.tol)} °C</span></td>
+      <td data-label="Type">${esc(t.kind||"")}</td><td data-label="Deviation" class="dev">${k.n?`${sgn(k.under)} / ${sgn(k.over)} °C<br><span class="muted">spread ${r1(k.spread)} °C</span>`:"—"}</td>
+      <td data-label="Hottest / coldest">${k.n?`${esc(k.hot.tag)} <span class="muted">${esc(k.hot.loc)}</span><br>${esc(k.cold.tag)} <span class="muted">${esc(k.cold.loc)}</span>`:"—"}</td><td data-label="Result">${stChip(t)}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open="${esc(t.id)}">Open</button> <button class="btn ghost small" data-xl="${esc(t.id)}">Excel</button> <button class="btn ghost small" data-pdf="${esc(t.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawReact(){
+  const L=DB.surveys.filter(t=>inView(t)&&calc(t).res==="fail").sort(byDate).reverse();
+  if(!L.length){$("#react").innerHTML=`<div class="empty">No failed surveys.</div>`;return;}
+  $("#react").innerHTML=`<table class="log cards"><thead><tr><th>Survey</th><th>Chamber</th><th>Result</th><th>Product at risk</th><th>Reaction</th><th class="noprint"></th></tr></thead><tbody>${L.map(t=>{const k=calc(t),m=missingAct(t);
+    return `<tr><td data-label="Survey"><b>${esc(t.id)}</b><br><span class="muted">${fdate(t.date)}</span></td><td data-label="Chamber">${esc(t.furnace)} · ${esc(t.chamber)} · ${esc(t.sp)} °C</td>
+      <td data-label="Result" class="dev bad">${sgn(k.under)} / ${sgn(k.over)} °C (± ${k.tol})</td><td data-label="Product at risk">${esc(riskTxt(t))}</td>
+      <td data-label="Reaction">${stChip(t)}${t.closed?"":`<br><span class="muted small">Missing: ${esc(m.join(", "))}</span>`}</td><td class="act noprint"><button class="btn ghost small" data-open="${esc(t.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("tol","Default tolerance ± °C","number")+f("warnPct","Warning beyond % of tolerance","number")+f("interval","Default survey interval (days)","number")+f("soon","Show due this many days before","number")
+    +f("endTol","A survey counts for a range end within ± °C","number")+f("minTc","Minimum TUS thermocouples","number")+f("nTc","TUS thermocouples (default)","number")+f("nRead","Readings (default)","number")+f("step","Reading interval (min)","number");
+}
+function drawRangeReg(){
+  const fs=furnaces();
+  $("#range-reg").innerHTML=`<table class="edit log"><thead><tr><th>Id</th><th>Furnace</th><th>Chamber</th><th>Low °C</th><th>High °C</th><th>Tolerance ± °C</th><th>Interval (days)</th><th>Note</th><th></th></tr></thead><tbody>${DB.ranges.map((r,i)=>`<tr>
+    <td class="mono">${esc(r.id)}</td><td><select data-rg="${i}.furnace">${fs.map(f=>`<option ${f===r.furnace?"selected":""}>${esc(f)}</option>`).join("")}</select></td>
+    <td><select data-rg="${i}.chamber">${CHAMBERS.map(c=>`<option ${c===r.chamber?"selected":""}>${c}</option>`).join("")}</select></td>
+    <td><input data-rg="${i}.lo" type="number" value="${esc(r.lo)}"></td><td><input data-rg="${i}.hi" type="number" value="${esc(r.hi)}"></td>
+    <td><input data-rg="${i}.tol" type="number" step="any" value="${esc(r.tol)}"></td><td><input data-rg="${i}.interval" type="number" value="${esc(r.interval)}"></td>
+    <td><input data-rg="${i}.note" value="${esc(r.note||"")}" style="min-width:220px"></td><td><button class="btn danger small" data-delrg="${i}">Remove</button></td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------- readings chart: band of all TUS thermocouples, hottest and coldest, limits, stabilisation ---------- */
+function tusChart(k,start,step){
+  if(!k.rows||!k.rows.length||k.sp==null) return "";
+  const W=760,H=260,L=48,R=96,T=14,B=30,sp=k.sp,tol=k.tol,rows=k.rows;
+  const hotJ=k.hot?k.hot.j:null,coldJ=k.cold?k.cold.j:null;
+  const env=rows.map(r=>{const v=r.v.filter(x=>x!=null);return {i:r.i,lo:Math.min(...v),hi:Math.max(...v)};});
+  const all=env.flatMap(e=>[e.lo,e.hi]).concat([sp-tol,sp+tol]);let y0=Math.min(...all),y1=Math.max(...all);const py=(y1-y0)*.08||2;y0-=py;y1+=py;
+  const n=Math.max(...rows.map(r=>r.i))+1,X=i=>L+(n>1?i/(n-1):.5)*(W-L-R),Y=v=>T+(y1-v)/(y1-y0)*(H-T-B);
+  const path=pts=>pts.map((p,i)=>(i?"L":"M")+X(p[0]).toFixed(1)+" "+Y(p[1]).toFixed(1)).join(" ");
+  const area=path(env.map(e=>[e.i,e.hi]))+" "+env.slice().reverse().map(e=>"L"+X(e.i).toFixed(1)+" "+Y(e.lo).toFixed(1)).join(" ")+"Z";
+  const line=j=>path(rows.filter(r=>r.v[j]!=null).map(r=>[r.i,r.v[j]]));
+  const ticks=[];const span=y1-y0,stepT=span>60?20:span>30?10:5;for(let v=Math.ceil(y0/stepT)*stepT;v<=y1;v+=stepT)ticks.push(v);
+  const last=rows.at(-1),lab=(j,cls,txt)=>{const v=last.v[j];return v==null?"":`<text x="${W-R+6}" y="${(Y(v)+4).toFixed(1)}" class="${cls}">${esc(txt)}</text>`;};
+  const xl=[0,Math.floor((n-1)/2),n-1].filter((v,i,a)=>a.indexOf(v)===i);
+  return `<div class="viz" data-start="${esc(start||"")}" data-step="${step}">
+  <div class="vlegend"><span><i class="env"></i>all TUS thermocouples (min–max)</span><span><i style="border-color:var(--series-2)"></i>hottest: ${esc(k.hot?k.hot.tag:"")}</span><span><i style="border-color:var(--series-1)"></i>coldest: ${esc(k.cold?k.cold.tag:"")}</span><span><i class="lim"></i>set value ± ${tol} °C</span>${k.from>0?`<span><i class="stab"></i>stabilised</span>`:""}</div>
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Survey readings: range of all TUS thermocouples with the hottest and coldest, against the set value ± tolerance">
+    ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--grid)"/><text x="${L-6}" y="${(Y(v)+3.5).toFixed(1)}" text-anchor="end">${v}</text>`).join("")}
+    ${[sp-tol,sp+tol].map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--ink2)" stroke-dasharray="5 4" stroke-width="1.5"/>`).join("")}
+    <line x1="${L}" x2="${W-R}" y1="${Y(sp).toFixed(1)}" y2="${Y(sp).toFixed(1)}" stroke="var(--ink2)" stroke-width="1" opacity=".5"/>
+    <text x="${W-R+6}" y="${(Y(sp+tol)+4).toFixed(1)}" fill="var(--ink2)">+${tol}</text><text x="${W-R+6}" y="${(Y(sp-tol)+4).toFixed(1)}">−${tol}</text>
+    ${k.from>0?`<line x1="${X(k.from-.5).toFixed(1)}" x2="${X(k.from-.5).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="var(--ink2)" stroke-dasharray="2 3"/>`:""}
+    <path d="${area}" fill="var(--env)" stroke="none"/>
+    ${coldJ!=null?`<path d="${line(coldJ)}" fill="none" stroke="var(--series-1)" stroke-width="2"/>`:""}
+    ${hotJ!=null?`<path d="${line(hotJ)}" fill="none" stroke="var(--series-2)" stroke-width="2"/>`:""}
+    ${hotJ!=null?lab(hotJ,"",k.hot.tag):""}${coldJ!=null&&coldJ!==hotJ?lab(coldJ,"",k.cold.tag):""}
+    ${xl.map(i=>`<text x="${X(i).toFixed(1)}" y="${H-10}" text-anchor="${i===0?"start":i===n-1?"end":"middle"}">${esc(hm(start,i,step)||"#"+(i+1))}</text>`).join("")}
+    <line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" opacity="0"/>
+    <rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent"/>
+  </svg><div class="tip"></div></div>`;
+}
+/* crosshair + tooltip: snap to the nearest reading */
+function wireChart(root,k,start,step){
+  const v=root.querySelector(".viz");if(!v) return;
+  const svg=v.querySelector("svg"),hit=svg.querySelector(".hit"),xh=svg.querySelector(".xh"),tip=v.querySelector(".tip");
+  const W=760,L=48,R=96,n=Math.max(...k.rows.map(r=>r.i))+1;
+  const show=ev=>{const b=svg.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-L)/(W-L-R)*(n-1))));
+    const r=k.rows.find(q=>q.i===i);if(!r){tip.style.display="none";return;}
+    const vals=r.v.map((x,j)=>({x,j})).filter(o=>o.x!=null),mx=vals.reduce((a,o)=>o.x>a.x?o:a),mn=vals.reduce((a,o)=>o.x<a.x?o:a);
+    const xx=L+(n>1?i/(n-1):.5)*(W-L-R);xh.setAttribute("x1",xx);xh.setAttribute("x2",xx);xh.setAttribute("opacity",".35");
+    tip.innerHTML=`<b>Reading ${i+1}</b>${hm(start,i,step)?" · "+hm(start,i,step):""}${i<k.from?" · <span class='muted'>before stabilisation</span>":""}<br>Highest ${r1(mx.x)} °C (${sgn(mx.x-k.sp)}) · ${esc(k.per[mx.j].tag)}<br>Lowest ${r1(mn.x)} °C (${sgn(mn.x-k.sp)}) · ${esc(k.per[mn.j].tag)}<br>Spread ${r1(mx.x-mn.x)} °C`;
+    tip.style.display="block";const px=xx/W*b.width;tip.style.left=Math.min(b.width-tip.offsetWidth-4,Math.max(0,px+12))+"px";tip.style.top="28px";};
+  hit.addEventListener("pointermove",show);hit.addEventListener("pointerdown",show);
+  hit.addEventListener("pointerleave",()=>{tip.style.display="none";xh.setAttribute("opacity","0");});
+}
+
+/* ---------- survey record (dialog) ---------- */
+const dlg=$("#dlg");
+let ED=null,MSG="",MSGOK=false;
+function openSurvey(id,preset){
+  const t=id?DB.surveys.find(x=>x.id===id):null;
+  if(t) ED=clone(t);
+  else{const n=Math.max(1,+S().nTc||9),m=Math.max(1,+S().nRead||16);
+    ED={id:"",furnace:VIEW.f||furnaces()[0]||"",chamber:VIEW.ch||"Hardening",sp:"",kind:KINDS[0],method:METHODS[0],date:today(),start:"08:00",step:+S().step||2,instr:"",instrCal:"",tcCert:"",tcCal:"",by:"",stab:"",
+      tcs:Array.from({length:n},(_,j)=>({tag:`TUS-${pad(j+1)}`,loc:DEFLOC[j]||"",corr:""})),rd:Array.from({length:m},()=>Array(n).fill("")),notes:"",check:{},act:{},closed:false,log:[],...(preset||{})};}
+  MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();
+}
+const lockd=()=>ED.closed;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=lockd()?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${path}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${path}" ${dis}>${o.blank?`<option value=""></option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any"':""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}</div>`;};
+function tcTable(){
+  const dis=lockd()?"disabled":"";
+  return `<table class="tcs"><thead><tr><th>TUS thermocouple</th><th>Location in the work zone</th><th>Correction °C</th></tr></thead><tbody>${ED.tcs.map((c,j)=>`<tr>
+    <td><input aria-label="TUS thermocouple ${j+1}" data-tc="${j}.tag" value="${esc(c.tag)}" ${dis}></td><td><input aria-label="Location of thermocouple ${j+1}" data-tc="${j}.loc" value="${esc(c.loc)}" ${dis}></td>
+    <td><input aria-label="Correction of thermocouple ${j+1}" data-tc="${j}.corr" type="number" step="any" value="${esc(c.corr)}" ${dis}></td></tr>`).join("")}</tbody></table>
+    ${lockd()?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="addtc">Add thermocouple</button>${ED.tcs.length>1?`<button class="btn ghost small" type="button" data-d="deltc">Remove last</button>`:""}</div>`}`;
+}
+function gridTable(){
+  const dis=lockd()?"disabled":"",from=Math.max(1,num(ED.stab)||1)-1;
+  return `<div class="grid-wrap"><table class="grid"><thead><tr><th>#</th><th>Time</th>${ED.tcs.map(c=>`<th>${esc(c.tag)}</th>`).join("")}</tr></thead><tbody>${ED.rd.map((r,i)=>`<tr class="${i<from?"pre":""}"><td class="t">${i+1}</td><td class="t">${esc(hm(ED.start,i,num(ED.step)||0))}</td>${ED.tcs.map((c,j)=>`<td><input aria-label="Reading ${i+1}, ${esc(c.tag)}" data-rd="${i}.${j}" type="number" step="any" inputmode="decimal" value="${esc(r[j]??"")}" ${dis}></td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    ${lockd()?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="addrow">Add reading</button>${ED.rd.length>1?`<button class="btn ghost small" type="button" data-d="delrow">Remove last reading</button>`:""}</div>
+    <details class="paste" style="margin-top:8px"><summary style="cursor:pointer;font-size:13px">Paste readings from Excel or a data logger export</summary>
+      <p class="muted" style="font-size:12.5px;margin:6px 0">One row per reading, one column per TUS thermocouple in the order above (a first column with the time is skipped). Pasting replaces the readings.</p>
+      <textarea id="paste" aria-label="Readings to paste"></textarea><div class="actions" style="margin-top:6px"><button class="btn small" type="button" data-d="paste">Use these readings</button></div></details>`}`;
+}
+function checkBox(){
+  const k=calc(ED);
+  if(!k.res) return `<p class="muted" style="margin:0">${k.issues.length?esc(k.issues[0].txt):"Enter the set value and the readings."}</p>`;
+  const devCls=(d)=>Math.abs(d)>k.tol?"bad":Math.abs(d)>k.w?"caution":"";
+  return `<div class="calc" style="margin-top:0"><div><b>${{pass:"Pass",warn:"Pass, with notes",fail:"Fail",invalid:"Invalid survey"}[k.res]}</b> · set value ${k.sp} °C ± ${k.tol} °C${k.rg?` (range ${k.rg.lo}–${k.rg.hi} °C)`:""} · ${k.n} reading${k.n===1?"":"s"} after stabilisation${k.from?` (from reading ${k.from+1})`:""}</div>
+    <div>Deviation <span class="dev ${devCls(k.under)}">${sgn(k.under)}</span> / <span class="dev ${devCls(k.over)}">${sgn(k.over)}</span> °C · spread ${r1(k.spread)} °C · hottest ${esc(k.hot.tag)} (${esc(k.hot.loc)}), coldest ${esc(k.cold.tag)} (${esc(k.cold.loc)})${k.preMax!=null?` · before stabilisation up to ± ${r1(k.preMax)} °C`:""}</div>
+    ${k.issues.length?`<ul class="findings">${k.issues.map(i=>`<li class="${i.j}">${esc(i.txt)}</li>`).join("")}</ul>`:""}</div>
+    ${tusChart(k,ED.start,num(ED.step)||0)}
+    <div class="scroll" style="margin-top:8px"><table class="log"><thead><tr><th>TUS thermocouple</th><th>Location</th><th class="n">Correction</th><th class="n">Readings</th><th class="n">Min °C</th><th class="n">Max °C</th><th class="n">Mean °C</th><th class="n">Deviation min / max</th></tr></thead><tbody>${k.per.map(p=>`<tr><td>${esc(p.tag)}</td><td>${esc(p.loc)}</td><td class="n">${p.corr!=null?sgn(p.corr):"—"}</td><td class="n">${p.n}</td><td class="n">${r1(p.min)}</td><td class="n">${r1(p.max)}</td><td class="n">${r1(p.mean)}</td>
+      <td class="n dev">${p.n?`<span class="${devCls(p.min-k.sp)}">${sgn(p.min-k.sp)}</span> / <span class="${devCls(p.max-k.sp)}">${sgn(p.max-k.sp)}</span>`:"—"}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function actBox(){
+  const k=calc(ED);if(k.res!=="fail") return "";
+  const b=ED.id?resurveyOf(ED):null,m=missingAct(ED);
+  return `<section class="stage" style="--k:var(--a)"><h3>Act <small>Reaction plan for the failed survey</small></h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Product at risk: ${esc(riskTxt(ED))}.<br>Re-survey: ${b?`<span class="ok">${esc(b.id)} on ${fdate(b.date)} passed</span>`:`<span class="bad">not yet done</span>`}</p>
+    <div class="fgrid">${fld("act.cause","Root cause",{type:"textarea",req:true,span:true})}${fld("act.action","Corrective action (burner balance, refractory, door seal, control thermocouple, qualified range reduced …)",{type:"textarea",req:true,span:true})}
+      ${fld("act.impact","Product-impact assessment",{type:"textarea",req:true,span:true})}${fld("act.by","Action owner",{req:true})}${fld("act.date","Action date",{type:"date",req:true})}</div>
+    <p class="muted" id="act-miss" style="margin:10px 0 0;font-size:12.5px">${ED.closed?"Reaction closed.":m.length?"To close the reaction: "+esc(m.join(", "))+".":"Everything needed is recorded: the reaction can be closed."}</p></section>`;
+}
+function drawDlg(){
+  const k=calc(ED),dis=lockd()?"disabled":"",rg=k.rg;
+  dlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${ED.id?esc(ED.id):"New survey"}</h2><span id="dlg-st">${stChip(ED)}</span><span class="muted">${esc(ED.furnace)} · ${esc(ED.chamber)} chamber${ED.sp!==""?" · "+esc(ED.sp)+" °C":""}</span></div></div>
+  <div class="dlg-b">
+    <section class="stage" style="--k:var(--p)"><h3>Plan <small>Chamber, set value and calibrated equipment</small></h3><div class="fgrid">
+      ${fld("furnace","Furnace",{opts:furnaces(),req:true})}${fld("chamber","Chamber",{opts:CHAMBERS,req:true})}${fld("sp","Set value °C",{type:"number",req:true})}${fld("kind","Survey type",{opts:KINDS})}
+      ${fld("method","Method",{opts:METHODS,span:true})}${fld("date","Survey date",{type:"date",req:true})}${fld("start","Time of the first reading",{type:"time"})}${fld("step","Reading interval (min)",{type:"number"})}
+      ${fld("instr","Test instrument / data logger (id)")}${fld("instrCal","Instrument calibration due",{type:"date",req:true})}${fld("tcCert","TUS thermocouple certificate")}${fld("tcCal","TUS thermocouple calibration due",{type:"date",req:true})}${fld("by","Surveyed by")}</div>
+      <p class="muted" id="rg-line" style="margin:8px 0 0;font-size:12.5px">${rg?`Qualified range ${esc(rg.lo)}–${esc(rg.hi)} °C, tolerance ± ${esc(rg.tol)} °C.`:"No qualified range of this chamber covers the set value: the default tolerance is used."}</p>
+      <h4 style="margin:12px 0 4px;font-size:13px">TUS thermocouples</h4>${tcTable()}</section>
+    <section class="stage" style="--k:var(--d)"><h3>Do <small>Readings (° C, as read; corrections are applied in Check)</small></h3>
+      <div class="fgrid" style="margin-bottom:8px">${fld("stab","First reading after stabilisation (#)",{type:"number"})}${fld("notes","Observations (controller / recorder readings, furnace condition)",{span:true})}</div>
+      <div id="grid">${gridTable()}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Check <small>Corrected readings against set value ± tolerance</small></h3><div id="chk">${checkBox()}</div>
+      <div class="fgrid" style="margin-top:10px">${fld("check.by","Reviewed by")}${fld("check.date","Review date",{type:"date"})}${fld("check.remarks","Review remarks",{type:"textarea",span:true})}</div></section>
+    <div id="actbox">${actBox()}</div>
+    ${ED.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${ED.log.map(l=>`<li>${fdate(l.d)}: ${esc(l.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    ${ED.id?`<button class="btn danger small" data-d="delete">Delete</button><button class="btn ghost small" data-d="xlsx">Excel</button><button class="btn ghost small" data-d="pdf">PDF</button>`:""}
+    ${k.res==="fail"&&ED.id?(ED.closed?`<button class="btn ghost" data-d="reopen">Reopen reaction</button>`:`<button class="btn ghost" data-d="close-r">Close reaction</button>`):""}
+    <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save" ${dis}>Save</button></div>`;
+  $("#actbox").dataset.state=k.res==="fail"?"f":"";
+  wireChart($("#chk"),k,ED.start,num(ED.step)||0);
+}
+let RT=0;
+function refresh(){
+  clearTimeout(RT);RT=setTimeout(()=>{
+    const k=calc(ED);$("#chk").innerHTML=checkBox();wireChart($("#chk"),k,ED.start,num(ED.step)||0);$("#dlg-st").innerHTML=stChip(ED);
+    const st=k.res==="fail"?"f":"";if($("#actbox").dataset.state!==st){$("#actbox").innerHTML=actBox();$("#actbox").dataset.state=st;}
+    else{const p=$("#act-miss");if(p&&!ED.closed){const m=missingAct(ED);p.textContent=m.length?"To close the reaction: "+m.join(", ")+".":"Everything needed is recorded: the reaction can be closed.";}}
+    const rg=k.rg,l=$("#rg-line");if(l)l.textContent=rg?`Qualified range ${rg.lo}–${rg.hi} °C, tolerance ± ${rg.tol} °C.`:"No qualified range of this chamber covers the set value: the default tolerance is used.";
+  },120);
+}
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+function onDlgInput(e){
+  const el=e.target;if(lockd()||el.id==="paste") return;
+  if(el.dataset.rd){const [i,j]=el.dataset.rd.split(".").map(Number);ED.rd[i][j]=el.value;refresh();return;}
+  if(el.dataset.tc){const [j,f]=el.dataset.tc.split(".");ED.tcs[+j][f]=el.value;if(f==="tag"&&e.type==="change")$("#grid").innerHTML=gridTable();refresh();return;}
+  if(!el.dataset.f) return;
+  setPath(ED,el.dataset.f,el.value);
+  if(["start","step","stab"].includes(el.dataset.f)&&e.type==="change") $("#grid").innerHTML=gridTable();
+  refresh();
+}
+dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
+function commit(text){
+  if(!ED.furnace||!ED.chamber) return "Choose the furnace and chamber.";
+  if(num(ED.sp)==null) return "Enter the set value.";
+  if(!isDate(ED.date)) return "Enter the survey date.";
+  if(!ED.id){ED.id=newId();logIt(ED,text||"Survey recorded");DB.surveys.push(ED);}
+  else{logIt(ED,text||"Survey updated");const i=DB.surveys.findIndex(x=>x.id===ED.id);DB.surveys[i]=ED;}
+  ED=clone(ED);save();render();return "";
+}
+dlg.addEventListener("click",e=>{
+  const b=e.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(a==="addtc"){ED.tcs.push({tag:`TUS-${pad(ED.tcs.length+1)}`,loc:"",corr:""});ED.rd.forEach(r=>r.push(""));drawDlg();return;}
+  if(a==="deltc"){ED.tcs.pop();ED.rd.forEach(r=>r.pop());drawDlg();return;}
+  if(a==="addrow"){ED.rd.push(Array(ED.tcs.length).fill(""));$("#grid").innerHTML=gridTable();return;}
+  if(a==="delrow"){ED.rd.pop();$("#grid").innerHTML=gridTable();refresh();return;}
+  if(a==="paste"){const txt=$("#paste").value.trim();if(!txt) return;
+    const lines=txt.split(/\r?\n/).map(l=>l.split(/\t|;|,(?=\s*-?\d)/).map(c=>c.trim()));
+    const rows=lines.map(c=>c.length>ED.tcs.length&&(num(c[0])==null||/:/.test(c[0]))?c.slice(1):c).filter(c=>c.some(x=>num(x)!=null));
+    if(!rows.length){MSG="No numeric readings found in the pasted text.";$("#dmsg").textContent=MSG;return;}
+    ED.rd=rows.map(c=>ED.tcs.map((_,j)=>num(c[j])!=null?String(num(c[j])):""));done("",`${rows.length} readings pasted.`);return;}
+  if(a==="save"){done(commit(),"Saved.");return;}
+  if(a==="xlsx"){const m=tusXlsx(DB.surveys.find(x=>x.id===ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  if(a==="pdf"){const m=tusPdf(DB.surveys.find(x=>x.id===ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  if(a==="delete"){if(confirm(`Delete survey ${ED.id}? This cannot be undone.`)){DB.surveys=DB.surveys.filter(x=>x.id!==ED.id);save();render();dlg.close();}return;}
+  if(a==="close-r"){const m=missingAct(ED);if(m.length){done("To close the reaction: "+m.join(", ")+".");return;}
+    ED.closed=true;const err=commit("Reaction plan closed");if(err)ED.closed=false;done(err,"Reaction closed.");return;}
+  if(a==="reopen"){const why=prompt("Reason for reopening the reaction plan:");if(!why||!why.trim()) return;ED.closed=false;done(commit("Reaction plan reopened: "+why.trim()),"Reaction reopened.");return;}
+});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",e=>{
+  if(dlg.contains(e.target)) return;
+  const b=e.target.closest("button");if(!b) return;
+  if(b.dataset.view!=null){const [f,ch]=b.dataset.view.split("|");setView(f||"",ch||"");render();return;}
+  if(b.dataset.open){openSurvey(b.dataset.open);return;}
+  if(b.dataset.plan){const [id,end]=b.dataset.plan.split("|"),r=DB.ranges.find(x=>x.id===id);if(r)openSurvey("",{furnace:r.furnace,chamber:r.chamber,sp:String(r[end])});return;}
+  if(b.dataset.xl){const m=tusXlsx(DB.surveys.find(x=>x.id===b.dataset.xl));if(m)alert(m);return;}
+  if(b.dataset.pdf){const m=tusPdf(DB.surveys.find(x=>x.id===b.dataset.pdf));if(m)alert(m);return;}
+  if(b.dataset.delrg!=null){const r=DB.ranges[+b.dataset.delrg];if(r&&confirm(`Remove the range ${r.lo}–${r.hi} °C of ${r.furnace} ${r.chamber}? Surveys are kept.`)){DB.ranges.splice(+b.dataset.delrg,1);save();render();}return;}
+  const id=b.id;
+  if(id==="b-new") openSurvey("");
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("tus-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-addrange"){DB.ranges.push({id:"R-"+String(DB.rseq++).padStart(2,"0"),furnace:VIEW.f||furnaces()[0]||"",chamber:VIEW.ch||"Hardening",lo:"",hi:"",tol:S().tol,interval:S().interval,note:""});save();render();}
+  else if(id==="b-export") download(`tus-register-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!DB.surveys.length||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete all surveys and qualified ranges, and reset settings? Export a backup first if you need one.")){DB=blank(satFurnaces());save();render();}}
+});
+$("#setup").addEventListener("change",e=>{
+  const el=e.target;
+  if(el.dataset.set){const k=el.dataset.set;S()[k]=el.type==="number"?(num(el.value)??DEF[k]):el.value;}
+  else if(el.dataset.rg){const [i,k]=el.dataset.rg.split(".");DB.ranges[+i][k]=["lo","hi","tol","interval"].includes(k)?(num(el.value)??""):el.value;}
+  else return;
+  save();render();
+});
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a TUS register backup");
+    if(confirm(`Import ${plural(o.surveys.length,"survey")} and ${plural(o.ranges.length,"range")}? This replaces the records now in this browser.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads: one survey (Excel / PDF) and the register (Excel) ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+/* plain ASCII file name: Chrome ignores a download name with characters such as "·" */
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+const dlName=t=>ascii(`TUS ${t.id} ${t.furnace} ${t.chamber} ${t.sp}C ${t.date}`);
+const RESTXT={pass:"Pass",warn:"Pass, with notes",fail:"Fail",invalid:"Invalid survey"};
+function tusTables(t){
+  const k=calc(t),a=t.act||{},ck=t.check||{},rs=resurveyOf(t);
+  const summary=[["Survey",t.id],["Furnace",t.furnace],["Chamber",t.chamber],["Set value",`${t.sp} °C`],["Tolerance",`± ${k.tol} °C`],["Qualified range",k.rg?`${k.rg.lo}–${k.rg.hi} °C`:"none covers the set value"],
+    ["Survey type",t.kind],["Method",t.method],["Survey date",`${fdate(t.date)} ${t.start||""}`.trim()],["Reading interval",`${t.step} min`],["Test instrument",`${t.instr||""}${t.instrCal?" (calibration due "+fdate(t.instrCal)+")":""}`],
+    ["TUS thermocouples",`${t.tcs.length}${t.tcCert?" · certificate "+t.tcCert:""}${t.tcCal?" (calibration due "+fdate(t.tcCal)+")":""}`],["Surveyed by",t.by],
+    ["Result",k.res?RESTXT[k.res]:"No readings"],["Deviation min / max",k.n?`${sgn(k.under)} / ${sgn(k.over)} °C`:""],["Spread",k.n?`${r1(k.spread)} °C`:""],
+    ["Hottest",k.n?`${k.hot.tag} (${k.hot.loc})`:""],["Coldest",k.n?`${k.cold.tag} (${k.cold.loc})`:""],["Readings judged",k.n?`${k.n} (from reading ${(k.from||0)+1})`:""],["Status",STATUS[status(t)][2]],["Downloaded",fdate(today())]];
+  const per={head:["TUS thermocouple","Location","Correction °C","Readings","Min °C","Max °C","Mean °C","Deviation min °C","Deviation max °C"],
+    rows:(k.per||[]).map(p=>[p.tag,p.loc,p.corr??"",p.n,r1(p.min),r1(p.max),r1(p.mean),p.n?r1(p.min-k.sp):"",p.n?r1(p.max-k.sp):""])};
+  const rd={head:["#","Time",...t.tcs.map(c=>c.tag)],rows:t.rd.map((r,i)=>[i+1,hm(t.start,i,num(t.step)||0),...t.tcs.map((_,j)=>num(r[j])??"")])};
+  const check=[["Findings",(k.issues||[]).map(i=>i.txt).join(" | ")||"none"],["Observations",t.notes],["Reviewed by",ck.by],["Review date",fdate(ck.date)],["Review remarks",ck.remarks]];
+  const act=[["Required",k.res==="fail"?"Reaction plan (failed survey)":"None"],["Product at risk",k.res==="fail"?riskTxt(t):""],["Root cause",a.cause],["Corrective action",a.action],["Product-impact assessment",a.impact],
+    ["Re-survey",rs?`${rs.id} on ${fdate(rs.date)}: passed`:k.res==="fail"?"not yet done":""],["Action owner",a.by],["Action date",fdate(a.date)],["Reaction closed",k.res==="fail"?(t.closed?"Yes":"No"):""]];
+  const hist={head:["Date","Event"],rows:t.log.map(x=>[fdate(x.d),x.t])};
+  return {summary,per,rd,check,act,hist,k};
+}
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells}),kvRows=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
+const tblRows=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
+function tusXlsx(t){
+  if(!t||!t.id) return "Save the survey first.";
+  const T=tusTables(t);
+  const sheets=[{name:"Summary",widths:[28,70],rows:[B(["Temperature uniformity survey"]),N([S().plant]),N([]),...kvRows(T.summary)]},
+    {name:"Thermocouples",widths:[16,26,13,10,10,10,10,16,16],rows:[B(["Results per TUS thermocouple (corrected, after stabilisation)"]),N([]),...tblRows(T.per)]},
+    {name:"Readings",widths:[6,8,...t.tcs.map(()=>10)],rows:[B(["Readings as read (corrections not applied)"]),N([]),...tblRows(T.rd)]},
+    {name:"Check and Act",widths:[30,90],rows:[B(["CHECK"]),...kvRows(T.check),N([]),B(["ACT"]),...kvRows(T.act)]},
+    {name:"History",widths:[14,90],rows:[B(["History of the record"]),N([]),...tblRows(T.hist)]}];
+  try{download(dlName(t)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function tusPdf(t){
+  if(!t||!t.id) return "Save the survey first.";
+  const T=tusTables(t),e=esc;
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v??"")}</td></tr>`).join("")}</tbody></table>`;
+  const table=(x,cls)=>x.rows.length?`<table class="${cls||""}"><thead><tr>${x.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${x.rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+  const chart=tusChart(T.k,t.start,num(t.step)||0).replace(/<div class="tip"><\/div>/,"");
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(dlName(t))}</title><style>
+    @page{size:A4 portrait;margin:12mm}
+    :root{--series-1:#2a78d6;--series-2:#eb6834;--env:rgba(42,120,214,.14);--grid:#e3e7ea;--ink:#131d24;--ink2:#4a5761;--surface:#fff;--line:#cfd5d9}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}table.kv th{background:#f2f4f5;font-weight:500;width:32%}
+    table.rd td,table.rd th{text-align:right;padding:2px 4px;font-size:10px}
+    svg{width:100%;height:auto}svg text{font:10px "IBM Plex Mono",monospace;fill:#4a5761}
+    .vlegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10.5px;color:#4a5761;margin:4px 0}.vlegend span{display:inline-flex;align-items:center;gap:5px}.vlegend i{display:inline-block;width:16px;border-top:2px solid}.vlegend i.env{height:9px;border:0;background:var(--env)}.vlegend i.lim{border-top:1.5px dashed #4a5761}.vlegend i.stab{width:0;height:11px;border-top:0;border-left:1.5px dotted #4a5761}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>Temperature uniformity survey · ${e(t.id)}</h1>
+  <p class="sub">${e(S().plant)} · ${e(t.furnace)} · ${e(t.chamber)} chamber · ${e(t.sp)} °C ± ${e(T.k.tol)} °C · ${e(fdate(t.date))}</p>
+  <h2>Summary</h2>${kv(T.summary)}
+  <h2>Readings</h2>${chart}
+  <h2>Results per TUS thermocouple</h2>${table(T.per)}
+  <h2>Check</h2>${kv(T.check)}
+  <h2>Act</h2>${kv(T.act)}
+  <h2>Readings as read</h2>${table(T.rd,"rd")}
+  <h2>History of the record</h2>${table(T.hist)}
+  <div class="sign"><div><span class="muted">Surveyed by</span><b>${e(t.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Reviewed by</span><b>${e(t.check?.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Action owner</span><b>${e(t.act?.by||"")}</b><span class="muted">Sign · Date</span></div></div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+function regXlsx(){
+  const rs=DB.ranges.filter(inView),sv=DB.surveys.filter(inView).sort(byDate);
+  const sheets=[{name:"Ranges",widths:[8,8,12,8,8,10,10,16,22,40],rows:[B(["Id","Furnace","Chamber","Low °C","High °C","Tolerance ±","Interval d","Next due","Status","Note"]),
+      ...rs.map(r=>{const R=rangeState(r);return N([r.id,r.furnace,r.chamber,num(r.lo)??"",num(r.hi)??"",num(r.tol)??"",num(r.interval)??"",R.due?fdate(R.due):"",RST[R.st][2],r.note||""]);})]},
+    {name:"Surveys",widths:[10,12,8,12,9,10,24,10,10,10,18,18,22],rows:[B(["Survey","Date","Furnace","Chamber","Set °C","Tolerance ±","Type","Dev min °C","Dev max °C","Spread °C","Hottest","Coldest","Result"]),
+      ...sv.map(t=>{const k=calc(t);return N([t.id,t.date,t.furnace,t.chamber,num(t.sp)??"",k.tol,t.kind||"",k.n?r1(k.under):"",k.n?r1(k.over):"",k.n?r1(k.spread):"",k.n?k.hot.tag+" "+k.hot.loc:"",k.n?k.cold.tag+" "+k.cold.loc:"",STATUS[status(t)][2]]);})]}];
+  try{download(ascii(`TUS register ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+
+/* ---------- example data (dates relative to today) ---------- */
+function example(){
+  const o=blank(satFurnaces()),td=today();DB=o;
+  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const mk=(f,ch,sp,d,offs,extra={})=>{const n=9,m=16,rd=[];
+    for(let i=0;i<m;i++){const warm=i<3?-(3-i)*4:0;rd.push(offs.map(c=>String(Math.round((sp+c+warm+(rnd()-.5)*2.4)*10)/10)));}
+    const t={id:"TUS-"+String(o.seq++).padStart(4,"0"),furnace:f,chamber:ch,sp:String(sp),kind:KINDS[0],method:METHODS[0],date:addDays(td,-d),start:"09:00",step:2,instr:"DL-04",instrCal:addDays(td,120),tcCert:"TC-CERT-2291",tcCal:addDays(td,60),by:"Metrology",stab:"4",
+      tcs:Array.from({length:n},(_,j)=>({tag:`TUS-${pad(j+1)}`,loc:DEFLOC[j],corr:j%3===1?"-0.4":"0.3"})),rd,notes:"Controller and recorder read within 1 °C of the set value.",check:{by:"HT Manager",date:addDays(td,-d)},act:{},closed:false,log:[{d:addDays(td,-d),t:"Survey recorded"}],...extra};o.surveys.push(t);return t;};
+  const ok=[-3,-1,1,-2,0,2,-1,1,3];
+  /* F-01: both chambers qualified at both ends */
+  mk("F-01","Hardening",700,200,ok);mk("F-01","Hardening",960,198,ok);mk("F-01","Tempering",500,190,ok);mk("F-01","Tempering",900,188,ok);
+  /* F-02: hardening qualified, interval nearly over; tempering high end only */
+  mk("F-02","Hardening",700,350,ok);mk("F-02","Hardening",960,349,[-4,-2,0,-3,-1,2,-5,-3,1]);mk("F-02","Tempering",900,100,ok);
+  /* F-03: hardening high end failed (zone 3 left wall cold), reaction open */
+  mk("F-03","Hardening",700,40,ok);mk("F-03","Hardening",960,30,[-2,0,1,-3,-1,0,-6,-9,-13],{notes:"Zone 3 left wall reads low; burner 3L flame unstable."});
+  /* F-04: survey overdue (more than a year ago) */
+  mk("F-04","Hardening",700,400,ok);mk("F-04","Hardening",960,399,ok);
+  return o;
+}
+
+/* ---------- CALOR: status for the other pages and the home page ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
+  const rsum=(r,day)=>{const R=rangeState(r,day);return {id:r.id,lo:num(r.lo),hi:num(r.hi),tol:num(r.tol),st:R.st,due:R.due||"",label:RST[R.st][2]};};
+  HTQ.provide("tus",{
+    /* qualified ranges of one chamber with their state on a day (default today) */
+    statusAt:(f,ch,day)=>rangesOf(f,ch).map(r=>rsum(r,day)),
+    endTol:()=>endTol(),
+    overview:()=>({ranges:DB.ranges.map(r=>({furnace:r.furnace,chamber:r.chamber,...rsum(r)})),open:DB.surveys.filter(t=>status(t)==="open").map(t=>({id:t.id,furnace:t.furnace,chamber:t.chamber,sp:t.sp,date:t.date}))}),
+    counts:()=>{const st=DB.ranges.map(r=>rangeState(r).st);return {overdue:st.filter(s=>s==="overdue").length,fail:st.filter(s=>s==="fail").length,open:DB.surveys.filter(t=>status(t)==="open").length};}
+  });
+  HTQ.on("nav:tus",o=>{if(o&&o.view){setView(o.view.f||"",o.view.ch||"");render();}if(o&&o.survey)openSurvey(o.survey);});
+  HTQ.on("sat:ready",()=>render());
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("tus-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.surveys.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__TUS={get DB(){return DB;},calc,rangeState,status,missingAct,resurveyOf,tusTables,openSurvey};
+</script>
+</body></html>

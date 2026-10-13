@@ -1,7 +1,7 @@
 """Build CALOR.html, the main application: one file with a navigation bar that
 runs Production_Report.html, Process_Specifications.html, Pusher_Furnace_SCADA_Review.html,
-Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html and
-Thermocouple_SAT_PDCA.html as pages
+Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html,
+Thermocouple_SAT_PDCA.html and Temperature_Uniformity_Survey.html as pages
 
 
 Each application stays a standalone file and is embedded unchanged as the srcdoc
@@ -19,7 +19,8 @@ APPS = {"/*@PROD@*/": ROOT / "Production_Report.html",
         "/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
         "/*@QUENCH@*/": ROOT / "Quench_Media_Testing.html",
         "/*@METAL@*/": ROOT / "Hardness_Metallurgical_Testing.html",
-        "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html"}
+        "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html",
+        "/*@TUS@*/": ROOT / "Temperature_Uniformity_Survey.html"}
 OUT = ROOT / "CALOR.html"
 
 
