@@ -475,7 +475,12 @@ function mode(arr){ const m=new Map(); let best=null,bc=0; arr.forEach(v=>{ if(v
    Every record that is analysed leaves a one-line summary per thermocouple, so that days before and after a
    thermocouple replacement can be compared even when the replacement happened between two exports. */
 let HIST={}; try{ HIST=JSON.parse(localStorage.getItem("pfsr-hist")||"{}")||{}; }catch(e){}
-const furnaceKey=D=>{ const m=((D.meta||[]).find(x=>/furnace/i.test(x))||"").match(/furnace[-\s]*\d+/i); return m?m[0].replace(/\s+/g,"-").toUpperCase():"FURNACE"; };
+const furnaceBase=D=>{ const m=((D.meta||[]).find(x=>/furnace/i.test(x))||"").match(/furnace[-\s]*\d+/i); return m?m[0].replace(/\s+/g,"-").toUpperCase():"FURNACE"; };
+/* furnace and chamber of a record, e.g. "FURNACE-4 HARDENING": the hardening and the tempering export of the same furnace are separate records */
+const furnaceKey=D=>{ const t=detectFurnace(D.meta); return furnaceBase(D)+(t?" "+t.toUpperCase():""); };
+const baseOf=fk=>String(fk||"").replace(/ (HARDENING|TEMPERING)$/,"");
+/* a history entry of this furnace and chamber; entries saved before the chamber was part of the key ("FURNACE-4") match either chamber */
+const histOf=(h,fk)=>h.f===fk||h.f===baseOf(fk);
 function saveHistory(D,h){
   if(/\(example\)/.test(FILE||"")) return;
   HIST[h.f+"|"+h.day]=h;
@@ -585,7 +590,7 @@ function analyze(D){
   saveHistory(D,{f:furnaceKey(D),day:Math.floor(t0/864e5),tol,tc:tcs.map(t=>t.cnt?{n:t.cnt,mean:t.devMean,sd:t.sdDev,inTol:t.inTolPct,out:(t.cnt-t.inTol)*step/60000,ppk:t.cpk}:null)});
   /* days before / after a replacement that is not inside this record (nearest 7 days each side; the replacement day itself is left out) */
   const dayCmp=(r)=>{
-    const fk=furnaceKey(D), rd=Math.floor(r.t/864e5), same=Object.values(HIST).filter(h=>h.f===fk&&h.tc&&h.tc[r.k]&&h.tc[r.k].n>=MINSTAT);
+    const fk=furnaceKey(D), rd=Math.floor(r.t/864e5), same=Object.values(HIST).filter(h=>histOf(h,fk)&&h.tc&&h.tc[r.k]&&h.tc[r.k].n>=MINSTAT);
     const bef=same.filter(h=>h.day<rd).sort((x,y)=>y.day-x.day).slice(0,7).reverse(), aft=same.filter(h=>h.day>rd).sort((x,y)=>x.day-y.day).slice(0,7);
     const agg=list=>{ if(!list.length) return null; const T=list.map(h=>h.tc[r.k]), w=T.map(x=>x.n), pa=list.map(h=>h.tc[r.k^1]);
       const rel=list.map(h=>{ const x=h.tc[r.k], y=h.tc[r.k^1]; return x&&y&&x.mean!=null&&y.mean!=null?x.mean-y.mean:null; });
@@ -1670,7 +1675,9 @@ function autoLink(D){
 }
 function link(){
   if(!DATA) return null;
-  const a=autoLink(DATA), o=LINKS[furnaceKey(DATA)]||{};
+  const a=autoLink(DATA), fk=furnaceKey(DATA), old=LINKS[baseOf(fk)];
+  /* a link saved before the chamber was part of the key applies only to the chamber it names */
+  const o=LINKS[fk]||(old&&(!old.ch||!a.ch||old.ch===a.ch)?old:null)||{};
   return {f:o.f||a.f,ch:o.ch||a.ch,auto:!o.f&&!o.ch,det:a};
 }
 /* replacements recorded in the SAT register for the linked chamber, as entries of this app's register */
@@ -1746,6 +1753,8 @@ if(HTQ){
 
 /* ---------- latest record per furnace and chamber (for the suite's home page) ---------- */
 let LAST={}; try{ LAST=JSON.parse(localStorage.getItem("pfsr-last")||"{}")||{}; }catch(e){}
+/* entries saved before the chamber was part of the furnace key */
+Object.entries(LAST).forEach(([k,v])=>{ const ch=k.split("|")[1]; if(v&&v.fkey&&ch&&v.fkey===baseOf(v.fkey)) v.fkey+=" "+ch.toUpperCase(); });
 function lastSave(A,O){
   if(/\(example\)$/.test(FILE)) return; /* example data is never saved */
   const L=link(); if(!L||!L.f||!L.ch) return;
@@ -1760,6 +1769,12 @@ function lastSave(A,O){
 /* ---------- review PDCA: the app suggests actions, the reviewer decides the reaction plan ---------- */
 const PD_KEY="pfsr-pdca";
 let PD={seq:1,reviews:[]}; try{ const o=JSON.parse(localStorage.getItem(PD_KEY)||"null"); if(o&&Array.isArray(o.reviews)) PD=o; }catch(e){}
+/* reviews saved before the chamber was part of the record key: take the chamber from the saved chart heading (or the SAT link),
+   so that the hardening and the tempering record of the same furnace and day get their own reviews */
+{ let mig=false; PD.reviews.forEach(r=>{ if(!r.fkey||r.fkey!==baseOf(r.fkey)) return;
+    const t=detectFurnace([r.furnace||""])||(r.link&&r.link.ch?r.link.ch.toLowerCase():""); if(!t) return;
+    const nk=r.fkey+" "+t.toUpperCase(); if(r.key&&r.key.startsWith(r.fkey+"|")) r.key=nk+r.key.slice(r.fkey.length); r.fkey=nk; mig=true; });
+  if(mig) try{ localStorage.setItem(PD_KEY,JSON.stringify(PD)); }catch(e){} }
 let PD_MEM=[], PD_CUR=null, PD_MSG="", LASTO=[]; /* reviews of the example record stay in memory only */
 const PD_ST=["plan","do","check","act","closed"], PD_NM={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
 const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
@@ -1840,7 +1855,7 @@ function pdReplan(R){
 }
 /* evidence for Check: records of the same furnace analysed after this one (kept in this browser) */
 function pdEvidence(R,i){
-  const later=Object.values(HIST).filter(h=>h.f===R.fkey&&h.day>R.dayN).sort((a,b)=>a.day-b.day).slice(0,5);
+  const later=Object.values(HIST).filter(h=>histOf(h,R.fkey)&&h.day>R.dayN).sort((a,b)=>a.day-b.day).slice(0,5);
   if(!later.length) return `No later record of ${R.fkey} has been analysed in this browser yet. Analyse the following days' exports to verify the effect.`;
   const fmt=v=>v==null?"–":f1(v)+" %";
   return later.map(h=>{ const v=i.k!=null?(h.tc[i.k]&&h.tc[i.k].inTol):(()=>{ const t=h.tc.filter(Boolean); return t.length?t.reduce((a,x)=>a+x.inTol,0)/t.length:null; })();
