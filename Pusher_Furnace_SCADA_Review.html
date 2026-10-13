@@ -970,6 +970,7 @@ function observations(D,A){
       action:J.verdict==="better"?`Keep the replacement record with the SAT result of the new thermocouple.`:J.verdict==="worse"?`The new thermocouple did not improve control. Check it against the SAT thermocouple, check the extension wire, polarity and controller input, and check immersion and position before relying on it.`:`The replacement made no clear difference. If it was made to fix a reading problem, check the SAT result and the other causes (wiring, controller settings, burner).`}); });
   const hrs=(A.t1-A.t0)/36e5;
   satObs(A).forEach(o=>O.push(o));
+  prodObs(A).forEach(o=>O.push(o));
   if(!MULTI&&hrs<23.5) O.push({lvl:"info",tag:"Records",title:`Record covers ${fmtT(A.t0)} to ${fmtT(A.t1)} only (${f1(hrs)} h)`,detail:`A full production day would run to about 23:59.`,action:`Confirm whether this export is partial or the furnace was stopped after ${fmtT(A.t1)}.`});
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn")) O.unshift({lvl:"good",tag:"Conforming",title:`All thermocouples held within ±${tol} °C for the whole record`,detail:`No excursions, gaps or sensor anomalies were detected with the current thresholds.`,action:`File this report with the day's production records.`});
   const rank={crit:0,warn:1,info:2,good:3}; O.sort((a,b)=>rank[a.lvl]-rank[b.lvl]);
@@ -982,7 +983,7 @@ function run(){
   const out=$("#out");
   try{
     ALLREPL=REPL.concat(satRepl());
-    const A=analyze(DATA); A.sat=satStatus(A); const O=observations(DATA,A); LASTO=O; lastSave(A,O);
+    const A=analyze(DATA); A.sat=satStatus(A); A.prod=prodTrace(DATA,A); prodPriority(A); const O=observations(DATA,A); LASTO=O; lastSave(A,O);
     render(DATA,A,O);
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
@@ -1047,6 +1048,7 @@ function render(D,A,O){
 
   ${replSection(A)}
   ${satSection(A)}
+  ${prodSection(A)}
   ${controlSection(D,A)}
 
   <div class="stack">
@@ -1157,6 +1159,12 @@ function pareto(D,A){
 }
 const PR={P0:{lvl:"crit",when:"Today, before dispatch"},A:{lvl:"crit",when:"Start today"},B:{lvl:"warn",when:"This week"},C:{lvl:"info",when:"Next planned stop / monitor"}};
 const prChip=p=>chip(PR[p].lvl,p==="P0"?"P0 contain":p);
+/* the containment rows name the batches from the production report when they are known */
+function prodPriority(A){
+  const P=A.prod; if(!P||P.nolink||!P.held.length) return;
+  const list=P.held.map(bName).join(", ");
+  A.priority.filter(r=>r.pr==="P0").forEach((r,i)=>{ if(i===0) r.action+=`. Batches in the affected windows (production report): ${list}`; else r.action=`Batches ${P.held.map(b=>b.x.batch).join(", ")} are unavailable until released; plan buffer stock or re-heat-treat capacity`; });
+}
 function priorityList(D,A,PA){
   const tol=A.tol, rows=[], hrs=(A.t1-A.t0)/36e5;
   if(A.windows.length){
@@ -1504,8 +1512,9 @@ function excursionTable(A){
 function traceTable(A){
   if(!A.windows.length) return `<div class="empty">No product affected: no zone left the ±${A.tol} °C window.</div>`;
   const zt=w=>[...w.zones].sort().map(z=>`Zone ${z+1} <span class="muted">pos. ${posStart(z)}–${posStart(z)+traysIn(z)-1}</span>`).join("<br>");
-  return `<div class="scroll"><table class="log"><thead><tr><th>Window</th><th>From</th><th>To</th><th>Duration</th><th>Zones and tray positions affected</th><th>Incidents</th><th>Disposition</th></tr></thead><tbody>${
-    A.windows.map(w=>`<tr><td class="n"><b>${w.no}</b></td><td class="n">${fmtW(w.from)}</td><td class="n">${fmtW(w.to)}</td><td class="n">${dur(w.min)}</td><td>${zt(w)}</td><td class="n">${w.inc.length>6?w.inc.slice(0,6).join(", ")+" … ("+w.inc.length+")":w.inc.join(", ")}</td><td style="border-bottom:1px solid var(--line)"></td></tr>`).join("")
+  const P=A.prod&&!A.prod.nolink?A.prod:null, bw=w=>{ if(!P) return ""; const L=P.batches.filter(b=>b.wins.includes(w.no)); return `<td>${L.length?L.map(b=>`<b>${esc(b.x.batch||"?")}</b> <span class="muted">${esc(b.x.part||"")}</span>`).join("<br>"):`<span class="muted">${P.covered?"none recorded":"no production report"}</span>`}</td>`; };
+  return `<div class="scroll"><table class="log"><thead><tr><th>Window</th><th>From</th><th>To</th><th>Duration</th><th>Zones and tray positions affected</th><th>Incidents</th>${P?"<th>Batches (production report)</th>":""}<th>Disposition</th></tr></thead><tbody>${
+    A.windows.map(w=>`<tr><td class="n"><b>${w.no}</b></td><td class="n">${fmtW(w.from)}</td><td class="n">${fmtW(w.to)}</td><td class="n">${dur(w.min)}</td><td>${zt(w)}</td><td class="n">${w.inc.length>6?w.inc.slice(0,6).join(", ")+" … ("+w.inc.length+")":w.inc.join(", ")}</td>${bw(w)}<td style="border-bottom:1px solid var(--line)"></td></tr>`).join("")
   }</tbody></table></div>`;
 }
 function fmtW(ms){ return (Math.floor(ms/864e5)!==T0DAY?fmtD(ms).slice(0,6)+" ":"")+fmtT(ms); }
@@ -1742,6 +1751,70 @@ function renderLink(){
   $("#linkNote").innerHTML=!DATA?"Load a SCADA record to link it to a furnace and chamber of the SAT register.":
     `SAT status and replacements of the linked chamber are included in this report. ${L.auto?"Detected from the chart heading.":`Chosen by hand (detected: ${esc(L.det.f||"?")} · ${esc(L.det.ch||"?")}).`}`;
 }
+
+/* ---------- link to the production report (CALOR only) ----------
+   Batches of the linked furnace whose time in this chamber overlaps the record (from the Daily production page:
+   recorded entry / exit of each batch and its zone windows). Used to name the batches in each affected window and to
+   compare the set values in force with the process specification of each batch. */
+const PZ=v=>v===""||v==null||!isFinite(+v)?null:+v;
+function prodTrace(D,A){
+  const api=HTQ&&HTQ.api("prod"); if(!api) return null;
+  const L=link(); if(!L||!L.f||!L.ch) return {nolink:true};
+  const reps=api.reports().filter(r=>r.furnace===L.f), t0=A.t0, t1=A.t1+A.step;
+  const day0=isoDay(A.t0), day1=isoDay(A.t1), batches=[], untimed=[];
+  reps.forEach(r=>r.rows.forEach(x=>{
+    const zs=(x.zones||[]).filter(z=>z.ch===L.ch);
+    if(!zs.length){ if(r.date>=isoDay(A.t0-864e5)&&r.date<=day1) untimed.push({rep:r,x}); return; }
+    const from=Math.min(...zs.map(z=>z.from)), to=Math.max(...zs.map(z=>z.to));
+    if(to<=t0||from>=t1) return;
+    batches.push({rep:r,x,zs,from,to,wins:[],zones:new Set()});
+  }));
+  batches.sort((a,b)=>a.from-b.from);
+  /* exposure: the batch was in an affected zone while that zone's incident counted against trays */
+  A.events.filter(e=>e.aff).forEach(e=>{ const w=A.windows.find(w=>w.inc.includes(e.no));
+    batches.forEach(b=>{ const z=b.zs.find(q=>q.z===e.z+1); if(z&&z.from<e.winTo&&z.to>e.winFrom){ if(w&&!b.wins.includes(w.no)) b.wins.push(w.no); b.zones.add(e.z); } }); });
+  /* set values in force while the batch was in each zone vs its specification */
+  batches.forEach(b=>{ const sp=b.x.spec, want=sp?(L.ch==="Hardening"?sp.h:sp.t):null;
+    b.sets=b.zs.map(z=>{ const i=z.z-1, w=want?PZ(want[i]):null, seen=new Set();
+      D.rows.forEach(r=>{ if(r.t>=z.from&&r.t<z.to) [2*i,2*i+1].forEach(k=>{ const v=r.sp&&r.sp[k]; if(v!=null) seen.add(v); }); });
+      const vals=[...seen].sort((a,c)=>a-c);
+      return {z:i,want:w,vals,res:w==null?"nospec":!vals.length?"nodata":vals.every(v=>Math.abs(v-w)<0.5)?"ok":"diff"}; });
+    b.setRes=b.sets.some(x=>x.res==="diff")?"diff":b.sets.some(x=>x.res==="ok")?"ok":b.sets.some(x=>x.res==="nospec")?"nospec":"nodata"; });
+  const covered=reps.some(r=>r.date>=day0&&r.date<=day1);
+  return {L,batches,held:batches.filter(b=>b.wins.length),untimed,covered,day0,day1};
+}
+const bName=b=>`${b.x.batch||"?"} (${b.x.part||"?"}${b.x.heat?", heat "+b.x.heat:""})`;
+function prodObs(A){
+  const P=A.prod; if(!P||P.nolink) return [];
+  const O=[];
+  const diff=P.batches.filter(b=>b.setRes==="diff");
+  if(diff.length) O.push({lvl:"warn",tag:"Specification",title:`Set values differ from the process specification for ${diff.length} batch${diff.length>1?"es":""}: ${diff.map(b=>b.x.batch).join(", ")}`,
+    detail:diff.map(b=>`${bName(b)}: `+b.sets.filter(x=>x.res==="diff").map(x=>`Zone ${x.z+1} set ${x.vals.map(f0).join(" / ")} °C, specification ${f0(x.want)} °C`).join("; ")).join(" · ")+".",
+    action:`Check the recipe loaded on the controller against the process specification of the part; if the product was processed at the wrong set value, treat it as nonconforming (hold and verify), and correct the recipe or the specification.`});
+  if(A.windows.length&&!P.covered) O.push({lvl:"info",tag:"Production",title:`No production report of ${P.L.f} covers ${fmtD(A.t0)}${P.day1!==P.day0?" – "+fmtD(A.t1):""}`,
+    detail:`The batches in the affected windows cannot be named until the day's production is entered.`,action:`Enter the batches of this day on the Daily production page; the affected batches then appear in this report.`});
+  if(P.untimed.length&&A.windows.length) O.push({lvl:"info",tag:"Production",title:`${P.untimed.length} batch${P.untimed.length>1?"es":""} of ${P.L.f} without complete entry / exit times or quantity`,
+    detail:P.untimed.map(u=>`${u.x.batch||"?"} (${u.x.part||"?"}, report ${u.rep.id})`).join(", ")+".",action:`Complete the entries on the Daily production page so that these batches can be traced to the affected windows.`});
+  return O;
+}
+function prodSection(A){
+  const P=A.prod; if(!P) return "";
+  const head=`<div class="sec-head"><h2>Batches in the furnace (production report)</h2><p>Batches of the Daily production page whose time in this chamber overlaps the record, from their recorded entry and exit times and zone windows. A batch is affected when it was in a zone while that zone's excursion counted against trays.</p></div>`;
+  if(P.nolink) return `<section class="panel">${head}<div class="empty">This record is not linked to a furnace and chamber. Choose them under “Link to the thermocouple SAT register” above.</div></section>`;
+  if(!P.batches.length) return `<section class="panel">${head}<div class="empty">${P.covered?`No batch of ${esc(P.L.f)} with complete times was in the ${esc(P.L.ch.toLowerCase())} chamber during this record.`:`No production report of ${esc(P.L.f)} covers this record yet. Enter the day's batches on the Daily production page.`}${P.untimed.length?` ${P.untimed.length} batch${P.untimed.length>1?"es have":" has"} no complete entry / exit times or quantity.`:""}</div></section>`;
+  const SR={ok:["good","As specified"],diff:["crit","Differs"],nospec:["info","No specification"],nodata:["info","No set value"]};
+  const rows=P.batches.map(b=>{ const x=b.x, sp=x.spec;
+    return `<tr><td><b>${esc(x.batch||"?")}</b><br><span class="muted">${esc(b.rep.id)} · ${chip(b.rep.status==="approved"?"good":"warn",b.rep.status==="approved"?"Approved":"Draft")}</span></td>
+      <td>${esc(x.part||"")}${sp?`<br><span class="muted">${esc(sp.name||"")}${sp.src?" · "+esc(sp.src):""}</span>`:""}</td><td>${esc(x.heat||"")}${x.heatCode?" / "+esc(x.heatCode):""}</td>
+      <td class="n">${x.qty?esc(x.qty):"–"}${x.kg?`<br><span class="muted">${f0(x.kg)} kg</span>`:""}</td>
+      <td class="n" style="white-space:nowrap">${fmtW(b.from)} → ${fmtW(b.to)}</td>
+      <td>${b.wins.length?`<span class="bad">${b.wins.join(", ")}</span><br><span class="muted">${[...b.zones].sort().map(z=>"Zone "+(z+1)).join(", ")}</span>`:`<span class="muted">not affected</span>`}</td>
+      <td>${b.sets.map(s=>`Z${s.z+1} ${s.vals.length?s.vals.map(f0).join("/"):"–"}${s.want!=null?` <span class="muted">(spec ${f0(s.want)})</span>`:""} ${s.res==="diff"?chip("crit","≠"):""}`).join("<br>")}</td>
+      <td>${chip(...SR[b.setRes])}</td></tr>`; }).join("");
+  return `<section class="panel">${head}
+    <p style="margin:0 0 10px">${P.held.length?`<b class="bad">${P.held.length} batch${P.held.length>1?"es":""} to hold:</b> ${P.held.map(b=>esc(bName(b))).join(", ")}.`:`<span class="ok">No batch was in an affected zone during an excursion.</span>`}${P.untimed.length?` <span class="muted">${P.untimed.length} batch${P.untimed.length>1?"es":""} without complete times could not be traced.</span>`:""}</p>
+    <div class="scroll"><table class="log"><thead><tr><th>Batch</th><th>Part</th><th>Heat</th><th>Qty</th><th>In the ${esc(P.L.ch.toLowerCase())} chamber</th><th>Affected windows</th><th>Set values °C per zone</th><th>vs specification</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
 if(HTQ){
   const relink=()=>{ const f=$("#lkF").value, ch=$("#lkC").value; LINKS[furnaceKey(DATA)]={f,ch}; try{ localStorage.setItem("pfsr-link",JSON.stringify(LINKS)); }catch(e){} run(); HTQ.emit("scada:changed"); };
   $("#lkF").addEventListener("change",relink); $("#lkC").addEventListener("change",relink);
@@ -1749,6 +1822,8 @@ if(HTQ){
   $("#lkOpen").addEventListener("click",()=>{ const L=link(); if(L) HTQ.go("sat",{view:{f:L.f,ch:L.ch}}); });
   const again=()=>{ if(DATA&&!PRINTING) run(); else renderLink(); };
   HTQ.on("sat:ready",again); HTQ.on("sat:changed",again);
+  let PT=0; const prodAgain=()=>{ clearTimeout(PT); PT=setTimeout(()=>{ if(DATA&&!PRINTING) run(); },200); };
+  ["prod:ready","prod:changed","spec:changed"].forEach(ev=>HTQ.on(ev,prodAgain));
 }
 
 /* ---------- latest record per furnace and chamber (for the suite's home page) ---------- */
@@ -1780,7 +1855,7 @@ const PD_ST=["plan","do","check","act","closed"], PD_NM={plan:"Plan",do:"Do",che
 const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
 const DISPO=["Released after hardness / microstructure verification","Re-heat-treated and verified","Scrapped","Released under customer concession","Still on hold"];
 const DOCS=["Control plan","PFMEA","Work instruction","Process table / recipe","Maintenance plan","Training","No document change needed"];
-const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head"};
+const PRDAYS={P0:0,A:1,B:7,C:30}, TAGOWN={SAT:"Maintenance Head","Thermocouple life":"Maintenance Head",Replacement:"Maintenance Head","Set change":"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager"};
 const todayISO=()=>{ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
 const addDay=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
 const pdAll=()=>PD.reviews.concat(PD_MEM);

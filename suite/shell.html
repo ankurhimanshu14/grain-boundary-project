@@ -40,10 +40,10 @@ header.top{flex:none;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-e
 .ctrl b{display:block;font-weight:500;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 /* module tabs in groups */
 nav.mods{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 2px;padding:8px 16px;border-bottom:1px solid var(--line)}
-.grp{display:flex;gap:2px;align-items:center;padding-right:10px;margin-right:8px;border-right:1px solid var(--line)}
+.grp{display:flex;gap:2px;align-items:center;padding-right:8px;margin-right:6px;border-right:1px solid var(--line)}
 .grp.last{border-right:0}
 .pd{font-family:var(--f-display);font-weight:700;font-size:12px;color:var(--muted);letter-spacing:.1em;margin-right:4px;text-transform:uppercase}
-.tab{font:inherit;font-weight:500;color:var(--ink);background:none;border:0;padding:6px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.tab{font:inherit;font-weight:500;color:var(--ink);background:none;border:0;padding:6px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
 .tab:hover{background:var(--sunk)}
 .tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
 .tab .short{display:none}
@@ -107,6 +107,8 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 .fc{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;display:flex;flex-direction:column}
 .fc>header{display:flex;align-items:baseline;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--sunk)}
 .fc>header h3{font-size:22px}.fc>header span{color:var(--muted);font-size:13px}
+.prodl{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.prodl button.link{padding:0;font-size:12.5px;margin-left:auto}
 .chb{padding:12px 14px;border-left:5px solid var(--k);display:flex;flex-direction:column;gap:8px}
 .chb+.chb{border-top:1px solid var(--line)}
 .chh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.chh h4{margin:0;font-family:var(--f-display);font-size:16px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
@@ -117,6 +119,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 .tc i{width:8px;height:8px;border-radius:2px;background:var(--kk);display:inline-block}
 .links{display:flex;flex-wrap:wrap;gap:6px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--muted)}.legend span{display:inline-flex;gap:6px;align-items:center}.legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+@media (max-width:1480px){.pd{display:none}}
 @media (max-width:860px){.ctrl{display:none}}
 @media (max-width:760px){.pdca{grid-template-columns:1fr 1fr}.pdca>div:nth-child(2){border-right:0}.pdca>div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
 @media (max-width:640px){
@@ -336,7 +339,12 @@ function renderHome(){
       </section>`;
     }).join("");
     const nSp=SP?SP.perFurnace[f.id]||0:null;
-    return `<article class="fc"><header><h3>${esc(f.id)}</h3><span>${esc(f.name||"")}</span>${nSp!=null?`<span style="margin-left:auto">${nSp?`${nSp} process specification${nSp>1?"s":""} in force`:`<span class="caution">no process specification in force</span>`}</span>`:""}</header>${blocks}${qb}</article>`;
+    /* latest production report of this furnace */
+    const lr=PR?PR.filter(r=>r.furnace===f.id).sort((a,b)=>a.date<b.date?1:-1)[0]:null;
+    const prodLine=PR?`<div class="prodl">${lr?(()=>{const kg=lr.rows.reduce((a,x)=>a+(x.kg||0),0),inc=lr.rows.filter(x=>x.lvl==="crit").length;
+      return `<span><b>Production ${fd(lr.date)}</b> · ${lr.rows.length} batch${lr.rows.length===1?"":"es"} · ${Math.round(kg).toLocaleString("en-IN")} kg</span><span class="pill ${lr.status==="approved"?"ok":"warn"}">${lr.status==="approved"?"Approved":"Draft"}</span>${inc?`<span class="caution">${inc} incomplete</span>`:""}<button class="link" data-prod="${esc(f.id)}|${esc(lr.date)}">Open report →</button>`;})()
+      :`<span class="muted">No production report yet</span><button class="link" data-prod="${esc(f.id)}|">Daily production →</button>`}</div>`:"";
+    return `<article class="fc"><header><h3>${esc(f.id)}</h3><span>${esc(f.name||"")}</span>${nSp!=null?`<span style="margin-left:auto">${nSp?`${nSp} process specification${nSp>1?"s":""} in force`:`<span class="caution">no process specification in force</span>`}</span>`:""}</header>${prodLine}${blocks}${qb}</article>`;
   }).join("");
   const rvOpenAll=revs.filter(r=>r.stage!=="closed").length, rvOdAll=revs.reduce((a,r)=>a+r.overdue,0);
   const tile=(v,l,sub,c)=>`<div class="tile ${c||""}"><span class="k">${l}</span><span class="v">${v}</span><span class="small muted">${sub}</span></div>`;
@@ -389,7 +397,7 @@ $("#home").addEventListener("click",e=>{
   else if(b.dataset.qt) HTQ.go("quench",{tank:b.dataset.qt});
   else if(b.dataset.spec) HTQ.go("spec",{spec:b.dataset.spec});
   else if(b.dataset.mtest) HTQ.go("metal",{test:b.dataset.mtest});
-  else if(b.dataset.prod){ const [f,d]=b.dataset.prod.split("|"); HTQ.go("prod",{f,d}); }
+  else if(b.dataset.prod!=null){ const [f,d]=b.dataset.prod.split("|"); HTQ.go("prod",d?{f,d}:{f}); }
   else if(b.dataset.qtest) HTQ.go("quench",{test:b.dataset.qtest});
   else if(b.dataset.go){ const [pg,f,ch]=b.dataset.go.split("|"); HTQ.go(pg,f?{view:{f,ch}}:null); }
 });
