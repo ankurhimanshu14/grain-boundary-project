@@ -843,6 +843,7 @@ function example(){
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
   HTQ.provide("quench",{
+    failsSince:d=>DB.tests.filter(t=>t.date>=d&&evalT(t).fails.length).map(t=>({id:t.id,date:t.date,tank:t.tank})),
     overview:()=>({tanks:DB.tanks.filter(t=>t.active!==false).map(tk=>{const s=tankState(tk);
       return {id:tk.id,furnace:tk.furnace,media:MEDIA[tk.media],product:tk.product||"",lvl:s.lvl,
         overdue:s.overdue.map(r=>({n:r.p.n,since:r.next})),soon:s.soon.map(r=>({n:r.p.n,due:r.next})),none:s.none.map(r=>r.p.n),

@@ -1,6 +1,6 @@
 """Build CALOR.html, the main application: one file with a navigation bar that
 runs Production_Report.html, Process_Specifications.html, Pusher_Furnace_SCADA_Review.html,
-Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html,
+Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html, Control_Plan_PFMEA.html,
 Thermocouple_SAT_PDCA.html, Temperature_Uniformity_Survey.html and
 Equipment_Qualification.html as pages
 
@@ -20,6 +20,7 @@ APPS = {"/*@PROD@*/": ROOT / "Production_Report.html",
         "/*@SCADA@*/": ROOT / "Pusher_Furnace_SCADA_Review.html",
         "/*@QUENCH@*/": ROOT / "Quench_Media_Testing.html",
         "/*@METAL@*/": ROOT / "Hardness_Metallurgical_Testing.html",
+        "/*@CPF@*/": ROOT / "Control_Plan_PFMEA.html",
         "/*@SAT@*/": ROOT / "Thermocouple_SAT_PDCA.html",
         "/*@TUS@*/": ROOT / "Temperature_Uniformity_Survey.html",
         "/*@EQUIP@*/": ROOT / "Equipment_Qualification.html"}

@@ -1298,6 +1298,7 @@ if(HTQ){
   $("#b-theme").hidden=true; /* the suite's navigation bar switches the theme of both pages */
   const NOW={none:"No SAT on record",fail:"Last SAT failed — re-SAT required",repl:"Replaced — SAT required",overdue:"SAT overdue",soon:"SAT due soon",ok:"SAT in date"};
   HTQ.provide("sat",{
+    failsSince:d=>DB.cycles.filter(c=>c.do&&isDate(c.do.date)&&c.do.date>=d&&calc(c).res==="fail").map(c=>({id:c.id,date:c.do.date})),
     furnaces:()=>DB.furnaces.map(f=>f.id),
     find:(f,ch,tag)=>DB.sensors.find(x=>x.furnace===f&&x.chamber===ch&&tcNo(x.tag)!=null&&tcNo(x.tag)===tcNo(tag))||null, /* by number: TC3, TC-3 and TC-03 match PV-3 */
     name:id=>sLabel(id),

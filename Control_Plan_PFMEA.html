@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control Plan and PFMEA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+.lockmsg{font-size:12.5px;color:var(--ink2);background:var(--surface2);border-radius:4px;padding:6px 10px}
+/* control plan and PFMEA */
+dialog#dlg{width:min(1280px,calc(100vw - 24px))}
+dialog#rdlg{width:min(760px,calc(100vw - 24px))}
+table.form{width:100%;border-collapse:collapse;font-size:12.5px}
+table.form th{text-align:left;font-weight:500;color:var(--ink2);font-size:11.5px;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:bottom;background:var(--surface2);position:sticky;top:0}
+table.form td{padding:5px 6px;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.form td.n{text-align:center;font-family:var(--mono)}
+table.form tr.step td{background:var(--surface2);font-weight:600}
+.form-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:5px}
+.ap{display:inline-block;min-width:22px;text-align:center;border-radius:4px;font-weight:700;font-family:var(--mono);padding:0 4px}
+.ap.H{background:var(--crit);color:#fff}.ap.M{background:var(--warn);color:#2b1e00}.ap.L{background:var(--surface2);color:var(--ink2);border:1px solid var(--line)}
+.cls{font-weight:700;color:var(--crit-ink)}
+table.steps{width:100%;max-width:720px}
+table.steps input{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%}
+table.steps td{padding:3px 6px 3px 0}
+.issues{margin:0;padding-left:18px;font-size:13px}.issues li.crit{color:var(--crit-ink)}.issues li.warn{color:var(--warn-ink)}
+.newbar{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">IATF 16949 · CQI-9 · Process FMEA and control plan</div>
+      <h1>Control plan and PFMEA</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-newpf">New PFMEA</button>
+      <button class="btn" id="b-newcp">New control plan</button>
+      <button class="btn ghost" id="b-print">Print register</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>How the two documents work together</h2></div>
+    <ul class="cycle-explain">
+      <li><b>PFMEA</b> — one per process (hardening &amp; tempering, isothermal annealing, normalizing) on this line: each step's failure modes, effects, causes and controls, rated S / O / D with an Action Priority.</li>
+      <li><b>Control plan</b> — one per part, made from its process specification: every product and process characteristic with its tolerance, method, sample, frequency, control and reaction plan, and the CALOR page that holds the records.</li>
+      <li><b>Links</b> — the control plan names its PFMEA; steps of the PFMEA missing from the control plan, a control plan made from an older specification revision, and failures since the PFMEA was approved are flagged for review.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Document register</h2><p>Approved documents are locked; a change is made as a new revision. Each document is reviewed periodically and whenever the process changes or a failure occurs.</p></div>
+    <div class="scroll" id="register"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>PFMEA actions</h2><p>Recommended actions of all PFMEA rows with Action Priority High or Medium. High-priority rows need an action (or a recorded justification) before the PFMEA is approved.</p></div>
+    <div class="scroll" id="actions"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (cross-functional team)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <div class="controls" id="settings"></div>
+    <p class="muted" style="margin:10px 0 0;font-size:13px">The Action Priority follows the AIAG-VDA FMEA Handbook (2019) logic built into this page (severity first, then occurrence, then detection); verify it against your copy of the handbook and the customer-specific requirements. RPN (S × O × D) is shown for reference only.</p>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li>PFMEA in the AIAG-VDA form: structure (process steps), function (requirement), failure analysis (failure mode, effect with severity S, cause), risk analysis (prevention control with occurrence O, detection control with detection D, Action Priority), optimisation (action, owner, target date, action taken, re-rating).</li>
+      <li>Special characteristics (CC critical, SC significant) are marked in the PFMEA and carried into the control plan. Customer symbols and requirements take precedence.</li>
+      <li>The control plan is generated from the process specification in force for the part (CALOR); edit every row to match the actual practice, and approve it with the cross-functional team.</li>
+      <li>The default PFMEA rows describe typical failure modes of a direct-fired pusher line; they are a starting point to be reviewed and rated by your team.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+<dialog id="rdlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+
+/* ---------- data model ---------- */
+const KEY="cpf-reg", VKEY="cpf-view"; /* own storage keys */
+const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
+const CLS=["","CC","SC"],CLSN={"":"—",CC:"CC (critical)",SC:"SC (significant)"};
+const PHASES=["Prototype","Pre-launch","Production"];
+const RECS=["","Daily production","Specifications","SCADA review","Quench media","Hardness","Thermocouple SAT","TUS","Equipment","Other (paper record)"];
+const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",reviewDays:365,team:"HT Manager, Quality Manager, Maintenance Head, Production Manager"};
+const STEPS={
+  HT:[[10,"Receiving and identification"],[20,"Loading trays"],[30,"Hardening chamber: austenitizing"],[40,"Quenching"],[50,"Tempering chamber: tempering"],[60,"Air cooling and unloading"],[70,"Hardness and metallurgical testing"],[80,"Final inspection, packing and dispatch"]],
+  IA:[[10,"Receiving and identification"],[20,"Loading trays"],[30,"Hardening chamber: austenitizing"],[40,"Controlled cooling"],[50,"Tempering chamber: isothermal hold"],[60,"Air cooling and unloading"],[70,"Hardness and metallurgical testing"],[80,"Final inspection, packing and dispatch"]],
+  NORM:[[10,"Receiving and identification"],[20,"Loading trays"],[30,"Hardening chamber: preheating"],[40,"Transfer between chambers"],[50,"Tempering chamber: austenitizing"],[60,"Still-air / fan cooling and unloading"],[70,"Hardness and metallurgical testing"],[80,"Final inspection, packing and dispatch"]]};
+
+/* ---------- Action Priority (AIAG-VDA FMEA Handbook logic, built in; verify against your copy) ---------- */
+function ap(s,o,d){
+  s=num(s);o=num(o);d=num(d);if(s==null||o==null||d==null) return "";
+  const D=d>=7?0:d>=5?1:d>=2?2:3; /* 7-10, 5-6, 2-4, 1 */
+  const row=(a)=>a[D];
+  if(s>=9){ if(o>=6) return "H"; if(o>=4) return row(["H","H","H","M"]); if(o>=2) return row(["H","M","L","L"]); return "L"; }
+  if(s>=7){ if(o>=8) return "H"; if(o>=6) return row(["H","H","H","M"]); if(o>=4) return row(["H","M","M","M"]); if(o>=2) return row(["M","M","L","L"]); return "L"; }
+  if(s>=4){ if(o>=8) return row(["H","H","M","M"]); if(o>=6) return row(["M","M","M","L"]); if(o>=4) return row(["M","L","L","L"]); return "L"; }
+  if(s>=2){ if(o>=8) return row(["M","M","L","L"]); return "L"; }
+  return "L";
+}
+const rpn=(s,o,d)=>[s,o,d].every(v=>num(v)!=null)?num(s)*num(o)*num(d):"";
+const apTag=a=>a?`<span class="ap ${a}">${a}</span>`:"";
+
+/* ---------- default PFMEA rows (typical failure modes of a direct-fired pusher line; to be reviewed by the team) ---------- */
+function pfRows(proc){
+  const R=(step,func,mode,effect,s,cls,cause,prev,o,det,d)=>({step,func,mode,effect,s,cls,cause,prev,o,det,d});
+  const aus=proc==="NORM"?50:30, ausN=proc==="NORM"?"Tempering chamber (austenitizing)":"Hardening chamber";
+  const rows=[
+    R(10,"Identify the parts, heat and quantity against the order","Wrong part or heat taken into the furnace / mixed batches","Wrong process for the part; lost traceability","8","","Similar parts, no tag on the bin","Bin tags; production report entry per batch","4","Check of part no. and heat no. against the order at loading","5"),
+    R(20,"Load the specified pieces per tray","Tray overloaded","Uneven heating; low or uneven hardness in the batch","7","","Loading not to the specification","Pieces per tray in the process specification and loading instruction","4","Count at loading; hardness of first and last tray","5"),
+    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Temperature below the specification","Incomplete transformation: low hardness, soft spots, ferrite in the structure","8","SC","Control thermocouple drift; burner failure; wrong set value loaded","SAT per schedule; type K element replaced yearly; set values from the controlled process specification","4","SCADA with ±tolerance review per day; hardness per batch","4"),
+    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Temperature above the specification","Grain growth, distortion, increased decarburization","7","","Control loop fault; wrong set value","Over-temperature protection; set values from the process specification","3","SCADA review per day; grain size / decarburization check","5"),
+    R(aus,`${ausN}: hold the parts at the austenitizing set value for the specified time`,"Time at temperature too short (push time too fast)","Incomplete austenitization: low hardness","8","SC","Push time set wrong or changed","Push time in the process specification; push timer","3","Production report: implied push time vs specification; hardness per batch","5"),
+    R(aus,"Keep decarburization within the limit (open furnace, products of combustion contact the parts)","Decarburization beyond the limit","Low surface hardness; reduced fatigue life","8","SC","Excess air in the burners; time / temperature high","Burner tuning in the maintenance plan","4","Decarburization check per tested batch","5"),
+    R(30,"Uniform temperature in the work zone","Non-uniform temperature (cold or hot spots)","Hardness varies within the batch","7","","Burner imbalance; refractory damage; door seal","TUS per schedule; burner maintenance","3","TUS; wall difference in the SCADA review","5")];
+  if(proc==="HT") rows.push(
+    R(40,"Quench the parts within the quench delay into quenchant at the specified temperature and agitation","Quench delay too long","Low hardness (partial transformation before the quench)","8","SC","Transfer mechanism delay or stoppage","Maximum quench delay in the specification; mechanism maintenance","3","Transfer time monitoring; hardness per batch","5"),
+    R(40,"Quench the parts within the quench delay into quenchant at the specified temperature and agitation","Quenchant temperature high or agitation failed","Low hardness, soft spots","8","SC","Cooler or agitator failure","Daily quench checks; quench test plan","4","Tank temperature indicator; hardness per batch","4"),
+    R(40,"Quenchant in the specified condition","Water in the quench oil","Quench cracks, soft spots, fire risk","9","CC","Leaking oil cooler","Weekly water content test; cooler maintenance","3","Water content test (Quench media); crack check","5"),
+    R(50,"Temper at the specified set value and time","Tempering temperature or time out of the specification","Hardness above (brittle) or below the specification","8","SC","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
+  if(proc==="IA") rows.push(
+    R(40,"Cool to the isothermal temperature in the specified time","Controlled cooling too slow or too fast","Wrong structure (bainite / coarse pearlite), hardness out of the specification","7","SC","Fan failure; time not kept","Controlled cooling time in the specification","4","Microstructure and hardness per batch","4"),
+    R(50,"Hold at the isothermal temperature until transformation is complete","Hold temperature out of the specification","Wrong structure and hardness; poor machinability","7","","Thermocouple drift; wrong set value","SAT; set values from the specification","4","SCADA review per day; hardness per batch","4"));
+  if(proc==="NORM") rows.push(
+    R(30,"Preheat at 700–750 °C","Preheat temperature out of range","Thermal stress, distortion","5","","Wrong set value","Set values from the specification","3","SCADA review per day","5"),
+    R(60,"Cool in still air / with fans as specified","Cooling rate wrong (fans off when required, or on when not)","Hardness or structure out of the specification","7","","Fan not switched on; fan failure","Fan cooling in the specification","4","Hardness and microstructure per batch","4"));
+  rows.push(
+    R(70,"Test every batch to the specification on a calibrated, verified tester","Measurement error accepts nonconforming parts","Nonconforming parts shipped to the customer","8","","Tester out of calibration; no daily verification","Calibration plan; daily test-block verification","3","Hardness page: invalid test when calibration expired / verification failed","3"),
+    R(80,"Ship only released, identified batches","Nonconforming or held batch shipped","Customer complaint, field failure","9","","Hold not marked; release not checked","Hold tags; release only after the test conforms","3","Final inspection against the test register","4"));
+  return rows.map((r,i)=>({id:"r"+(i+1),...r,act:"",owner:"",due:"",done:"",doneDate:"",s2:"",o2:"",d2:""}));
+}
+/* ---------- control plan rows from a process specification (CALOR) ---------- */
+function cpRows(s){
+  const R=(step,machine,prod,proc,cls,spec,tech,size,freq,ctrl,react,rec)=>({step,machine,prod,proc,cls,spec,tech,size,freq,ctrl,react,rec});
+  const f=s.furnaces.join(", ")||"approved furnace",n=v=>v==null?"?":v,rq=s.req||{},q=s.q||{},rows=[];
+  const hard=`${rq.hMin!==""&&rq.hMin!=null?rq.hMin:"?"}${rq.hMax!==""&&rq.hMax!=null?"–"+rq.hMax:" min"} ${rq.scale||""}`;
+  const scadaReact="Hold the trays in the affected time window and zone; SCADA review reaction plan; verify hardness before release";
+  rows.push(R(10,"Stores / production","Part no., heat no., quantity","","","As per the order and the process specification "+s.id,"Visual / document check","100 %","Each batch","Daily production report","Hold, inform the Production Manager","Daily production"));
+  rows.push(R(20,"Trays",`Pieces per tray`,"","",`${n(s.pcs)} pcs per tray`,"Count","100 %","Each tray","Loading instruction","Correct the loading before the tray is pushed","Daily production"));
+  const chH=s.proc==="NORM"?"preheating":"austenitizing",chT=s.proc==="HT"?"tempering":s.proc==="IA"?"isothermal hold":"austenitizing";
+  [0,1,2].forEach(z=>rows.push(R(30,`${f} hardening chamber`,"",`Zone ${z+1} set value (${chH})`,"",`${n(s.h[z])} ± ${n(s.htol[z])} °C`,"Type K thermocouples, PID control, SCADA record","Continuous","Every reading (SCADA)","Controlled recipe; SCADA review per day",scadaReact,"SCADA review")));
+  rows.push(R(30,`${f} pusher`,"","Push time","",`${n(s.push)} ± ${n(s.pushTol)} min`,"Push timer; entry / exit times","Each batch","Each batch","Push timer set from the specification","Correct the push time; assess the batch (hardness)","Daily production"));
+  rows.push(R(30,`${f} control system`,"","System accuracy of the control thermocouples","","Within the SAT tolerance","System accuracy test (SAT)","Each control thermocouple","Per SAT schedule","SAT register","SAT reaction plan: product at risk since the last passing SAT","Thermocouple SAT"));
+  rows.push(R(30,`${f} work zone`,"","Temperature uniformity","","Qualified range and class of the chamber","Temperature uniformity survey (TUS)","Survey thermocouples","Per TUS schedule","TUS register","TUS reaction plan: product at risk since the last passing survey","TUS"));
+  if(s.proc==="HT"){
+    rows.push(R(40,"Quench tank","","Quenchant temperature","SC",`${q.tLo||"?"}–${q.tHi||"?"} °C`,"Tank indicator, calibrated thermometer","1","Each shift","Tank temperature control","Stop pushing; correct the temperature; assess the batches","Quench media"));
+    rows.push(R(40,"Quench transfer","","Quench delay","SC",`≤ ${q.delay||"?"} s`,"Transfer time","1","Each batch","Transfer mechanism maintenance","Hold the batch; hardness check","Daily production"));
+    rows.push(R(40,"Quench tank","","Dip time / agitation","",`${q.dip||"?"} min · agitation ${String(q.agit||"").toLowerCase()}`,"Timer / visual","1","Each shift","Quench daily checks","Correct; assess the batches","Quench media"));
+    rows.push(R(40,"Quench tank","","Quenchant condition (water, viscosity, cooling curve …)","",`Per the quench test plan (${q.medium||"oil"})`,"Laboratory / in-house tests","Sample","Per the quench test plan","Quench test plan","Quench reaction plan; product at risk since the last passing result","Quench media"));
+  }
+  if(s.proc==="IA") rows.push(R(40,"Controlled cooling","","Controlled cooling time","SC",`${n(s.cc)} min (${s.ccM||"method per specification"})`,"Timer","1","Each batch","Specification","Hold the batch; microstructure and hardness check","Daily production"));
+  if(s.proc==="NORM") rows.push(R(40,"Transfer","","Transfer time between the chambers","",`${(s.nm||{}).transfer||"?"} min`,"Timer","1","Each batch","Specification","Assess the batch","Daily production"));
+  [0,1,2].forEach(z=>rows.push(R(50,`${f} tempering chamber`,"",`Zone ${z+1} set value (${chT})`,"",`${n(s.t[z])} ± ${n(s.ttol[z])} °C`,"Type K thermocouples, PID control, SCADA record","Continuous","Every reading (SCADA)","Controlled recipe; SCADA review per day",scadaReact,"SCADA review")));
+  if(s.proc==="NORM"&&s.fan!=null) rows.push(R(60,"Fans","","Fan cooling time","",`${s.fan} min`,"Timer","1","Each batch","Specification","Assess the batch","Daily production"));
+  rows.push(R(70,"Hardness tester","Surface hardness","","SC",hard,"Hardness tester (calibrated, verified daily)",rq.sample||"per specification","Each batch","Test register; release only when conforming","Hold the batch; reaction plan on the Hardness page (re-heat-treat / scrap / concession)","Hardness"));
+  if(rq.core) rows.push(R(70,"Hardness tester","Core hardness","","",rq.core,"Hardness tester (section)",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
+  rows.push(R(70,"Microscope","Decarburization","","SC",rq.decarb||"per specification","Metallographic section",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
+  if(rq.micro) rows.push(R(70,"Microscope","Microstructure","","",rq.micro,"Metallographic section",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
+  if(rq.grain) rows.push(R(70,"Microscope","Grain size","","",rq.grain,"Comparison chart",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
+  rows.push(R(80,"Dispatch","Identification, cracks, scale","","","Identified; no cracks; scale as agreed","Visual","Sample per batch","Each batch","Final inspection","Hold and segregate","Other (paper record)"));
+  return rows.map((r,i)=>({id:"r"+(i+1),...r}));
+}
+
+const blank=()=>({v:1,settings:{...DEF},docs:[],seq:{pf:1,cp:1}});
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.docs)) return null;
+  o.settings={...DEF,...(o.settings||{})};o.seq=o.seq||{pf:1,cp:1};
+  o.docs=o.docs.filter(d=>d&&d.id).map(d=>({rows:[],steps:[],revs:[],log:[],rseq:1,status:"draft",rev:0,...d}));
+  ["pf","cp"].forEach(k=>{o.seq[k]=Math.max(+o.seq[k]||1,...o.docs.filter(d=>d.kind===(k==="pf"?"pfmea":"cp")).map(d=>+(String(d.id).match(/\d+/)||[0])[0]+1));});
+  o.v=1; return o;
+}
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n);}catch(e){return null;}};
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("cpf:changed"),300);}};
+const S=()=>DB.settings;
+const doc=id=>DB.docs.find(d=>d.id===id);
+const logIt=(d,t)=>d.log.push({d:today(),t});
+const eff=d=>d.status==="approved"?d:d.status==="draft"&&d.rev>0?(d.revs.at(-1)||null):null;
+const specsInForce=()=>{const a=api("spec");return a&&a.inForce?a.inForce():[];};
+
+/* ---------- checks of one document ---------- */
+function missing(d){
+  const m=[];
+  if(!txt(d.title)) m.push("title");if(!txt(d.team)) m.push("team");
+  if(!d.rows.length) m.push("at least one row");
+  if(d.kind==="pfmea"){
+    d.rows.forEach(r=>{const no=`step ${r.step} “${r.mode||"?"}”`;
+      if(!txt(r.mode)||!txt(r.effect)||!txt(r.cause)) m.push(`${no}: failure mode, effect and cause`);
+      if([r.s,r.o,r.d].some(v=>num(v)==null)) m.push(`${no}: S, O and D`);
+      if(ap(r.s,r.o,r.d)==="H"&&!(txt(r.act)&&txt(r.owner)&&isDate(r.due))&&!txt(r.done)) m.push(`${no}: action, owner and target date (Action Priority High)`);});
+  }else{
+    if(!txt(d.part)) m.push("part no.");if(!txt(d.pfmea)) m.push("linked PFMEA");
+    d.rows.forEach(r=>{const no=`step ${r.step} “${r.prod||r.proc||"?"}”`;
+      if(!txt(r.prod)&&!txt(r.proc)) m.push(`${no}: characteristic`);
+      ["spec","tech","freq","react"].forEach(k=>{if(!txt(r[k])) m.push(`${no}: ${{spec:"specification",tech:"technique",freq:"frequency",react:"reaction plan"}[k]}`);});});
+  }
+  if(!txt(d.prep)) m.push("prepared by");if(!txt(d.appr)) m.push("approved by");if(!isDate(d.apprDate)) m.push("approval date");
+  if(d.rev>0&&!txt(d.change)) m.push("reason for the change");
+  return [...new Set(m)];
+}
+/* links and feedback (CALOR) */
+function issues(d){
+  const I=[],e=eff(d)||d,td=today();
+  if(e.status==="approved"&&isDate(e.apprDate)&&addDays(e.apprDate,+S().reviewDays||365)<td) I.push(["warn",`Periodic review overdue since ${fdate(addDays(e.apprDate,+S().reviewDays||365))}.`]);
+  if(d.kind==="pfmea"){
+    const open=d.rows.filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)),late=d.rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<td);
+    if(open.length) I.push(["warn",`${plural(open.length,"row")} with Action Priority High without a completed action.`]);
+    if(late.length) I.push(["crit",`${plural(late.length,"action")} past the target date.`]);
+    if(isDate(e.apprDate)){const since=e.apprDate,parts=[];
+      const m=api("metal"),qn=api("quench"),tu=api("tus"),sa=api("sat");
+      const a=m&&m.ncSince?m.ncSince(since,d.proc):[],b=qn&&qn.failsSince?qn.failsSince(since):[],c=tu&&tu.failsSince?tu.failsSince(since):[],s2=sa&&sa.failsSince?sa.failsSince(since):[];
+      if(a.length) parts.push(`${plural(a.length,"nonconforming batch","nonconforming batches")} (${a.slice(0,4).map(x=>x.id).join(", ")})`);
+      if(b.length) parts.push(`${plural(b.length,"quench result")} out of limits`);
+      if(c.length) parts.push(`${plural(c.length,"failed TUS","failed TUS")}`);
+      if(s2.length) parts.push(`${plural(s2.length,"failed SAT","failed SATs")}`);
+      if(parts.length) I.push(["warn",`Since the approval on ${fdate(since)}: ${parts.join(", ")}. Review the occurrence and detection ratings.`]);}
+    const cps=DB.docs.filter(x=>x.kind==="cp"&&x.pfmea===d.id&&x.status!=="obsolete");
+    if(!cps.length&&d.status!=="obsolete") I.push(["warn","No control plan refers to this PFMEA yet."]);
+  }else{
+    const sp=specsInForce().find(s=>s.id===d.specId);
+    if(d.specId&&HTQ){if(!sp) I.push(["crit",`Process specification ${d.specId} is no longer in force.`]);else if(`${sp.id} rev ${sp.rev}`!==d.specRef) I.push(["warn",`Made from ${d.specRef}; ${sp.id} rev ${sp.rev} is now in force. Review the control plan.`]);}
+    const pf=doc(d.pfmea);
+    if(d.pfmea&&!pf) I.push(["crit",`Linked PFMEA ${d.pfmea} not found.`]);
+    else if(pf){if(pf.status!=="approved"&&!eff(pf)) I.push(["warn",`PFMEA ${pf.id} is not approved.`]);
+      const steps=new Set(d.rows.map(r=>+r.step)),miss=[...new Set(pf.rows.map(r=>+r.step))].filter(s=>!steps.has(s));
+      if(miss.length) I.push(["warn",`PFMEA steps without a control plan row: ${miss.join(", ")}.`]);
+      const sc=pf.rows.filter(r=>r.cls).map(r=>+r.step),scMiss=[...new Set(sc)].filter(st=>!d.rows.some(r=>+r.step===st&&r.cls));
+      if(scMiss.length) I.push(["warn",`Special characteristics in the PFMEA at step${scMiss.length>1?"s":""} ${scMiss.join(", ")} are not marked in the control plan.`]);}
+  }
+  return I;
+}
+const lvlOf=I=>I.some(i=>i[0]==="crit")?"crit":I.length?"warn":"good";
+
+/* ---------- render ---------- */
+function render(){
+  const P=DB.docs.filter(d=>d.kind==="pfmea"),C=DB.docs.filter(d=>d.kind==="cp");
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(P.length,"PFMEA","PFMEAs")} · ${plural(C.length,"control plan")}</span><span>Today ${fdate(today())}</span>`;
+  drawKpis();drawRegister();drawActions();drawSettings();
+}
+function drawKpis(){
+  const L=DB.docs.filter(d=>d.status!=="obsolete"),inF=L.filter(eff),dr=L.filter(d=>d.status==="draft"),iss=L.map(issues),rows=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete").flatMap(d=>d.rows);
+  const H=rows.filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)).length,late=rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<today()).length;
+  const k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
+  $("#kpis").innerHTML=k("In force",inF.length,`${inF.filter(d=>d.kind==="pfmea").length} PFMEA · ${inF.filter(d=>d.kind==="cp").length} control plans`)
+    +k("Drafts",dr.length,"awaiting approval",dr.length?"caution":"")+k("Action Priority High open",H,"rows without a completed action",H?"bad":"ok")
+    +k("Actions overdue",late,"past the target date",late?"bad":"ok")+k("Documents to review",iss.filter(i=>i.length).length,"links, feedback or periodic review",iss.some(i=>i.length)?"caution":"ok");
+}
+function drawRegister(){
+  if(!DB.docs.length){$("#register").innerHTML=`<div class="empty">No documents yet. Start with “New PFMEA” for each process, then “New control plan” for each part (generated from its process specification in CALOR), or load the example data under Settings.</div>`;return;}
+  const L=DB.docs.slice().sort((a,b)=>a.kind.localeCompare(b.kind)||a.id.localeCompare(b.id));
+  $("#register").innerHTML=`<table class="log cards"><thead><tr><th>Document</th><th>Type</th><th>Title</th><th>Process / part</th><th>Rows</th><th>Status</th><th>To review</th><th class="noprint"></th></tr></thead><tbody>${L.map(d=>{const I=issues(d),H=d.kind==="pfmea"?d.rows.filter(r=>ap(r.s,r.o,r.d)==="H").length:0,st=STATUS[d.status];
+    return `<tr><td data-label="Document"><b>${esc(d.id)}</b> rev ${d.rev}${d.apprDate?`<br><span class="muted">${fdate(d.apprDate)}</span>`:""}</td><td data-label="Type">${d.kind==="pfmea"?"PFMEA":"Control plan"}${d.kind==="cp"?`<br><span class="muted">${esc(d.phase||"")}</span>`:""}</td>
+      <td data-label="Title">${esc(d.title)}</td><td data-label="Process / part">${esc(PROC[d.proc]||"")}${d.part?`<br><b>${esc(d.part)}</b>${d.specRef?` <span class="muted">${esc(d.specRef)}</span>`:""}`:""}${d.pfmea?`<br><span class="muted">PFMEA ${esc(d.pfmea)}</span>`:""}</td>
+      <td data-label="Rows" class="n">${d.rows.length}${H?`<br>${apTag("H")} ${H}`:""}</td><td data-label="Status">${chip(st[0],st[1],d.status==="draft"&&d.rev>0?`Rev ${d.rev} draft`:st[2])}</td>
+      <td data-label="To review">${I.length?I.map(i=>`<span class="${i[0]==="crit"?"bad":"caution"}">${esc(i[1])}</span>`).join("<br>"):`<span class="ok">nothing</span>`}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open="${esc(d.id)}">Open</button> <button class="btn ghost small" data-xl="${esc(d.id)}">Excel</button> <button class="btn ghost small" data-pdf="${esc(d.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawActions(){
+  const L=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete").flatMap(d=>d.rows.filter(r=>["H","M"].includes(ap(r.s,r.o,r.d))).map(r=>({d,r}))).sort((a,b)=>(ap(a.r.s,a.r.o,a.r.d)<ap(b.r.s,b.r.o,b.r.d)?-1:1));
+  if(!L.length){$("#actions").innerHTML=`<div class="empty">No row with Action Priority High or Medium.</div>`;return;}
+  $("#actions").innerHTML=`<table class="log cards"><thead><tr><th>PFMEA</th><th>Step / failure mode</th><th>S O D</th><th>AP</th><th>Recommended action</th><th>Owner / target</th><th>Status</th></tr></thead><tbody>${L.map(({d,r})=>{const a=ap(r.s,r.o,r.d),a2=ap(r.s2||r.s,r.o2,r.d2);
+    return `<tr><td data-label="PFMEA">${esc(d.id)}<br><span class="muted">${esc(PROC[d.proc]||"")}</span></td><td data-label="Step / failure mode"><b>${esc(r.step)}</b> ${esc(r.mode)}</td><td data-label="S O D" class="mono">${esc(r.s)} · ${esc(r.o)} · ${esc(r.d)}</td><td data-label="AP">${apTag(a)}</td>
+      <td data-label="Action">${r.act?esc(r.act):`<span class="${a==="H"?"bad":"muted"}">no action recorded</span>`}</td><td data-label="Owner / target">${esc(r.owner||"—")}${r.due?`<br>${fdate(r.due)}${!txt(r.done)&&r.due<today()?` <span class="bad">overdue</span>`:""}`:""}</td>
+      <td data-label="Status">${txt(r.done)?chip("good","✓","Done "+fdate(r.doneDate))+(a2?` → ${apTag(a2)}`:""):chip(a==="H"?"crit":"warn",a==="H"?"✕":"!","Open")}</td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("team","Default team","text","wide")+f("reviewDays","Review every (days)","number");
+}
+
+/* ---------- new documents ---------- */
+function newPfmea(proc){
+  const d={id:"PF-"+String(DB.seq.pf++).padStart(4,"0"),kind:"pfmea",title:`Process FMEA · ${PROC[proc]} · pusher line`,proc,team:S().team,steps:STEPS[proc].map(([no,name])=>({no,name})),rows:pfRows(proc),rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",notes:"",revs:[],log:[],rseq:100};
+  logIt(d,"PFMEA created from the default failure modes of the line");DB.docs.push(d);save();render();return d;
+}
+/* carry the PFMEA's special characteristics to the control plan: a PFMEA step with CC / SC marks the
+   process characteristics of that step (and the product characteristics if the step has no process row) */
+function markSpecial(d){
+  const pf=doc(d.pfmea);if(!pf) return 0;let n=0;
+  [...new Set(pf.rows.filter(r=>r.cls).map(r=>+r.step))].forEach(st=>{
+    const cls=pf.rows.some(r=>+r.step===st&&r.cls==="CC")?"CC":"SC",rows=d.rows.filter(r=>+r.step===st);
+    if(!rows.length||rows.some(r=>r.cls)) return;
+    const tgt=rows.filter(r=>txt(r.proc)&&/set value|time|delay|temperature/i.test(r.proc));(tgt.length?tgt:rows).forEach(r=>{r.cls=cls;n++;});});
+  return n;
+}
+function newCp(spec,pfId,manual){
+  const proc=spec?spec.proc:manual.proc;
+  const d={id:"CP-"+String(DB.seq.cp++).padStart(4,"0"),kind:"cp",title:spec?`Control plan · ${spec.part} ${spec.name||""}`.trim():`Control plan · ${manual.part}`,proc,part:spec?spec.part:manual.part,partName:spec?spec.name:"",customer:spec?spec.customer||"":"",
+    specId:spec?spec.id:"",specRef:spec?`${spec.id} rev ${spec.rev}`:"",pfmea:pfId||"",phase:"Production",team:S().team,keyContact:"",steps:STEPS[proc].map(([no,name])=>({no,name})),rows:spec?cpRows(spec):[],rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",notes:"",revs:[],log:[],rseq:200};
+  DB.docs.push(d);const n=markSpecial(d);
+  logIt(d,(spec?`Control plan generated from ${d.specRef}`:"Control plan created")+(n?`; ${n} characteristic${n>1?"s":""} marked special from ${d.pfmea}`:""));save();render();return d;
+}
+function newDialog(kind){
+  const sp=specsInForce(),pfs=DB.docs.filter(d=>d.kind==="pfmea"&&d.status!=="obsolete");
+  dlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${kind==="pfmea"?"New PFMEA":"New control plan"}</h2></div></div><div class="dlg-b">
+    ${kind==="pfmea"?`<p class="muted" style="margin:0">One PFMEA per process on this line. It starts with the typical failure modes of a direct-fired pusher line; your team reviews and rates every row.</p>
+      <div class="newbar"><div class="field"><label for="n-proc">Process</label><select id="n-proc">${Object.entries(PROC).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("")}</select></div></div>`
+    :`<p class="muted" style="margin:0">${sp.length?"The control plan is generated from the process specification in force for the part: every set value, tolerance, quench / cooling parameter and quality requirement becomes a row.":"No process specification in force is available (standalone, or none approved yet): the control plan starts empty."}</p>
+      <div class="newbar">${sp.length?`<div class="field"><label for="n-spec">Process specification</label><select id="n-spec">${sp.map(s=>`<option value="${esc(s.id)}">${esc(s.part)} · ${esc(s.name||"")} · ${esc(PROC[s.proc])} · ${esc(s.id)} rev ${s.rev}</option>`).join("")}</select></div>`
+        :`<div class="field"><label for="n-part">Part no.</label><input id="n-part"></div><div class="field"><label for="n-proc">Process</label><select id="n-proc">${Object.entries(PROC).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("")}</select></div>`}
+        <div class="field"><label for="n-pf">PFMEA</label><select id="n-pf"><option value="">— none yet —</option>${pfs.map(p=>`<option value="${esc(p.id)}">${esc(p.id)} · ${esc(PROC[p.proc])}</option>`).join("")}</select></div></div>`}
+  </div><div class="dlg-f"><span class="msg" id="nmsg"></span><button class="btn ghost" data-n="cancel">Cancel</button><button class="btn" data-n="${kind}">Create</button></div>`;
+  if(kind==="cp"){const sync=()=>{const s=sp.find(x=>x.id===($("#n-spec")||{}).value),pr=s?s.proc:($("#n-proc")||{}).value,m=pfs.find(p=>p.proc===pr&&p.status==="approved")||pfs.find(p=>p.proc===pr);if(m)$("#n-pf").value=m.id;};
+    ["#n-spec","#n-proc"].forEach(x=>{const el=$(x);if(el)el.addEventListener("change",sync);});sync();}
+  if(!dlg.open) dlg.showModal();
+}
+
+/* ---------- document (dialog) ---------- */
+const dlg=$("#dlg"),rdlg=$("#rdlg");
+let ED=null,MSG="",MSGOK=false;
+function openDoc(id){ED=clone(doc(id));MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
+const locked=()=>ED.status!=="draft";
+const hf=(k,label,o={})=>{const v=ED[k]??"",id="d-"+k,dis=locked()?"disabled":"";
+  const inp=o.opts?`<select id="${id}" data-h="${k}" ${dis}>${o.blank?`<option value=""></option>`:""}${o.opts.map(x=>{const [a,b]=Array.isArray(x)?x:[x,x];return `<option value="${esc(a)}" ${String(a)===String(v)?"selected":""}>${esc(b)}</option>`;}).join("")}</select>`
+    :o.type==="textarea"?`<textarea id="${id}" data-h="${k}" ${dis}>${esc(v)}</textarea>`:`<input id="${id}" data-h="${k}" type="${o.type||"text"}" value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.span?"span":""} ${o.req?"req":""}"><label for="${id}">${label}</label>${inp}</div>`;};
+const stepName=(d,no)=>(d.steps.find(s=>+s.no===+no)||{}).name||"";
+function pfTable(d,ro){
+  const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);let last=null,h="";
+  L.forEach(r=>{if(+r.step!==last){last=+r.step;h+=`<tr class="step"><td colspan="${ro?16:17}">${esc(r.step)} · ${esc(stepName(d,r.step))}</td></tr>`;}
+    const a=ap(r.s,r.o,r.d),a2=txt(r.done)?ap(r.s2||r.s,r.o2,r.d2):"";
+    h+=`<tr><td>${esc(r.func)}</td><td>${esc(r.mode)}</td><td>${esc(r.effect)}</td><td class="n">${esc(r.s)}</td><td class="n cls">${esc(r.cls||"")}</td><td>${esc(r.cause)}</td><td>${esc(r.prev)}</td><td class="n">${esc(r.o)}</td><td>${esc(r.det)}</td><td class="n">${esc(r.d)}</td><td class="n">${apTag(a)}</td><td class="n muted">${rpn(r.s,r.o,r.d)}</td>
+      <td>${esc(r.act)}</td><td>${esc(r.owner)}${r.due?`<br>${fdate(r.due)}`:""}</td><td>${esc(r.done)}${r.doneDate?`<br>${fdate(r.doneDate)}`:""}</td><td class="n">${a2?`${esc(r.s2||r.s)}·${esc(r.o2)}·${esc(r.d2)} ${apTag(a2)}`:""}</td>${ro?"":`<td>${locked()?"":`<button class="btn ghost small" data-row="${esc(r.id)}">Edit</button>`}</td>`}</tr>`;});
+  return `<table class="form"><thead><tr><th>Function / requirement</th><th>Failure mode</th><th>Failure effect</th><th>S</th><th>Class</th><th>Failure cause</th><th>Prevention control</th><th>O</th><th>Detection control</th><th>D</th><th>AP</th><th>RPN</th><th>Recommended action</th><th>Owner / target</th><th>Action taken</th><th>S·O·D · AP after</th>${ro?"":"<th></th>"}</tr></thead><tbody>${h||`<tr><td colspan="17" class="muted">No rows.</td></tr>`}</tbody></table>`;
+}
+function cpTable(d,ro){
+  const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);let last=null,h="",n=0;
+  L.forEach(r=>{if(+r.step!==last){last=+r.step;h+=`<tr class="step"><td colspan="${ro?12:13}">${esc(r.step)} · ${esc(stepName(d,r.step))}</td></tr>`;}n++;
+    h+=`<tr><td class="n">${n}</td><td>${esc(r.machine)}</td><td>${esc(r.prod)}</td><td>${esc(r.proc)}</td><td class="n cls">${esc(r.cls||"")}</td><td>${esc(r.spec)}</td><td>${esc(r.tech)}</td><td>${esc(r.size)}</td><td>${esc(r.freq)}</td><td>${esc(r.ctrl)}</td><td>${esc(r.react)}</td><td>${esc(r.rec)}</td>${ro?"":`<td>${locked()?"":`<button class="btn ghost small" data-row="${esc(r.id)}">Edit</button>`}</td>`}</tr>`;});
+  return `<table class="form"><thead><tr><th>No.</th><th>Machine / device</th><th>Product characteristic</th><th>Process characteristic</th><th>Class</th><th>Specification / tolerance</th><th>Evaluation / measurement</th><th>Sample size</th><th>Frequency</th><th>Control method</th><th>Reaction plan</th><th>Record</th>${ro?"":"<th></th>"}</tr></thead><tbody>${h||`<tr><td colspan="13" class="muted">No rows.</td></tr>`}</tbody></table>`;
+}
+function drawDlg(){
+  const d=ED,st=STATUS[d.status],I=issues(d),m=d.status==="draft"?missing(d):[],pfs=DB.docs.filter(x=>x.kind==="pfmea"&&x.status!=="obsolete");
+  dlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${esc(d.id)} rev ${d.rev}</h2>${chip(st[0],st[1],st[2])}<span class="muted">${d.kind==="pfmea"?"Process FMEA":"Control plan"} · ${esc(PROC[d.proc]||"")}</span></div>
+    ${d.status==="approved"?`<div class="lockmsg">Approved ${fdate(d.apprDate)} by ${esc(d.appr)}: locked. Make a new revision to change it.</div>`:d.rev>0&&d.status==="draft"?`<div class="lockmsg">Revision ${d.rev} draft; revision ${d.rev-1} stays in force until this one is approved.</div>`:""}</div>
+  <div class="dlg-b">
+    <section class="stage" style="--k:var(--p)"><h3>Document</h3><div class="fgrid">
+      ${hf("title","Title",{span:true,req:true})}${d.kind==="cp"?hf("part","Part no.",{req:true})+hf("partName","Part name")+hf("customer","Customer")+hf("phase","Phase",{opts:PHASES})+hf("pfmea","Linked PFMEA",{opts:pfs.map(p=>[p.id,`${p.id} · ${PROC[p.proc]}`]),blank:true,req:true})+`<div class="field"><span style="font-size:12px;color:var(--ink2)">Process specification</span><span>${esc(d.specRef||"—")}</span></div>`:""}
+      ${hf("team","Cross-functional team",{span:true,req:true})}${d.kind==="cp"?hf("keyContact","Key contact"):""}${hf("notes","Notes",{type:"textarea",span:true})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Process steps</h3><table class="steps"><tbody>${d.steps.map((s,i)=>`<tr><td style="width:90px"><input aria-label="Step number" data-st="${i}.no" type="number" value="${esc(s.no)}" ${locked()?"disabled":""}></td><td><input aria-label="Step name" data-st="${i}.name" value="${esc(s.name)}" ${locked()?"disabled":""}></td></tr>`).join("")}</tbody></table>
+      ${locked()?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" data-d="addstep">Add step</button></div>`}</section>
+    <section class="stage" style="--k:var(--accent)"><h3>${d.kind==="pfmea"?"Failure analysis and risk":"Characteristics and controls"} <small>${plural(d.rows.length,"row")}</small></h3>
+      ${locked()?"":`<div class="actions" style="margin-bottom:8px"><button class="btn small" data-d="addrow">Add row</button>${d.kind==="cp"&&d.specId&&specsInForce().some(s=>s.id===d.specId)?`<button class="btn ghost small" data-d="regen">Regenerate rows from the specification in force</button>`:""}</div>`}
+      <div class="form-wrap">${d.kind==="pfmea"?pfTable(d):cpTable(d)}</div></section>
+    <section class="stage" style="--k:var(--warn)"><h3>Checks</h3>${I.length?`<ul class="issues">${I.map(i=>`<li class="${i[0]}">${esc(i[1])}</li>`).join("")}</ul>`:`<p class="ok" style="margin:0;font-size:13px">No open link, feedback or review item.</p>`}
+      ${d.status==="draft"?`<p class="muted" style="margin:8px 0 0;font-size:12.5px">${m.length?"To approve: "+esc(m.slice(0,8).join("; "))+(m.length>8?` … (${m.length} items)`:"")+".":"Everything needed is recorded: the document can be approved."}</p>`:""}</section>
+    <section class="stage" style="--k:var(--good)"><h3>Approval</h3><div class="fgrid">${hf("prep","Prepared by",{req:true})}${hf("appr","Approved by (Quality Manager)",{req:true})}${hf("apprDate","Approval date",{type:"date",req:true})}${d.rev>0?hf("change","Reason for the change",{type:"textarea",span:true,req:true}):""}</div></section>
+    ${d.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${d.revs.map(r=>`<li>Rev ${r.rev}: approved ${fdate(r.apprDate)} by ${esc(r.appr||"—")}${r.change?" · "+esc(r.change):""}</li>`).join("")}${d.log.map(l=>`<li>${fdate(l.d)}: ${esc(l.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    <button class="btn ghost small" data-d="xlsx">Excel</button><button class="btn ghost small" data-d="pdf">PDF</button>
+    ${d.status==="draft"&&d.rev===0?`<button class="btn danger small" data-d="delete">Delete</button>`:""}${d.status==="draft"&&d.rev>0?`<button class="btn danger small" data-d="discard">Discard revision</button>`:""}
+    ${d.status==="approved"?`<button class="btn danger small" data-d="obsolete">Make obsolete</button><button class="btn ghost" data-d="revise">New revision</button>`:""}
+    <button class="btn ghost" data-d="cancel">Close</button>${d.status==="draft"?`<button class="btn ghost" data-d="save">Save draft</button><button class="btn" data-d="approve">Approve</button>`:""}</div>`;
+}
+function commit(t){const i=DB.docs.findIndex(x=>x.id===ED.id);if(t)logIt(ED,t);DB.docs[i]=ED;ED=clone(ED);save();render();}
+dlg.addEventListener("input",e=>{const el=e.target;if(!ED||locked()) return;
+  if(el.dataset.h){ED[el.dataset.h]=el.value;return;}
+  if(el.dataset.st){const [i,k]=el.dataset.st.split(".");ED.steps[+i][k]=k==="no"?(num(el.value)??""):el.value;}});
+dlg.addEventListener("click",e=>{
+  const b=e.target.closest("[data-d],[data-n],[data-row]");if(!b) return;
+  if(b.dataset.n){const k=b.dataset.n;if(k==="cancel"){dlg.close();return;}
+    let d;if(k==="pfmea") d=newPfmea($("#n-proc").value);
+    else{const sp=specsInForce().find(s=>s.id===($("#n-spec")||{}).value);
+      if(!sp&&!txt(($("#n-part")||{}).value)){$("#nmsg").textContent="Enter the part no.";return;}
+      d=newCp(sp||null,$("#n-pf").value,sp?null:{part:$("#n-part").value.trim(),proc:$("#n-proc").value});}
+    openDoc(d.id);return;}
+  if(b.dataset.row){openRow(b.dataset.row);return;}
+  const a=b.dataset.d,done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(a==="save"){commit("Draft saved");done("","Saved.");return;}
+  if(a==="addstep"){ED.steps.push({no:(Math.max(0,...ED.steps.map(s=>+s.no||0))+10),name:""});drawDlg();return;}
+  if(a==="addrow"){openRow("");return;}
+  if(a==="regen"){const sp=specsInForce().find(s=>s.id===ED.specId);if(!sp||!confirm(`Replace all rows with rows generated from ${sp.id} rev ${sp.rev}? Edits to the rows are lost.`)) return;
+    ED.rows=cpRows(sp);ED.specRef=`${sp.id} rev ${sp.rev}`;markSpecial(ED);commit(`Rows regenerated from ${ED.specRef}`);done("","Rows regenerated.");return;}
+  if(a==="xlsx"){const m=docXlsx(ED);if(m)$("#dmsg").textContent=m;return;}
+  if(a==="pdf"){const m=docPdf(ED);if(m)$("#dmsg").textContent=m;return;}
+  if(a==="approve"){const m=missing(ED);if(m.length){done("To approve: "+m.slice(0,6).join("; ")+(m.length>6?` … (${m.length} items)`:"")+".");return;}
+    ED.status="approved";commit(`Revision ${ED.rev} approved by ${ED.appr}`);done("",`Revision ${ED.rev} approved.`);return;}
+  if(a==="revise"){const snap=clone(ED);delete snap.revs;delete snap.log;ED.revs.push(snap);ED.rev++;ED.status="draft";ED.prep="";ED.appr="";ED.apprDate="";ED.change="";
+    commit(`Revision ${ED.rev} started; revision ${ED.rev-1} stays in force`);done("",`Revision ${ED.rev} started.`);return;}
+  if(a==="discard"){if(!confirm(`Discard the draft of revision ${ED.rev}?`)) return;const prev=ED.revs.pop(),keep={revs:ED.revs,log:ED.log};ED={...prev,...keep};commit(`Draft of revision ${ED.rev+1} discarded`);done("","Draft discarded.");return;}
+  if(a==="obsolete"){const why=prompt("Reason for making this document obsolete:");if(!why||!why.trim()) return;ED.status="obsolete";commit("Made obsolete: "+why.trim());done("","Document made obsolete.");return;}
+  if(a==="delete"){if(confirm(`Delete draft ${ED.id}? This cannot be undone.`)){DB.docs=DB.docs.filter(x=>x.id!==ED.id);save();render();dlg.close();}return;}
+});
+
+/* ---------- one row (second dialog) ---------- */
+const PFF=[["step","Process step","step"],["func","Function / requirement","text"],["mode","Failure mode","text"],["effect","Failure effect","area"],["s","Severity S (1–10)","sod"],["cls","Special characteristic","cls"],["cause","Failure cause","area"],["prev","Prevention control","area"],["o","Occurrence O (1–10)","sod"],["det","Detection control","area"],["d","Detection D (1–10)","sod"],
+  ["act","Recommended action","area"],["owner","Owner","text"],["due","Target date","date"],["done","Action taken","area"],["doneDate","Completion date","date"],["s2","S after the action","sod"],["o2","O after the action","sod"],["d2","D after the action","sod"]];
+const CPF=[["step","Process step","step"],["machine","Machine / device / jig","text"],["prod","Product characteristic","text"],["proc","Process characteristic","text"],["cls","Special characteristic","cls"],["spec","Specification / tolerance","text"],["tech","Evaluation / measurement technique","text"],["size","Sample size","text"],["freq","Frequency","text"],["ctrl","Control method","text"],["react","Reaction plan","area"],["rec","Record (CALOR page)","rec"]];
+let RE=null;
+function openRow(id){
+  const F=ED.kind==="pfmea"?PFF:CPF;
+  RE=id?clone(ED.rows.find(r=>r.id===id)):Object.fromEntries(F.map(([k])=>[k,""]));if(!id)RE.step=ED.steps[0]?ED.steps[0].no:10;
+  const fl=([k,l,t])=>{const v=RE[k]??"",i="r-"+k;
+    const inp=t==="step"?`<select id="${i}" data-r="${k}">${ED.steps.map(s=>`<option value="${esc(s.no)}" ${+s.no===+v?"selected":""}>${esc(s.no)} · ${esc(s.name)}</option>`).join("")}</select>`
+      :t==="sod"?`<select id="${i}" data-r="${k}"><option value=""></option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option ${String(n)===String(v)?"selected":""}>${n}</option>`).join("")}</select>`
+      :t==="cls"?`<select id="${i}" data-r="${k}">${CLS.map(c=>`<option value="${c}" ${c===v?"selected":""}>${esc(CLSN[c])}</option>`).join("")}</select>`
+      :t==="rec"?`<select id="${i}" data-r="${k}">${RECS.map(c=>`<option ${c===v?"selected":""}>${esc(c)}</option>`).join("")}</select>`
+      :t==="area"?`<textarea id="${i}" data-r="${k}">${esc(v)}</textarea>`:`<input id="${i}" data-r="${k}" type="${t==="date"?"date":"text"}" value="${esc(v)}">`;
+    return `<div class="field ${t==="area"?"span":""}"><label for="${i}">${l}</label>${inp}</div>`;};
+  rdlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${id?"Edit row":"New row"}</h2><span id="r-ap"></span></div></div><div class="dlg-b"><div class="fgrid">${F.map(fl).join("")}</div></div>
+    <div class="dlg-f"><span class="msg" id="rmsg"></span>${id?`<button class="btn danger small" data-rr="del">Delete row</button>`:""}<button class="btn ghost" data-rr="cancel">Cancel</button><button class="btn" data-rr="ok">${id?"Apply":"Add"}</button></div>`;
+  apShow();rdlg.showModal();
+}
+const apShow=()=>{const el=$("#r-ap");if(!el||ED.kind!=="pfmea") return;const a=ap(RE.s,RE.o,RE.d),a2=txt(RE.done)?ap(RE.s2||RE.s,RE.o2,RE.d2):"";el.innerHTML=a?`Action Priority ${apTag(a)} · RPN ${rpn(RE.s,RE.o,RE.d)}${a2?` → after the action ${apTag(a2)}`:""}`:"";};
+rdlg.addEventListener("input",e=>{const k=e.target.dataset.r;if(k){RE[k]=e.target.value;apShow();}});
+rdlg.addEventListener("change",e=>{const k=e.target.dataset.r;if(k){RE[k]=e.target.value;apShow();}});
+rdlg.addEventListener("click",e=>{const b=e.target.closest("[data-rr]");if(!b) return;const a=b.dataset.rr;
+  if(a==="cancel"){rdlg.close();return;}
+  if(a==="del"){if(!confirm("Delete this row?")) return;ED.rows=ED.rows.filter(r=>r.id!==RE.id);rdlg.close();MSG="Row deleted (save the draft to keep it).";MSGOK=true;drawDlg();return;}
+  if(ED.kind==="pfmea"&&!txt(RE.mode)){$("#rmsg").textContent="Enter the failure mode.";return;}
+  if(ED.kind==="cp"&&!txt(RE.prod)&&!txt(RE.proc)){$("#rmsg").textContent="Enter a product or process characteristic.";return;}
+  if(RE.id){const i=ED.rows.findIndex(r=>r.id===RE.id);ED.rows[i]=RE;}else{RE.id="r"+(ED.rseq=(+ED.rseq||100)+1);ED.rows.push(RE);}
+  rdlg.close();MSG="Row saved in the draft (save the draft to keep it).";MSGOK=true;drawDlg();});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",e=>{
+  if(dlg.contains(e.target)||rdlg.contains(e.target)) return;
+  const b=e.target.closest("button");if(!b) return;
+  if(b.dataset.open){openDoc(b.dataset.open);return;}
+  if(b.dataset.xl){const m=docXlsx(doc(b.dataset.xl));if(m)alert(m);return;}
+  if(b.dataset.pdf){const m=docPdf(doc(b.dataset.pdf));if(m)alert(m);return;}
+  const id=b.id;
+  if(id==="b-newpf") newDialog("pfmea");
+  else if(id==="b-newcp") newDialog("cp");
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("cpf-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-export") download(`control-plan-pfmea-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!DB.docs.length||confirm("Replace all current documents with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete all PFMEAs and control plans and reset settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#setup").addEventListener("change",e=>{const el=e.target;if(!el.dataset.set) return;const k=el.dataset.set;S()[k]=el.type==="number"?(num(el.value)??DEF[k]):el.value;save();render();});
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a control plan / PFMEA backup");
+    if(confirm(`Import ${plural(o.docs.length,"document")}? This replaces the documents now in this browser.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+const dlName=d=>ascii(`${d.kind==="pfmea"?"PFMEA":"Control plan"} ${d.id} rev ${d.rev} ${d.part||PROC[d.proc]||""}`).replace(/&/g,"and");
+function docTables(d){
+  const head=[["Document",`${d.id} rev ${d.rev}`],["Type",d.kind==="pfmea"?"Process FMEA":"Control plan"],["Title",d.title],["Process",PROC[d.proc]||""]];
+  if(d.kind==="cp") head.push(["Part no.",d.part],["Part name",d.partName||""],["Customer",d.customer||""],["Phase",d.phase],["Process specification",d.specRef||""],["Linked PFMEA",d.pfmea||""],["Key contact",d.keyContact||""]);
+  head.push(["Team",d.team],["Status",STATUS[d.status][2]],["Prepared by",d.prep],["Approved by",d.appr],["Approval date",fdate(d.apprDate)],["Reason for the change",d.change||""]);
+  const L=d.rows.slice().sort((a,b)=>+a.step-+b.step);
+  const rows=d.kind==="pfmea"?{head:["Step","Process step","Function / requirement","Failure mode","Failure effect","S","Class","Failure cause","Prevention control","O","Detection control","D","AP","RPN","Recommended action","Owner","Target","Action taken","Completed","S after","O after","D after","AP after"],
+      rows:L.map(r=>[num(r.step)??r.step,stepName(d,r.step),r.func,r.mode,r.effect,num(r.s)??"",r.cls||"",r.cause,r.prev,num(r.o)??"",r.det,num(r.d)??"",ap(r.s,r.o,r.d),rpn(r.s,r.o,r.d),r.act,r.owner,fdate(r.due),r.done,fdate(r.doneDate),num(r.s2)??"",num(r.o2)??"",num(r.d2)??"",txt(r.done)?ap(r.s2||r.s,r.o2,r.d2):""])}
+    :{head:["Step","Process step","Machine / device","Product characteristic","Process characteristic","Class","Specification / tolerance","Evaluation / measurement","Sample size","Frequency","Control method","Reaction plan","Record"],
+      rows:L.map(r=>[num(r.step)??r.step,stepName(d,r.step),r.machine,r.prod,r.proc,r.cls||"",r.spec,r.tech,r.size,r.freq,r.ctrl,r.react,r.rec])};
+  const iss={head:["Level","Check"],rows:issues(d).map(i=>[i[0]==="crit"?"Not met":"Review",i[1]])};
+  const hist={head:["Date","Event"],rows:d.log.map(x=>[fdate(x.d),x.t])};
+  return {head,rows,iss,hist};
+}
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells}),kvRows=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
+const tblRows=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
+function docXlsx(d){
+  const T=docTables(d),w=d.kind==="pfmea"?[6,24,30,28,32,4,6,30,30,4,30,4,5,6,30,16,11,30,11,6,6,6,7]:[6,24,22,24,26,6,24,28,14,16,26,36,16];
+  const sheets=[{name:d.kind==="pfmea"?"PFMEA":"Control plan",widths:w,rows:[B([`${d.kind==="pfmea"?"Process FMEA":"Control plan"} ${d.id} rev ${d.rev} · ${d.title}`]),N([S().plant]),N([]),...tblRows(T.rows)]},
+    {name:"Header",widths:[28,70],rows:[B(["Document"]),N([]),...kvRows(T.head)]},{name:"Checks",widths:[12,100],rows:[B(["Checks"]),N([]),...tblRows(T.iss)]},{name:"History",widths:[14,90],rows:[B(["History"]),N([]),...tblRows(T.hist)]}];
+  try{download(dlName(d)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function docPdf(d){
+  const T=docTables(d),e=esc;
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v??"")}</td></tr>`).join("")}</tbody></table>`;
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(dlName(d))}</title><style>
+    @page{size:A4 landscape;margin:10mm}
+    body{font:9.5px/1.35 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:14px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:16px;margin:0 0 2px}h2{font-size:12px;margin:12px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566}
+    .muted{color:#76838c}table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:2px 4px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}table.kv{width:auto;min-width:50%}table.kv th{background:#f2f4f5;font-weight:500}
+    tr.step td{background:#e7eae7;font-weight:600}.H{background:#d03b3b;color:#fff;font-weight:700;text-align:center}.M{background:#fab219;font-weight:700;text-align:center}.L{text-align:center}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>${d.kind==="pfmea"?"Process FMEA":"Control plan"} · ${e(d.id)} rev ${d.rev}</h1><p class="muted" style="margin:0 0 6px">${e(S().plant)} · ${e(d.title)}</p>
+  ${kv(T.head)}
+  <h2>${d.kind==="pfmea"?"Failure analysis, risk analysis and optimisation":"Characteristics and controls"}</h2>
+  <table><thead><tr>${T.rows.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${T.rows.rows.map(r=>`<tr>${r.map((v,i)=>`<td class="${(d.kind==="pfmea"&&(i===12||i===22))?v:""}">${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  ${T.iss.rows.length?`<h2>Checks</h2><table><tbody>${T.iss.rows.map(r=>`<tr><td>${e(r[0])}</td><td>${e(r[1])}</td></tr>`).join("")}</tbody></table>`:""}
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+
+/* ---------- example data ---------- */
+function example(){
+  const o=blank(),td=today();DB=o;
+  const pf=newPfmea("HT");pf.prep="HT Manager";pf.appr="Quality Manager";pf.apprDate=addDays(td,-45);pf.status="approved";logIt(pf,"Revision 0 approved by Quality Manager");
+  const w=pf.rows.find(r=>/Water in the quench oil/.test(r.mode));if(w){w.act="Install a water-in-oil sensor with alarm on the cooler outlet";w.owner="Maintenance Head";w.due=addDays(td,30);}
+  const d=pf.rows.find(r=>/Decarburization/.test(r.mode));if(d){d.act="Burner air/gas ratio check monthly";d.owner="Maintenance Head";d.due=addDays(td,-5);}
+  newPfmea("IA");
+  const sp=specsInForce()[0];
+  if(sp) newCp(sp,sp.proc==="HT"?pf.id:"");
+  else{const c=newCp(null,pf.id,{part:"EX-1001",proc:"HT"});c.rows=cpRows({id:"PS-0001",rev:1,part:"EX-1001",name:"Example shaft",proc:"HT",furnaces:["F-01","F-02"],pcs:60,h:[840,870,870],t:[560,580,580],htol:[10,10,10],ttol:[10,10,10],push:12,pushTol:0.5,
+    q:{medium:"oil",tLo:"50",tHi:"80",delay:"30",dip:"8",transfer:"5",agit:"Required"},req:{hMin:"28",hMax:"32",scale:"HRC",decarb:"≤ 0.10 mm total",micro:"Tempered martensite",sample:"2 pcs per batch"}});c.specRef="PS-0001 rev 1 (example)";markSpecial(c);}
+  return o;
+}
+
+/* ---------- CALOR: status for the home page ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
+  HTQ.provide("cpf",{
+    overview:()=>{const L=DB.docs.filter(d=>d.status!=="obsolete");
+      return {docs:L.map(d=>({id:d.id,kind:d.kind,title:d.title,part:d.part||"",proc:d.proc,status:d.status,rev:d.rev,issues:issues(d)})),
+        apH:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows).filter(r=>ap(r.s,r.o,r.d)==="H"&&!txt(r.done)).length,
+        late:L.filter(d=>d.kind==="pfmea").flatMap(d=>d.rows.filter(r=>txt(r.act)&&!txt(r.done)&&isDate(r.due)&&r.due<today()).map(r=>({doc:d.id,step:r.step,mode:r.mode,due:r.due,owner:r.owner})))};}
+  });
+  HTQ.on("nav:cpf",o=>{if(o&&o.doc)openDoc(o.doc);});
+  let T=0;const again=()=>{clearTimeout(T);T=setTimeout(()=>{render();HTQ.emit("cpf:changed");},250);};
+  ["spec:ready","spec:changed","metal:changed","quench:changed","tus:changed","sat:changed"].forEach(ev=>HTQ.on(ev,again));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("cpf-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.docs.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__CPF={get DB(){return DB;},ap,missing,issues,cpRows,pfRows,openDoc,newPfmea,newCp};
+</script>
+</body></html>

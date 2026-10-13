@@ -857,6 +857,8 @@ function example(){
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
   HTQ.provide("metal",{
+    /* nonconforming tests on/after a date (optionally one process), for the PFMEA review */
+    ncSince:(d,proc)=>DB.tests.filter(t=>t.date>=d&&(!proc||t.proc===proc)&&evalT(t).res==="fail").map(t=>({id:t.id,date:t.date,part:t.part,batch:t.batch})),
     overview:()=>{const d30=addDays(today(),-30),L=DB.tests.filter(t=>t.date>=d30);
       return {tests30:L.length,nok30:L.filter(t=>["fail","invalid"].includes(evalT(t).res)).length,
         open:DB.tests.filter(t=>status(t)==="open").map(t=>({id:t.id,part:t.part,batch:t.batch,furnace:t.furnace,date:t.date})),

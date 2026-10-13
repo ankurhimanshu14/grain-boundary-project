@@ -808,6 +808,7 @@ if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
   const rsum=(r,day)=>{const R=rangeState(r,day);return {id:r.id,lo:num(r.lo),hi:num(r.hi),tol:num(r.tol),interval:num(r.interval)||+S().interval,st:R.st,due:R.due||"",label:RST[R.st][2]};};
   HTQ.provide("tus",{
+    failsSince:d=>DB.surveys.filter(t=>t.date>=d&&calc(t).res==="fail").map(t=>({id:t.id,date:t.date,furnace:t.furnace,chamber:t.chamber})),
     /* qualified ranges of one chamber with their state on a day (default today) */
     statusAt:(f,ch,day)=>rangesOf(f,ch).map(r=>rsum(r,day)),
     endTol:()=>endTol(),
