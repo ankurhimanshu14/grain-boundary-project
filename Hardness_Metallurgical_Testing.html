@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hardness and Metallurgical Testing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+/* hardness and metallurgical testing */
+.filters{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:12px}
+.filters .field input{width:240px}
+table.samp{width:100%;border-collapse:collapse;font-size:13px}
+table.samp th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 6px 5px 0;border-bottom:1px solid var(--line)}
+table.samp td{padding:4px 6px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.samp input{font:inherit;font-family:var(--mono);padding:6px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:62px}
+table.samp td.n{font-family:var(--mono);white-space:nowrap}
+.reqline{font-size:12.5px;color:var(--ink2);margin:0 0 8px}
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.fail{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.invalid{color:var(--crit-ink);font-weight:500}
+@media screen and (max-width:760px){
+  table.samp thead{display:none}
+  table.samp tr{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 6px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.samp td{border:0;padding:0}
+  table.samp td:first-child{grid-column:1/-1}
+  table.samp td.n,table.samp td.j{grid-column:span 1}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · In-process and final tests · Hardness and metallurgy</div>
+      <h1>Hardness and metallurgical testing</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-new">Record a test</button>
+      <button class="btn ghost" id="b-verif">Record tester verification</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>How a test moves through PDCA</h2></div>
+    <ul class="cycle-explain">
+      <li><b>Plan</b> — the requirements and sampling come from the process specification in force for the part (hardness, core hardness, decarburization, microstructure, grain size).</li>
+      <li><b>Do</b> — test the samples of the batch on a calibrated, verified tester and record every reading.</li>
+      <li><b>Check</b> — every reading is judged against the limits; the test is invalid when the tester's calibration had expired.</li>
+      <li><b>Act</b> — a nonconforming batch needs containment, root cause, correction, product-impact assessment and a disposition; it is accepted only after a passing re-test.</li>
+    </ul>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Test register</h2><p>One record per batch tested. Open a record to change it or to work on its reaction plan; download one record as Excel or PDF.</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-xlsx">Download register (Excel)</button><button class="btn ghost small" id="b-csv">Export readings (CSV)</button></div></div>
+    <div class="filters noprint" id="filters"></div>
+    <div class="scroll" id="register"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Nonconforming results: reaction plans</h2><p>Every test with a result outside the requirements. The batch is contained until the reaction plan is closed: containment, root cause, correction, product-impact assessment and a final disposition; a batch is accepted only after a passing re-test of the same part and batch.</p></div>
+    <div class="scroll" id="react"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Surface hardness trend per part</h2><p>Mean surface hardness of each test with the specified limits (dashed). A trend towards a limit is the cue to adjust the process before a batch fails.</p></div>
+    <div class="legend"><span><span class="lg-dash"></span>limit</span><span><span class="dot" style="background:var(--good)"></span>within limits</span><span><span class="dot" style="background:var(--warn)"></span>close to a limit</span><span><span class="dot" style="background:var(--crit)"></span>out of limits</span></div>
+    <div id="trend"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Test equipment and daily verification</h2><p>A test is invalid when the tester's calibration had expired on the test day. The hardness tester is verified on a certified test block each day it is used, before testing.</p>
+      <div class="actions noprint"><button class="btn small" id="b-verif2">Record tester verification</button></div></div>
+    <div class="scroll" id="equip"></div>
+    <h3 style="margin:16px 0 6px">Verification log</h3>
+    <div class="scroll" id="verifs"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (Laboratory)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings, test equipment and data</summary>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Test equipment</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Verification tolerance: the allowed difference between the mean of the readings on the test block and the block's certified value, in the block's scale. Confirm it against the test standard (e.g. ISO 6508 / ASTM E18 for Rockwell, ISO 6506 / ASTM E10 for Brinell) and the block certificate.</p>
+    <div class="scroll" id="equip-reg"></div>
+    <div class="actions" style="margin-top:8px"><button class="btn ghost small" id="b-addeq">Add equipment</button></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only. Export a backup regularly and import it on another computer.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li>CQI-9 requires in-process and final tests to the part's requirements, on calibrated equipment that is verified before use, with the results recorded per batch and nonconforming product contained. Confirm the test methods, sampling and limits against the controlled CQI-9 copy, the customer's requirements and the process specification.</li>
+      <li>Surface hardness: every reading is judged against the specified minimum and maximum; a reading within the warning margin (default 10 % of the band) passes but is flagged. Core hardness is judged against its own limits when they are given.</li>
+      <li>Decarburization: the measured depth (total, mm) must not exceed the limit of the specification. The furnaces are direct-fired without a protective atmosphere, so it is checked on every tested batch.</li>
+      <li>Microstructure is judged OK / not OK against the specified structure; grain size is recorded.</li>
+      <li>A test is invalid when the tester's calibration had expired on the test day; a missing daily verification is reported.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+<dialog id="vdlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowTime=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const daysBetween=(a,b)=>dnum(b)-dnum(a);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,txt)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(txt)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const r1=v=>v==null?"":Math.round(v*10)/10;
+
+/* ---------- data model ---------- */
+const KEY="hmt-reg", VKEY="hmt-view"; /* own storage keys */
+const SCALES=["HRC","HRB","HB","HV"];
+const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
+const DISP={accepted:"Accepted",hold:"On hold",rework:"Re-heat-treat",scrap:"Scrap",concession:"Released under customer concession"};
+const CONTAIN=["Batch held and segregated","Batch and the batches processed since the last passing test held","Furnace stopped until the cause is found","Other (see details)"];
+const ACTIONS=["Re-heat-treat the batch","Adjust set value / push time within the specification","Repair the furnace (burner, thermocouple, controller)","Correct the quench (temperature, agitation, dip time)","Revise the process specification","Other (see details)"];
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",nRead:3,nSamp:2,warnPct:10,calSoon:30};
+const defEquip=()=>[
+  {id:"EQ-01",name:"Rockwell hardness tester",kind:"Rockwell",scales:"HRC, HRB",serial:"",calDue:"",tol:"1.0",active:true},
+  {id:"EQ-02",name:"Brinell hardness tester",kind:"Brinell",scales:"HB",serial:"",calDue:"",tol:"3",active:true},
+  {id:"EQ-03",name:"Metallurgical microscope",kind:"Microscope",scales:"",serial:"",calDue:"",tol:"",active:true}];
+const blank=()=>({v:1,settings:{...DEF},equip:defEquip(),verifs:[],tests:[],seq:1,vseq:1});
+const emptyReq=()=>({hMin:"",hMax:"",scale:"HRC",cMin:"",cMax:"",decarbMax:"",micro:"",grain:"",sample:""});
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.tests)) return null;
+  o.settings={...DEF,...(o.settings||{})};
+  if(!Array.isArray(o.equip)) o.equip=defEquip();
+  if(!Array.isArray(o.verifs)) o.verifs=[];
+  o.tests=o.tests.filter(t=>t&&t.id).map(t=>({samples:[],core:[],req:emptyReq(),act:{},check:{},log:[],closed:false,...t,req:{...emptyReq(),...(t.req||{})}}));
+  o.seq=Math.max(+o.seq||1,...o.tests.map(t=>+(String(t.id).match(/\d+/)||[0])[0]+1));
+  o.vseq=Math.max(+o.vseq||1,...o.verifs.map(v=>+(String(v.id).match(/\d+/)||[0])[0]+1));
+  o.v=1; return o;
+}
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("metal:changed"),300);}};
+const S=()=>DB.settings;
+const eq=id=>DB.equip.find(e=>e.id===id);
+const furnaces=()=>{const a=HTQ&&HTQ.api("sat"),l=a?a.furnaces():["F-01","F-02","F-03","F-04"];return [...new Set(l.concat(DB.tests.map(t=>t.furnace)).filter(Boolean))].sort();};
+const specs=()=>{const a=HTQ&&HTQ.api("spec");return a&&a.inForce?a.inForce():[];};
+const tsKey=t=>(t.date||"")+" "+(t.time||"00:00");
+const byTime=(a,b)=>tsKey(a)<tsKey(b)?-1:tsKey(a)>tsKey(b)?1:0;
+const same=(a,b)=>String(a||"").trim().toLowerCase()===String(b||"").trim().toLowerCase();
+const newId=()=>"MT-"+String(DB.seq++).padStart(4,"0");
+const logIt=(t,text)=>t.log.push({d:today(),t:text});
+/* page filter (per viewer) */
+let VIEW={f:"",st:"",q:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=v=>{VIEW={...VIEW,...v};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+
+/* ---------- equipment: calibration and daily verification ---------- */
+function calState(e,day){
+  if(!e||!isDate(e.calDue)) return {st:"unknown"};
+  const left=daysBetween(day||today(),e.calDue);
+  return {st:left<0?"expired":left<=(+S().calSoon||30)?"soon":"ok",left,due:e.calDue};
+}
+const vEval=v=>{const e=eq(v.eq)||{},rs=(v.r||[]).map(num).filter(x=>x!=null),m=mean(rs),nom=num(v.nominal),tol=num(e.tol);
+  return {m,dev:m!=null&&nom!=null?m-nom:null,ok:m!=null&&nom!=null&&tol!=null?Math.abs(m-nom)<=tol:null};};
+const verifOn=(id,day)=>DB.verifs.filter(v=>v.eq===id&&v.date===day);
+const isHardness=e=>e&&e.kind!=="Microscope";
+
+/* ---------- check: judgement of one test ---------- */
+const RANK={fail:3,warn:2,pass:1,info:0};
+const worst=js=>js.filter(Boolean).sort((a,b)=>RANK[b]-RANK[a])[0]||null;
+const limTxt=(lo,hi,u)=>{lo=num(lo);hi=num(hi);return lo!=null&&hi!=null?`${lo} – ${hi} ${u}`:lo!=null?`≥ ${lo} ${u}`:hi!=null?`≤ ${hi} ${u}`:"not set";};
+function evalT(t){
+  const r=t.req||{},lo=num(r.hMin),hi=num(r.hMax),w=(+S().warnPct||0)/100,m=lo!=null&&hi!=null?(hi-lo)*w:Math.abs(lo??hi??0)*w;
+  const jv=v=>v==null?null:lo==null&&hi==null?"info":(lo!=null&&v<lo)||(hi!=null&&v>hi)?"fail":w&&((lo!=null&&v<lo+m)||(hi!=null&&v>hi-m))?"warn":"pass";
+  const samples=(t.samples||[]).map((s,i)=>{const vals=(s.r||[]).map(num).filter(v=>v!=null);
+    return {i,label:s.label||`Sample ${i+1}`,vals,mean:mean(vals),min:vals.length?Math.min(...vals):null,max:vals.length?Math.max(...vals):null,j:worst(vals.map(jv))};}).filter(s=>s.vals.length);
+  const all=samples.flatMap(s=>s.vals),checks=[];
+  if(all.length) checks.push({k:"hard",j:worst(all.map(jv)),txt:`Surface hardness: ${all.length} readings ${r1(Math.min(...all))} – ${r1(Math.max(...all))} ${r.scale} (mean ${r1(mean(all))}), limits ${limTxt(lo,hi,r.scale)}`});
+  const cl=num(r.cMin),ch=num(r.cMax),core=(t.core||[]).map(num).filter(v=>v!=null);
+  if(core.length){const jc=v=>cl==null&&ch==null?"info":(cl!=null&&v<cl)||(ch!=null&&v>ch)?"fail":"pass";
+    checks.push({k:"core",j:worst(core.map(jc)),txt:`Core hardness: ${core.map(r1).join(", ")} ${r.scale}, limits ${limTxt(cl,ch,r.scale)}`});}
+  const dc=num(t.decarb),dm=num(r.decarbMax);
+  if(dc!=null) checks.push({k:"decarb",j:dm==null?"info":dc>dm?"fail":"pass",txt:`Decarburization: ${dc} mm${dm!=null?`, limit ≤ ${dm} mm`:" (no limit given)"}`});
+  if(t.micro==="ok"||t.micro==="nok") checks.push({k:"micro",j:t.micro==="nok"?"fail":"pass",txt:`Microstructure: ${t.micro==="ok"?"conforms":"does not conform"}${r.micro?` (required: ${r.micro})`:""}${t.microNote?` · ${t.microNote}`:""}`});
+  if(String(t.grain||"").trim()) checks.push({k:"grain",j:"info",txt:`Grain size: ${t.grain}${r.grain?` (required: ${r.grain})`:""}`});
+  /* validity of the equipment */
+  const issues=[],e=eq(t.eq);
+  if(all.length||core.length){
+    if(!e) issues.push({j:"warn",txt:"No hardness tester selected."});
+    else{const c=calState(e,t.date);
+      if(c.st==="expired") issues.push({j:"invalid",txt:`${e.id} ${e.name}: calibration expired on ${fdate(e.calDue)}, before the test. The test is invalid; repeat it on a calibrated tester.`});
+      else if(c.st==="unknown") issues.push({j:"warn",txt:`${e.id}: calibration due date not recorded.`});
+      const vs=verifOn(e.id,t.date);
+      if(!vs.length) issues.push({j:"warn",txt:`${e.id}: no verification on a test block recorded on ${fdate(t.date)}.`});
+      else if(!vs.some(v=>vEval(v).ok)) issues.push({j:"invalid",txt:`${e.id}: the verification on ${fdate(t.date)} failed. The test is invalid until the tester passes verification.`});
+      if(e.scales&&r.scale&&!e.scales.toUpperCase().includes(r.scale)) issues.push({j:"warn",txt:`${e.id} is not set up for ${r.scale}.`});}
+  }
+  if(t.micro&&t.micro!==""&&t.meq){const m2=eq(t.meq);if(m2&&calState(m2,t.date).st==="expired") issues.push({j:"warn",txt:`${m2.id}: calibration expired on ${fdate(m2.calDue)}.`});}
+  const n=checks.length,invalid=issues.some(i=>i.j==="invalid"),js=checks.map(c=>c.j);
+  const res=!n?null:invalid?"invalid":js.includes("fail")?"fail":js.includes("warn")||issues.length?"warn":"pass";
+  return {samples,all,core,checks,issues,res,mean:mean(all),fails:checks.filter(c=>c.j==="fail")};
+}
+const status=t=>{const E=evalT(t);return !E.res?"empty":E.res==="fail"?(t.closed?"closed":"open"):E.res;};
+const STATUS={empty:["info","–","No results"],pass:["good","✓","Conforms"],warn:["warn","!","Conforms, with notes"],invalid:["crit","✕","Invalid test"],open:["crit","✕","Nonconforming · reaction open"],closed:["good","✓","Nonconforming · reaction closed"]};
+const stChip=t=>{const s=STATUS[status(t)];return chip(s[0],s[1],s[2]);};
+/* the first later test of the same part and batch that conforms */
+const retestOf=t=>DB.tests.filter(x=>x.id!==t.id&&tsKey(x)>tsKey(t)&&same(x.part,t.part)&&same(x.batch,t.batch)).sort(byTime).find(x=>["pass","warn"].includes(evalT(x).res))||null;
+function missingAct(t){
+  if(evalT(t).res!=="fail") return [];
+  const a=t.act||{},m=[];
+  if(!a.contain) m.push("containment"); if(!a.cause) m.push("root cause"); if(!a.action) m.push("corrective action");
+  if(!a.impact) m.push("product-impact assessment"); if(!a.disp) m.push("disposition of the batch");
+  else if(a.disp==="hold") m.push("a final disposition (the batch is still on hold)");
+  else if((a.disp==="accepted"||a.disp==="rework")&&!retestOf(t)) m.push("a passing re-test of the same part and batch");
+  if(!a.by) m.push("action owner"); if(!isDate(a.date)) m.push("action date");
+  return m;
+}
+
+/* ---------- render: page ---------- */
+function render(){
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(DB.tests.length,"test record")}</span><span>Today ${fdate(today())}</span>`;
+  drawKpis();drawFilters();drawRegister();drawReact();drawTrend();drawEquip();drawVerifs();drawSettings();drawEquipReg();
+}
+function drawKpis(){
+  const d30=addDays(today(),-30),L=DB.tests.filter(t=>t.date>=d30),st=L.map(status),done=st.filter(s=>s!=="empty");
+  const ok=done.filter(s=>s==="pass"||s==="warn").length,open=DB.tests.filter(t=>status(t)==="open").length;
+  const exp=DB.equip.filter(e=>e.active!==false&&calState(e).st==="expired").length,soon=DB.equip.filter(e=>e.active!==false&&calState(e).st==="soon").length;
+  const hard=DB.equip.filter(e=>e.active!==false&&isHardness(e)),ver=hard.filter(e=>verifOn(e.id,today()).some(v=>vEval(v).ok)).length;
+  const k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
+  $("#kpis").innerHTML=k("Tests, last 30 days",L.length,`${done.length-ok} not conforming or invalid`)
+    +k("First-pass conformance",done.length?`${Math.round(ok/done.length*100)}<small> %</small>`:"—","conforming tests, last 30 days",done.length&&ok<done.length?"caution":"")
+    +k("Reactions open",open,"nonconforming batches not closed",open?"bad":"ok")
+    +k("Calibration expired",exp,`${soon} due within ${S().calSoon} days`,exp?"bad":soon?"caution":"ok")
+    +k("Testers verified today",`${ver}<small> / ${hard.length}</small>`,"passing test-block verification today",ver<hard.length?"caution":"ok");
+}
+function drawFilters(){
+  if($("#filters").dataset.done) return; /* built once so typing in the search keeps focus */
+  $("#filters").dataset.done="1";
+  $("#filters").innerHTML=`<div class="field"><label for="v-f">Furnace</label><select id="v-f" data-view="f"><option value="">All</option>${furnaces().map(f=>`<option ${VIEW.f===f?"selected":""}>${esc(f)}</option>`).join("")}</select></div>
+    <div class="field"><label for="v-st">Result</label><select id="v-st" data-view="st"><option value="">All</option>${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${VIEW.st===k?"selected":""}>${esc(v[2])}</option>`).join("")}</select></div>
+    <div class="field"><label for="v-q">Search part, batch, heat or test no.</label><input id="v-q" data-view="q" type="search" value="${esc(VIEW.q)}"></div>`;
+}
+const shown=t=>(!VIEW.f||t.furnace===VIEW.f)&&(!VIEW.st||status(t)===VIEW.st)&&(!VIEW.q||[t.id,t.part,t.batch,t.heat,t.heatCode].join(" ").toLowerCase().includes(VIEW.q.toLowerCase()));
+function drawRegister(){
+  if(!DB.tests.length){$("#register").innerHTML=`<div class="empty">No test records yet. Use “Record a test”, or load the example data under Settings.</div>`;return;}
+  const L=DB.tests.filter(shown).sort(byTime).reverse();
+  if(!L.length){$("#register").innerHTML=`<div class="empty">No test matches the filter.</div>`;return;}
+  $("#register").innerHTML=`<table class="log cards"><thead><tr><th>Test</th><th>Date</th><th>Furnace</th><th>Part</th><th>Batch / heat</th><th>Surface hardness</th><th>Other checks</th><th>Result</th><th class="noprint"></th></tr></thead><tbody>${L.map(t=>{
+    const E=evalT(t),r=t.req;
+    const oth=E.checks.filter(c=>c.k!=="hard").map(c=>`<span class="${c.j==="fail"?"bad":""}">${esc({core:"core",decarb:"decarb",micro:"microstructure",grain:"grain"}[c.k])}${c.j==="fail"?" ✕":""}</span>`).join(", ");
+    return `<tr><td data-label="Test"><b>${esc(t.id)}</b>${t.specRef?`<br><span class="muted small">${esc(t.specRef)}</span>`:""}</td><td data-label="Date">${fdate(t.date)} ${esc(t.time||"")}</td><td data-label="Furnace">${esc(t.furnace||"—")}</td>
+      <td data-label="Part"><b>${esc(t.part)}</b>${t.proc?`<br><span class="muted">${esc(PROC[t.proc]||t.proc)}</span>`:""}</td><td data-label="Batch / heat">${esc(t.batch||"—")}<br><span class="muted">${esc([t.heat,t.heatCode].filter(Boolean).join(" · "))}</span></td>
+      <td data-label="Surface hardness" class="mono">${E.all.length?`${r1(Math.min(...E.all))} – ${r1(Math.max(...E.all))} ${esc(r.scale)}<br><span class="muted">spec ${esc(limTxt(r.hMin,r.hMax,""))}</span>`:"—"}</td>
+      <td data-label="Other checks">${oth||"—"}</td><td data-label="Result">${stChip(t)}${t.act&&t.act.disp?`<br><span class="muted small">${esc(DISP[t.act.disp])}</span>`:""}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open="${esc(t.id)}">Open</button> <button class="btn ghost small" data-xl="${esc(t.id)}">Excel</button> <button class="btn ghost small" data-pdf="${esc(t.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawReact(){
+  const L=DB.tests.filter(t=>evalT(t).res==="fail").sort(byTime).reverse();
+  if(!L.length){$("#react").innerHTML=`<div class="empty">No nonconforming results.</div>`;return;}
+  $("#react").innerHTML=`<table class="log cards"><thead><tr><th>Test</th><th>Part / batch</th><th>Nonconformity</th><th>Disposition</th><th>Re-test</th><th>Reaction</th><th class="noprint"></th></tr></thead><tbody>${L.map(t=>{
+    const E=evalT(t),rt=retestOf(t),m=missingAct(t);
+    return `<tr><td data-label="Test"><b>${esc(t.id)}</b><br><span class="muted">${fdate(t.date)} · ${esc(t.furnace||"")}</span></td><td data-label="Part / batch">${esc(t.part)}<br><span class="muted">batch ${esc(t.batch||"—")}</span></td>
+      <td data-label="Nonconformity">${E.fails.map(c=>esc(c.txt)).join("<br>")}</td><td data-label="Disposition">${t.act&&t.act.disp?esc(DISP[t.act.disp]):`<span class="bad">not decided</span>`}</td>
+      <td data-label="Re-test">${rt?`<span class="ok">${esc(rt.id)} ${fdate(rt.date)}</span>`:"—"}</td>
+      <td data-label="Reaction">${stChip(t)}${t.closed?"":`<br><span class="muted small">Missing: ${esc(m.join(", "))}</span>`}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open="${esc(t.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+/* small trend chart of one parameter (SVG) */
+function mini(p,pts){
+  const W=320,H=120,L=40,R=8,T=8,B=20,lo=num(p.lo),hi=num(p.hi);
+  const xs=pts.map(q=>dnum(q.d)+(q.h||0));let x0=Math.min(...xs),x1=Math.max(...xs);if(x1-x0<1){x0-=1;x1+=1;}
+  const vs=pts.map(q=>q.v).concat([lo,hi].filter(v=>v!=null));let y0=Math.min(...vs),y1=Math.max(...vs);
+  const py=(y1-y0)*.15||Math.abs(y1)*.05||1;y0-=py;y1+=py;
+  const X=x=>L+(x-x0)/(x1-x0)*(W-L-R),Y=v=>T+(y1-v)/(y1-y0)*(H-T-B),dec=p.d??1;
+  const lim=[lo,hi].filter(v=>v!=null).map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--crit)" stroke-dasharray="4 3" stroke-width="1.2"/><text x="${W-R}" y="${(Y(v)-3).toFixed(1)}" text-anchor="end">${v}</text>`).join("");
+  const line=pts.length>1?`<polyline fill="none" stroke="var(--accent)" stroke-width="1.5" points="${pts.map((q,i)=>X(xs[i]).toFixed(1)+","+Y(q.v).toFixed(1)).join(" ")}"/>`:"";
+  const dots=pts.map((q,i)=>`<circle cx="${X(xs[i]).toFixed(1)}" cy="${Y(q.v).toFixed(1)}" r="${pts.length>40?2:3}" fill="${{fail:"var(--crit)",warn:"var(--warn)",pass:"var(--good)",info:"var(--accent)"}[q.j]||"var(--accent)"}"><title>${fdate(q.d)}: ${q.v} ${esc(p.u||"")}</title></circle>`).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(p.n)} trend">
+    <line x1="${L}" x2="${L}" y1="${T}" y2="${H-B}" stroke="var(--line)"/><line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" stroke="var(--line)"/>
+    <text x="${L-4}" y="${T+8}" text-anchor="end">${y1.toFixed(dec)}</text><text x="${L-4}" y="${H-B}" text-anchor="end">${y0.toFixed(dec)}</text>
+    <text x="${L}" y="${H-5}">${fdate(pts[0].d)}</text><text x="${W-R}" y="${H-5}" text-anchor="end">${fdate(pts.at(-1).d)}</text>
+    ${lim}${line}${dots}</svg>`;
+}
+function drawTrend(){
+  const parts={};DB.tests.filter(t=>(!VIEW.f||t.furnace===VIEW.f)).sort(byTime).forEach(t=>{const E=evalT(t);if(E.mean==null)return;(parts[t.part]=parts[t.part]||[]).push({t,E});});
+  const out=Object.entries(parts).map(([part,L])=>{const r=L.at(-1).t.req,p={n:part,u:r.scale,lo:r.hMin,hi:r.hMax,d:1};
+    const pts=L.map(({t,E})=>{const hm=/^(\d{1,2}):(\d{2})/.exec(t.time||"");return {d:t.date,h:hm?(+hm[1]*60+ +hm[2])/1440:0,v:Math.round(E.mean*10)/10,j:E.checks.find(c=>c.k==="hard").j};});
+    return `<div><h3>${esc(part)} <span class="muted">(${esc(r.scale)} · ${esc(limTxt(r.hMin,r.hMax,r.scale))} · ${plural(L.length,"test")})</span></h3>${mini(p,pts)}</div>`;});
+  $("#trend").innerHTML=out.length?`<div class="mini-grid">${out.join("")}</div>`:`<div class="empty">No hardness results yet.</div>`;
+}
+function drawEquip(){
+  const CS={expired:["crit","✕","Calibration expired"],soon:["warn","!","Calibration due soon"],ok:["good","✓","Calibrated"],unknown:["warn","!","Due date not recorded"]};
+  const L=DB.equip.filter(e=>e.active!==false);
+  $("#equip").innerHTML=L.length?`<table class="log cards"><thead><tr><th>Equipment</th><th>Type</th><th>Serial</th><th>Calibration due</th><th>Calibration</th><th>Verification today</th></tr></thead><tbody>${L.map(e=>{
+    const c=calState(e),cs=CS[c.st],v=verifOn(e.id,today()),ve=v.map(vEval);
+    return `<tr><td data-label="Equipment"><b>${esc(e.id)}</b> ${esc(e.name)}</td><td data-label="Type">${esc(e.kind)}${e.scales?` <span class="muted">(${esc(e.scales)})</span>`:""}</td><td data-label="Serial">${esc(e.serial||"—")}</td>
+      <td data-label="Calibration due">${fdate(e.calDue)}</td><td data-label="Calibration">${chip(...cs)}</td>
+      <td data-label="Verification today">${!isHardness(e)?`<span class="muted">not required</span>`:!v.length?chip("warn","!","Not recorded"):ve.some(x=>x.ok)?chip("good","✓","Passed"):chip("crit","✕","Failed")}</td></tr>`;}).join("")}</tbody></table>`:`<div class="empty">No test equipment. Add it under Settings.</div>`;
+}
+function drawVerifs(){
+  const L=DB.verifs.slice().sort((a,b)=>(b.date+(b.time||"")).localeCompare(a.date+(a.time||""))).slice(0,30);
+  $("#verifs").innerHTML=L.length?`<table class="log cards"><thead><tr><th>Date</th><th>Equipment</th><th>Test block</th><th>Certified value</th><th>Readings</th><th>Mean / difference</th><th>Result</th><th>By</th></tr></thead><tbody>${L.map(v=>{const e=eq(v.eq)||{},x=vEval(v);
+    return `<tr><td data-label="Date">${fdate(v.date)} ${esc(v.time||"")}</td><td data-label="Equipment">${esc(v.eq)}</td><td data-label="Test block">${esc(v.block||"—")}</td><td data-label="Certified value" class="mono">${esc(v.nominal)} ${esc(v.scale||"")}</td>
+      <td data-label="Readings" class="mono">${(v.r||[]).filter(r=>r!=="").map(esc).join(", ")}</td><td data-label="Mean / difference" class="mono">${x.m!=null?r1(x.m):"—"} / ${x.dev!=null?(x.dev>=0?"+":"−")+Math.abs(r1(x.dev)):"—"} <span class="muted">(± ${esc(e.tol||"?")})</span></td>
+      <td data-label="Result">${x.ok==null?chip("warn","!","Not judged"):x.ok?chip("good","✓","Passed"):chip("crit","✕","Failed")}</td><td data-label="By">${esc(v.by||"")}</td></tr>`;}).join("")}</tbody></table>`:`<div class="empty">No verification recorded yet.</div>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("nSamp","Samples per test (default)","number")+f("nRead","Readings per sample (default)","number")+f("warnPct","Warning margin (% of the band)","number")+f("calSoon","Show calibration due this many days before","number");
+}
+function drawEquipReg(){
+  $("#equip-reg").innerHTML=`<table class="edit log"><thead><tr><th>Id</th><th>Name</th><th>Type</th><th>Scales</th><th>Serial</th><th>Calibration due</th><th>Verification tolerance ±</th><th>In use</th><th></th></tr></thead><tbody>${DB.equip.map((e,i)=>`<tr>
+    <td class="mono">${esc(e.id)}</td><td><input data-eq="${i}.name" value="${esc(e.name)}"></td>
+    <td><select data-eq="${i}.kind">${["Rockwell","Brinell","Vickers","Microscope","Other"].map(k=>`<option ${k===e.kind?"selected":""}>${k}</option>`).join("")}</select></td>
+    <td><input data-eq="${i}.scales" value="${esc(e.scales)}" placeholder="e.g. HRC, HRB"></td><td><input data-eq="${i}.serial" value="${esc(e.serial)}"></td>
+    <td><input data-eq="${i}.calDue" type="date" value="${esc(e.calDue)}"></td><td><input data-eq="${i}.tol" type="number" step="any" value="${esc(e.tol)}"></td>
+    <td><input data-eq="${i}.active" type="checkbox" ${e.active!==false?"checked":""} aria-label="In use"></td>
+    <td>${DB.tests.some(t=>t.eq===e.id||t.meq===e.id)||DB.verifs.some(v=>v.eq===e.id)?"":`<button class="btn danger small" data-deleq="${i}">Remove</button>`}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------- test record (dialog) ---------- */
+const dlg=$("#dlg");
+let ED=null,MSG="",MSGOK=false;
+function openTest(id){
+  const t=id?DB.tests.find(x=>x.id===id):null;
+  const hard=DB.equip.find(e=>e.active!==false&&isHardness(e)),mic=DB.equip.find(e=>e.active!==false&&e.kind==="Microscope");
+  ED=t?clone(t):{id:"",date:today(),time:nowTime(),furnace:VIEW.f||"",part:"",specRef:"",proc:"",batch:"",heat:"",heatCode:"",qty:"",by:"",eq:hard?hard.id:"",meq:mic?mic.id:"",
+    req:emptyReq(),samples:Array.from({length:Math.max(1,+S().nSamp||1)},(_,i)=>({label:`Sample ${i+1}`,r:Array(Math.max(1,+S().nRead||1)).fill("")})),core:["",""],decarb:"",micro:"",microNote:"",grain:"",other:"",notes:"",check:{},act:{},closed:false,log:[]};
+  MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();
+}
+const lockd=()=>ED.closed;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=lockd()?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${path}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${path}" ${dis}>${o.blank===false?"":`<option value=""></option>`}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any"':""} ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}</div>`;};
+/* requirements of the specification in force for this part (and furnace) */
+function specFor(part,furnace){const L=specs().filter(s=>same(s.part,part));return L.find(s=>!furnace||s.furnaces.includes(furnace))||L[0]||null;}
+function reqFromSpec(s){
+  const q=s.req||{},core=String(q.core||"").match(/(\d+(?:\.\d+)?)\s*[–-]\s*(\d+(?:\.\d+)?)/),dec=String(q.decarb||"").match(/(\d+(?:\.\d+)?)/);
+  return {hMin:q.hMin??"",hMax:q.hMax??"",scale:q.scale||"HRC",cMin:core?core[1]:"",cMax:core?core[2]:"",decarbMax:dec?dec[1]:"",micro:q.micro||"",grain:q.grain||"",sample:q.sample||""};
+}
+function sampRows(){
+  const E=evalT(ED),dis=lockd()?"disabled":"",nR=Math.max(...ED.samples.map(s=>s.r.length),1);
+  return `<table class="samp"><thead><tr><th>Sample</th>${Array.from({length:nR},(_,j)=>`<th>Reading ${j+1}</th>`).join("")}<th>Mean</th><th>Result</th></tr></thead><tbody>${ED.samples.map((s,i)=>{const se=E.samples.find(x=>x.i===i);
+    return `<tr><td><input aria-label="Sample ${i+1} label" data-sl="${i}" value="${esc(s.label)}" style="font-family:var(--sans)" ${dis}></td>${Array.from({length:nR},(_,j)=>`<td><input aria-label="Sample ${i+1} reading ${j+1}" data-s="${i}.${j}" type="number" step="any" inputmode="decimal" value="${esc(s.r[j]??"")}" ${dis}></td>`).join("")}
+      <td class="n" data-sm="${i}">${se?r1(se.mean):"—"}</td><td class="j" data-sj="${i}">${se&&se.j?chip(...JC[se.j]):""}</td></tr>`;}).join("")}</tbody></table>
+    ${lockd()?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="addsamp">Add sample</button><button class="btn ghost small" type="button" data-d="addread">Add reading</button>${ED.samples.length>1?`<button class="btn ghost small" type="button" data-d="delsamp">Remove last sample</button>`:""}</div>`}`;
+}
+const JC={pass:["good","✓","Pass"],warn:["warn","!","Close to limit"],fail:["crit","✕","Out of limits"],info:["info","i","Recorded"],invalid:["crit","✕","Invalid"]};
+function checkBox(){
+  const E=evalT(ED);
+  if(!E.checks.length) return `<p class="muted" style="margin:0">Enter the readings above.</p>`;
+  return `<ul class="findings">${E.checks.map(c=>`<li class="${c.j}">${chip(...JC[c.j])} ${esc(c.txt)}</li>`).join("")}${E.issues.map(i=>`<li class="${i.j}">${esc(i.txt)}</li>`).join("")}</ul>`;
+}
+function actBox(){
+  const E=evalT(ED);if(E.res!=="fail") return "";
+  const rt=ED.id?retestOf(ED):null,m=missingAct(ED);
+  return `<section class="stage" style="--k:var(--a)"><h3>Act <small>Reaction plan for the nonconforming batch</small></h3>
+    <p class="reqline">${E.fails.map(c=>esc(c.txt)).join("<br>")}<br>Re-test of part ${esc(ED.part)}, batch ${esc(ED.batch||"—")}: ${rt?`<span class="ok">${esc(rt.id)} on ${fdate(rt.date)} conforms</span>`:`<span class="bad">not yet done</span>`}</p>
+    <div class="fgrid">${fld("act.contain","Containment",{opts:CONTAIN,req:true,span:true})}${fld("act.cause","Root cause",{type:"textarea",req:true,span:true})}
+      ${fld("act.action","Corrective action",{opts:ACTIONS,req:true})}${fld("act.disp","Disposition of the batch",{opts:Object.entries(DISP),req:true})}${fld("act.detail","Action details",{type:"textarea",span:true})}
+      ${fld("act.impact","Product-impact assessment (other batches, customer)",{type:"textarea",req:true,span:true})}${fld("act.by","Action owner",{req:true})}${fld("act.date","Action date",{type:"date",req:true})}</div>
+    <p class="muted" id="act-miss" style="margin:10px 0 0;font-size:12.5px">${ED.closed?"Reaction closed.":m.length?"To close the reaction: "+esc(m.join(", "))+".":"Everything needed is recorded: the reaction can be closed."}</p></section>`;
+}
+function drawDlg(){
+  const E=evalT(ED),dis=lockd()?"disabled":"",fs=furnaces(),sp=specs();
+  const hardEq=DB.equip.filter(e=>(e.active!==false||e.id===ED.eq)&&isHardness(e)),micEq=DB.equip.filter(e=>(e.active!==false||e.id===ED.meq)&&e.kind==="Microscope");
+  const r=ED.req;
+  dlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>${ED.id?esc(ED.id):"New test record"}</h2><span id="dlg-st">${E.res?stChip(ED):""}</span><span class="muted">${esc(ED.part||"")}${ED.batch?" · batch "+esc(ED.batch):""}</span></div></div>
+  <div class="dlg-b">
+    <section class="stage" style="--k:var(--p)"><h3>Batch</h3><div class="fgrid">
+      ${fld("date","Test date",{type:"date",req:true})}${fld("time","Time",{type:"time"})}${fld("furnace","Furnace",{opts:fs,req:true})}
+      ${fld("part","Part no.",{req:true,list:"dl-parts"})}${fld("batch","Batch no.",{req:true})}${fld("heat","Heat no.")}${fld("heatCode","Heat code")}${fld("qty","Batch quantity (pcs)",{type:"number"})}
+      <datalist id="dl-parts">${[...new Set(sp.map(s=>s.part))].map(p=>`<option value="${esc(p)}">`).join("")}</datalist></div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Requirements <small id="req-src">${ED.specRef?`from process specification ${esc(ED.specRef)}`:sp.length?"no process specification in force for this part: enter them":"enter them from the process specification or drawing"}</small></h3>
+      <div class="fgrid">${fld("req.hMin","Surface hardness min",{type:"number"})}${fld("req.hMax","Surface hardness max",{type:"number"})}${fld("req.scale","Scale",{opts:SCALES,blank:false})}
+        ${fld("req.cMin","Core hardness min",{type:"number"})}${fld("req.cMax","Core hardness max",{type:"number"})}${fld("req.decarbMax","Decarburization max (mm)",{type:"number"})}
+        ${fld("req.micro","Microstructure required")}${fld("req.grain","Grain size required")}${fld("req.sample","Sampling")}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Do <small>Test the samples</small></h3>
+      <div class="fgrid" style="margin-bottom:10px">${fld("eq","Hardness tester",{opts:hardEq.map(e=>[e.id,`${e.id} ${e.name}`]),req:true})}${fld("by","Tested by",{req:true})}</div>
+      <h4 style="margin:0 0 4px;font-size:13px">Surface hardness (${esc(r.scale)})</h4><div class="scroll" id="samp">${sampRows()}</div>
+      <div class="fgrid" style="margin-top:12px">${fld("core.0","Core hardness 1",{type:"number"})}${fld("core.1","Core hardness 2",{type:"number"})}${fld("decarb","Decarburization measured (mm, total)",{type:"number"})}
+        ${fld("meq","Microscope",{opts:micEq.map(e=>[e.id,`${e.id} ${e.name}`])})}${fld("micro","Microstructure",{opts:[["ok","Conforms"],["nok","Does not conform"]]})}${fld("microNote","Microstructure observed")}${fld("grain","Grain size measured")}
+        ${fld("other","Other results")}${fld("notes","Observations",{type:"textarea",span:true})}</div></section>
+    <section class="stage" style="--k:var(--warn)"><h3>Check <small>Judgement against the requirements and validity of the equipment</small></h3><div id="chk">${checkBox()}</div>
+      <div class="fgrid" style="margin-top:10px">${fld("check.by","Reviewed by")}${fld("check.date","Review date",{type:"date"})}${fld("check.remarks","Review remarks",{type:"textarea",span:true})}</div></section>
+    <div id="actbox">${actBox()}</div>
+    ${ED.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${ED.log.map(l=>`<li>${fdate(l.d)}: ${esc(l.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    ${ED.id?`<button class="btn danger small" data-d="delete">Delete</button><button class="btn ghost small" data-d="xlsx">Excel</button><button class="btn ghost small" data-d="pdf">PDF</button>`:""}
+    ${E.res==="fail"&&ED.id?(ED.closed?`<button class="btn ghost" data-d="reopen">Reopen reaction</button>`:`<button class="btn ghost" data-d="close-r">Close reaction</button>`):""}
+    <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save" ${dis}>Save</button></div>`;
+  $("#actbox").dataset.state=E.res==="fail"?"f":"";
+}
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+function refresh(){
+  const E=evalT(ED);
+  E.samples.forEach(s=>{const m=dlg.querySelector(`[data-sm="${s.i}"]`),j=dlg.querySelector(`[data-sj="${s.i}"]`);if(m)m.textContent=r1(s.mean);if(j)j.innerHTML=s.j?chip(...JC[s.j]):"";});
+  ED.samples.forEach((s,i)=>{if(!E.samples.some(x=>x.i===i)){const m=dlg.querySelector(`[data-sm="${i}"]`),j=dlg.querySelector(`[data-sj="${i}"]`);if(m)m.textContent="—";if(j)j.innerHTML="";}});
+  $("#chk").innerHTML=checkBox();$("#dlg-st").innerHTML=E.res?stChip(ED):"";
+  const state=E.res==="fail"?"f":"";if($("#actbox").dataset.state!==state){$("#actbox").innerHTML=actBox();$("#actbox").dataset.state=state;}
+  else{const p=$("#act-miss");if(p&&!ED.closed){const m=missingAct(ED);p.textContent=m.length?"To close the reaction: "+m.join(", ")+".":"Everything needed is recorded: the reaction can be closed.";}}
+}
+function onDlgInput(e){
+  const el=e.target;if(lockd()) return;
+  if(el.dataset.s){const [i,j]=el.dataset.s.split(".").map(Number);ED.samples[i].r[j]=el.value;refresh();return;}
+  if(el.dataset.sl!=null){ED.samples[+el.dataset.sl].label=el.value;return;}
+  if(!el.dataset.f) return;
+  setPath(ED,el.dataset.f,el.value);
+  if((el.dataset.f==="part"||el.dataset.f==="furnace")&&e.type==="change"){
+    const s=specFor(ED.part,ED.furnace);
+    if(s){ED.specRef=`${s.id} rev ${s.rev}`;ED.proc=s.proc;ED.req=reqFromSpec(s);drawDlg();return;}
+    if(ED.specRef){ED.specRef="";ED.proc="";drawDlg();return;}
+  }
+  if(el.dataset.f==="req.scale"){drawDlg();return;}
+  if(/^(req\.|core\.|decarb|micro|eq|date|act\.|grain)/.test(el.dataset.f)) refresh();
+}
+dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
+function commit(text){
+  if(!isDate(ED.date)) return "Enter the test date.";
+  if(ED.date>today()) return "The test date is in the future.";
+  if(!String(ED.part).trim()) return "Enter the part no.";
+  if(!String(ED.batch).trim()) return "Enter the batch no.";
+  if(!ED.furnace) return "Choose the furnace.";
+  if(!evalT(ED).checks.length) return "Enter at least one result.";
+  if(!ED.id){ED.id=newId();logIt(ED,text||"Test recorded");DB.tests.push(ED);}
+  else{logIt(ED,text||"Test record updated");const i=DB.tests.findIndex(x=>x.id===ED.id);DB.tests[i]=ED;}
+  ED=clone(ED);save();render();return "";
+}
+dlg.addEventListener("click",e=>{
+  const b=e.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(a==="addsamp"){const n=Math.max(...ED.samples.map(s=>s.r.length),1);ED.samples.push({label:`Sample ${ED.samples.length+1}`,r:Array(n).fill("")});$("#samp").innerHTML=sampRows();return;}
+  if(a==="addread"){ED.samples.forEach(s=>s.r.push(""));$("#samp").innerHTML=sampRows();return;}
+  if(a==="delsamp"){ED.samples.pop();$("#samp").innerHTML=sampRows();refresh();return;}
+  if(a==="save"){done(commit(),"Saved.");return;}
+  if(a==="xlsx"){const m=mtXlsx(DB.tests.find(x=>x.id===ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  if(a==="pdf"){const m=mtPdf(DB.tests.find(x=>x.id===ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  if(a==="delete"){if(confirm(`Delete test record ${ED.id}? This cannot be undone.`)){DB.tests=DB.tests.filter(x=>x.id!==ED.id);save();render();dlg.close();}return;}
+  if(a==="close-r"){const m=missingAct(ED);if(m.length){done("To close the reaction: "+m.join(", ")+".");return;}
+    ED.closed=true;const err=commit("Reaction plan closed: "+DISP[ED.act.disp]);if(err)ED.closed=false;done(err,"Reaction closed.");return;}
+  if(a==="reopen"){const why=prompt("Reason for reopening the reaction plan:");if(!why||!why.trim()) return;
+    ED.closed=false;done(commit("Reaction plan reopened: "+why.trim()),"Reaction reopened.");return;}
+});
+
+/* ---------- tester verification on a test block (dialog) ---------- */
+const vdlg=$("#vdlg");
+let VE=null;
+function openVerif(){
+  const e=DB.equip.find(x=>x.active!==false&&isHardness(x));
+  VE={eq:e?e.id:"",date:today(),time:nowTime(),block:"",nominal:"",scale:e?(e.scales||"").split(/[,\s]+/)[0]:"HRC",r:["","",""],by:""};drawVdlg("");vdlg.showModal();
+}
+function drawVdlg(msg){
+  const x=vEval(VE),e=eq(VE.eq)||{},f=(k,l,t)=>`<div class="field req"><label for="vf-${k}">${l}</label><input id="vf-${k}" data-v="${k}" type="${t||"text"}" ${t==="number"?'step="any"':""} value="${esc(VE[k])}"></div>`;
+  vdlg.innerHTML=`<div class="dlg-h"><div class="row"><h2>Tester verification</h2><span class="muted">on a certified test block, before testing</span></div></div>
+  <div class="dlg-b"><div class="fgrid">
+    <div class="field req"><label for="vf-eq">Hardness tester</label><select id="vf-eq" data-v="eq">${DB.equip.filter(q=>q.active!==false&&isHardness(q)).map(q=>`<option value="${esc(q.id)}" ${q.id===VE.eq?"selected":""}>${esc(q.id+" "+q.name)}</option>`).join("")}</select></div>
+    ${f("date","Date","date")}${f("time","Time","time")}${f("block","Test block no. / certificate")}${f("nominal","Certified value","number")}
+    <div class="field req"><label for="vf-scale">Scale</label><select id="vf-scale" data-v="scale">${SCALES.map(s=>`<option ${s===VE.scale?"selected":""}>${s}</option>`).join("")}</select></div>
+    ${VE.r.map((v,i)=>`<div class="field req"><label for="vf-r${i}">Reading ${i+1}</label><input id="vf-r${i}" data-vr="${i}" type="number" step="any" value="${esc(v)}"></div>`).join("")}
+    ${f("by","Verified by")}</div>
+    <div class="calc" id="vres">${x.m==null||num(VE.nominal)==null?"Enter the certified value and the readings.":`Mean ${r1(x.m)} ${esc(VE.scale)} · difference ${x.dev>=0?"+":"−"}${Math.abs(r1(x.dev))} · tolerance ± ${esc(e.tol||"?")} → ${x.ok==null?"set the tolerance of the tester under Settings":x.ok?"<b class='ok'>passed</b>":"<b class='bad'>failed: do not test with this tester until it is corrected and passes</b>"}`}</div></div>
+  <div class="dlg-f"><span class="msg" id="vmsg">${esc(msg)}</span><button class="btn ghost" data-v-act="cancel">Close</button><button class="btn" data-v-act="save">Save</button></div>`;
+}
+vdlg.addEventListener("input",e=>{const el=e.target;
+  if(el.dataset.vr!=null) VE.r[+el.dataset.vr]=el.value;else if(el.dataset.v) VE[el.dataset.v]=el.value;else return;
+  if(el.tagName==="SELECT") drawVdlg("");else{const x=vEval(VE),e2=eq(VE.eq)||{};$("#vres").innerHTML=x.m==null||num(VE.nominal)==null?"Enter the certified value and the readings.":`Mean ${r1(x.m)} ${esc(VE.scale)} · difference ${x.dev>=0?"+":"−"}${Math.abs(r1(x.dev))} · tolerance ± ${esc(e2.tol||"?")} → ${x.ok==null?"set the tolerance of the tester under Settings":x.ok?"<b class='ok'>passed</b>":"<b class='bad'>failed: do not test with this tester until it is corrected and passes</b>"}`;}});
+vdlg.addEventListener("click",e=>{const b=e.target.closest("[data-v-act]");if(!b) return;
+  if(b.dataset.vAct==="cancel"){vdlg.close();return;}
+  if(!eq(VE.eq)) return drawVdlg("Choose the tester.");
+  if(!isDate(VE.date)) return drawVdlg("Enter the date.");
+  if(num(VE.nominal)==null) return drawVdlg("Enter the certified value of the test block.");
+  if(!VE.r.some(v=>num(v)!=null)) return drawVdlg("Enter the readings.");
+  if(!String(VE.by).trim()) return drawVdlg("Enter who verified the tester.");
+  DB.verifs.push({id:"VF-"+String(DB.vseq++).padStart(4,"0"),...VE});save();render();vdlg.close();
+});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",e=>{
+  if(dlg.contains(e.target)||vdlg.contains(e.target)) return;
+  const b=e.target.closest("button");if(!b) return;
+  if(b.dataset.open){openTest(b.dataset.open);return;}
+  if(b.dataset.xl){const m=mtXlsx(DB.tests.find(x=>x.id===b.dataset.xl));if(m)alert(m);return;}
+  if(b.dataset.pdf){const m=mtPdf(DB.tests.find(x=>x.id===b.dataset.pdf));if(m)alert(m);return;}
+  if(b.dataset.deleq!=null){const q=DB.equip[+b.dataset.deleq];if(q&&confirm(`Remove ${q.id} ${q.name}?`)){DB.equip.splice(+b.dataset.deleq,1);save();render();}return;}
+  const id=b.id;
+  if(id==="b-new") openTest("");
+  else if(id==="b-verif"||id==="b-verif2") openVerif();
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("hmt-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-csv") exportCsv();
+  else if(id==="b-addeq"){const n=Math.max(0,...DB.equip.map(q=>+(q.id.match(/\d+/)||[0])[0]))+1;DB.equip.push({id:"EQ-"+pad(n),name:"Hardness tester",kind:"Rockwell",scales:"HRC",serial:"",calDue:"",tol:"1.0",active:true});save();render();}
+  else if(id==="b-export") download(`hardness-metallurgical-tests-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!DB.tests.length||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete all test records, verifications and equipment, and reset settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#filters").addEventListener("input",e=>{const k=e.target.dataset.view;if(!k) return;setView({[k]:e.target.value});drawRegister();drawTrend();});
+$("#setup").addEventListener("change",e=>{
+  const el=e.target,v=el.type==="checkbox"?el.checked:el.value;
+  if(el.dataset.set){const k=el.dataset.set;S()[k]=el.type==="number"?(num(v)??DEF[k]):v;}
+  else if(el.dataset.eq){const [i,k]=el.dataset.eq.split(".");DB.equip[+i][k]=v;}
+  else return;
+  save();render();
+});
+$("#imp").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a hardness / metallurgical test backup");
+    if(confirm(`Import ${plural(o.tests.length,"test record")}? This replaces the records now in this browser.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads: one test (Excel / PDF), the register (Excel), readings (CSV) ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+/* plain ASCII file name: Chrome ignores a download name with characters such as "·" */
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+const dlName=t=>ascii(`Hardness test ${t.id} ${t.part} batch ${t.batch} ${t.date}`);
+const RES_TXT={pass:"Conforms",warn:"Conforms, with notes",fail:"Does not conform",invalid:"Invalid test"};
+function mtTables(t){
+  const E=evalT(t),r=t.req,a=t.act||{},ck=t.check||{},e=eq(t.eq)||{},rt=retestOf(t);
+  const summary=[["Test record",t.id],["Test date",`${fdate(t.date)} ${t.time||""}`.trim()],["Furnace",t.furnace],["Part no.",t.part],["Process specification",t.specRef||"not linked"],["Process",PROC[t.proc]||""],
+    ["Batch no.",t.batch],["Heat no. / heat code",[t.heat,t.heatCode].filter(Boolean).join(" / ")],["Batch quantity",num(t.qty)??""],["Tested by",t.by],["Hardness tester",t.eq?`${t.eq} ${e.name||""} (calibration due ${fdate(e.calDue)})`:""],
+    ["Result",E.res?RES_TXT[E.res]:"No results"],["Status",STATUS[status(t)][2]],["Downloaded",fdate(today())]];
+  const req=[["Surface hardness",limTxt(r.hMin,r.hMax,r.scale)],["Core hardness",num(r.cMin)!=null||num(r.cMax)!=null?limTxt(r.cMin,r.cMax,r.scale):""],["Decarburization max (mm)",num(r.decarbMax)??""],
+    ["Microstructure",r.micro],["Grain size",r.grain],["Sampling",r.sample]];
+  const nR=Math.max(0,...(t.samples||[]).map(s=>(s.r||[]).length));
+  const samp={head:["Sample",...Array.from({length:nR},(_,j)=>`Reading ${j+1}`),"Mean","Min","Max","Result"],rows:E.samples.map(s=>[s.label,...Array.from({length:nR},(_,j)=>num(t.samples[s.i].r[j])??""),r1(s.mean),s.min,s.max,s.j?JC[s.j][2]:""])};
+  const other=[["Core hardness",E.core.join(", ")],["Decarburization measured (mm)",num(t.decarb)??""],["Microstructure",t.micro==="ok"?"Conforms":t.micro==="nok"?"Does not conform":""],["Microstructure observed",t.microNote],["Grain size",t.grain],["Other results",t.other],["Observations",t.notes]];
+  const check={head:["Check","Result"],rows:E.checks.map(c=>[c.txt,JC[c.j][2]]).concat(E.issues.map(i=>[i.txt,i.j==="invalid"?"Invalid":"Note"]))};
+  const ckv=[["Reviewed by",ck.by],["Review date",fdate(ck.date)],["Review remarks",ck.remarks]];
+  const act=[["Required",E.res==="fail"?"Reaction plan (nonconforming batch)":"None"],["Containment",a.contain],["Root cause",a.cause],["Corrective action",a.action],["Action details",a.detail],
+    ["Disposition of the batch",a.disp?DISP[a.disp]:""],["Product-impact assessment",a.impact],["Re-test",rt?`${rt.id} on ${fdate(rt.date)}: conforms`:E.res==="fail"?"not yet done":""],["Action owner",a.by],["Action date",fdate(a.date)],
+    ["Reaction closed",E.res==="fail"?(t.closed?"Yes":"No"):""],["Still missing",E.res==="fail"&&!t.closed?missingAct(t).join(", "):""]];
+  const hist={head:["Date","Event"],rows:t.log.map(x=>[fdate(x.d),x.t])};
+  return {summary,req,samp,other,check,ckv,act,hist};
+}
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells}),kvRows=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
+const tblRows=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
+function mtXlsx(t){
+  if(!t||!t.id) return "Save the record first.";
+  const T=mtTables(t);
+  const sheets=[
+    {name:"Summary",widths:[32,70],rows:[B(["Hardness and metallurgical test"]),N([S().plant]),N([]),...kvRows(T.summary),N([]),B(["Requirements"]),...kvRows(T.req)]},
+    {name:"Results",widths:[22,12,12,12,12,12,10,10,10,16],rows:[B(["DO: surface hardness readings"]),N([]),...tblRows(T.samp),N([]),B(["Other results"]),...kvRows(T.other)]},
+    {name:"Check",widths:[90,16],rows:[B(["CHECK: judgement and validity"]),N([]),...tblRows(T.check),N([]),...kvRows(T.ckv)]},
+    {name:"Act",widths:[34,70],rows:[B(["ACT: reaction plan"]),N([]),...kvRows(T.act)]},
+    {name:"History",widths:[14,90],rows:[B(["History of the record"]),N([]),...tblRows(T.hist)]}];
+  try{download(dlName(t)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function mtPdf(t){
+  if(!t||!t.id) return "Save the record first.";
+  const T=mtTables(t),e=esc;
+  const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v??"")}</td></tr>`).join("")}</tbody></table>`;
+  const table=x=>x.rows.length?`<table><thead><tr>${x.head.map(h=>`<th>${e(h)}</th>`).join("")}</tr></thead><tbody>${x.rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+  const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(dlName(t))}</title><style>
+    @page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}table.kv th{background:#f2f4f5;font-weight:500;width:34%}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>
+  <h1>Hardness and metallurgical test · ${e(t.id)}</h1>
+  <p class="sub">${e(S().plant)} · ${e(t.furnace)} · part ${e(t.part)} · batch ${e(t.batch)} · ${e(fdate(t.date))}</p>
+  <h2>Summary</h2>${kv(T.summary)}
+  <h2>Requirements</h2>${kv(T.req)}
+  <h2>Do: results</h2>${table(T.samp)}${kv(T.other)}
+  <h2>Check: judgement and validity</h2>${table(T.check)}${kv(T.ckv)}
+  <h2>Act: reaction plan</h2>${kv(T.act)}
+  <h2>History of the record</h2>${table(T.hist)}
+  <div class="sign"><div><span class="muted">Tested by</span><b>${e(t.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Reviewed by</span><b>${e(t.check?.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Action owner</span><b>${e(t.act?.by||"")}</b><span class="muted">Sign · Date</span></div></div>
+  </body></html>`;
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+function regXlsx(){
+  const L=DB.tests.filter(shown).sort(byTime);
+  const head=["Test","Date","Time","Furnace","Part","Specification","Process","Batch","Heat","Heat code","Scale","Spec min","Spec max","Readings","Min","Max","Mean","Core","Decarb mm","Decarb max","Microstructure","Grain","Tester","Tested by","Result","Disposition","Reaction closed"];
+  const rows=L.map(t=>{const E=evalT(t),r=t.req;return [t.id,t.date,t.time||"",t.furnace,t.part,t.specRef||"",PROC[t.proc]||"",t.batch,t.heat||"",t.heatCode||"",r.scale,num(r.hMin)??"",num(r.hMax)??"",E.all.length,
+    E.all.length?Math.min(...E.all):"",E.all.length?Math.max(...E.all):"",E.mean!=null?r1(E.mean):"",E.core.join(", "),num(t.decarb)??"",num(r.decarbMax)??"",t.micro==="ok"?"Conforms":t.micro==="nok"?"Does not conform":"",t.grain||"",t.eq||"",t.by||"",E.res?RES_TXT[E.res]:"",t.act&&t.act.disp?DISP[t.act.disp]:"",E.res==="fail"?(t.closed?"Yes":"No"):""];});
+  const ver=DB.verifs.slice().sort((a,b)=>(a.date+(a.time||"")).localeCompare(b.date+(b.time||""))).map(v=>{const x=vEval(v);return [v.id,v.date,v.time||"",v.eq,v.block||"",num(v.nominal)??"",v.scale||"",(v.r||[]).filter(r=>r!=="").join(", "),x.m!=null?r1(x.m):"",x.ok==null?"":x.ok?"Passed":"Failed",v.by||""];});
+  const sheets=[{name:"Tests",widths:[9,11,7,8,14,16,18,12,10,10,6,8,8,8,7,7,7,12,9,9,16,10,8,14,20,22,10],rows:[B(head),...rows.map(N)]},
+    {name:"Verifications",widths:[9,11,7,8,18,10,7,18,8,9,16],rows:[B(["Id","Date","Time","Tester","Test block","Certified","Scale","Readings","Mean","Result","By"]),...ver.map(N)]},
+    {name:"Equipment",widths:[8,28,12,12,14,14,12],rows:[B(["Id","Name","Type","Scales","Serial","Calibration due","Verification ±"]),...DB.equip.map(q=>N([q.id,q.name,q.kind,q.scales||"",q.serial||"",fdate(q.calDue),q.tol||""]))]}];
+  try{download(ascii(`Hardness and metallurgical register ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
+}
+function exportCsv(){
+  const q=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const rows=[["Test","Date","Furnace","Part","Batch","Sample","Reading","Value","Scale","Spec min","Spec max","Result"]];
+  DB.tests.filter(shown).sort(byTime).forEach(t=>{const E=evalT(t);E.samples.forEach(s=>t.samples[s.i].r.forEach((v,j)=>{if(num(v)!=null)rows.push([t.id,t.date,t.furnace,t.part,t.batch,s.label,j+1,num(v),t.req.scale,t.req.hMin,t.req.hMax,s.j?JC[s.j][2]:""]);}));});
+  download(`hardness-readings-${today()}.csv`,"﻿"+rows.map(r=>r.map(q).join(",")).join("\r\n"),"text/csv");
+}
+
+/* ---------- example data (dates relative to today) ---------- */
+function example(){
+  const o=blank(),td=today();DB=o;
+  o.equip[0].calDue=addDays(td,200);o.equip[0].serial="RT-2291";o.equip[1].calDue=addDays(td,20);o.equip[1].serial="BT-118";o.equip[2].calDue=addDays(td,-5);o.equip[2].serial="MS-07";
+  for(let d=12;d>=0;d--){const v={id:"VF-"+String(o.vseq++).padStart(4,"0"),eq:"EQ-01",date:addDays(td,-d),time:"08:05",block:"HRC 45 blk 7731",nominal:"45.2",scale:"HRC",r:[String(45.0+(d%3)*0.2),String(45.4-(d%2)*0.3),"45.1"],by:"Lab"};o.verifs.push(v);}
+  const reqA={hMin:"28",hMax:"32",scale:"HRC",cMin:"",cMax:"",decarbMax:"0.10",micro:"Tempered martensite",grain:"",sample:"2 pcs per batch"};
+  const reqB={hMin:"156",hMax:"207",scale:"HB",cMin:"",cMax:"",decarbMax:"0.15",micro:"Ferrite and pearlite",grain:"ASTM 5–8",sample:"1 pc per batch"};
+  const add=(d,p)=>{const t={id:"MT-"+String(o.seq++).padStart(4,"0"),date:addDays(td,-d),time:"10:"+pad(10+(o.seq*7)%40),qty:"",heat:"",heatCode:"",by:"Lab",eq:"EQ-01",meq:"EQ-03",core:["",""],decarb:"",micro:"",microNote:"",grain:"",other:"",notes:"",check:{},act:{},closed:false,log:[{d:addDays(td,-d),t:"Test recorded"}],...p};o.tests.push(t);return t;};
+  const hrc=(a,b)=>[{label:"Sample 1 (first tray)",r:a.map(String)},{label:"Sample 2 (last tray)",r:b.map(String)}];
+  [[12,"B-2401",[29.5,30.1,30.4],[30.0,29.8,30.6]],[10,"B-2402",[30.8,31.0,30.5],[31.2,30.9,31.1]],[8,"B-2403",[29.2,29.0,29.6],[29.9,30.2,29.4]],[3,"B-2405",[30.2,30.6,29.9],[30.4,30.1,30.7]]].forEach(([d,b,x,y])=>
+    add(d,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:b,heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc(x,y),decarb:"0.06",micro:"ok"}));
+  /* a soft batch: nonconforming, re-heat-treated and re-tested */
+  const nc=add(6,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([26.8,27.4,27.1],[27.9,28.2,27.6]),decarb:"0.07",micro:"nok",microNote:"Upper bainite and ferrite near the core",
+    act:{contain:CONTAIN[0],cause:"Quench oil temperature high (agitator pump tripped).",action:ACTIONS[0],disp:"rework",detail:"Batch re-hardened and tempered; pump repaired.",impact:"Batches B-2403 and B-2405 tested within limits; no other batch affected.",by:"HT Manager",date:addDays(td,-5)}});
+  add(4,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([30.1,30.5,29.8],[30.3,30.0,30.6]),decarb:"0.07",micro:"ok",notes:"Re-test after re-heat-treatment"});
+  nc.closed=true;nc.log.push({d:addDays(td,-4),t:"Reaction plan closed: "+DISP.rework});
+  add(2,{furnace:"F-03",part:"EX-2001",specRef:"PS-0002 rev 0",proc:"IA",batch:"C-118",eq:"EQ-02",req:{...reqB},samples:[{label:"Sample 1",r:["171","176","168"]}],decarb:"0.18",micro:"ok",grain:"ASTM 7"});
+  return o;
+}
+
+/* ---------- CALOR: overview for the home page ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
+  HTQ.provide("metal",{
+    overview:()=>{const d30=addDays(today(),-30),L=DB.tests.filter(t=>t.date>=d30);
+      return {tests30:L.length,nok30:L.filter(t=>["fail","invalid"].includes(evalT(t).res)).length,
+        open:DB.tests.filter(t=>status(t)==="open").map(t=>({id:t.id,part:t.part,batch:t.batch,furnace:t.furnace,date:t.date})),
+        invalid:DB.tests.filter(t=>t.date>=d30&&status(t)==="invalid").map(t=>({id:t.id,part:t.part,batch:t.batch,furnace:t.furnace,date:t.date})),
+        equip:DB.equip.filter(e=>e.active!==false).map(e=>({id:e.id,name:e.name,cal:calState(e).st,due:e.calDue}))};},
+    counts:()=>({open:DB.tests.filter(t=>status(t)==="open").length,expired:DB.equip.filter(e=>e.active!==false&&calState(e).st==="expired").length})
+  });
+  HTQ.on("nav:metal",o=>{if(o&&o.test)openTest(o.test);});
+  HTQ.on("sat:ready",()=>{delete $("#filters").dataset.done;drawFilters();});
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("hmt-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.tests.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__MET={get DB(){return DB;},evalT,status,missingAct,retestOf,mtTables,calState,vEval,openTest,openVerif};
+</script>
+</body></html>

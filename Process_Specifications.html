@@ -763,7 +763,7 @@ function example(){
 /* ---------- CALOR: overview for the home page and the other pages ---------- */
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
-  const brief=s=>({id:s.id,rev:s.rev,part:s.part,name:s.name,grade:s.grade,proc:s.proc,procName:PROC[s.proc],furnaces:s.furnaces.slice(),h:s.h.map(num),t:s.t.map(num),htol:s.htol.map(num),ttol:s.ttol.map(num),push:num(s.push)});
+  const brief=s=>({id:s.id,rev:s.rev,part:s.part,name:s.name,grade:s.grade,proc:s.proc,procName:PROC[s.proc],furnaces:s.furnaces.slice(),h:s.h.map(num),t:s.t.map(num),htol:s.htol.map(num),ttol:s.ttol.map(num),push:num(s.push),req:{...s.req}});
   HTQ.provide("spec",{
     overview:()=>({inForce:DB.specs.filter(eff).length,drafts:DB.specs.filter(s=>s.status==="draft").map(s=>({id:s.id,rev:s.rev,part:s.part})),
       review:DB.specs.map(s=>({s,r:review(s)})).filter(x=>x.r.st==="overdue"||x.r.st==="soon").map(x=>({id:x.s.id,rev:eff(x.s).rev,part:x.s.part,st:x.r.st,due:x.r.due})),
