@@ -200,9 +200,9 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
     <ul>
       <li>Trays = quantity ÷ loading per tray (rounded up). One tray moves one position per push; the first tray enters the hardening chamber at the entry time and each further tray one push later.</li>
       <li>The line: hardening chamber 13 tray positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). At every push the extractor takes the 13th tray out of the hardening chamber and a new tray is pushed in; at the same time the 26th tray is taken out of the tempering chamber. For isothermal annealing the extracted tray goes on the rail into the controlled cooling chamber (one tray), air is blown for the part's controlled cooling time, and the tray is then pushed into the tempering chamber, all before the next push. Example: push time 18 min = transfer in + 12 min cooling + transfer out, the rest idle. The controlled cooling chamber is not a tray position of the line: 13 + 1 + 12 = 26 trays are in the line right after a push.</li>
-      <li>Expected exit from the tempering chamber = entry + (trays − 1 + tray positions of the hardening chamber + tray positions of the tempering chamber) × push time: the last tray is taken out of the tempering chamber at a push (the extraction of the 26th tray happens at the push, during the next tray's cooling or quench). The minutes between the chambers (hardening &amp; tempering: quench delay + dip + transfer; isothermal annealing: controlled cooling time + transfers; normalizing / full annealing: the settings) delay the entry into the tempering chamber, not the exit: the tray spends 12 push times minus those minutes in the tempering chamber. The entry is flagged when the recorded exit differs by more than the set number of push times.</li>
-      <li>Implied push time = (exit − entry) ÷ (trays − 1 + tray positions of both chambers). It shows what push time the recorded times correspond to.</li>
-      <li>With the tray loading log: tray n + 1 enters one push time after tray n; a push change takes effect at its time (the first push at the new push time); a tray with an actual time starts the cycle again from that time. A tray in position k of the line moves on when the k-th tray after it enters, so the trays of the next day's log (or, when there is none yet, the push time in force) give the time each tray leaves a zone and the chamber. Leaving the tempering chamber = entry of the tray (positions of both chambers) trays later; entering it = leaving the hardening chamber + the minutes between the chambers. For isothermal annealing the cooling cycle of each tray must end before the next push; a tray whose next push came earlier is flagged.</li>
+      <li>Expected exit from the tempering chamber = entry + (trays − 1 + tray positions of the hardening chamber + pushes in the tempering chamber) × push time. Measured on this line: first tray in at 01:06, out of the hardening chamber at 05:00 (13 pushes of 18 min) and out of the tempering chamber at 08:18 (11 more pushes), so a tray is in the furnace for 24 push times and leaves the tempering chamber at the 11th push after it left the hardening chamber, although the chamber has 12 positions (setting "pushes until a tray is taken out"). The minutes between the chambers (hardening &amp; tempering: quench delay + dip + transfer; isothermal annealing: controlled cooling time + transfers; normalizing / full annealing: the settings) delay the entry into the tempering chamber, not the exit: the tray spends 11 push times minus those minutes in the tempering chamber. The entry is flagged when the recorded exit differs by more than the set number of push times.</li>
+      <li>Implied push time = (exit − entry) ÷ (trays − 1 + hardening positions + pushes in the tempering chamber). It shows what push time the recorded times correspond to.</li>
+      <li>With the tray loading log: tray n + 1 enters one push time after tray n; a push change takes effect at its time (the first push at the new push time); a tray with an actual time starts the cycle again from that time. A tray in position k of the line moves on when the k-th tray after it enters, so the trays of the next day's log (or, when there is none yet, the push time in force) give the time each tray leaves a zone and the chamber. Leaving the tempering chamber = entry of the tray (13 + 11) trays later; entering it = leaving the hardening chamber + the minutes between the chambers. For isothermal annealing the cooling cycle of each tray must end before the next push; a tray whose next push came earlier is flagged.</li>
       <li>Zone windows: from the arrival of the first tray to the departure of the last tray of the batch in each zone. They are the basis for tracing batches in a temperature excursion.</li>
       <li>Normalizing uses the hardening chamber as preheating (about 700–750 °C) and austenitizes in the tempering chamber; fan cooling, when required, follows the exit and does not change the exit time. Controlled cooling of isothermal annealing happens between the chambers.</li>
     </ul>
@@ -240,7 +240,7 @@ const sum=a=>a.reduce((x,y)=>x+y,0);
 const KEY="prod-reg";
 const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing",P_FA="Full annealing";
 const PROCS=[P_HT,P_IA,P_NO,P_FA];
-const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"4,4,4",ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,flagPush:1,wtTol:5};
+const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,flagPush:1,wtTol:5};
 const DEFF=["F-01","F-02","F-03","F-04"];
 const blank=()=>({v:1,lay2:true,settings:{...DEF},furnaces:DEFF.slice(),specs:[],reports:[],seq:1,rseq:1});
 function normalize(o){
@@ -302,6 +302,10 @@ function gapOf(sp){
   if(sp.proc===P_FA) return {pos:0,min:num(s.gapFA)||0,cc};
   return null;
 }
+/* push cycles a tray stays in the tempering chamber, counted from the push that took it out of the hardening chamber: measured 11 on this
+   line (first tray in 01:06, out of the hardening chamber 05:00 = 13 pushes, out of the tempering chamber 08:18 = 11 more pushes of 18 min),
+   one less than its 12 positions: the 12th position is not a full cycle's stay */
+const tPushes=()=>{const n=sum(pos("posT"));return Math.max(1,Math.min(n||12,Math.round(num(S().tPush)??(n-1))));};
 const gapMins=(g,push)=>g?g.pos*(push||0)+g.min:null;
 /* ---------- tray loading log: one entry per tray in the order the trays enter the hardening chamber ---------- */
 const tlOf=R=>R&&R.tl&&Array.isArray(R.tl.trays)&&R.tl.trays.length&&(tms(R.tl.start)!=null||tms(R.tl.trays[0].at)!=null)?R.tl:null;
@@ -335,7 +339,7 @@ const trayGap=(R,tr)=>{const it=(tr.items||[]).find(x=>rowSpec(R,x.b));if(it)ret
 function trayTimes(R,tr){
   const L=timeline(R.furnace),j=L.idx.get(tr);if(j==null)return null;
   const nH=sum(pos("posH")),nT=sum(pos("posT")),g=trayGap(R,tr),gm=g.min*60000;
-  return {t:L.at(j),p:L.G[j].p,hOut:L.at(j+nH),tIn:L.at(j+nH+g.pos)+gm,tOut:L.at(j+nH+g.pos+nT)};
+  return {t:L.at(j),p:L.G[j].p,hOut:L.at(j+nH),tIn:L.at(j+nH+g.pos)+gm,tOut:L.at(j+nH+g.pos+tPushes())};
 }
 const trayLoad=(R,tr)=>sum((tr.items||[]).map(it=>{const sp=rowSpec(R,it.b),per=sp?num(sp.perTray):null;return per>0&&num(it.qty)>0?num(it.qty)/per:0;}));
 const inTrays=(R,row)=>sum((tlOf(R)?R.tl.trays:[]).flatMap(t=>(t.items||[]).filter(it=>it.b===row.id).map(it=>num(it.qty)||0)));
@@ -347,9 +351,11 @@ function rowTrays(R,row){
   const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(specOf(row.part,R.furnace))||{pos:0,min:0},o=nH+g.pos,gm=g.min*60000,zones=[];let acc=0;
   PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:L.at(j0+acc),to:L.at(j1+acc+n)});acc+=n;});acc=0;
   if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:L.at(j0+nH),to:L.at(j1+nH)+gm});
-  /* in the tempering chamber a tray moves on when the next tray is put in (push + gap) and is taken out at a push (the extraction of the
-     26th tray happens at the push, during the next tray's cooling / quench), so the last zone ends at the push, without the gap */
-  PT.forEach((n,z)=>{const last=z===PT.length-1;zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:L.at(j1+o+acc+n)+(last?0:gm)});acc+=n;});
+  /* in the tempering chamber a tray moves on when the next tray is put in (push + gap) and is taken out at a push, tPushes() pushes after it
+     left the hardening chamber (the extraction happens at the push, during the next tray's cooling / quench): the zone it leaves from ends
+     at that push, without the gap */
+  const tP=tPushes();
+  PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:end?L.at(j1+o+tP):L.at(j1+o+acc+n)+gm});}acc+=n;});
   const pushes=[...new Set(T.map(t=>L.G[L.idx.get(t)].p))];
   /* the cooling cycle of each tray has to end before the next push (the controlled cooling chamber holds one tray): time from the push that
      took the tray out of the hardening chamber to the next push */
@@ -390,7 +396,7 @@ function calcRow(row,rep){
   if(tz){ out.zones=tz.zones; if(e!=null&&x!=null) out.mins=(x-e)/60000; }
   else if(e!=null&&push>0&&out.trays&&out.gap){
     const g=out.gap;
-    out.steps=out.trays-1+nH+g.pos+nT;
+    const tP=tPushes();out.steps=out.trays-1+nH+g.pos+tP;
     out.expected=e+out.steps*push*60000; /* the last tray is taken out of the tempering chamber at a push */
     if(x!=null&&x>e){
       out.dev=(x-out.expected)/60000;
@@ -402,7 +408,7 @@ function calcRow(row,rep){
     PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:e+acc*push*60000,to:e+(out.trays-1+acc+n)*push*60000});acc+=n;});
     if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:e+nH*push*60000,to:e+((out.trays-1+nH)*push+g.min)*60000});
     const off=(nH+g.pos)*push*60000+g.min*60000;acc=0;
-    PT.forEach((n,z)=>{const last=z===PT.length-1;zones.push({ch:"Tempering",z:z+1,from:e+off+acc*push*60000,to:e+off+(out.trays-1+acc+n)*push*60000-(last?g.min*60000:0)});acc+=n;});
+    PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:e+off+acc*push*60000,to:end?e+(out.trays-1+nH+g.pos+tP)*push*60000:e+off+(out.trays-1+acc+n)*push*60000});}acc+=n;});
     out.zones=zones;
   }
   /* set values different from the specification */
@@ -602,7 +608,7 @@ function drawSearch(){
 function drawSettings(){
   if($("#settings").contains(document.activeElement)) return;
   const s=S(),f=(k,l,t="number",w=110)=>`<div class="field"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="any" value="${esc(s[k])}" style="width:${w}px"></div>`;
-  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+
+  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("tPush","Tempering chamber: pushes until a tray is taken out (measured)")+f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+
     f("qDelay","Quench delay, min")+f("dip","Dip time, min")+f("toTemp","Quench → tempering chamber, min")+f("gapNorm","Between chambers, normalizing, min")+f("gapFA","Between chambers, full annealing, min")+
     f("flagPush","Flag exit off by more than … push times")+f("wtTol","Flag weighed vs calculated beyond, %")+
     (HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
@@ -749,7 +755,7 @@ function prodTables(R){
   const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
     rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
   const tot=l=>l.map(o=>[o.label,o.n,o.qty,Math.round(o.kg*10)/10]);
-  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Isothermal annealing: transfers into and out of the controlled cooling chamber",`${s.ccXfer} min (cooling cycle = cooling time + transfers, within the push time)`],["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],
+  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Tempering chamber: pushes from leaving the hardening chamber to leaving the tempering chamber",s.tPush],["Isothermal annealing: transfers into and out of the controlled cooling chamber",`${s.ccXfer} min (cooling cycle = cooling time + transfers, within the push time)`],["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],
     ["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"],["Exit flagged when off by more than",s.flagPush+" push time(s)"]];
   const summary=[["Report",R.id],["Furnace",R.furnace],["Production date",fdate(R.date)],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],["Batches",R.rows.length],
     ["Pieces",sum(R.rows.map(r=>num(r.qty)||0))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Trays",tlOf(R)?`${R.tl.trays.length} logged (${R.tl.trays.filter(t=>!(t.items||[]).length).length} empty)`:sum(ks.map(k=>k.trays||0))],["Incomplete entries",ks.filter(k=>k.lvl==="crit").length],["Entries to check",ks.filter(k=>k.lvl==="warn").length],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
