@@ -483,8 +483,8 @@ function calcBatch(R,b){
   const bx=R.bx[b.key]||{},wg=num(bx.weighed); if(wg!=null&&out.kg){const dp=(wg-out.kg)/out.kg*100;out.wDiff=dp;if(Math.abs(dp)>+s.wtTol)I("warn",`Weighed ${f1(wg)} kg is ${f1(Math.abs(dp))} % ${dp>0?"above":"below"} the calculated ${f1(out.kg)} kg`);}
   const mixed=b.trays.filter(t=>t.items.length>1).length; if(mixed) I("info",`${mixed} mixed tray${mixed>1?"s":""} (with another part or batch)`);
   if(b.rw) I("info",`Rework (re-heat-treatment) of ${b.rw.ref||"?"}${b.rw.reason?": "+b.rw.reason:""}`);
-  /* timing from the tray log */
-  if(hasLog(R)){
+  /* timing from the furnace's tray timeline (the trays may come from another day's tray log) */
+  if(b.trays.some(t=>timeline(R.furnace).idx.has(t))){
     const L=timeline(R.furnace),j0=L.idx.get(b.trays[0]),j1=L.idx.get(b.trays.at(-1));
     if(j0!=null&&j1!=null){
       const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(sp)||{pos:0,min:0},o=nH+g.pos,gm=g.min*60000,tP=tPushes(),zones=[];let acc=0;

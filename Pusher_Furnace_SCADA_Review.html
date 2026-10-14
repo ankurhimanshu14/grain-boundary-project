@@ -1798,6 +1798,15 @@ function prodTrace(D,A){
     if(to<=t0||from>=t1) return;
     batches.push({rep:r,x,zs,from,to,wins:[],zones:new Set()});
   }));
+  /* a batch that came out of the furnace over two production days is in both reports (same batch key): shown once, its windows joined */
+  const one=new Map();
+  batches.forEach(b=>{ const m=one.get(b.x.id); if(!m){ b.reps=[b.rep]; one.set(b.x.id,b); return; }
+    if(!m.reps.includes(b.rep)) m.reps.push(b.rep);
+    b.zs.forEach(z=>{ const q=m.zs.find(q=>q.ch===z.ch&&q.z===z.z); if(q){ q.from=Math.min(q.from,z.from); q.to=Math.max(q.to,z.to); } else m.zs.push({...z}); });
+    m.from=Math.min(m.from,b.from); m.to=Math.max(m.to,b.to);
+    const n=v=>+v||0; m.x={...m.x,qty:n(m.x.qty)+n(b.x.qty),kg:n(m.x.kg)+n(b.x.kg)||m.x.kg,trays:n(m.x.trays)+n(b.x.trays),lvl:m.x.lvl==="crit"||b.x.lvl==="crit"?"crit":m.x.lvl}; });
+  batches.length=0; one.forEach(b=>{ b.zs=b.zs.map(z=>({...z})); b.reps.sort((a,c)=>a.date<c.date?-1:1); batches.push(b); });
+  const seenU=new Set(); untimed.splice(0,untimed.length,...untimed.filter(u=>!seenU.has(u.x.id)&&seenU.add(u.x.id)));
   batches.sort((a,b)=>a.from-b.from);
   /* exposure: the batch was in an affected zone while that zone's incident counted against trays */
   A.events.filter(e=>e.aff).forEach(e=>{ const w=A.windows.find(w=>w.inc.includes(e.no));
@@ -1863,7 +1872,8 @@ function prodSection(A){
   if(!P.batches.length) return `<section class="panel">${head}<div class="empty">${P.covered?`No batch of ${esc(P.L.f)} with complete times was in the ${esc(P.L.ch.toLowerCase())} chamber during this record.`:`No production report of ${esc(P.L.f)} covers this record yet. Enter the day's batches on the Daily production page.`}${P.untimed.length?` ${P.untimed.length} batch${P.untimed.length>1?"es have":" has"} no complete entry / exit times or quantity.`:""}</div></section>`;
   const SR={ok:["good","As specified"],diff:["crit","Differs"],nospec:["info","No specification"],nodata:["info","No set value"]};
   const rows=P.batches.map(b=>{ const x=b.x, sp=x.spec;
-    return `<tr><td><b>${esc(x.batch||"?")}</b><br><span class="muted">${esc(b.rep.id)} · ${chip(b.rep.status==="approved"?"good":"warn",b.rep.status==="approved"?"Approved":"Draft")}</span></td>
+    const repTxt=r=>`${esc(r.id||"no report yet")}${b.reps.length>1?" ("+esc(fmtD(Date.parse(r.date+"T00:00:00Z")))+")":""} · ${chip(r.status==="approved"?"good":"warn",r.status==="approved"?"Approved":r.status==="none"?"Not created":"Draft")}`;
+    return `<tr><td><b>${esc(x.batch||"?")}</b><br><span class="muted">${b.reps.map(repTxt).join("<br>")}${b.reps.length>1?`<br>out of the furnace over ${b.reps.length} production days`:""}</span></td>
       <td>${esc(x.part||"")}${sp?`<br><span class="muted">${esc(sp.name||"")}${sp.src?" · "+esc(sp.src):""}</span>`:""}</td><td>${esc(x.heat||"")}${x.heatCode?" / "+esc(x.heatCode):""}</td>
       <td class="n">${x.qty?esc(x.qty):"–"}${x.kg?`<br><span class="muted">${f0(x.kg)} kg</span>`:""}</td>
       <td class="n" style="white-space:nowrap">${fmtW(b.from)} → ${fmtW(b.to)}</td>
