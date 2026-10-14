@@ -389,6 +389,8 @@ function renderHome(){
       att.push({lvl:t[0],o:t[1],txt:`<b>${esc(x.furnace)} · ${esc(x.id)}</b>: ${what} ${fd(x.start)} ${x.start?esc(x.start.slice(11,16)):""}: ${t[2]}${x.late&&x.status==="active"?', <span class="bad">not acknowledged in time</span>':""}${x.miss&&x.miss.length&&x.status!=="active"?` <span class="muted">(missing: ${esc(x.miss.slice(0,3).join(", "))}${x.miss.length>3?" …":""})</span>`:""}`,btn:`<button class="nb" data-ops="${esc(x.id)}">Open</button>`});});
   }
   if(PR){
+    /* trays on hold in the tray log of the Daily production page, per report */
+    PR.forEach(r=>{const H=(r.trays||[]).filter(t=>t.hold);if(H.length) att.push({lvl:"crit",o:2,txt:`<b>${esc(r.furnace)} · ${esc(r.id)}</b>: ${H.length} tray${H.length>1?"s":""} of ${fd(r.date)} on hold (${esc([...new Set(H.map(t=>t.hold.reason))].join("; "))})`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`});});
     prodDrafts().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>att.push({lvl:"warn",o:5,txt:`<b>${esc(r.furnace)} · ${esc(r.id)}</b>: production report of ${fd(r.date)} not approved (${r.rows.length} batch${r.rows.length===1?"":"es"}${r.rows.some(x=>x.lvl==="crit")?", some incomplete":""})`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`}));
   }
   if(MT){

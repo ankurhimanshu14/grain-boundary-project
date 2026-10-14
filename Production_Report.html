@@ -117,6 +117,38 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
   table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
   table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-size:12px}
 }
+/* tray-first entry */
+.loadgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 12px;align-items:end}
+.loadgrid .field input,.loadgrid .field select{width:100%}
+.loadgrid .wide{grid-column:span 2}
+@media (max-width:520px){.loadgrid .wide{grid-column:auto}}
+.rwbox{display:none;grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 12px}
+.rwbox.on{display:grid}
+.chk{display:flex;gap:6px;align-items:center;font-size:13px}
+.chk input{width:auto}
+.bulk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:5px;background:var(--surface2);margin:8px 0;font-size:13px}
+table.trays td.c{white-space:normal;min-width:240px}
+table.trays td.sel{width:28px}
+.it{display:block}
+.tag{display:inline-block;font-size:11px;font-weight:600;border-radius:3px;padding:0 5px;margin-left:4px;border:1px solid var(--line);vertical-align:1px}
+.tag.rw{color:var(--t);border-color:var(--t)}
+.tag.hold{color:var(--crit-ink);border-color:var(--crit)}
+.tag.mix{color:var(--warn-ink);border-color:var(--warn)}
+tr.t-hold td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
+tr.t-rw td:first-child{box-shadow:inset 3px 0 0 var(--t)}
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:12px 16px;z-index:2}
+.dlg-b{padding:12px 16px;display:flex;flex-direction:column;gap:14px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto}
+.items td{padding:3px 6px 3px 0;vertical-align:middle}
+.items input{width:100%;min-width:70px;padding:4px 6px}
+.items input[type=number]{width:80px;min-width:0}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px}
+.fgrid .field input,.fgrid .field select,.fgrid .field textarea{width:100%}
+.fgrid .span{grid-column:1/-1}
+textarea{min-height:54px;resize:vertical}
 </style></head>
 <body>
 <div class="wrap">
@@ -143,29 +175,43 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
         <button class="btn ghost" id="b-pdf">Download PDF</button>
       </div>
     </div>
+    <div class="status" id="rep-status" style="margin-top:10px"></div>
   </section>
 
   <section class="kpis" id="kpis"></section>
 
-  <section class="panel">
-    <div class="sec-head"><h2 id="rep-title">Batches</h2><p>One entry per batch. Choosing the part no. fills in its process specification; enter the batch, heat, times and quantity from the register. Trays, weight, time in the furnace and the expected exit time are calculated.</p></div>
-    <div class="status" id="rep-status"></div>
-    <div id="batches" style="margin-top:12px"></div>
-    <div class="actions" id="rep-actions" style="margin-top:6px"></div>
+  <section class="panel" id="load-panel">
+    <div class="sec-head"><h2 id="load-title">Load trays</h2><p>Enter the trays in the order they enter the hardening chamber. Each tray enters one push time after the one before it. Give the loading details once and the number of trays with the same loading; use “Add to the last tray” for a mixed tray and “Add empty tray(s)” for trays without material.</p></div>
+    <div id="load"></div>
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2 id="tl-title">Tray loading log</h2><p>One line per tray in the order the trays enter the hardening chamber, starting with the first tray of the day. Each tray enters one push time after the one before it, so only its contents are entered: one batch, parts of several batches (a mixed tray at the end of a batch) or nothing (an empty tray). When the push time is changed, enter the time of the first push at the new push time. A tray that entered off the cycle (for example after a stop) gets its actual time. The batches above then take their entry, exit, trays and zone windows from this log.</p></div>
+    <div class="sec-head"><h2 id="tl-title">Tray log</h2><p>One line per tray. Select trays to put them on hold, release them, mark them as rework or delete them; “Edit” changes the contents, an actual entry time (a tray that entered off the cycle, e.g. after a stop) or the note.</p></div>
     <div id="trays"></div>
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Totals of the day</h2><p>Per part, per heat and per process for the furnace and date chosen above.</p></div>
+    <div class="sec-head"><h2>Process parameter changes</h2><p>Every change made during the day: push time (it changes the timing of the trays from that moment: enter the time of the first push at the new push time), set values per zone, controlled cooling time, quench oil temperature or anything else. A set value or cooling time that differs from the specification of a batch in that zone is flagged on the batch.</p></div>
+    <div id="params"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Trays on hold</h2><p>Trays held because of an issue (temperature excursion, alarm, parameter out of specification, test pending …) in this furnace, with their release: released after a check, sent for rework, scrapped or released under concession.</p></div>
+    <div class="scroll" id="holds"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2 id="rep-title">Batches</h2><p>Built from the tray log: one entry per part, batch, heat and heat code (rework separately). Trays, pieces, weight, entry, exit, push time and zone windows come from the trays.</p></div>
+    <div id="batches"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Totals of the day</h2><p>Per part, per heat and per process for the furnace and date chosen above; rework is counted separately from first-time production.</p></div>
     <div class="three" id="totals"></div>
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Approval</h2><p>When every batch is complete, the supervisor approves the report. It is then locked; unlocking needs a reason and is recorded.</p></div>
+    <div class="sec-head"><h2>Approval</h2><p>When every tray and batch is complete, the supervisor approves the report. It is then locked; unlocking needs a reason and is recorded. Holds can still be released on a locked report.</p></div>
     <div id="approval"></div>
   </section>
 
@@ -198,16 +244,16 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
   <footer>
     <b>How the times are worked out</b>
     <ul>
-      <li>Trays = quantity ÷ loading per tray (rounded up). One tray moves one position per push; the first tray enters the hardening chamber at the entry time and each further tray one push later.</li>
-      <li>The line: hardening chamber 13 tray positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). At every push the extractor takes the 13th tray out of the hardening chamber and a new tray is pushed in; at the same time the 26th tray is taken out of the tempering chamber. For isothermal annealing the extracted tray goes on the rail into the controlled cooling chamber (one tray), air is blown for the part's controlled cooling time, and the tray is then pushed into the tempering chamber, all before the next push. Example: push time 18 min = transfer in + 12 min cooling + transfer out, the rest idle. The controlled cooling chamber is not a tray position of the line: 13 + 1 + 12 = 26 trays are in the line right after a push.</li>
-      <li>Expected exit from the tempering chamber = entry + (trays − 1 + tray positions of the hardening chamber + pushes in the tempering chamber) × push time. Measured on this line: first tray in at 01:06, out of the hardening chamber at 05:00 (13 pushes of 18 min) and out of the tempering chamber at 08:18 (11 more pushes), so a tray is in the furnace for 24 push times and leaves the tempering chamber at the 11th push after it left the hardening chamber, although the chamber has 12 positions (setting "pushes until a tray is taken out"). The minutes between the chambers (hardening &amp; tempering: quench delay + dip + transfer; isothermal annealing: controlled cooling time + transfers; normalizing / full annealing: the settings) delay the entry into the tempering chamber, not the exit: the tray spends 11 push times minus those minutes in the tempering chamber. The entry is flagged when the recorded exit differs by more than the set number of push times.</li>
-      <li>Implied push time = (exit − entry) ÷ (trays − 1 + hardening positions + pushes in the tempering chamber). It shows what push time the recorded times correspond to.</li>
-      <li>With the tray loading log: tray n + 1 enters one push time after tray n; a push change takes effect at its time (the first push at the new push time); a tray with an actual time starts the cycle again from that time. A tray in position k of the line moves on when the k-th tray after it enters, so the trays of the next day's log (or, when there is none yet, the push time in force) give the time each tray leaves a zone and the chamber. Leaving the tempering chamber = entry of the tray (13 + 11) trays later; entering it = leaving the hardening chamber + the minutes between the chambers. For isothermal annealing the cooling cycle of each tray must end before the next push; a tray whose next push came earlier is flagged.</li>
-      <li>Zone windows: from the arrival of the first tray to the departure of the last tray of the batch in each zone. They are the basis for tracing batches in a temperature excursion.</li>
-      <li>Normalizing uses the hardening chamber as preheating (about 700–750 °C) and austenitizes in the tempering chamber; fan cooling, when required, follows the exit and does not change the exit time. Controlled cooling of isothermal annealing happens between the chambers.</li>
+      <li>The trays are entered in the order they enter the hardening chamber. Tray n + 1 enters one push time after tray n; a push time change takes effect at its time (the first push at the new push time); a tray with an actual entry time starts the cycle again from that time.</li>
+      <li>The line: hardening chamber 13 tray positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). At every push the extractor takes the 13th tray out of the hardening chamber and a new tray is pushed in; at the same time a tray is taken out of the tempering chamber. For isothermal annealing the extracted tray goes into the controlled cooling chamber (one tray), air is blown for the part's controlled cooling time, and the tray is then pushed into the tempering chamber, all before the next push.</li>
+      <li>Measured on this line: first tray in at 01:06, out of the hardening chamber at 05:00 (13 pushes of 18 min) and out of the tempering chamber at 08:18 (11 more pushes). A tray therefore leaves the hardening chamber 13 pushes after it entered and the tempering chamber 11 pushes later (setting “pushes until a tray is taken out”). The minutes between the chambers delay the entry into the tempering chamber, not the exit.</li>
+      <li>A tray moves on when the next trays are pushed in, so the trays entered on the next day (or, when there are none yet, the push time in force) give the time each tray leaves a zone and the furnace. Zone windows of a batch: from the arrival of its first tray to the departure of its last tray in each zone; they are the basis for tracing batches in a temperature excursion.</li>
+      <li>A batch is one part no. with one batch no., heat no. and heat code; trays of a rework (re-heat-treatment) are a separate entry. When the batch no. is not available (N/A), trays in a row with the same details form one entry.</li>
     </ul>
   </footer>
 </div>
+
+<dialog id="tdlg"></dialog>
 
 <script>
 "use strict";
@@ -217,6 +263,7 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const pad=n=>String(n).padStart(2,"0");
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const todayISO=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowLocal=()=>{const d=new Date();return todayISO()+"T"+pad(d.getHours())+":"+pad(d.getMinutes());};
 const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
 const addDays=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().slice(0,10);
 const fdate=d=>isDate(d)?`${d.slice(8,10)}-${MON[+d.slice(5,7)-1]}-${d.slice(0,4)}`:"—";
@@ -224,7 +271,6 @@ const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
 const txt=v=>String(v??"").trim();
 /* "N/A" (also "NA", "not available") means the value is not available: it is accepted as an entry but never used to match records */
 const isNA=v=>/^(n\s*\/?\s*a|not\s+available)$/i.test(String(v??"").trim());
-
 /* times are clock times without a time zone (as in the SCADA review): "YYYY-MM-DDTHH:MM" ↔ ms */
 const tms=v=>{if(!v||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))return null;const t=Date.parse(v.slice(0,16)+":00Z");return isFinite(t)?t:null;};
 const iso=ms=>new Date(ms).toISOString().slice(0,16);
@@ -235,14 +281,21 @@ const f1=v=>v==null||!isFinite(v)?"—":(Math.round(v*10)/10).toLocaleString("en
 const f0=v=>v==null||!isFinite(v)?"—":Math.round(v).toLocaleString("en-IN");
 const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
 const sum=a=>a.reduce((x,y)=>x+y,0);
+const clone=o=>JSON.parse(JSON.stringify(o));
 
 /* ---------- data model ---------- */
 const KEY="prod-reg";
 const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing",P_FA="Full annealing";
 const PROCS=[P_HT,P_IA,P_NO,P_FA];
-const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,flagPush:1,wtTol:5};
+const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5};
 const DEFF=["F-01","F-02","F-03","F-04"];
-const blank=()=>({v:1,lay2:true,settings:{...DEF},furnaces:DEFF.slice(),specs:[],reports:[],seq:1,rseq:1});
+const HOLD_REASONS=["Temperature excursion (SCADA)","Alarm / line stop","Push time or process parameter out of specification","Quench / controlled cooling problem","Test result pending (hardness, microstructure)","Parts mixed up or not identified","Tray or parts damaged","Other"];
+const RELEASE=["Released after check","Sent for rework (re-heat-treatment)","Scrapped","Released under customer concession"];
+const PARAMS={push:["Push time","min"],hset:["Hardening chamber set value","°C"],tset:["Tempering chamber set value","°C"],cc:["Controlled cooling time","min"],quench:["Quench oil temperature","°C"],dip:["Dip time","min"],other:["Other",""]};
+const blank=()=>({v:2,lay2:true,settings:{...DEF},furnaces:DEFF.slice(),specs:[],reports:[],seq:1});
+const emptyTl=()=>({start:"",push:"",trays:[],seq:1});
+/* a report: {id, date, furnace, tl:{start, push, trays[{id, items[{part,batch,heat,heatCode,qty,rw}], at, note, hold}], seq}, params[], bx{key:{weighed,note}}, status, apprBy, apprDate, log}
+   rw = rework {ref, reason}; hold = {reason, ref, note, by, at, rel:{disp, by, at, note}} */
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.specs)||!Array.isArray(o.reports)) return null;
   o.settings={...DEF,...(o.settings||{})};
@@ -250,17 +303,38 @@ function normalize(o){
   if(!o.lay2){if(String(o.settings.posT).replace(/\s/g,"")==="5,4,4")o.settings.posT="4,4,4";o.lay2=true;}
   o.furnaces=Array.isArray(o.furnaces)&&o.furnaces.length?o.furnaces:DEFF.slice();
   o.specs=o.specs.filter(s=>s&&typeof s==="object").map(s=>({h:["","",""],t:["","",""],...s}));
-  o.reports=o.reports.filter(r=>r&&r.id&&isDate(r.date)&&r.furnace).map(r=>({rows:[],log:[],status:"draft",...r}));
+  o.reports=o.reports.filter(r=>r&&r.id&&isDate(r.date)&&r.furnace).map(r=>migrate({log:[],status:"draft",params:[],bx:{},...r},o));
   o.seq=Math.max(+o.seq||1,...o.reports.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
-  o.rseq=Math.max(+o.rseq||1,1+Math.max(0,...o.reports.flatMap(r=>r.rows.map(x=>+(String(x.id).match(/\d+/)||[0])[0]))));
-  return o;
+  o.v=2;return o;
+}
+const keyBase=it=>[it.part,it.batch,it.heat,it.heatCode].map(v=>txt(v).toUpperCase()).join("|")+(it.rw?"|RW":"");
+const itemOf=x=>({part:txt(x.part),batch:txt(x.batch),heat:txt(x.heat),heatCode:txt(x.heatCode),qty:num(x.qty)??"",rw:x.rw||null});
+/* reports saved before the tray-first entry had one row per batch (and optionally a tray log pointing at the rows): turned into trays */
+function migrate(r,o){
+  const tl=r.tl&&Array.isArray(r.tl.trays)?r.tl:emptyTl();tl.seq=+tl.seq||1+tl.trays.length;
+  if(Array.isArray(r.rows)){
+    const byId=Object.fromEntries(r.rows.map(x=>[x.id,x]));
+    const used=new Set(tl.trays.flatMap(t=>(t.items||[]).map(it=>it.b)).filter(Boolean));
+    tl.trays.forEach(t=>{t.items=(t.items||[]).map(it=>it.b!==undefined?(byId[it.b]?{...itemOf(byId[it.b]),qty:num(it.qty)??""}:null):it).filter(Boolean);});
+    r.rows.filter(x=>!used.has(x.id)).forEach(x=>{
+      const sp=(o.specs||[]).find(s=>txt(s.part).toUpperCase()===txt(x.part).toUpperCase()),per=sp?num(sp.perTray):null,qty=num(x.qty)||0;
+      const n=per>0&&qty>0?Math.ceil(qty/per):1;let left=qty;
+      for(let i=0;i<n;i++){const k=per>0?Math.min(per,left):qty;left-=k;tl.trays.push({id:"T"+String(tl.seq++).padStart(4,"0"),items:[{...itemOf(x),qty:k||""}],at:i===0?(x.entry||""):"",note:i===0&&x.note?x.note:"",hold:null});}
+      if(!tl.start&&x.entry) tl.start=x.entry;});
+    r.rows.forEach(x=>{if(num(x.weighed)!=null||txt(x.note)){const k=keyBase(itemOf(x));r.bx[k]={weighed:x.weighed||"",note:x.note||""};}});
+    if(tl.changes){(tl.changes||[]).forEach((c,i)=>r.params.push({id:"P"+(i+1),at:c.at,kind:"push",zone:"",from:"",to:c.push,reason:c.note||"",by:""}));delete tl.changes;}
+    delete r.rows;
+  }
+  tl.trays=tl.trays.map(t=>({items:[],at:"",note:"",hold:null,...t}));
+  tl.seq=Math.max(+tl.seq||1,1+Math.max(0,...tl.trays.map(t=>+(String(t.id).match(/\d+/)||[0])[0])));
+  r.tl=tl;return r;
 }
 let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 if(!DB) DB=blank();
 /* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
 const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
-let EMIT=0;
-const save=()=>{TLC=null;try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+let EMIT=0,TLC=null,BC=new Map();
+const save=()=>{TLC=null;BC=new Map();try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
   if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("prod:changed"),300);}};
 const S=()=>DB.settings;
 const pos=k=>String(S()[k]||"").split(/[,;\s]+/).map(Number).filter(n=>n>0);
@@ -275,7 +349,7 @@ function regSpec(part,furnace){
     between:s.between,gapPos:s.gapPos,gapMin:s.gapMin,src:`${s.id} rev ${s.rev}`,furnaces:s.furnaces,otherFurnace:!!furnace&&!s.furnaces.includes(furnace)};
 }
 const ownSpec=part=>DB.specs.find(s=>txt(s.part)&&txt(s.part).toUpperCase()===txt(part).toUpperCase())||null;
-const specOf=(part,furnace)=>regSpec(part,furnace)||ownSpec(part);
+const specOf=(part,furnace)=>txt(part)?regSpec(part,furnace)||ownSpec(part):null;
 /* furnaces: the SAT register's list in the suite, otherwise this page's own */
 const furnaces=()=>{try{const a=HTQ&&HTQ.api("sat");if(a){const l=a.furnaces();if(l&&l.length)return l;}}catch(e){}return DB.furnaces;};
 let VIEW={f:"",d:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem("prod-view")||"{}")};}catch(e){}
@@ -284,13 +358,13 @@ const saveView=()=>{try{localStorage.setItem("prod-view",JSON.stringify(VIEW));}
 const repOf=(f,d)=>DB.reports.find(r=>r.furnace===f&&r.date===d)||null;
 const curRep=()=>repOf(VIEW.f,VIEW.d);
 const logIt=(r,t)=>r.log.push({d:todayISO(),t});
+const locked=R=>R&&R.status==="approved";
+/* a section is not rebuilt while a field in it is being edited */
+const typing=el=>{const a=document.activeElement;return !!a&&el.contains(a)&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);};
 
-/* ---------- calculation per batch ---------- */
-/* between the chambers: minutes from leaving the hardening chamber to entering the tempering chamber, within the same push cycle.
-   Isothermal annealing: at each push the extractor takes the 13th tray out of the hardening chamber (and, at the same time, the 26th tray out of
-   the tempering chamber); the tray goes on the rail into the controlled cooling chamber, air is blown for the cooling time, then it is pushed
-   into the tempering chamber. So the cooling cycle = cooling time + transfers in and out, and it must end before the next push.
-   pos stays 0 (the cooling chamber is not a line position); cc = the cooling time */
+/* ---------- line timing ---------- */
+/* between the chambers: minutes from leaving the hardening chamber to entering the tempering chamber, within the same push cycle
+   (hardening & tempering: quench delay + dip + transfer; isothermal annealing: controlled cooling time + transfers; normalizing / full annealing: settings) */
 function gapOf(sp){
   const s=S();
   if(!sp) return null;
@@ -302,30 +376,25 @@ function gapOf(sp){
   if(sp.proc===P_FA) return {pos:0,min:num(s.gapFA)||0,cc};
   return null;
 }
-/* push cycles a tray stays in the tempering chamber, counted from the push that took it out of the hardening chamber: measured 11 on this
-   line (first tray in 01:06, out of the hardening chamber 05:00 = 13 pushes, out of the tempering chamber 08:18 = 11 more pushes of 18 min),
-   one less than its 12 positions: the 12th position is not a full cycle's stay */
+/* push cycles a tray stays in the tempering chamber after it left the hardening chamber: measured 11 (01:06 in, 05:00 out of hardening, 08:18 out of tempering at 18 min) */
 const tPushes=()=>{const n=sum(pos("posT"));return Math.max(1,Math.min(n||12,Math.round(num(S().tPush)??(n-1))));};
-const gapMins=(g,push)=>g?g.pos*(push||0)+g.min:null;
-/* ---------- tray loading log: one entry per tray in the order the trays enter the hardening chamber ---------- */
-const tlOf=R=>R&&R.tl&&Array.isArray(R.tl.trays)&&R.tl.trays.length&&(tms(R.tl.start)!=null||tms(R.tl.trays[0].at)!=null)?R.tl:null;
-const rowSpec=(R,id)=>{const row=R.rows.find(x=>x.id===id);return row?specOf(row.part,R.furnace):null;};
-function tlPush0(R){const tl=R.tl||{},v=num(tl.push);if(v>0)return v;const it=(tl.trays||[]).flatMap(t=>t.items||[])[0],sp=it?rowSpec(R,it.b):null;
-  if(sp&&num(sp.push)>0)return num(sp.push);const r0=R.rows.map(x=>specOf(x.part,R.furnace)).find(x=>x&&num(x.push)>0);return r0?num(r0.push):null;}
+const itemSpec=(R,it)=>specOf(it.part,R.furnace);
+const firstSpec=R=>{for(const t of R.tl.trays)for(const it of t.items||[]){const sp=itemSpec(R,it);if(sp)return sp;}return null;};
+function tlPush0(R){const v=num(R.tl.push);if(v>0)return v;const sp=firstSpec(R);return sp&&num(sp.push)>0?num(sp.push):null;}
+const pushChanges=R=>(R.params||[]).filter(p=>p.kind==="push").map(c=>({t:tms(c.at),p:num(c.to)})).filter(c=>c.t!=null&&c.p>0).sort((a,b)=>a.t-b.t);
+const hasLog=R=>R&&R.tl&&R.tl.trays.length&&(tms(R.tl.start)!=null||tms(R.tl.trays[0].at)!=null);
 /* entry times of the trays of one report: next = previous + push in force; a push change is the first push at the new push time; an actual time overrides */
 function tlStepper(R){
-  const tl=R.tl,ch=(tl.changes||[]).map(c=>({t:tms(c.at),p:num(c.push)})).filter(c=>c.t!=null&&c.p>0).sort((a,b)=>a.t-b.t);
-  let p=tlPush0(R)||0,t=null,ci=0;
+  const ch=pushChanges(R);let p=tlPush0(R)||0,t=null,ci=0;
   const apply=()=>{while(ci<ch.length&&ch[ci].t<=t){p=ch[ci].p;ci++;}};
   const step=()=>{const c=t+p*60000;if(ci<ch.length&&ch[ci].t>t&&ch[ci].t<=c){t=ch[ci].t;p=ch[ci].p;ci++;}else t=c;apply();return {t,p};};
-  const times=tl.trays.map((tr,i)=>{const a=tms(tr.at);if(i===0||a!=null){t=a??tms(tl.start);apply();return {t,p};}return step();});
+  const times=R.tl.trays.map((tr,i)=>{const a=tms(tr.at);if(i===0||a!=null){t=a??tms(R.tl.start);apply();return {t,p};}return step();});
   return {times,step};
 }
-let TLC=null;
 /* all logged trays of a furnace in entry order (every day), and the entry time of the tray j places on (extrapolated with the push time in force) */
 function timeline(f){
   TLC=TLC||{};if(TLC[f])return TLC[f];
-  const reps=DB.reports.filter(r=>r.furnace===f&&tlOf(r)).sort((a,b)=>(a.date<b.date?-1:1));
+  const reps=DB.reports.filter(r=>r.furnace===f&&hasLog(r)).sort((a,b)=>(a.date<b.date?-1:1));
   const G=[];let last=null;
   reps.forEach(R=>{const st=tlStepper(R);R.tl.trays.forEach((tr,i)=>G.push({R,tr,i,t:st.times[i].t,p:st.times[i].p}));last=st;});
   G.sort((a,b)=>a.t-b.t);
@@ -333,96 +402,93 @@ function timeline(f){
   const idx=new Map();G.forEach((g,j)=>idx.set(g.tr,j));
   return TLC[f]={G,at,idx};
 }
-const trayGap=(R,tr)=>{const it=(tr.items||[]).find(x=>rowSpec(R,x.b));if(it)return gapOf(rowSpec(R,it.b))||{pos:0,min:0};
-  const sp=R.rows.map(x=>specOf(x.part,R.furnace)).find(Boolean);return (sp&&gapOf(sp))||{pos:0,min:0};};
+const trayGap=(R,tr)=>{const it=(tr.items||[]).find(x=>itemSpec(R,x));if(it)return gapOf(itemSpec(R,it))||{pos:0,min:0};const sp=firstSpec(R);return (sp&&gapOf(sp))||{pos:0,min:0};};
 /* times of one tray: enters hardening, leaves hardening, enters / leaves tempering */
 function trayTimes(R,tr){
+  if(!hasLog(R)) return null;
   const L=timeline(R.furnace),j=L.idx.get(tr);if(j==null)return null;
-  const nH=sum(pos("posH")),nT=sum(pos("posT")),g=trayGap(R,tr),gm=g.min*60000;
+  const nH=sum(pos("posH")),g=trayGap(R,tr),gm=g.min*60000;
   return {t:L.at(j),p:L.G[j].p,hOut:L.at(j+nH),tIn:L.at(j+nH+g.pos)+gm,tOut:L.at(j+nH+g.pos+tPushes())};
 }
-const trayLoad=(R,tr)=>sum((tr.items||[]).map(it=>{const sp=rowSpec(R,it.b),per=sp?num(sp.perTray):null;return per>0&&num(it.qty)>0?num(it.qty)/per:0;}));
-const inTrays=(R,row)=>sum((tlOf(R)?R.tl.trays:[]).flatMap(t=>(t.items||[]).filter(it=>it.b===row.id).map(it=>num(it.qty)||0)));
-/* a batch from the tray log: trays, entry, exit and zone windows */
-function rowTrays(R,row){
-  if(!tlOf(R))return null;
-  const T=R.tl.trays.filter(t=>(t.items||[]).some(it=>it.b===row.id));if(!T.length)return null;
-  const L=timeline(R.furnace),j0=L.idx.get(T[0]),j1=L.idx.get(T.at(-1));if(j0==null||j1==null)return null;
-  const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(specOf(row.part,R.furnace))||{pos:0,min:0},o=nH+g.pos,gm=g.min*60000,zones=[];let acc=0;
-  PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:L.at(j0+acc),to:L.at(j1+acc+n)});acc+=n;});acc=0;
-  if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:L.at(j0+nH),to:L.at(j1+nH)+gm});
-  /* in the tempering chamber a tray moves on when the next tray is put in (push + gap) and is taken out at a push, tPushes() pushes after it
-     left the hardening chamber (the extraction happens at the push, during the next tray's cooling / quench): the zone it leaves from ends
-     at that push, without the gap */
-  const tP=tPushes();
-  PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:end?L.at(j1+o+tP):L.at(j1+o+acc+n)+gm});}acc+=n;});
-  const pushes=[...new Set(T.map(t=>L.G[L.idx.get(t)].p))];
-  /* the cooling cycle of each tray has to end before the next push (the controlled cooling chamber holds one tray): time from the push that
-     took the tray out of the hardening chamber to the next push */
-  const room=g.cc!=null?T.map(t=>{const j=L.idx.get(t);return (L.at(j+nH+1)-L.at(j+nH))/60000;}):[];
-  return {ccRoom:room.length?Math.min(...room):null,ccRooms:room,n:T.length,qty:inTrays(R,row),e:L.at(j0),x:zones.at(-1).to,zones,pushes,mixed:T.filter(t=>t.items.length>1).length};
+/* share of a full tray: pieces ÷ pieces per tray of each part */
+const trayLoad=(R,tr)=>sum((tr.items||[]).map(it=>{const sp=itemSpec(R,it),per=sp?num(sp.perTray):null;return per>0&&num(it.qty)>0?num(it.qty)/per:0;}));
+const onHold=tr=>!!(tr.hold&&!tr.hold.rel);
+
+/* ---------- batches from the trays ---------- */
+const bName=b=>`${b.batch||"(no batch no.)"} · ${b.part||"?"}`;
+/* one entry per part + batch + heat + heat code (rework separately); with the batch no. not available, trays in a row with the same details */
+function batchesOf(R){
+  if(BC.has(R)) return BC.get(R);
+  const out=[],map=new Map();let prev=new Set();
+  R.tl.trays.forEach((tr,i)=>{const cur=new Set();
+    (tr.items||[]).forEach(it=>{const base=keyBase(it),na=!txt(it.batch)||isNA(it.batch);
+      const key=na?([...prev].find(k=>k.startsWith(base+"#"))||base+"#"+i):base;
+      let b=map.get(key);
+      if(!b){b={key,part:it.part,batch:it.batch,heat:it.heat,heatCode:it.heatCode,rw:it.rw||null,trays:[],qty:0,items:[]};map.set(key,b);out.push(b);}
+      if(!b.trays.includes(tr)) b.trays.push(tr);b.qty+=num(it.qty)||0;b.items.push(it);cur.add(key);});
+    if(cur.size) prev=cur;});
+  BC.set(R,out);return out;
 }
-const setsOf=(row,sp)=>({h:[0,1,2].map(i=>num(row.sets?.h?.[i])??num(sp?.h?.[i])),t:[0,1,2].map(i=>num(row.sets?.t?.[i])??num(sp?.t?.[i]))});
-function calcRow(row,rep){
-  const sp=specOf(row.part,rep&&rep.furnace),s=S(),out={sp,issues:[]},tz=rep?rowTrays(rep,row):null;out.tz=tz;
+/* timing, zone windows and checks of one batch */
+function calcBatch(R,b){
+  const sp=specOf(b.part,R.furnace),s=S(),out={sp,issues:[],n:b.trays.length,qty:b.qty};
   const I=(lvl,t)=>out.issues.push([lvl,t]);
-  if(sp&&sp.otherFurnace) I("warn",`Specification ${sp.src} is not approved for ${rep.furnace} (approved: ${sp.furnaces.join(", ")||"none"})`);
-  if(!txt(row.part)) I("crit","Part no. missing"); else if(!sp) I("crit",`Part no. ${row.part} has no process specification`);
-  if(!txt(row.batch)) I("crit","Batch no. missing");
-  if(!txt(row.heat)) I("crit","Heat no. missing");
-  if(!txt(row.heatCode)) I("crit","Heat code missing");
-  const qty=num(row.qty)??(tz?tz.qty:null); if(qty==null||qty<=0) I("crit","Quantity missing");
-  if(tz&&num(row.qty)!=null&&tz.qty!==num(row.qty)) I("warn",`Quantity ${row.qty} pcs, but the tray log holds ${tz.qty} pcs of this batch`);
-  if(!tz&&rep&&tlOf(rep)) I("info","Not in the tray loading log: entry and exit as entered");
-  const per=sp?num(sp.perTray):null, wt=sp?num(sp.wt):null;
-  if(tz){ out.trays=tz.n; if(tz.mixed) I("info",`${tz.mixed} mixed tray${tz.mixed>1?"s":""} (with another batch)`); }
-  else if(qty>0&&per>0){ out.trays=Math.ceil(qty/per); if(qty%per) I("info",`Last tray holds ${qty%per} of ${per} pieces`); }
-  if(qty>0&&wt>0) out.kg=qty*wt;
-  const wg=num(row.weighed); if(wg!=null&&out.kg){ const dp=(wg-out.kg)/out.kg*100; out.wDiff=dp; if(Math.abs(dp)>+s.wtTol) I("warn",`Weighed ${f1(wg)} kg is ${f1(Math.abs(dp))} % ${dp>0?"above":"below"} the calculated ${f1(out.kg)} kg`); }
-  const e=tz?tz.e:tms(row.entry),x=tz?tz.x:tms(row.exit);out.e=e;out.x=x;
-  if(e==null) I("crit",tz?"Tray log without a start time":"Entry time missing"); if(x==null) I("crit","Exit time missing");
-  if(e!=null&&x!=null){ if(x<=e) I("crit","Exit time is not after the entry time"); else out.mins=(x-e)/60000; }
-  if(e!=null&&rep&&iso(e).slice(0,10)!==rep.date) I("info",`Entry on ${fdate(iso(e).slice(0,10))}, not on the report date`);
-  const push=tz?(tz.pushes.length===1?tz.pushes[0]:null):num(row.push)??(sp?num(sp.push):null); out.push=push;
-  if(tz){ out.pushTxt=tz.pushes.join(" / "); if(sp&&num(sp.push)!=null&&tz.pushes.some(v=>v!==num(sp.push))) I("warn",`Push time in the tray log ${tz.pushes.join(" / ")} min (specification ${sp.push} min)`); }
-  else if(sp&&num(row.push)!=null&&num(sp.push)!=null&&num(row.push)!==num(sp.push)) I("warn",`Push time ${row.push} min (specification ${sp.push} min)`);
-  out.gap=gapOf(sp);
-  const pmin=tz?Math.min(...tz.pushes):push;out.between=gapMins(out.gap,pmin);
-  if(sp&&sp.proc===P_IA){const cc=num(sp.cc);if(cc==null) I("crit","Controlled cooling time missing in the specification");
-    else{const cyc=out.gap.min;
-      if(tz&&tz.ccRoom!=null&&tz.ccRoom<cyc){const n=tz.ccRooms.filter(v=>v<cyc).length;I("warn",`${n} tray${n>1?"s":""} of this batch: the next push came ${f1(tz.ccRoom)} min after the tray left the hardening chamber, before its controlled cooling cycle (cooling ${cc} + transfers ${f1(cyc-cc)} = ${f1(cyc)} min) was complete`);}
-      else if(!tz&&pmin>0&&cyc>=pmin) I("warn",`Controlled cooling cycle (cooling ${cc} + transfers ${f1(cyc-cc)} = ${f1(cyc)} min) does not fit in the push time ${pmin} min: the controlled cooling chamber holds one tray, so the cycle must end before the next push`);}}
-  const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),nT=sum(PT);
-  if(tz){ out.zones=tz.zones; if(e!=null&&x!=null) out.mins=(x-e)/60000; }
-  else if(e!=null&&push>0&&out.trays&&out.gap){
-    const g=out.gap;
-    const tP=tPushes();out.steps=out.trays-1+nH+g.pos+tP;
-    out.expected=e+out.steps*push*60000; /* the last tray is taken out of the tempering chamber at a push */
-    if(x!=null&&x>e){
-      out.dev=(x-out.expected)/60000;
-      out.implied=(x-e)/60000/out.steps;
-      if(Math.abs(out.dev)>(+s.flagPush||1)*push) I("warn",`Exit is ${fmin(Math.abs(out.dev))} ${out.dev>0?"later":"earlier"} than expected (${fdt(out.expected)}); the times correspond to a push time of ${f1(out.implied)} min${sp.proc===P_IA?" — check the controlled cooling":""}`);
+  if(sp&&sp.otherFurnace) I("warn",`Specification ${sp.src} is not approved for ${R.furnace} (approved: ${sp.furnaces.join(", ")||"none"})`);
+  if(!txt(b.part)) I("crit","Part no. missing"); else if(!sp) I("crit",`Part no. ${b.part} has no process specification`);
+  if(!txt(b.batch)) I("crit","Batch no. missing"); if(!txt(b.heat)) I("crit","Heat no. missing"); if(!txt(b.heatCode)) I("crit","Heat code missing");
+  if(b.items.some(it=>!(num(it.qty)>0))) I("crit","Quantity missing in a tray");
+  if(b.rw&&!txt(b.rw.ref)) I("crit","Rework: the original report / nonconformance no. is missing");
+  const wt=sp?num(sp.wt):null; if(b.qty>0&&wt>0) out.kg=b.qty*wt;
+  const bx=R.bx[b.key]||{},wg=num(bx.weighed); if(wg!=null&&out.kg){const dp=(wg-out.kg)/out.kg*100;out.wDiff=dp;if(Math.abs(dp)>+s.wtTol)I("warn",`Weighed ${f1(wg)} kg is ${f1(Math.abs(dp))} % ${dp>0?"above":"below"} the calculated ${f1(out.kg)} kg`);}
+  const mixed=b.trays.filter(t=>t.items.length>1).length; if(mixed) I("info",`${mixed} mixed tray${mixed>1?"s":""} (with another part or batch)`);
+  const held=b.trays.filter(onHold); if(held.length) I("crit",`${held.length} tray${held.length>1?"s":""} on hold: ${[...new Set(held.map(t=>t.hold.reason))].join("; ")}`);
+  const rel=b.trays.filter(t=>t.hold&&t.hold.rel); if(rel.length) I("info",`${rel.length} tray${rel.length>1?"s were":" was"} on hold: ${[...new Set(rel.map(t=>t.hold.rel.disp))].join("; ")}`);
+  if(b.rw) I("info",`Rework (re-heat-treatment) of ${b.rw.ref||"?"}${b.rw.reason?": "+b.rw.reason:""}`);
+  /* timing from the tray log */
+  if(hasLog(R)){
+    const L=timeline(R.furnace),j0=L.idx.get(b.trays[0]),j1=L.idx.get(b.trays.at(-1));
+    if(j0!=null&&j1!=null){
+      const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(sp)||{pos:0,min:0},o=nH+g.pos,gm=g.min*60000,tP=tPushes(),zones=[];let acc=0;
+      PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:L.at(j0+acc),to:L.at(j1+acc+n)});acc+=n;});acc=0;
+      if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:L.at(j0+nH),to:L.at(j1+nH)+gm});
+      /* in the tempering chamber a tray moves on when the next tray is put in (push + gap) and is taken out at a push, tP pushes after it left the hardening chamber */
+      PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:end?L.at(j1+o+tP):L.at(j1+o+acc+n)+gm});}acc+=n;});
+      out.zones=zones;out.e=L.at(j0);out.x=zones.at(-1).to;out.mins=(out.x-out.e)/60000;out.gap=g;
+      const pushes=[...new Set(b.trays.map(t=>L.G[L.idx.get(t)].p))];out.pushTxt=pushes.join(" / ");out.between=g.pos*Math.min(...pushes)+g.min;
+      if(sp&&num(sp.push)!=null&&pushes.some(v=>v!==num(sp.push))) I("warn",`Push time ${out.pushTxt} min (specification ${sp.push} min)`);
+      if(sp&&sp.proc===P_IA){const cc=num(sp.cc);if(cc==null) I("crit","Controlled cooling time missing in the specification");
+        else{const room=b.trays.map(t=>{const j=L.idx.get(t);return (L.at(j+nH+1)-L.at(j+nH))/60000;}),short=room.filter(v=>v<g.min);
+          if(short.length) I("warn",`${short.length} tray${short.length>1?"s":""}: the next push came ${f1(Math.min(...room))} min after the tray left the hardening chamber, before its controlled cooling cycle (cooling ${cc} + transfers ${f1(g.min-cc)} = ${f1(g.min)} min) was complete`);}}
+      /* process parameter changes while the batch was in the zone / furnace */
+      (R.params||[]).forEach(p=>{const t=tms(p.at);if(t==null||p.kind==="push")return;const P=PARAMS[p.kind]||PARAMS.other,z=num(p.zone),to=num(p.to);
+        if((p.kind==="hset"||p.kind==="tset")&&z){const ch=p.kind==="hset"?"Hardening":"Tempering",w=zones.find(q=>q.ch===ch&&q.z===z);if(!w||t<w.from||t>=w.to)return;
+          const want=sp?num((p.kind==="hset"?sp.h:sp.t)[z-1]):null;
+          I(want!=null&&to!=null&&to!==want?"warn":"info",`${ch} zone ${z} set value changed to ${p.to} °C at ${fdtShort(t,R.date)} while the batch was in the zone${want!=null?` (specification ${want} °C)`:""}`);return;}
+        if(p.kind==="cc"){const w=zones.find(q=>q.ch==="Controlled cooling");if(!w||t<w.from||t>=w.to)return;const want=sp?num(sp.cc):null;
+          I(want!=null&&to!=null&&to!==want?"warn":"info",`Controlled cooling time changed to ${p.to} min at ${fdtShort(t,R.date)}${want!=null?` (specification ${want} min)`:""}`);return;}
+        if(t>=out.e&&t<out.x) I("info",`${P[0]} changed${p.to!==""?" to "+p.to+(P[1]?" "+P[1]:""):""} at ${fdtShort(t,R.date)} while the batch was in the furnace${p.reason?" ("+p.reason+")":""}`);});
     }
-    /* zone windows: first tray arrives … last tray leaves */
-    const zones=[];let acc=0;
-    PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:e+acc*push*60000,to:e+(out.trays-1+acc+n)*push*60000});acc+=n;});
-    if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:e+nH*push*60000,to:e+((out.trays-1+nH)*push+g.min)*60000});
-    const off=(nH+g.pos)*push*60000+g.min*60000;acc=0;
-    PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:e+off+acc*push*60000,to:end?e+(out.trays-1+nH+g.pos+tP)*push*60000:e+off+(out.trays-1+acc+n)*push*60000});}acc+=n;});
-    out.zones=zones;
-  }
-  /* set values different from the specification */
-  if(sp&&row.sets){ const d=[];["h","t"].forEach(c=>[0,1,2].forEach(i=>{const v=num(row.sets[c]?.[i]),w=num(sp[c]?.[i]);if(v!=null&&w!=null&&v!==w)d.push(`${c==="h"?"hardening":"tempering"} Z${i+1} ${v} °C (spec ${w})`);}));
-    if(d.length) I("warn","Set values differ from the specification: "+d.join(", ")); }
+  } else if(R.tl.trays.length) I("crit","Time the first tray entered is missing");
   /* the same batch no. in this furnace with another heat no. */
-  if(rep&&txt(row.batch)&&!isNA(row.batch)){
-    const other=DB.reports.filter(r=>r.furnace===rep.furnace).flatMap(r=>r.rows.filter(x=>x!==row&&txt(x.batch).toUpperCase()===txt(row.batch).toUpperCase()).map(x=>({x,r})));
-    const clash=other.filter(o=>txt(o.x.heat)&&txt(row.heat)&&!isNA(o.x.heat)&&!isNA(row.heat)&&txt(o.x.heat).toUpperCase()!==txt(row.heat).toUpperCase());
-    if(clash.length) I("warn",`Batch ${row.batch} also appears in ${rep.furnace} with heat no. ${clash.map(o=>o.x.heat+" ("+fdate(o.r.date)+")").join(", ")}`);
-    else if(other.some(o=>o.r===rep)) I("info",`Batch ${row.batch} is entered more than once in this report`);
+  if(txt(b.batch)&&!isNA(b.batch)){
+    const other=DB.reports.filter(r=>r.furnace===R.furnace).flatMap(r=>batchesOf(r).filter(x=>x!==b&&txt(x.batch).toUpperCase()===txt(b.batch).toUpperCase()).map(x=>({x,r})));
+    const clash=other.filter(o=>txt(o.x.heat)&&txt(b.heat)&&!isNA(o.x.heat)&&!isNA(b.heat)&&txt(o.x.heat).toUpperCase()!==txt(b.heat).toUpperCase());
+    if(clash.length) I("warn",`Batch ${b.batch} also appears in ${R.furnace} with heat no. ${clash.map(o=>o.x.heat+" ("+fdate(o.r.date)+")").join(", ")}`);
   }
-  out.lvl=out.issues.some(i=>i[0]==="crit")?"crit":out.issues.some(i=>i[0]==="warn")?"warn":"good";
+  out.lvl=out.issues.some(i=>i[0]==="crit"&&!/on hold/.test(i[1]))?"crit":out.issues.some(i=>i[0]==="crit"||i[0]==="warn")?"warn":"good";
+  out.incomplete=out.issues.some(i=>i[0]==="crit"&&!/on hold/.test(i[1]));
   return out;
+}
+/* checks on the trays themselves */
+function trayIssues(R){
+  const m=[];
+  R.tl.trays.forEach((t,i)=>{const items=t.items||[];
+    if(items.some(it=>!txt(it.part)||!(num(it.qty)>0))) m.push(["crit",`Tray ${i+1}: part no. or pieces missing`]);
+    const ld=trayLoad(R,t); if(ld>1.0001) m.push(["warn",`Tray ${i+1} holds more than one full tray (${Math.round(ld*100)} %)`]);
+    const procs=new Set(items.map(it=>(itemSpec(R,it)||{}).proc).filter(Boolean)); if(procs.size>1) m.push(["warn",`Tray ${i+1} mixes parts of different processes (${[...procs].join(", ")})`]);});
+  if(R.tl.trays.length&&!(tlPush0(R)>0)) m.push(["crit","Push time at the start missing (and no specification push time)"]);
+  if(R.tl.trays.length&&!hasLog(R)) m.push(["crit","Time the first tray entered is missing"]);
+  return m;
 }
 
 /* ---------- render ---------- */
@@ -435,147 +501,175 @@ function render(){
   drawReport(); drawSpecs(); drawSearch(); drawSettings();
 }
 function drawReport(){
-  const R=curRep(), locked=R&&R.status==="approved", dis=locked?" disabled":"";
-  $("#rep-title").textContent=`Batches · ${VIEW.f} · ${fdate(VIEW.d)}`;
-  $("#rep-status").innerHTML=!R?`<span class="muted">No report for ${esc(VIEW.f)} on ${fdate(VIEW.d)} yet.</span>`:
-    `${locked?chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)} · locked`):chip("warn","…","Draft")}<span class="muted small">${esc(R.id)} · ${R.rows.length} batch${R.rows.length===1?"":"es"}</span>`;
-  const plist=new Map();regSpecs().forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(PMAP[x.proc]||x.proc)} · ${esc(x.id)}</option>`));
-  DB.specs.filter(x=>txt(x.part)&&!plist.has(txt(x.part).toUpperCase())).forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")}</option>`));
-  const parts=`<datalist id="partlist">${[...plist.values()].join("")}</datalist>`;
-  $("#batches").innerHTML=parts+(!R||!R.rows.length?`<div class="empty">${DB.specs.length||regSpecs().length?"Add the batches of this day from the production register.":"First add the process specifications of your parts (section below), then add the batches of this day."}</div>`:
-    R.rows.map((row,i)=>{const k=calcRow(row,R),sp=k.sp,f=(fld,lab,type="text",req=1,extra="")=>`<div class="field"><label class="${req?"req":""}" for="r-${row.id}-${fld}">${lab}</label><input id="r-${row.id}-${fld}" type="${type}" data-r="${row.id}:${fld}" value="${esc(row[fld]??"")}"${type==="number"?' step="any" inputmode="decimal"':""}${extra}${dis}></div>`;
-      const tf=(fld,lab,v)=>`<div class="field"><label for="r-${row.id}-${fld}">${lab} <span class="muted">(tray log)</span></label><input id="r-${row.id}-${fld}" value="${esc(v)}" disabled></div>`;
-      return `<div class="batch" id="b-${row.id}" style="--k:${{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]}">
-        <div class="batch-h"><b>${i+1}.</b><span id="bh-${row.id}">${batchHead(row,k)}</span></div>
-        <div class="bgrid">
-          ${f("part","Part no.","text",1,' list="partlist" autocomplete="off"')}${f("batch","Batch no.")}${f("heat","Heat no.")}${f("heatCode","Heat code")}
-          ${k.tz?tf("entry","Entry · hardening chamber",fdt(k.e))+tf("exit","Exit · tempering chamber",fdt(k.x)):f("entry","Entry · hardening chamber","datetime-local")+f("exit","Exit · tempering chamber","datetime-local")}${f("qty","Quantity (pcs)","number")}
-          ${k.tz?tf("push","Push time, min",k.pushTxt):f("push",`Push time, min${sp&&num(sp.push)!=null?` (spec ${sp.push})`:""}`,"number",0,sp&&num(sp.push)!=null?` placeholder="${esc(sp.push)}"`:"")}${f("weighed","Weighed total, kg (optional)","number",0)}
-        </div>
-        <div id="bc-${row.id}">${batchCalc(row,k,R)}</div>
-        <details class="more"><summary>Set values used and zone windows</summary><div id="bz-${row.id}">${batchZones(row,k,locked)}</div>
-          <div class="field" style="margin-top:6px"><label for="r-${row.id}-note">Note</label><input id="r-${row.id}-note" data-r="${row.id}:note" value="${esc(row.note||"")}"${dis}></div></details>
-        ${locked?"":`<div class="actions" style="margin-top:6px"><button class="btn danger small" data-del="${row.id}">Remove batch</button></div>`}
-      </div>`;}).join(""));
-  $("#rep-actions").innerHTML=locked?"":`<button class="btn" id="b-addrow">Add batch</button>${prevRep()?`<button class="btn ghost" id="b-copy" title="Adds the parts and heats of the previous report of this furnace; batch, times and quantities stay empty">Copy parts and heats from ${fdate(prevRep().date)}</button>`:""}${R&&!R.rows.length?`<button class="btn danger small" id="b-delrep">Delete empty report</button>`:""}`;
-  drawTrays(); drawTotals(); drawApproval(); drawKpis();
+  const R=curRep();
+  $("#rep-status").innerHTML=!R?`<span class="muted">No report for ${esc(VIEW.f)} on ${fdate(VIEW.d)} yet: load the first trays below.</span>`:
+    `${locked(R)?chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)} · locked`):chip("warn","…","Draft")}<span class="muted small">${esc(R.id)} · ${R.tl.trays.length} tray${R.tl.trays.length===1?"":"s"} · ${batchesOf(R).length} batch${batchesOf(R).length===1?"":"es"}</span>${R&&!R.tl.trays.length&&!locked(R)?`<button class="btn danger small" id="b-delrep">Delete empty report</button>`:""}`;
+  drawLoad();drawTrays();drawParams();drawHolds();drawBatches();drawTotals();drawApproval();drawKpis();
 }
-/* ---------- tray loading log (render) ---------- */
-function batchOpts(R,sel){return `<option value="">— batch —</option>`+R.rows.map(r=>`<option value="${r.id}" ${r.id===sel?"selected":""}>${esc(txt(r.batch)||"(no batch no.)")} · ${esc(r.part||"?")}</option>`).join("");}
-function trayIssues(R){
-  const m=[];if(!tlOf(R))return m;
-  R.tl.trays.forEach((t,i)=>{if(trayLoad(R,t)>1.0001)m.push(["warn",`Tray ${i+1} holds more than one full tray (${Math.round(trayLoad(R,t)*100)} %)`]);
-    if((t.items||[]).some(it=>!it.b||!(num(it.qty)>0)))m.push(["crit",`Tray ${i+1}: a batch or its quantity is missing`]);});
-  R.rows.forEach(r=>{const q=inTrays(R,r);if(!q)m.push(["info",`Batch ${r.batch||"(no batch no.)"} is not in the tray log`]);});
-  const tl=R.tl;if(!(tlPush0(R)>0))m.push(["crit","Push time at the start missing (and no specification push time)"]);
-  return m;
+/* part list for the entry fields: specifications in force (CALOR) and this page's own list */
+function partList(){
+  const plist=new Map();regSpecs().forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(PMAP[x.proc]||x.proc)} · ${esc(x.pcs??"")} per tray · ${esc(x.id)}</option>`));
+  DB.specs.filter(x=>txt(x.part)&&!plist.has(txt(x.part).toUpperCase())).forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")} · ${esc(x.perTray||"")} per tray</option>`));
+  return `<datalist id="partlist">${[...plist.values()].join("")}</datalist>`;
 }
-function drawTrays(){
-  const R=curRep(),el=$("#trays");$("#tl-title").textContent=`Tray loading log · ${VIEW.f} · ${fdate(VIEW.d)}`;
-  if(!R||!R.rows.length){el.innerHTML=`<div class="empty">Add the batches of the day first; then log the trays in the order they enter the hardening chamber.</div>`;return;}
-  const locked=R.status==="approved",dis=locked?" disabled":"",tl=R.tl||{start:"",push:"",changes:[],trays:[]},p0=tlPush0(R);
-  const keep=document.activeElement&&el.contains(document.activeElement)?[...document.activeElement.attributes].find(a=>a.name.startsWith("data-")):null;
-  const nT=tl.trays.length,emp=tl.trays.filter(t=>!(t.items||[]).length).length,mix=tl.trays.filter(t=>(t.items||[]).length>1).length;
-  const opts=R.rows.map(r=>{const k=calcRow(r,R),per=k.sp?num(k.sp.perTray):null,left=(num(r.qty)||0)-inTrays(R,r);return `<option value="${r.id}">${esc(txt(r.batch)||"(no batch no.)")} · ${esc(r.part||"?")} · ${left>0?left+" pcs to load":"all loaded"}${per?" · "+per+" per tray":""}</option>`;}).join("");
-  const iss=trayIssues(R);
-  const rows=tl.trays.map((tr,i)=>{const T=trayTimes(R,tr),ld=trayLoad(R,tr),items=tr.items||[];
-    const cls=!items.length?"t-empty":ld>1.0001?"t-over":items.length>1?"t-mixed":"";
-    const cont=locked?(items.length?items.map(it=>{const r=R.rows.find(x=>x.id===it.b);return `${esc(r?r.batch||r.part:"?")} × ${esc(it.qty)}`;}).join(" + "):`<span class="muted">empty</span>`)
-      :items.map((it,j)=>`<span class="ti"><select aria-label="Batch, tray ${i+1}" data-ti="${tr.id}:${j}:b">${batchOpts(R,it.b)}</select><input type="number" min="0" step="1" aria-label="Pieces, tray ${i+1}" data-ti="${tr.id}:${j}:qty" value="${esc(it.qty??"")}"><button class="btn ghost small" data-tidel="${tr.id}:${j}" aria-label="Remove this batch from tray ${i+1}">✕</button></span>`).join("")
-        +`<button class="btn ghost small" data-tiadd="${tr.id}">${items.length?"+ batch":"Add batch"}</button>`;
-    return `<tr class="${cls}"><td class="n">${i+1}</td><td class="n">${T?fdtShort(T.t,R.date):"—"}</td><td class="n">${T&&T.p?T.p:"—"}</td><td>${cont}</td>
-      <td class="n">${items.length?Math.round(ld*100)+" %":"empty"}</td><td class="n">${T?fdtShort(T.tOut,R.date):"—"}</td>
-      <td>${locked?esc(tr.at?fdt(tms(tr.at)):""):`<input type="datetime-local" aria-label="Actual entry time, tray ${i+1}" data-tt="${tr.id}:at" value="${esc(tr.at||"")}">`}</td>
-      <td>${locked?esc(tr.note||""):`<input class="note" aria-label="Note, tray ${i+1}" data-tt="${tr.id}:note" value="${esc(tr.note||"")}">`}</td>
-      <td style="white-space:nowrap">${locked?"":`<button class="btn ghost small" data-trins="${tr.id}" title="Insert an empty tray before this one">+ above</button> <button class="btn danger small" data-trdel="${tr.id}" aria-label="Remove tray ${i+1}">✕</button>`}</td></tr>`;}).join("");
-  el.innerHTML=`<div class="tlbar">
-      <div class="field"><label for="tl-start" class="req">First tray enters</label><input id="tl-start" type="datetime-local" data-tl="start" value="${esc(tl.start||"")}"${dis}></div>
-      <div class="field"><label for="tl-push" class="req">Push time at the start, min</label><input id="tl-push" type="number" step="any" data-tl="push" value="${esc(tl.push||"")}" placeholder="${esc(p0??"")}" style="width:110px"${dis}></div>
-      ${locked?"":`<div class="field"><label for="tf-b">Load a batch into trays</label><select id="tf-b">${opts}</select></div>
-      <label class="small" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="tf-top" checked> top up the last tray (mixed tray)</label>
-      <button class="btn small" id="b-tfill">Add trays for this batch</button>
-      <div class="field"><label for="tf-n">Empty trays</label><input id="tf-n" type="number" min="1" step="1" value="1" style="width:70px"></div><button class="btn ghost small" id="b-tempty">Add empty tray(s)</button>`}
+let LOADF={part:"",batch:"",heat:"",heatCode:"",qty:"",n:"1",total:"",rw:false,rwRef:"",rwReason:"",note:""};
+function drawLoad(){
+  const R=curRep(),el=$("#load");$("#load-title").textContent=`Load trays · ${VIEW.f} · ${fdate(VIEW.d)}`;
+  if(locked(R)){el.innerHTML=`<p class="muted" style="margin:0">The report is approved and locked. Unlock it under Approval to add trays.</p>`;return;}
+  if(typing(el)&&el.dataset.rep===(R?R.id:"")){const sp=specOf(LOADF.part,VIEW.f),h=$("#lf-hint");if(h)h.innerHTML=loadHint(sp);return;}
+  el.dataset.rep=R?R.id:"";
+  const tl=R?R.tl:emptyTl(),sp=specOf(LOADF.part,VIEW.f),p0=R?tlPush0(R):null;
+  const f=(k,lab,type="text",extra="",cls="")=>`<div class="field ${cls}"><label for="lf-${k}">${lab}</label><input id="lf-${k}" data-lf="${k}" type="${type}" value="${esc(LOADF[k]??"")}"${type==="number"?' step="any" inputmode="decimal"':""}${extra}></div>`;
+  el.innerHTML=`${partList()}
+    <div class="controls" style="margin-bottom:12px">
+      <div class="field"><label class="req" for="tl-start">First tray of the day enters</label><input id="tl-start" type="datetime-local" data-tl="start" value="${esc(tl.start||"")}"></div>
+      <div class="field"><label class="req" for="tl-push">Push time at the start, min</label><input id="tl-push" type="number" step="any" data-tl="push" value="${esc(tl.push||"")}" placeholder="${esc(p0??"")}" style="width:120px"></div>
+      <p class="muted small" style="margin:0;max-width:60ch">Later push time changes go under “Process parameter changes”. Leave the push time empty to use the specification's push time of the first part.</p>
     </div>
-    <div><b style="font-size:13px">Push time changes</b>${(tl.changes||[]).length?`<div class="scroll"><table class="pc"><thead><tr><th>First push at the new push time</th><th>New push time, min</th><th>Reason</th><th></th></tr></thead><tbody>${tl.changes.map((c,i)=>`<tr>
-      <td><input type="datetime-local" aria-label="Push change ${i+1} time" data-pc="${i}:at" value="${esc(c.at||"")}"${dis}></td><td><input type="number" step="any" aria-label="Push change ${i+1} push time" data-pc="${i}:push" value="${esc(c.push||"")}" style="width:90px"${dis}></td>
-      <td><input aria-label="Push change ${i+1} reason" data-pc="${i}:note" value="${esc(c.note||"")}" style="min-width:200px"${dis}></td><td>${locked?"":`<button class="btn danger small" data-pcdel="${i}" aria-label="Remove push change ${i+1}">✕</button>`}</td></tr>`).join("")}</tbody></table></div>`:` <span class="muted small">none</span>`}
-      ${locked?"":` <button class="btn ghost small" id="b-pcadd">Add push time change</button>`}</div>
-    ${nT?`<p class="small" style="margin:10px 0 6px">${nT} tray${nT>1?"s":""} · ${nT-emp} loaded · ${emp} empty · ${mix} mixed${(()=>{const a=trayTimes(R,tl.trays[0]),b=trayTimes(R,tl.trays.at(-1));return a&&b?` · first tray in ${fdtShort(a.t,R.date)}, last tray in ${fdtShort(b.t,R.date)}, out of the tempering chamber ${fdtShort(b.tOut,R.date)}`:"";})()}</p>
-      <div class="tl-wrap"><table class="trays"><thead><tr><th>Tray</th><th>Enters hardening</th><th>Push, min</th><th>Contents (batch × pieces)</th><th>Load</th><th>Leaves tempering</th><th>Actual entry, if off the cycle</th><th>Note</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
-      :`<div class="empty" style="margin-top:10px">No trays logged yet. Enter the time the first tray entered, then add the trays of each batch in their order (and empty trays where there were gaps).</div>`}
+    <div class="loadgrid">
+      ${f("part","Part no.","text",' list="partlist" autocomplete="off"')}${f("batch","Batch no.")}${f("heat","Heat no.")}${f("heatCode","Heat code")}
+      ${f("qty",`Pieces in each tray${sp&&num(sp.perTray)?` (spec ${sp.perTray})`:""}`,"number",sp&&num(sp.perTray)?` placeholder="${esc(sp.perTray)}"`:"")}
+      ${f("n","Number of trays with this loading","number",' min="1" step="1"')}
+      ${f("total","or: batch total, pcs (fills full trays + a part tray)","number","","wide")}
+      ${f("note","Note (optional)","text","","wide")}
+      <label class="chk"><input type="checkbox" id="lf-rw" data-lf="rw" ${LOADF.rw?"checked":""}> Rework (re-heat-treatment)</label>
+      <div class="rwbox ${LOADF.rw?"on":""}" id="lf-rwbox">${f("rwRef","Original report / nonconformance no. (e.g. MT-0005)")}${f("rwReason","Reason for the rework","text","","wide")}</div>
+    </div>
+    <p class="small" id="lf-hint" style="margin:8px 0">${loadHint(sp)}</p>
+    <div class="actions">
+      <button class="btn" id="b-ladd">Add tray(s)</button>
+      <button class="btn ghost" id="b-lmix" title="The pieces go into the last tray, which then holds parts of two batches">Add to the last tray (mixed tray)</button>
+      <button class="btn ghost" id="b-lempty" title="Uses the number of trays above">Add empty tray(s)</button>
+      <span class="msg" id="lf-msg" role="status" style="${LMSG.ok?"color:var(--good-ink)":""}">${esc(LMSG.t)}</span>
+    </div>`;
+}
+function loadHint(sp){
+  if(!txt(LOADF.part)) return `<span class="muted">Choose the part no.; its specification gives the pieces per tray, push time and set values.</span>`;
+  if(!sp) return `<span class="bad">Part no. ${esc(LOADF.part)} has no process specification.</span>`;
+  const per=num(LOADF.qty)??num(sp.perTray),tot=num(LOADF.total),n=Math.max(1,Math.round(num(LOADF.n)||1));
+  const plan=tot>0&&per>0?`${Math.floor(tot/per)} full tray${Math.floor(tot/per)===1?"":"s"} of ${per}${tot%per?` + 1 tray of ${tot%per}`:""} = ${tot} pcs`:per>0?`${n} tray${n>1?"s":""} × ${per} pcs = ${n*per} pcs`:"";
+  return `<b>${esc(sp.part)}</b> ${esc(sp.name||"")} · ${esc(sp.proc||"")} · push ${esc(sp.push||"?")} min · ${esc(sp.perTray||"?")} per tray${sp.src?" · "+esc(sp.src):""}${plan?` → <b>${esc(plan)}</b>`:""}`;
+}
+let SEL=new Set();
+function drawTrays(){
+  const R=curRep(),el=$("#trays");$("#tl-title").textContent=`Tray log · ${VIEW.f} · ${fdate(VIEW.d)}`;
+  if(!R||!R.tl.trays.length){el.innerHTML=`<div class="empty">No trays logged yet. Enter the time the first tray entered and load the trays in their order (and empty trays where there were gaps).</div>`;return;}
+  const tl=R.tl,lk=locked(R),nT=tl.trays.length,emp=tl.trays.filter(t=>!t.items.length).length,mix=tl.trays.filter(t=>t.items.length>1).length,hold=tl.trays.filter(onHold).length,rw=tl.trays.filter(t=>t.items.some(i=>i.rw)).length;
+  SEL=new Set([...SEL].filter(id=>tl.trays.some(t=>t.id===id)));
+  const a=trayTimes(R,tl.trays[0]),z=trayTimes(R,tl.trays.at(-1));
+  const rows=tl.trays.map((tr,i)=>{const T=trayTimes(R,tr),ld=trayLoad(R,tr),items=tr.items||[];
+    const cls=[onHold(tr)?"t-hold":"",items.some(x=>x.rw)?"t-rw":"",!items.length?"t-empty":ld>1.0001?"t-over":items.length>1?"t-mixed":""].filter(Boolean).join(" ");
+    const cont=items.length?items.map(it=>`<span class="it"><b>${esc(it.part||"?")}</b> · ${esc(it.batch||"—")} · ${esc(it.heat||"—")}${it.heatCode?" / "+esc(it.heatCode):""} × ${esc(it.qty??"")}${it.rw?`<span class="tag rw" title="Rework of ${esc(it.rw.ref||"")}">REWORK</span>`:""}</span>`).join("")+(items.length>1?`<span class="tag mix">MIXED</span>`:""):`<span class="muted">empty</span>`;
+    const st=tr.hold?(tr.hold.rel?`<span class="muted small">was on hold · ${esc(tr.hold.rel.disp)}</span>`:`<span class="tag hold">ON HOLD</span><br><span class="small">${esc(tr.hold.reason)}</span>`):"";
+    return `<tr class="${cls}"><td class="sel">${lk?"":`<input type="checkbox" data-sel="${tr.id}" aria-label="Select tray ${i+1}" ${SEL.has(tr.id)?"checked":""}>`}</td><td class="n">${i+1}</td><td class="n">${T?fdtShort(T.t,R.date):"—"}${tr.at?`<br><span class="muted small">actual</span>`:""}</td><td class="n">${T&&T.p?T.p:"—"}</td>
+      <td class="c">${cont}${tr.note?`<br><span class="muted small">${esc(tr.note)}</span>`:""}</td><td class="n">${items.length?Math.round(ld*100)+" %":""}</td><td class="n">${T?fdtShort(T.tOut,R.date):"—"}</td><td>${st}</td>
+      <td style="white-space:nowrap">${lk?(onHold(tr)?`<button class="btn ghost small" data-tedit="${tr.id}">Hold…</button>`:""):`<button class="btn ghost small" data-tedit="${tr.id}">Edit</button> <button class="btn ghost small" data-tins="${tr.id}" title="Insert an empty tray before this one">+ above</button> <button class="btn danger small" data-tdel="${tr.id}" aria-label="Remove tray ${i+1}">✕</button>`}</td></tr>`;}).join("");
+  const iss=trayIssues(R);
+  el.innerHTML=`<p class="small" style="margin:0 0 6px">${nT} tray${nT>1?"s":""} · ${nT-emp} loaded · ${emp} empty · ${mix} mixed · <span class="${hold?"bad":""}">${hold} on hold</span> · ${rw} rework${a&&z?` · first tray in ${fdtShort(a.t,R.date)}, last tray in ${fdtShort(z.t,R.date)}, out of the furnace ${fdtShort(z.tOut,R.date)}`:""}</p>
+    ${lk?"":`<div class="bulk" id="bulk"><label class="chk"><input type="checkbox" id="sel-all" ${SEL.size&&SEL.size===nT?"checked":""}> all</label><span id="sel-n">${SEL.size} selected</span>
+      <button class="btn ghost small" data-bulk="hold" ${SEL.size?"":"disabled"}>Put on hold…</button><button class="btn ghost small" data-bulk="release" ${SEL.size?"":"disabled"}>Release…</button>
+      <button class="btn ghost small" data-bulk="rework" ${SEL.size?"":"disabled"}>Mark as rework…</button><button class="btn danger small" data-bulk="delete" ${SEL.size?"":"disabled"}>Delete</button></div>`}
+    <div class="tl-wrap"><table class="trays"><thead><tr><th></th><th>Tray</th><th>Enters hardening</th><th>Push, min</th><th>Contents (part · batch · heat / code × pieces)</th><th>Load</th><th>Leaves tempering</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     ${iss.length?`<div class="issues">${iss.map(([l,t])=>chip(l,l==="info"?"i":"!",t)).join("")}</div>`:""}`;
-  if(keep){const f=el.querySelector(`[${keep.name}="${CSS.escape(keep.value)}"]`);if(f)f.focus();}
 }
-const prevRep=()=>DB.reports.filter(r=>r.furnace===VIEW.f&&r.date<VIEW.d&&r.rows.length).sort((a,b)=>a.date<b.date?1:-1)[0]||null;
-function batchHead(row,k){
-  const sp=k.sp;
-  return sp?`<b>${esc(sp.part)}</b> · ${esc(sp.name||"")} · <span class="muted">${esc(sp.grade||"")} · ${esc(sp.proc||"")}${sp.src?" · "+esc(sp.src):""}</span>${txt(row.batch)?` · batch <b>${esc(row.batch)}</b>`:""}${txt(row.heat)?` · heat ${esc(row.heat)}${txt(row.heatCode)?" / "+esc(row.heatCode):""}`:""}`
-    :`<span class="muted">${txt(row.part)?"Unknown part "+esc(row.part):"Choose the part no."}</span>`;
+function drawParams(){
+  const R=curRep(),el=$("#params");
+  if(!R){el.innerHTML=`<div class="empty">Load trays first.</div>`;return;}
+  if(typing(el)) return;
+  const lk=locked(R),P=(R.params||[]).slice().sort((a,b)=>(a.at||"")<(b.at||"")?-1:1);
+  const kinds=Object.entries(PARAMS).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("");
+  el.innerHTML=`${P.length?`<div class="scroll"><table class="log"><thead><tr><th>Time</th><th>Parameter</th><th>Zone</th><th>From</th><th>To</th><th>Reason</th><th>By</th><th></th></tr></thead><tbody>${P.map(p=>`<tr>
+      <td class="n">${fdtShort(tms(p.at),R.date)}</td><td>${esc((PARAMS[p.kind]||PARAMS.other)[0])}${p.kind==="other"&&p.what?": "+esc(p.what):""}${p.kind==="push"?` <span class="muted small">(timing)</span>`:""}</td><td>${p.zone?"Zone "+esc(p.zone):""}</td>
+      <td class="n">${esc(p.from??"")}</td><td class="n">${esc(p.to??"")} ${esc((PARAMS[p.kind]||["",""])[1])}</td><td>${esc(p.reason||"")}</td><td>${esc(p.by||"")}</td><td>${lk?"":`<button class="btn danger small" data-pdel="${p.id}" aria-label="Remove change">✕</button>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted small" style="margin:0 0 8px">No change recorded.</p>`}
+    ${lk?"":`<div class="loadgrid" style="margin-top:8px">
+      <div class="field"><label for="pc-at" class="req">Time</label><input id="pc-at" type="datetime-local"></div>
+      <div class="field"><label for="pc-kind">Parameter</label><select id="pc-kind">${kinds}</select></div>
+      <div class="field"><label for="pc-zone">Zone (set values)</label><select id="pc-zone"><option value=""></option><option>1</option><option>2</option><option>3</option></select></div>
+      <div class="field"><label for="pc-what">What (for “Other”)</label><input id="pc-what"></div>
+      <div class="field"><label for="pc-from">From</label><input id="pc-from"></div>
+      <div class="field"><label for="pc-to" class="req">To</label><input id="pc-to"></div>
+      <div class="field wide"><label for="pc-reason">Reason</label><input id="pc-reason"></div>
+      <div class="field"><label for="pc-by">By</label><input id="pc-by"></div>
+      <div class="actions"><button class="btn small" id="b-padd">Add change</button><span class="msg" id="pc-msg"></span></div></div>`}`;
 }
-function batchCalc(row,k,R){
-  const ex=k.expected!=null?`${fdtShort(k.expected,R.date)}${k.dev!=null?` <span class="${Math.abs(k.dev)>(+S().flagPush||1)*k.push?"caution":"ok"}">(${k.dev>=0?"+":""}${fmin(k.dev)})</span>`:""}`:"—";
-  return `<div class="calc"><span>Trays <b>${k.trays??"—"}</b></span><span>Weight <b>${k.kg!=null?f1(k.kg)+" kg":"—"}</b></span><span>Time in furnace <b>${fmin(k.mins)}</b></span>
-    <span>Between chambers <b>${k.between!=null?f1(k.between)+" min":"—"}</b></span><span>Expected exit <b>${ex}</b></span><span>Implied push time <b>${k.implied!=null?f1(k.implied)+" min":"—"}</b></span></div>
-    ${k.issues.length?`<div class="issues">${k.issues.map(([l,t])=>chip(l,l==="crit"?"!":l==="warn"?"!":"i",t)).join("")}</div>`:`<div class="issues">${chip("good","✓","Complete and consistent")}</div>`}`;
+/* holds of this furnace: open ones from any day, and those of this report */
+function drawHolds(){
+  const R=curRep(),el=$("#holds");
+  const L=DB.reports.filter(r=>r.furnace===VIEW.f).flatMap(r=>r.tl.trays.map((t,i)=>({r,t,i}))).filter(x=>x.t.hold&&(onHold(x.t)||x.r===R)).sort((a,b)=>(a.t.hold.at||"")<(b.t.hold.at||"")?-1:1);
+  if(!L.length){el.innerHTML=`<div class="empty">No tray on hold in ${esc(VIEW.f)}.</div>`;return;}
+  el.innerHTML=`<table class="log cards"><thead><tr><th>Tray</th><th>Contents</th><th>On hold since</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>${L.map(({r,t,i})=>{const h=t.hold;
+    return `<tr><td data-label="Tray"><b>${fdate(r.date)} · tray ${i+1}</b><br><span class="muted small">${esc(r.id)}</span></td><td data-label="Contents">${t.items.map(it=>`${esc(it.part)} · ${esc(it.batch||"—")} × ${esc(it.qty)}`).join("<br>")||"empty"}</td>
+      <td data-label="Since">${fdt(tms(h.at))}<br><span class="muted small">${esc(h.by||"")}</span></td><td data-label="Reason">${esc(h.reason)}${h.ref?`<br><span class="muted small">ref. ${esc(h.ref)}</span>`:""}${h.note?`<br><span class="muted small">${esc(h.note)}</span>`:""}</td>
+      <td data-label="Status">${h.rel?chip("good","✓",h.rel.disp)+`<br><span class="muted small">${esc(h.rel.by||"")} · ${fdt(tms(h.rel.at))}${h.rel.note?" · "+esc(h.rel.note):""}</span>`:chip("crit","!","On hold")}</td>
+      <td class="act">${h.rel?"":`<button class="btn ghost small" data-rel="${esc(r.id)}|${esc(t.id)}">Release…</button>`}${r!==R?` <button class="btn ghost small" data-goto="${esc(r.furnace)}|${r.date}">Open day</button>`:""}</td></tr>`;}).join("")}</tbody></table>`;
 }
-function batchZones(row,k,locked){
-  const sp=k.sp; if(!sp) return `<p class="muted small">Choose a part with a specification.</p>`;
-  const v=setsOf(row,sp), dis=locked?" disabled":"";
-  const cell=(c,i)=>`<td><input type="number" step="any" data-set-r="${row.id}:${c}:${i}" value="${esc(row.sets?.[c]?.[i]??"")}" placeholder="${esc(sp[c]?.[i]??"")}" aria-label="${c==="h"?"Hardening":"Tempering"} zone ${i+1} set value"${dis}></td>`;
-  const zw=c=>(k.zones||[]).filter(z=>z.ch===c).map(z=>`<td class="n">${fdtShort(z.from,iso(z.from).slice(0,10))}–${fdtShort(z.to,iso(z.from).slice(0,10))}</td>`).join("")||`<td colspan="3" class="muted">enter entry time and quantity</td>`;
-  return `<div class="scroll"><table class="zt"><thead><tr><th></th><th>Zone 1</th><th>Zone 2</th><th>Zone 3</th></tr></thead><tbody>
-    <tr><th>Hardening set °C</th>${[0,1,2].map(i=>cell("h",i)).join("")}</tr>
-    <tr><th>Tempering set °C</th>${[0,1,2].map(i=>cell("t",i)).join("")}</tr>
-    <tr><th>Hardening, batch in zone</th>${zw("Hardening")}</tr>
-    ${(k.zones||[]).filter(z=>z.ch==="Controlled cooling").map(z=>`<tr><th>Controlled cooling chamber</th><td class="n" colspan="3">${fdtShort(z.from,iso(z.from).slice(0,10))}–${fdtShort(z.to,iso(z.from).slice(0,10))}</td></tr>`).join("")}
-    <tr><th>Tempering, batch in zone</th>${zw("Tempering")}</tr></tbody></table></div>
-    <p class="muted small" style="margin:4px 0 0">Leave a set value empty when it was as specified (${v.h.join(" / ")} · ${v.t.join(" / ")} °C).</p>`;
+function drawBatches(){
+  const R=curRep(),el=$("#batches");$("#rep-title").textContent=`Batches · ${VIEW.f} · ${fdate(VIEW.d)}`;
+  if(!R||!batchesOf(R).length){el.innerHTML=`<div class="empty">The batches appear here as soon as trays are loaded.</div>`;return;}
+  if(typing(el)) return;
+  const lk=locked(R),dis=lk?" disabled":"";
+  el.innerHTML=batchesOf(R).map((b,i)=>{const k=calcBatch(R,b),sp=k.sp,bx=R.bx[b.key]||{};
+    const zw=c=>(k.zones||[]).filter(z=>z.ch===c).map(z=>`<td class="n">${fdtShort(z.from,iso(z.from).slice(0,10))}–${fdtShort(z.to,iso(z.from).slice(0,10))}</td>`).join("")||`<td colspan="3" class="muted">—</td>`;
+    return `<div class="batch" style="--k:${{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]}">
+      <div class="batch-h"><b>${i+1}.</b>${sp?`<span><b>${esc(sp.part)}</b> · ${esc(sp.name||"")} · <span class="muted">${esc(sp.grade||"")} · ${esc(sp.proc||"")}${sp.src?" · "+esc(sp.src):""}</span></span>`:`<span class="muted">${esc(b.part||"no part no.")}</span>`}
+        <span>batch <b>${esc(b.batch||"—")}</b> · heat ${esc(b.heat||"—")}${b.heatCode?" / "+esc(b.heatCode):""}</span>${b.rw?`<span class="tag rw">REWORK of ${esc(b.rw.ref||"?")}</span>`:""}</div>
+      <div class="calc"><span>Trays <b>${k.n}</b></span><span>Pieces <b>${f0(k.qty)}</b></span><span>Weight <b>${k.kg!=null?f1(k.kg)+" kg":"—"}</b></span><span>Entry <b>${fdtShort(k.e,R.date)}</b></span><span>Exit <b>${fdtShort(k.x,R.date)}</b></span>
+        <span>In furnace <b>${fmin(k.mins)}</b></span><span>Push <b>${k.pushTxt?k.pushTxt+" min":"—"}</b></span><span>Between chambers <b>${k.between!=null?f1(k.between)+" min":"—"}</b></span></div>
+      ${k.issues.length?`<div class="issues">${k.issues.map(([l,t])=>chip(l,l==="info"?"i":"!",t)).join("")}</div>`:`<div class="issues">${chip("good","✓","Complete and consistent")}</div>`}
+      <details class="more"><summary>Zone windows, weight and note</summary>
+        <div class="scroll"><table class="zt"><thead><tr><th></th><th>Zone 1</th><th>Zone 2</th><th>Zone 3</th></tr></thead><tbody>
+          <tr><th>Hardening, batch in zone</th>${zw("Hardening")}</tr>
+          ${(k.zones||[]).filter(z=>z.ch==="Controlled cooling").map(z=>`<tr><th>Controlled cooling chamber</th><td class="n" colspan="3">${fdtShort(z.from,iso(z.from).slice(0,10))}–${fdtShort(z.to,iso(z.from).slice(0,10))}</td></tr>`).join("")}
+          <tr><th>Tempering, batch in zone</th>${zw("Tempering")}</tr></tbody></table></div>
+        <div class="controls" style="margin-top:6px"><div class="field"><label for="bx-w-${i}">Weighed total, kg (optional)</label><input id="bx-w-${i}" type="number" step="any" data-bx="${esc(b.key)}|weighed" value="${esc(bx.weighed||"")}"${dis}></div>
+          <div class="field" style="flex:1;min-width:220px"><label for="bx-n-${i}">Note</label><input id="bx-n-${i}" data-bx="${esc(b.key)}|note" value="${esc(bx.note||"")}"${dis}></div></div></details>
+    </div>`;}).join("");
 }
 function drawKpis(){
-  const R=curRep(), ks=R?R.rows.map(r=>calcRow(r,R)):[];
-  const qty=sum(R?R.rows.map(r=>num(r.qty)||0):[]), kg=sum(ks.map(k=>k.kg||0)), trays=sum(ks.map(k=>k.trays||0));
-  const crit=ks.filter(k=>k.lvl==="crit").length, warn=ks.filter(k=>k.lvl==="warn").length;
-  const heats=new Set(R?R.rows.map(r=>txt(r.heat).toUpperCase()).filter(h=>h&&!isNA(h)):[]);
-  $("#kpis").innerHTML=[[R?R.rows.length:0,"Batches",`${heats.size} heat${heats.size===1?"":"s"}`],[f0(qty),"Pieces processed",""],[f1(kg)+" <small style='font-size:13px'>kg</small>","Weight processed",`${f1(kg/1000)} t`],
-    [trays,"Trays",""],[crit,"Incomplete entries",crit?"missing data must be completed":"none",crit?"bad":"ok"],[warn,"Entries to check","times, weights or settings",warn?"caution":"ok"]]
+  const R=curRep(),B=R?batchesOf(R):[],ks=R?B.map(b=>calcBatch(R,b)):[],T=R?R.tl.trays:[];
+  const qty=sum(B.map(b=>b.qty)),kg=sum(ks.map(k=>k.kg||0)),rwkg=sum(B.map((b,i)=>b.rw?ks[i].kg||0:0));
+  const heats=new Set(B.map(b=>txt(b.heat).toUpperCase()).filter(h=>h&&!isNA(h)));
+  const inc=ks.filter(k=>k.incomplete).length+(R?trayIssues(R).filter(x=>x[0]==="crit").length:0);
+  $("#kpis").innerHTML=[[T.length,"Trays",`${T.filter(t=>!t.items.length).length} empty · ${T.filter(t=>t.items.length>1).length} mixed`],[B.length,"Batches",`${heats.size} heat${heats.size===1?"":"s"}`],[f0(qty),"Pieces",""],
+    [f1(kg)+" <small style='font-size:13px'>kg</small>","Weight",rwkg?`${f1(rwkg)} kg rework`:`${f1(kg/1000)} t`],[T.filter(onHold).length,"Trays on hold","",T.some(onHold)?"bad":"ok"],
+    [T.filter(t=>t.items.some(i=>i.rw)).length,"Rework trays","re-heat-treatment"],[inc,"Incomplete entries",inc?"must be completed before approval":"none",inc?"bad":"ok"]]
     .map(([v,l,s,c])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
 }
 function groupTotals(R){
-  const g=(keyf,label)=>{const m=new Map();R.rows.forEach(r=>{const k=calcRow(r,R),key=keyf(r,k);if(!key)return;const o=m.get(key)||{key,label:label(r,k),n:0,qty:0,kg:0,trays:0};o.n++;o.qty+=num(r.qty)||0;o.kg+=k.kg||0;o.trays+=k.trays||0;m.set(key,o);});return [...m.values()];};
-  return {parts:g(r=>txt(r.part).toUpperCase(),(r,k)=>k.sp?`${k.sp.part} · ${k.sp.name||""}`:r.part),
+  const B=batchesOf(R),ks=B.map(b=>calcBatch(R,b));
+  const g=(keyf,label)=>{const m=new Map();B.forEach((b,i)=>{const k=ks[i],key=keyf(b,k);if(!key)return;const o=m.get(key)||{key,label:label(b,k),n:0,qty:0,kg:0,trays:0};o.n++;o.qty+=b.qty;o.kg+=k.kg||0;o.trays+=k.n;m.set(key,o);});return [...m.values()];};
+  return {parts:g(b=>txt(b.part).toUpperCase()+(b.rw?"|rw":""),(b,k)=>`${k.sp?`${k.sp.part} · ${k.sp.name||""}`:b.part}${b.rw?" (rework)":""}`),
     /* batches whose heat no. is not available are listed together, not as one heat */
-    heats:g(r=>isNA(r.heat)?"\u0000na":txt(r.heat).toUpperCase(),r=>isNA(r.heat)?"Heat no. not available":`${r.heat}${txt(r.heatCode)&&!isNA(r.heatCode)?" / "+r.heatCode:""}`),
-    procs:g((r,k)=>k.sp?.proc||"",(r,k)=>k.sp?.proc||"")};
+    heats:g(b=>isNA(b.heat)?"\u0000na":txt(b.heat).toUpperCase(),b=>isNA(b.heat)?"Heat no. not available":`${b.heat}${txt(b.heatCode)&&!isNA(b.heatCode)?" / "+b.heatCode:""}`),
+    procs:g((b,k)=>(k.sp?.proc||"")+(b.rw?"|rw":""),(b,k)=>(k.sp?.proc||"")+(b.rw?" (rework)":""))};
 }
 function drawTotals(){
   const R=curRep();
-  if(!R||!R.rows.length){$("#totals").innerHTML=`<div class="empty">No batches entered.</div>`;return;}
+  if(!R||!batchesOf(R).length){$("#totals").innerHTML=`<div class="empty">No trays loaded.</div>`;return;}
   const T=groupTotals(R);
-  const tb=(title,l)=>`<div><h3 style="margin-bottom:6px">${title}</h3><table class="log"><thead><tr><th></th><th class="n">Batches</th><th class="n">Pieces</th><th class="n">kg</th></tr></thead><tbody>${l.map(o=>`<tr><td>${esc(o.label)}</td><td class="n">${o.n}</td><td class="n">${f0(o.qty)}</td><td class="n">${f1(o.kg)}</td></tr>`).join("")}</tbody></table></div>`;
+  const tb=(title,l)=>`<div><h3 style="margin-bottom:6px">${title}</h3><table class="log"><thead><tr><th></th><th class="n">Batches</th><th class="n">Trays</th><th class="n">Pieces</th><th class="n">kg</th></tr></thead><tbody>${l.map(o=>`<tr><td>${esc(o.label)}</td><td class="n">${o.n}</td><td class="n">${o.trays}</td><td class="n">${f0(o.qty)}</td><td class="n">${f1(o.kg)}</td></tr>`).join("")}</tbody></table></div>`;
   $("#totals").innerHTML=tb("Per part",T.parts)+tb("Per heat",T.heats)+tb("Per process",T.procs);
 }
+const incompleteCount=R=>batchesOf(R).map(b=>calcBatch(R,b)).filter(k=>k.incomplete).length+trayIssues(R).filter(x=>x[0]==="crit").length;
 function drawApproval(){
   const R=curRep(),el=$("#approval");
   if(!R){el.innerHTML=`<div class="empty">Nothing to approve yet.</div>`;return;}
-  const crit=R.rows.map(r=>calcRow(r,R)).filter(k=>k.lvl==="crit").length;
+  const crit=incompleteCount(R),none=!R.tl.trays.length;
   const log=R.log.length?`<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">History (${R.log.length})</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${R.log.map(x=>`<li>${fdate(x.d)} — ${esc(x.t)}</li>`).join("")}</ul></details>`:"";
+  const msg=none?"Load the trays first.":crit?`${crit} incomplete entr${crit>1?"ies":"y"}.`:R.tl.trays.some(onHold)?"Trays on hold stay on hold after the approval.":"";
   /* while the approver is being typed, only refresh the button and the message: rebuilding would drop the field */
-  if(R.status!=="approved"&&$("#appr-by")&&el.dataset.rep===R.id){
-    $("#b-approve").disabled=!R.rows.length||!!crit;
-    $("#appr-msg").textContent=!R.rows.length?"Add the batches first.":crit?`${crit} batch${crit>1?"es are":" is"} incomplete.`:"";
-    return;
-  }
+  if(R.status!=="approved"&&$("#appr-by")&&el.dataset.rep===R.id){$("#b-approve").disabled=none||!!crit;$("#appr-msg").textContent=msg;return;}
   el.dataset.rep=R.status==="approved"?"":R.id;
   if(R.status==="approved"){el.innerHTML=`<div class="status">${chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`)}<button class="btn ghost small" id="b-unlock">Unlock for correction</button></div>${log}`;return;}
   el.innerHTML=`<div class="controls"><div class="field"><label class="req" for="appr-by">Approved by (supervisor)</label><input id="appr-by" value="${esc(R.apprBy||"")}" style="min-width:220px"></div>
-    <button class="btn" id="b-approve" ${!R.rows.length||crit?"disabled":""}>Approve and lock</button><span class="msg" id="appr-msg">${!R.rows.length?"Add the batches first.":crit?`${crit} batch${crit>1?"es are":" is"} incomplete.`:""}</span></div>${log}`;
+    <button class="btn" id="b-approve" ${none||crit?"disabled":""}>Approve and lock</button><span class="msg" id="appr-msg">${esc(msg)}</span></div>${log}`;
 }
 function drawSpecs(){
   if(HTQ){const L=regSpecs(),own=DB.specs.filter(x=>txt(x.part)&&regSpecs().some(r=>txt(r.part).toUpperCase()===txt(x.part).toUpperCase()));
     $("#spec-src").hidden=false;
     $("#spec-src").innerHTML=`Inside CALOR the <b>Process specifications</b> tab is used first: ${L.length?`${L.length} specification${L.length>1?"s":""} in force (${esc(L.slice(0,6).map(x=>x.part).join(", "))}${L.length>6?" …":""})`:"no specification in force yet"}. The parts below are used only when the register has no specification in force for the part${own.length?`; <span class="caution">${esc(own.map(x=>x.part).join(", "))} ${own.length>1?"are":"is"} also in the register, which is used</span>`:""}.`;}
   if($("#specs").contains(document.activeElement)) return;
-  const used=new Set(DB.reports.flatMap(r=>r.rows.map(x=>txt(x.part).toUpperCase())));
+  const used=new Set(DB.reports.flatMap(r=>r.tl.trays.flatMap(t=>t.items.map(x=>txt(x.part).toUpperCase()))));
   $("#specs").innerHTML=DB.specs.length?`<table class="log spec"><thead><tr><th class="req">Part no.</th><th class="req">Part name</th><th class="req">Steel grade</th><th class="req">Process</th>
     <th>Hard. Z1 °C</th><th>Hard. Z2 °C</th><th>Hard. Z3 °C</th><th>Temp. Z1 °C</th><th>Temp. Z2 °C</th><th>Temp. Z3 °C</th><th class="req">Push, min</th><th>Contr. cooling, min</th><th>Fan cooling, min</th><th class="req">Pcs / tray</th><th class="req">Part wt, kg</th><th></th></tr></thead><tbody>${
     DB.specs.map((x,i)=>{const inp=(k,type="text",cls="")=>`<td class="${cls}"><input type="${type}" data-s="${i}:${k}" value="${esc(x[k]??"")}"${type==="number"?' step="any"':""} aria-label="${k} of ${esc(x.part||"new part")}"></td>`;
@@ -598,104 +692,172 @@ function specIssues(){
 function drawSearch(){
   const q=txt($("#q").value).toUpperCase();
   if(!q){$("#results").innerHTML=`<p class="muted small" style="margin:0">Type to search all reports.</p>`;return;}
-  const hits=DB.reports.flatMap(r=>r.rows.filter(x=>[x.heat,x.heatCode,x.batch,x.part].some(v=>txt(v).toUpperCase().includes(q))).map(x=>({r,x,k:calcRow(x,r)}))).sort((a,b)=>a.r.date<b.r.date?1:-1);
-  $("#results").innerHTML=hits.length?`<table class="log cards"><thead><tr><th>Date</th><th>Furnace</th><th>Part</th><th>Batch no.</th><th>Heat no. / code</th><th class="n">Pieces</th><th class="n">kg</th><th>Entry → exit</th><th>Report</th></tr></thead><tbody>${
-    hits.map(({r,x,k})=>`<tr><td data-label="Date" class="n">${fdate(r.date)}</td><td data-label="Furnace">${esc(r.furnace)}</td><td data-label="Part">${esc(x.part)}${k.sp?` <span class="muted">${esc(k.sp.name||"")}</span>`:""}</td>
-      <td data-label="Batch no.">${esc(x.batch)}</td><td data-label="Heat no. / code">${esc(x.heat)} / ${esc(x.heatCode)}</td><td data-label="Pieces" class="n">${f0(num(x.qty))}</td><td data-label="kg" class="n">${f1(k.kg)}</td>
+  const hits=DB.reports.flatMap(r=>batchesOf(r).filter(b=>[b.heat,b.heatCode,b.batch,b.part,b.rw&&b.rw.ref].some(v=>txt(v).toUpperCase().includes(q))).map(b=>({r,b,k:calcBatch(r,b)}))).sort((a,b)=>a.r.date<b.r.date?1:-1);
+  $("#results").innerHTML=hits.length?`<table class="log cards"><thead><tr><th>Date</th><th>Furnace</th><th>Part</th><th>Batch no.</th><th>Heat no. / code</th><th class="n">Trays</th><th class="n">Pieces</th><th class="n">kg</th><th>Entry → exit</th><th>Report</th></tr></thead><tbody>${
+    hits.map(({r,b,k})=>`<tr><td data-label="Date" class="n">${fdate(r.date)}</td><td data-label="Furnace">${esc(r.furnace)}</td><td data-label="Part">${esc(b.part)}${k.sp?` <span class="muted">${esc(k.sp.name||"")}</span>`:""}${b.rw?`<span class="tag rw">REWORK</span>`:""}</td>
+      <td data-label="Batch no.">${esc(b.batch)}</td><td data-label="Heat no. / code">${esc(b.heat)} / ${esc(b.heatCode)}</td><td data-label="Trays" class="n">${k.n}${b.trays.some(onHold)?` <span class="tag hold">HOLD</span>`:""}</td><td data-label="Pieces" class="n">${f0(b.qty)}</td><td data-label="kg" class="n">${f1(k.kg)}</td>
       <td data-label="Entry → exit">${fdt(k.e)} → ${fdt(k.x)}</td><td data-label="Report"><button class="btn ghost small" data-goto="${esc(r.furnace)}|${r.date}">Open</button> ${r.status==="approved"?chip("good","✓","Approved"):chip("warn","…","Draft")}</td></tr>`).join("")}</tbody></table>
-    <p class="muted small">${hits.length} batch${hits.length===1?"":"es"} · ${f0(sum(hits.map(h=>num(h.x.qty)||0)))} pieces · ${f1(sum(hits.map(h=>h.k.kg||0)))} kg</p>`:`<div class="empty">Nothing found for “${esc(q)}”.</div>`;
+    <p class="muted small">${hits.length} batch${hits.length===1?"":"es"} · ${f0(sum(hits.map(h=>h.b.qty)))} pieces · ${f1(sum(hits.map(h=>h.k.kg||0)))} kg</p>`:`<div class="empty">Nothing found for “${esc(q)}”.</div>`;
 }
 function drawSettings(){
   if($("#settings").contains(document.activeElement)) return;
   const s=S(),f=(k,l,t="number",w=110)=>`<div class="field"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="any" value="${esc(s[k])}" style="width:${w}px"></div>`;
-  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("tPush","Tempering chamber: pushes until a tray is taken out (measured)")+f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+
-    f("qDelay","Quench delay, min")+f("dip","Dip time, min")+f("toTemp","Quench → tempering chamber, min")+f("gapNorm","Between chambers, normalizing, min")+f("gapFA","Between chambers, full annealing, min")+
-    f("flagPush","Flag exit off by more than … push times")+f("wtTol","Flag weighed vs calculated beyond, %")+
-    (HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
+  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("tPush","Tempering chamber: pushes until a tray is taken out (measured)")+
+    f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+f("qDelay","Quench delay, min")+f("dip","Dip time, min")+f("toTemp","Quench → tempering chamber, min")+f("gapNorm","Between chambers, normalizing, min")+f("gapFA","Between chambers, full annealing, min")+
+    f("wtTol","Flag weighed vs calculated beyond, %")+(HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
 }
 
 /* ---------- editing ---------- */
-const newRow=()=>({id:"B"+String(DB.rseq++).padStart(5,"0"),part:"",batch:"",heat:"",heatCode:"",entry:"",exit:"",qty:"",push:"",weighed:"",note:""});
 function ensureRep(){
   let R=curRep(); if(R) return R;
-  R={id:"PR-"+String(DB.seq++).padStart(4,"0"),date:VIEW.d,furnace:VIEW.f,rows:[],status:"draft",created:todayISO(),log:[]};
+  R={id:"PR-"+String(DB.seq++).padStart(4,"0"),date:VIEW.d,furnace:VIEW.f,tl:emptyTl(),params:[],bx:{},status:"draft",created:todayISO(),log:[]};
   logIt(R,"Report created"); DB.reports.push(R); return R;
 }
-function refreshRow(R,row){
-  const k=calcRow(row,R),el=$("#b-"+row.id);if(!el)return;
-  el.style.setProperty("--k",{crit:"var(--crit)",warn:"var(--warn)",good:"var(--good)"}[k.lvl]);
-  $("#bh-"+row.id).innerHTML=batchHead(row,k);$("#bc-"+row.id).innerHTML=batchCalc(row,k,R);
-  if(!$("#bz-"+row.id).contains(document.activeElement)) $("#bz-"+row.id).innerHTML=batchZones(row,k,R.status==="approved");
-  /* other rows can change too (duplicate batch / heat checks) */
-  R.rows.forEach(o=>{if(o!==row&&$("#bc-"+o.id))$("#bc-"+o.id).innerHTML=batchCalc(o,calcRow(o,R),R);});
-  drawTrays();drawTotals();drawApproval();drawKpis();
+const newTray=(tl,items)=>({id:"T"+String(tl.seq++).padStart(4,"0"),items:items||[],at:"",note:"",hold:null});
+const lfItem=()=>{const it={part:txt(LOADF.part),batch:txt(LOADF.batch),heat:txt(LOADF.heat),heatCode:txt(LOADF.heatCode),qty:"",rw:null};
+  if(LOADF.rw) it.rw={ref:txt(LOADF.rwRef),reason:txt(LOADF.rwReason)};const sp=specOf(it.part,VIEW.f);if(sp)it.part=sp.part;return it;};
+let LMSG={t:"",ok:false};
+function loadMsg(t,ok){LMSG={t,ok:!!ok};const m=$("#lf-msg");if(m){m.textContent=t;m.style.color=ok?"var(--good-ink)":"";}}
+function addTrays(mode){
+  const R0=curRep();if(locked(R0))return;
+  if(mode!=="empty"){if(!txt(LOADF.part)){loadMsg("Enter the part no.");return;}
+    const sp=specOf(LOADF.part,VIEW.f),per=num(LOADF.qty)??(sp?num(sp.perTray):null),tot=num(LOADF.total);
+    if(!(per>0)){loadMsg("Enter the pieces in each tray (the part has no pieces per tray in its specification).");return;}
+    const R=ensureRep(),tl=R.tl,base=lfItem(),note=txt(LOADF.note);
+    if(!tl.start&&!tl.trays.length&&!tl.trays.some(t=>t.at)) loadMsg("Enter the time the first tray entered (above) to get the times.");
+    let qtys=[];
+    if(tot>0){const full=Math.floor(tot/per);qtys=Array(full).fill(per);if(tot%per)qtys.push(tot%per);}
+    else qtys=Array(Math.max(1,Math.min(200,Math.round(num(LOADF.n)||1)))).fill(per);
+    if(mode==="mix"){const last=tl.trays.at(-1);if(!last){loadMsg("There is no tray yet to add to.");return;}
+      last.items.push({...base,qty:qtys[0]});qtys=qtys.slice(1);}
+    qtys.forEach((q,i)=>{const t=newTray(tl,[{...base,qty:q}]);if(i===0&&note)t.note=note;tl.trays.push(t);});
+    logIt(R,`${mode==="mix"?"Mixed tray and ":""}${qtys.length} tray${qtys.length===1?"":"s"} of ${base.part} ${base.batch} loaded${base.rw?" (rework)":""}`);
+    save();loadMsg(`${mode==="mix"?"Added to the last tray"+(qtys.length?" and ":""):""}${qtys.length?`${qtys.length} tray${qtys.length===1?"":"s"} added`:""}.`,true);
+  }else{const R=ensureRep(),n=Math.max(1,Math.min(50,Math.round(num(LOADF.n)||1)));for(let i=0;i<n;i++)R.tl.trays.push(newTray(R.tl));logIt(R,`${n} empty tray${n>1?"s":""} added`);save();loadMsg(`${n} empty tray${n>1?"s":""} added.`,true);}
+  LOADF.total="";const t=$("#lf-total");if(t)t.value="";
+  const keep=document.activeElement;drawReport();drawSearch();if(keep&&keep.id&&$("#"+keep.id))$("#"+keep.id).focus();
 }
-/* tray log editing */
-const tlEnsure=R=>{R.tl=R.tl||{start:"",push:"",changes:[],trays:[],seq:1};R.tl.changes=R.tl.changes||[];R.tl.trays=R.tl.trays||[];R.tl.seq=R.tl.seq||1+R.tl.trays.length;return R.tl;};
-const newTray=(tl,items)=>({id:"T"+String(tl.seq++).padStart(4,"0"),items:items||[],at:"",note:""});
-/* redraw after the focus has moved on (Tab), so drawTrays can put it back on the same field */
-const tlChanged=R=>{save();setTimeout(()=>{drawReport();drawSearch();},0);};
+/* tray dialog: contents, actual time, note and hold */
+const tdlg=$("#tdlg");let TED=null;
+function openTray(R,id){
+  const tr=R.tl.trays.find(t=>t.id===id);if(!tr)return;
+  TED={rid:R.id,id,t:clone(tr),no:R.tl.trays.indexOf(tr)+1,lk:locked(R)};drawTdlg();tdlg.showModal();
+}
+function drawTdlg(msg){
+  const E=TED,t=E.t,R=DB.reports.find(r=>r.id===E.rid),lk=E.lk,dis=lk?" disabled":"",h=t.hold;
+  const T=trayTimes(R,R.tl.trays.find(x=>x.id===E.id));
+  tdlg.innerHTML=`<div class="dlg-h"><h2>Tray ${E.no} · ${esc(R.furnace)} · ${fdate(R.date)}</h2><span class="muted small">${T?`enters ${fdt(T.t)} · leaves the hardening chamber ${fdtShort(T.hOut,R.date)} · leaves the tempering chamber ${fdtShort(T.tOut,R.date)}`:""}</span></div>
+  <div class="dlg-b">
+    <section><h3 style="margin-bottom:6px">Contents ${t.items.length>1?`<span class="tag mix">MIXED</span>`:""}</h3>
+      ${t.items.length?`<div class="scroll"><table class="items"><thead><tr><th>Part no.</th><th>Batch no.</th><th>Heat no.</th><th>Heat code</th><th>Pieces</th><th>Rework of</th><th></th></tr></thead><tbody>${t.items.map((it,j)=>`<tr>
+        <td><input list="partlist" data-it="${j}|part" value="${esc(it.part)}" aria-label="Part no."${dis}></td><td><input data-it="${j}|batch" value="${esc(it.batch)}" aria-label="Batch no."${dis}></td>
+        <td><input data-it="${j}|heat" value="${esc(it.heat)}" aria-label="Heat no."${dis}></td><td><input data-it="${j}|heatCode" value="${esc(it.heatCode)}" aria-label="Heat code"${dis}></td>
+        <td><input type="number" step="1" data-it="${j}|qty" value="${esc(it.qty)}" aria-label="Pieces"${dis}></td><td><input data-it="${j}|rw" value="${esc(it.rw?it.rw.ref:"")}" placeholder="not rework" aria-label="Rework of (original report / nonconformance no.)"${dis}></td>
+        <td>${lk?"":`<button class="btn danger small" data-itdel="${j}" aria-label="Remove">✕</button>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">Empty tray.</p>`}
+      ${lk?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" data-itadd="1">Add a part (mixed tray)</button></div>`}</section>
+    <section class="fgrid"><div class="field"><label for="td-at">Actual entry time, if off the cycle</label><input id="td-at" type="datetime-local" value="${esc(t.at||"")}"${dis}></div>
+      <div class="field" style="grid-column:span 2"><label for="td-note">Note</label><input id="td-note" value="${esc(t.note||"")}"${dis}></div></section>
+    <section><h3 style="margin-bottom:6px">Hold ${h&&!h.rel?`<span class="tag hold">ON HOLD</span>`:""}</h3>
+      ${!h?`<p class="muted small" style="margin:0 0 6px">Not on hold.</p><div class="fgrid">${holdFields({})}</div><div class="actions" style="margin-top:6px"><button class="btn ghost small" data-hold="1">Put on hold</button></div>`
+        :`<p class="small" style="margin:0 0 6px">On hold since ${fdt(tms(h.at))}${h.by?" by "+esc(h.by):""}: <b>${esc(h.reason)}</b>${h.ref?" · ref. "+esc(h.ref):""}${h.note?" · "+esc(h.note):""}</p>
+          ${h.rel?`<p class="small ok" style="margin:0">${esc(h.rel.disp)} · ${esc(h.rel.by||"")} · ${fdt(tms(h.rel.at))}${h.rel.note?" · "+esc(h.rel.note):""}</p>`:`<div class="fgrid">${relFields()}</div><div class="actions" style="margin-top:6px"><button class="btn small" data-release="1">Release</button></div>`}`}</section>
+  </div>
+  <div class="dlg-f"><span class="msg" id="td-msg">${esc(msg||"")}</span><button class="btn ghost" data-tclose="1">Close</button>${lk?"":`<button class="btn" data-tsave="1">Save</button>`}</div>
+  ${partList()}`;
+}
+const holdFields=v=>`<div class="field"><label for="h-reason">Reason</label><select id="h-reason">${HOLD_REASONS.map(x=>`<option ${x===v.reason?"selected":""}>${esc(x)}</option>`).join("")}</select></div>
+  <div class="field"><label for="h-ref">Reference (alarm, SCADA review, test no.)</label><input id="h-ref" value="${esc(v.ref||"")}"></div><div class="field"><label for="h-at">Since</label><input id="h-at" type="datetime-local" value="${esc(v.at||nowLocal())}"></div>
+  <div class="field"><label for="h-by">By</label><input id="h-by" value="${esc(v.by||"")}"></div><div class="field span"><label for="h-note">Details</label><input id="h-note" value="${esc(v.note||"")}"></div>`;
+const relFields=()=>`<div class="field"><label for="r-disp">Disposition</label><select id="r-disp">${RELEASE.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
+  <div class="field"><label for="r-by" class="req">Released by</label><input id="r-by"></div><div class="field"><label for="r-at">When</label><input id="r-at" type="datetime-local" value="${esc(nowLocal())}"></div>
+  <div class="field span"><label for="r-note">Check / evidence (e.g. hardness test no.)</label><input id="r-note"></div>`;
+const readHold=()=>({reason:$("#h-reason").value,ref:txt($("#h-ref").value),at:$("#h-at").value||nowLocal(),by:txt($("#h-by").value),note:txt($("#h-note").value),rel:null});
+const readRel=()=>({disp:$("#r-disp").value,by:txt($("#r-by").value),at:$("#r-at").value||nowLocal(),note:txt($("#r-note").value)});
+tdlg.addEventListener("input",e=>{const el=e.target;if(!TED||TED.lk||!el.dataset.it)return;const [j,f]=el.dataset.it.split("|"),it=TED.t.items[+j];if(!it)return;
+  if(f==="rw") it.rw=txt(el.value)?{...(it.rw||{}),ref:txt(el.value)}:null; else it[f]=f==="qty"?(num(el.value)??""):el.value;});
+tdlg.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||!TED)return;const R=DB.reports.find(r=>r.id===TED.rid),tr=R&&R.tl.trays.find(x=>x.id===TED.id);
+  const readMain=()=>{if(!TED.lk){TED.t.at=$("#td-at").value;TED.t.note=txt($("#td-note").value);}};
+  if(b.dataset.tclose){tdlg.close();TED=null;return;}
+  if(b.dataset.itadd){readMain();const last=TED.t.items.at(-1);TED.t.items.push({part:"",batch:"",heat:"",heatCode:"",qty:"",rw:last&&last.rw?{...last.rw}:null});drawTdlg();return;}
+  if(b.dataset.itdel!=null){readMain();TED.t.items.splice(+b.dataset.itdel,1);drawTdlg();return;}
+  if(b.dataset.hold){readMain();const h=readHold();if(!h.by){drawTdlg("Enter who put the tray on hold.");return;}tr.hold=h;TED.t.hold=clone(h);logIt(R,`Tray ${TED.no} put on hold: ${h.reason}`);save();drawReport();drawTdlg("Tray put on hold.");return;}
+  if(b.dataset.release){const r=readRel();if(!r.by){drawTdlg("Enter who released the tray.");return;}tr.hold.rel=r;TED.t.hold=clone(tr.hold);logIt(R,`Tray ${TED.no} released from hold: ${r.disp}${r.note?" ("+r.note+")":""}`);save();drawReport();drawTdlg("Tray released.");return;}
+  if(b.dataset.tsave){readMain();
+    TED.t.items.forEach(it=>{it.part=txt(it.part);const sp=specOf(it.part,R.furnace);if(sp)it.part=sp.part;["batch","heat","heatCode"].forEach(k=>it[k]=txt(it[k]));});
+    const i=R.tl.trays.indexOf(tr);R.tl.trays[i]={...TED.t,hold:tr.hold};logIt(R,`Tray ${TED.no} edited`);save();drawReport();drawSearch();tdlg.close();TED=null;return;}
+});
+/* bulk actions on the selected trays */
+function bulkDlg(kind){
+  const R=curRep();if(!R||!SEL.size)return;const ids=[...SEL];
+  TED=null;tdlg.innerHTML=`<div class="dlg-h"><h2>${{hold:"Put on hold",release:"Release",rework:"Mark as rework"}[kind]} · ${ids.length} tray${ids.length>1?"s":""}</h2><span class="muted small">trays ${ids.map(id=>R.tl.trays.findIndex(t=>t.id===id)+1).sort((a,b)=>a-b).join(", ")}</span></div>
+    <div class="dlg-b"><div class="fgrid">${kind==="hold"?holdFields({}):kind==="release"?relFields():`<div class="field"><label for="rw-ref" class="req">Original report / nonconformance no.</label><input id="rw-ref"></div><div class="field span"><label for="rw-reason">Reason for the rework</label><input id="rw-reason"></div>`}</div></div>
+    <div class="dlg-f"><span class="msg" id="bk-msg"></span><button class="btn ghost" data-bclose="1">Cancel</button><button class="btn" data-bok="${kind}">Apply</button></div>`;
+  tdlg.showModal();
+}
+tdlg.addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b||TED)return;
+  if(b.dataset.bclose){tdlg.close();return;}
+  if(b.dataset.bok){const R=curRep(),k=b.dataset.bok,T=R.tl.trays.filter(t=>SEL.has(t.id)),nos=T.map(t=>R.tl.trays.indexOf(t)+1).join(", ");
+    if(k==="hold"){const h=readHold();if(!h.by){$("#bk-msg").textContent="Enter who put the trays on hold.";return;}T.forEach(t=>{if(!onHold(t))t.hold=clone(h);});logIt(R,`Trays ${nos} put on hold: ${h.reason}`);}
+    if(k==="release"){const r=readRel();if(!r.by){$("#bk-msg").textContent="Enter who released the trays.";return;}T.forEach(t=>{if(onHold(t))t.hold.rel=clone(r);});logIt(R,`Trays ${nos} released from hold: ${r.disp}`);}
+    if(k==="rework"){const ref=txt($("#rw-ref").value);if(!ref){$("#bk-msg").textContent="Enter the original report / nonconformance no.";return;}const rw={ref,reason:txt($("#rw-reason").value)};T.forEach(t=>t.items.forEach(it=>it.rw={...rw}));logIt(R,`Trays ${nos} marked as rework of ${ref}`);}
+    SEL.clear();save();drawReport();drawSearch();tdlg.close();}
+});
+document.addEventListener("input",e=>{
+  const el=e.target;
+  if(el.dataset.lf&&el.type!=="checkbox"){LOADF[el.dataset.lf]=el.value;const h=$("#lf-hint");if(h)h.innerHTML=loadHint(specOf(LOADF.part,VIEW.f));}
+});
 document.addEventListener("change",e=>{
   const el=e.target;
-  if(el.dataset.tl||el.dataset.ti||el.dataset.tt||el.dataset.pc){const R=curRep();if(!R||R.status==="approved")return;const tl=tlEnsure(R);
-    if(el.dataset.tl) tl[el.dataset.tl]=el.value.trim();
-    else if(el.dataset.ti){const [id,j,f]=el.dataset.ti.split(":"),tr=tl.trays.find(t=>t.id===id);if(!tr)return;tr.items[+j][f]=f==="qty"?(num(el.value)??""):el.value;}
-    else if(el.dataset.tt){const [id,f]=el.dataset.tt.split(":"),tr=tl.trays.find(t=>t.id===id);if(!tr)return;tr[f]=el.value.trim();}
-    else {const [i,f]=el.dataset.pc.split(":");tl.changes[+i][f]=f==="push"?(num(el.value)??""):el.value.trim();}
-    tlChanged(R);return;}
-  if(el.dataset.r){const [id,f]=el.dataset.r.split(":"),R=curRep(),row=R&&R.rows.find(x=>x.id===id);if(!row||R.status==="approved")return;
-    row[f]=el.value.trim();if(f==="part"&&specOf(row.part))row.part=specOf(row.part).part;save();refreshRow(R,row);drawSearch();return;}
-  if(el.dataset.setR){const [id,c,i]=el.dataset.setR.split(":"),R=curRep(),row=R&&R.rows.find(x=>x.id===id);if(!row||R.status==="approved")return;
-    row.sets=row.sets||{h:["","",""],t:["","",""]};row.sets[c][+i]=el.value;if(![...row.sets.h,...row.sets.t].some(v=>txt(v)))delete row.sets;save();refreshRow(R,row);return;}
+  if(tdlg.contains(el)) return;
+  if(el.dataset.lf){if(el.type==="checkbox"){LOADF.rw=el.checked;$("#lf-rwbox").classList.toggle("on",el.checked);}else{LOADF[el.dataset.lf]=el.value;if(el.dataset.lf==="part"){const sp=specOf(el.value,VIEW.f);if(sp){LOADF.part=sp.part;el.value=sp.part;}}}
+    const h=$("#lf-hint");if(h)h.innerHTML=loadHint(specOf(LOADF.part,VIEW.f));return;}
+  if(el.dataset.tl){const R=ensureRep();if(locked(R))return;R.tl[el.dataset.tl]=el.value.trim();save();setTimeout(()=>{drawReport();drawSearch();},0);return;}
+  if(el.dataset.sel){el.checked?SEL.add(el.dataset.sel):SEL.delete(el.dataset.sel);drawSelBar();return;}
+  if(el.id==="sel-all"){const R=curRep();SEL=new Set(el.checked?R.tl.trays.map(t=>t.id):[]);drawTrays();return;}
+  if(el.dataset.bx){const R=curRep();if(!R||locked(R))return;const [k,f]=el.dataset.bx.split("|");R.bx[k]={...(R.bx[k]||{}),[f]:el.value.trim()};save();setTimeout(()=>{drawBatches();drawKpis();},0);return;}
   if(el.dataset.s){const [i,k]=el.dataset.s.split(":"),x=DB.specs[+i];if(!x)return;
     if(/^[ht][012]$/.test(k))x[k[0]][+k[1]]=el.value;else x[k]=el.value.trim();
     save();if(k==="proc"){el.blur();drawSpecs();}else{const p=$("#specs p");if(p)p.innerHTML=specIssues();}drawReport();return;}
   if(el.dataset.set){const k=el.dataset.set;S()[k]=["plant","posH","posT"].includes(k)?el.value:(num(el.value)??DEF[k]);save();el.blur();render();return;}
   if(el.id==="set-furn"){const l=el.value.split(/[,;]+/).map(txt).filter(Boolean);if(l.length)DB.furnaces=l;save();el.blur();render();return;}
-  if(el.id==="sel-furnace"){VIEW.f=el.value;saveView();render();return;}
-  if(el.id==="sel-date"){if(isDate(el.value)){VIEW.d=el.value;saveView();render();}return;}
+  if(el.id==="sel-furnace"){VIEW.f=el.value;SEL.clear();LMSG={t:"",ok:false};saveView();render();return;}
+  if(el.id==="sel-date"){if(isDate(el.value)){VIEW.d=el.value;SEL.clear();saveView();render();}return;}
   if(el.id==="appr-by"){const R=curRep();if(R){R.apprBy=el.value.trim();save();}return;}
 });
+function drawSelBar(){const n=SEL.size,b=$("#bulk");if(!b)return;$("#sel-n").textContent=n+" selected";b.querySelectorAll("[data-bulk]").forEach(x=>x.disabled=!n);}
 $("#q").addEventListener("input",drawSearch);
 document.addEventListener("click",e=>{
-  const t=e.target.closest("button");if(!t)return;
+  const t=e.target.closest("button");if(!t||tdlg.contains(t))return;
   const R=curRep();
-  if(t.dataset.del){if(!R||R.status==="approved")return;const row=R.rows.find(x=>x.id===t.dataset.del);
-    if(row&&(!txt(row.part)&&!txt(row.batch)||confirm(`Remove batch ${row.batch||""} (${row.part||"no part"}) from this report?`))){R.rows=R.rows.filter(x=>x!==row);if(R.tl&&R.tl.trays)R.tl.trays.forEach(tr=>{tr.items=(tr.items||[]).filter(it=>it.b!==row.id);});logIt(R,`Batch ${row.batch||row.id} removed`);save();drawReport();drawSearch();}return;}
-  if(t.dataset.tiadd||t.dataset.tidel||t.dataset.trdel||t.dataset.trins||t.dataset.pcdel!=null){if(!R||R.status==="approved")return;const tl=tlEnsure(R);
-    if(t.dataset.tiadd){const tr=tl.trays.find(x=>x.id===t.dataset.tiadd),last=tr&&tr.items.at(-1);if(tr)tr.items.push({b:last?last.b:"",qty:""});}
-    else if(t.dataset.tidel){const [id,j]=t.dataset.tidel.split(":"),tr=tl.trays.find(x=>x.id===id);if(tr)tr.items.splice(+j,1);}
-    else if(t.dataset.trdel){tl.trays=tl.trays.filter(x=>x.id!==t.dataset.trdel);}
-    else if(t.dataset.trins){const i=tl.trays.findIndex(x=>x.id===t.dataset.trins);if(i>=0)tl.trays.splice(i,0,newTray(tl));}
-    else tl.changes.splice(+t.dataset.pcdel,1);
-    tlChanged(R);return;}
+  if(t.dataset.tedit){openTray(R,t.dataset.tedit);return;}
+  if(t.dataset.tins){if(locked(R))return;const i=R.tl.trays.findIndex(x=>x.id===t.dataset.tins);if(i>=0){R.tl.trays.splice(i,0,newTray(R.tl));logIt(R,`Empty tray inserted before tray ${i+1}`);save();drawReport();}return;}
+  if(t.dataset.tdel){if(locked(R))return;const i=R.tl.trays.findIndex(x=>x.id===t.dataset.tdel),tr=R.tl.trays[i];if(tr&&(!tr.items.length||confirm(`Remove tray ${i+1} (${tr.items.map(x=>x.part+" "+x.batch).join(" + ")})?`))){R.tl.trays.splice(i,1);logIt(R,`Tray ${i+1} removed`);save();drawReport();drawSearch();}return;}
+  if(t.dataset.bulk){const k=t.dataset.bulk;if(k==="delete"){const n=SEL.size;if(n&&confirm(`Delete ${n} selected tray${n>1?"s":""}?`)){R.tl.trays=R.tl.trays.filter(x=>!SEL.has(x.id));logIt(R,`${n} tray${n>1?"s":""} deleted`);SEL.clear();save();drawReport();drawSearch();}return;}bulkDlg(k);return;}
+  if(t.dataset.rel){const [rid,tid]=t.dataset.rel.split("|"),R2=DB.reports.find(r=>r.id===rid);if(R2)openTray(R2,tid);return;}
+  if(t.dataset.pdel){if(locked(R))return;R.params=R.params.filter(p=>p.id!==t.dataset.pdel);logIt(R,"Process parameter change removed");save();drawReport();return;}
   if(t.dataset.delspec!=null){DB.specs.splice(+t.dataset.delspec,1);save();drawSpecs();drawReport();return;}
-  if(t.dataset.goto){const [f,d]=t.dataset.goto.split("|");VIEW.f=f;VIEW.d=d;saveView();render();scrollTo({top:0});return;}
+  if(t.dataset.goto){const [f,d]=t.dataset.goto.split("|");VIEW.f=f;VIEW.d=d;SEL.clear();saveView();render();scrollTo({top:0});return;}
   switch(t.id){
-    case "b-addrow":{const R2=ensureRep();const row=newRow();R2.rows.push(row);save();drawReport();$(`#r-${row.id}-part`)?.focus();break;}
-    case "b-copy":{const P=prevRep(),R2=ensureRep();P.rows.forEach(x=>{const row=newRow();Object.assign(row,{part:x.part,heat:x.heat,heatCode:x.heatCode,push:x.push||""});R2.rows.push(row);});
-      logIt(R2,`${P.rows.length} parts and heats copied from ${fdate(P.date)}`);save();drawReport();break;}
-    case "b-tfill":{if(!R||R.status==="approved")return;const row=R.rows.find(x=>x.id===$("#tf-b").value);if(!row)return;
-      const sp=specOf(row.part,R.furnace),per=sp?num(sp.perTray):null,qty=num(row.qty);
-      if(!(per>0)){alert(`Part ${row.part||"?"} has no pieces per tray in its specification.`);return;}
-      if(!(qty>0)){alert(`Enter the quantity of batch ${row.batch||""} first.`);return;}
-      const tl=tlEnsure(R);let left=qty-inTrays(R,row);if(left<=0){alert(`Batch ${row.batch||""} is already in the tray log.`);return;}
-      if(!tl.start&&!tl.trays.length){const ent=tms(row.entry);if(ent!=null)tl.start=iso(ent);}
-      const last=tl.trays.at(-1);
-      if($("#tf-top").checked&&last&&last.items.length&&!last.items.some(it=>it.b===row.id)){const room=Math.floor((1-trayLoad(R,last))*per+1e-9);if(room>0){const k=Math.min(room,left);last.items.push({b:row.id,qty:k});left-=k;}}
-      while(left>0){const k=Math.min(per,left);tl.trays.push(newTray(tl,[{b:row.id,qty:k}]));left-=k;}
-      logIt(R,`Batch ${row.batch||row.id} loaded into the tray log`);tlChanged(R);break;}
-    case "b-tempty":{if(!R||R.status==="approved")return;const tl=tlEnsure(R),n=Math.max(1,Math.min(50,num($("#tf-n").value)||1));for(let i=0;i<n;i++)tl.trays.push(newTray(tl));tlChanged(R);break;}
-    case "b-pcadd":{if(!R||R.status==="approved")return;const tl=tlEnsure(R);const lt=tl.trays.length?trayTimes(R,tl.trays.at(-1)):null;tl.changes.push({at:lt?iso(lt.t):tl.start||"",push:"",note:""});tlChanged(R);break;}
-    case "b-delrep":{DB.reports=DB.reports.filter(x=>x!==R);save();drawReport();break;}
+    case "b-ladd":LMSG={t:"",ok:false};addTrays("add");break;
+    case "b-lmix":LMSG={t:"",ok:false};addTrays("mix");break;
+    case "b-lempty":LMSG={t:"",ok:false};addTrays("empty");break;
+    case "b-padd":{const R2=ensureRep();if(locked(R2))return;const at=$("#pc-at").value,kind=$("#pc-kind").value,to=txt($("#pc-to").value),zone=$("#pc-zone").value;
+      if(!tms(at)){$("#pc-msg").textContent="Enter the time of the change.";return;}if(!to){$("#pc-msg").textContent="Enter the new value.";return;}
+      if((kind==="hset"||kind==="tset")&&!zone){$("#pc-msg").textContent="Choose the zone.";return;}if(kind==="push"&&!(num(to)>0)){$("#pc-msg").textContent="Enter the new push time in minutes.";return;}
+      const id="P"+(1+Math.max(0,...R2.params.map(p=>+(String(p.id).match(/\d+/)||[0])[0])));
+      R2.params.push({id,at,kind,zone:kind==="hset"||kind==="tset"?zone:"",what:txt($("#pc-what").value),from:txt($("#pc-from").value),to,reason:txt($("#pc-reason").value),by:txt($("#pc-by").value)});
+      logIt(R2,`${PARAMS[kind][0]}${zone?" zone "+zone:""} changed to ${to} at ${at.slice(11,16)}`);save();drawReport();break;}
+    case "b-delrep":{if(R&&!R.tl.trays.length){DB.reports=DB.reports.filter(x=>x!==R);save();drawReport();}break;}
     case "b-approve":{const by=txt($("#appr-by").value);if(!by){$("#appr-msg").textContent="Enter who approves the report.";return;}
-      R.status="approved";R.apprBy=by;R.apprDate=todayISO();logIt(R,`Approved by ${by}`);save();drawReport();drawSearch();break;}
+      R.status="approved";R.apprBy=by;R.apprDate=todayISO();logIt(R,`Approved by ${by}`);SEL.clear();save();drawReport();drawSearch();break;}
     case "b-unlock":{const why=prompt("Reason for unlocking the approved report (recorded):");if(!why||!why.trim())return;
       R.status="draft";logIt(R,`Unlocked: ${why.trim()} (approved by ${R.apprBy} on ${fdate(R.apprDate)})`);save();drawReport();drawSearch();break;}
     case "b-addspec":{DB.specs.push({part:"",name:"",grade:"",proc:"",h:["","",""],t:["","",""],push:"",cc:"",fan:"",perTray:"",wt:""});save();drawSpecs();
       const ins=document.querySelectorAll("#specs tbody tr:last-child input");if(ins[0])ins[0].focus();break;}
-    case "b-prevday":VIEW.d=addDays(VIEW.d,-1);saveView();render();break;
-    case "b-nextday":VIEW.d=addDays(VIEW.d,1);saveView();render();break;
+    case "b-prevday":VIEW.d=addDays(VIEW.d,-1);SEL.clear();saveView();render();break;
+    case "b-nextday":VIEW.d=addDays(VIEW.d,1);SEL.clear();saveView();render();break;
     case "b-xlsx":{const m=prodXlsx();if(m)alert(m);break;}
     case "b-pdf":{const m=prodPdf();if(m)alert(m);break;}
     case "b-theme":{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("prod-theme",r.dataset.theme);}catch(err){}break;}
@@ -744,53 +906,59 @@ function xlsxBlob(sheets){
     ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
   return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
-
 const repName=()=>`Production report ${VIEW.f} ${VIEW.d}`.replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-");
 function prodTables(R){
-  const ks=R.rows.map(r=>calcRow(r,R)),T=groupTotals(R),s=S();
-  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Entry (hardening)","Exit (tempering)","Pieces","Trays","Weight kg","Weighed kg","Push min","Time in furnace","Expected exit","Exit − expected, min","Implied push min","Remarks"];
-  const rows=R.rows.map((r,i)=>{const k=ks[i];return [i+1,k.sp?.part||r.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",r.batch,r.heat,r.heatCode,fdt(k.e),fdt(k.x),num(r.qty)??(k.tz?k.tz.qty:""),k.trays??"",k.kg!=null?Math.round(k.kg*10)/10:"",num(r.weighed)??"",k.tz?k.pushTxt:(k.push??""),k.mins!=null?fmin(k.mins):"",k.expected!=null?fdt(k.expected):"",k.dev!=null?Math.round(k.dev):"",k.implied!=null?Math.round(k.implied*10)/10:"",[...k.issues.filter(x=>x[0]!=="crit").map(x=>x[1]),r.note].filter(Boolean).join(" | ")];});
-  const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Set °C","Batch in zone from","to"],rows:R.rows.flatMap((r,i)=>{const k=ks[i],v=setsOf(r,k.sp);return (k.zones||[]).map(z=>[i+1,r.batch,r.part,z.ch,z.z,(z.ch==="Hardening"?v.h:v.t)[z.z-1]??"",fdt(z.from),fdt(z.to)]);})};
-  const usedParts=[...new Set(R.rows.map(r=>txt(r.part).toUpperCase()))].map(p=>specOf(p,R.furnace)).filter(Boolean);
+  const B=batchesOf(R),ks=B.map(b=>calcBatch(R,b)),T=groupTotals(R),s=S();
+  const trays={head:["Tray","Enters hardening","Push min","Part no.","Batch no.","Heat no.","Heat code","Pieces","Rework of","Load %","Leaves hardening","Leaves tempering","Status","Actual entry","Note"],
+    rows:R.tl.trays.flatMap((tr,i)=>{const Tt=trayTimes(R,tr),ld=trayLoad(R,tr),st=tr.hold?(tr.hold.rel?`was on hold (${tr.hold.reason}) · ${tr.hold.rel.disp}`:`ON HOLD: ${tr.hold.reason}`):"";
+      const base=[i+1,Tt?fdt(Tt.t):"",Tt?Tt.p:""],tail=[tr.items.length?Math.round(ld*100):"",Tt?fdt(Tt.hOut):"",Tt?fdt(Tt.tOut):"",st,tr.at?fdt(tms(tr.at)):"",tr.note||""];
+      return tr.items.length?tr.items.map((it,j)=>[...(j?["","",""]:base),it.part,it.batch,it.heat,it.heatCode,num(it.qty)??"",it.rw?it.rw.ref:"",...(j?["","","","","","",""]:tail)]):[[...base,"empty","","","","","",...tail]];})};
+  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Rework of","Trays","Pieces","Weight kg","Weighed kg","Entry (hardening)","Exit (tempering)","Push min","Time in furnace","Trays on hold","Remarks"];
+  const rows=B.map((b,i)=>{const k=ks[i],bx=R.bx[b.key]||{};return [i+1,k.sp?.part||b.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",b.batch,b.heat,b.heatCode,b.rw?b.rw.ref:"",k.n,b.qty,k.kg!=null?Math.round(k.kg*10)/10:"",num(bx.weighed)??"",fdt(k.e),fdt(k.x),k.pushTxt||"",k.mins!=null?fmin(k.mins):"",b.trays.filter(onHold).length||"",[...k.issues.map(x=>x[1]),bx.note].filter(Boolean).join(" | ")];});
+  const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Batch in zone from","to"],rows:B.flatMap((b,i)=>(ks[i].zones||[]).map(z=>[i+1,b.batch,b.part,z.ch,z.z,fdt(z.from),fdt(z.to)]))};
+  const params={head:["Time","Parameter","Zone","From","To","Reason","By"],rows:[[fdt(tms(R.tl.start)),"Push time (at the start)","","",tlPush0(R)??"","",""],...(R.params||[]).slice().sort((a,b)=>(a.at||"")<(b.at||"")?-1:1).map(p=>[fdt(tms(p.at)),(PARAMS[p.kind]||PARAMS.other)[0]+(p.what?": "+p.what:""),p.zone||"",p.from||"",p.to||"",p.reason||"",p.by||""])]};
+  const holds={head:["Tray","Contents","On hold since","By","Reason","Reference","Details","Disposition","Released by","Released","Evidence"],rows:R.tl.trays.map((t,i)=>({t,i})).filter(x=>x.t.hold).map(({t,i})=>{const h=t.hold,r=h.rel||{};
+    return [i+1,t.items.map(it=>`${it.part} ${it.batch} × ${it.qty}`).join(" + ")||"empty",fdt(tms(h.at)),h.by||"",h.reason,h.ref||"",h.note||"",r.disp||"ON HOLD",r.by||"",r.at?fdt(tms(r.at)):"",r.note||""];})};
+  const usedParts=[...new Set(B.map(b=>txt(b.part).toUpperCase()))].map(p=>specOf(p,R.furnace)).filter(Boolean);
   const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
     rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
-  const tot=l=>l.map(o=>[o.label,o.n,o.qty,Math.round(o.kg*10)/10]);
-  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Tempering chamber: pushes from leaving the hardening chamber to leaving the tempering chamber",s.tPush],["Isothermal annealing: transfers into and out of the controlled cooling chamber",`${s.ccXfer} min (cooling cycle = cooling time + transfers, within the push time)`],["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],
-    ["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"],["Exit flagged when off by more than",s.flagPush+" push time(s)"]];
-  const summary=[["Report",R.id],["Furnace",R.furnace],["Production date",fdate(R.date)],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],["Batches",R.rows.length],
-    ["Pieces",sum(R.rows.map(r=>num(r.qty)||0))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Trays",tlOf(R)?`${R.tl.trays.length} logged (${R.tl.trays.filter(t=>!(t.items||[]).length).length} empty)`:sum(ks.map(k=>k.trays||0))],["Incomplete entries",ks.filter(k=>k.lvl==="crit").length],["Entries to check",ks.filter(k=>k.lvl==="warn").length],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
-  const tl=tlOf(R);
-  const trays={head:["Tray","Enters hardening","Push min","Contents (batch × pieces)","Pieces","Load %","Leaves hardening","Leaves tempering","Actual entry","Note"],rows:tl?R.tl.trays.map((tr,i)=>{const T=trayTimes(R,tr),items=tr.items||[];
-    return [i+1,T?fdt(T.t):"",T?T.p:"",items.length?items.map(it=>{const r=R.rows.find(x=>x.id===it.b);return `${r?(r.batch||r.part):"?"} × ${it.qty}`;}).join(" + "):"empty",sum(items.map(it=>num(it.qty)||0)),items.length?Math.round(trayLoad(R,tr)*100):"",T?fdt(T.hOut):"",T?fdt(T.tOut):"",tr.at?fdt(tms(tr.at)):"",tr.note||""];}):[]};
-  const pushes={head:["First push at the new push time","New push time, min","Reason"],rows:tl?[[fdt(tms(R.tl.start)),tlPush0(R)??"","push time at the start"],...(R.tl.changes||[]).map(c=>[fdt(tms(c.at)),num(c.push)??"",c.note||""])]:[]};
-  return {trays,pushes,summary,batch:{head,rows},zones,specs,parts:tot(T.parts),heats:tot(T.heats),procs:tot(T.procs),settings,hist:R.log.map(x=>[fdate(x.d),x.t])};
+  const tot=l=>l.map(o=>[o.label,o.n,o.trays,o.qty,Math.round(o.kg*10)/10]);
+  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Tempering chamber: pushes until a tray is taken out",s.tPush],["Isothermal annealing: transfers into and out of the controlled cooling chamber",s.ccXfer+" min"],
+    ["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"]];
+  const Tr=R.tl.trays;
+  const summary=[["Report",R.id],["Furnace",R.furnace],["Production date",fdate(R.date)],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],["First tray entered",fdt(tms(R.tl.start))],
+    ["Trays",`${Tr.length} (${Tr.filter(t=>!t.items.length).length} empty, ${Tr.filter(t=>t.items.length>1).length} mixed)`],["Trays on hold",Tr.filter(onHold).length],["Rework trays",Tr.filter(t=>t.items.some(i=>i.rw)).length],["Batches",B.length],
+    ["Pieces",sum(B.map(b=>b.qty))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Incomplete entries",incompleteCount(R)],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
+  return {summary,trays,batch:{head,rows},zones,params,holds,specs,parts:tot(T.parts),heats:tot(T.heats),procs:tot(T.procs),settings,hist:R.log.map(x=>[fdate(x.d),x.t])};
 }
 function prodXlsx(){
-  const R=curRep(); if(!R||!R.rows.length) return `No batches entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
+  const R=curRep(); if(!R||!R.tl.trays.length) return `No trays entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
   const T=prodTables(R),B=cells=>({b:true,cells}),N=cells=>({cells}),tbl=(h,rows)=>[B(h),...(rows.length?rows.map(N):[N(["—"])])];
   const sheets=[
     {name:"Summary",widths:[34,46],rows:[B(["Production report"]),N([]),...T.summary.map(N)]},
-    {name:"Batches",widths:[5,14,24,14,22,14,12,12,18,18,9,7,11,11,9,14,18,10,10,60],rows:[B([`Batches · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
-    {name:"Totals",widths:[40,10,12,12],rows:[B(["Per part"]),...tbl(["Part","Batches","Pieces","kg"],T.parts),N([]),B(["Per heat"]),...tbl(["Heat no. / code","Batches","Pieces","kg"],T.heats),N([]),B(["Per process"]),...tbl(["Process","Batches","Pieces","kg"],T.procs)]},
-    ...(T.trays.rows.length?[{name:"Trays",widths:[6,18,9,46,9,8,18,18,18,30],rows:[B([`Tray loading log · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.trays.head,T.trays.rows),N([]),B(["Push time"]),...tbl(T.pushes.head,T.pushes.rows)]}]:[]),
-    {name:"Zone windows",widths:[5,14,14,12,7,9,20,20],rows:[B(["When each batch was in each zone (first tray in → last tray out)"]),N([]),...tbl(T.zones.head,T.zones.rows)]},
+    {name:"Trays",widths:[6,18,8,14,14,12,10,8,14,7,18,18,34,18,30],rows:[B([`Tray log · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.trays.head,T.trays.rows)]},
+    {name:"Batches",widths:[5,14,24,14,22,14,12,10,14,7,9,11,11,18,18,9,14,8,60],rows:[B([`Batches · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
+    {name:"Parameter changes",widths:[18,34,7,10,10,40,16],rows:[B(["Process parameter changes"]),N([]),...tbl(T.params.head,T.params.rows)]},
+    {name:"Holds",widths:[6,40,18,14,36,18,30,30,14,18,30],rows:[B(["Trays on hold"]),N([]),...tbl(T.holds.head,T.holds.rows)]},
+    {name:"Totals",widths:[40,10,8,12,12],rows:[B(["Per part"]),...tbl(["Part","Batches","Trays","Pieces","kg"],T.parts),N([]),B(["Per heat"]),...tbl(["Heat no. / code","Batches","Trays","Pieces","kg"],T.heats),N([]),B(["Per process"]),...tbl(["Process","Batches","Trays","Pieces","kg"],T.procs)]},
+    {name:"Zone windows",widths:[5,14,14,18,7,20,20],rows:[B(["When each batch was in each zone (first tray in → last tray out)"]),N([]),...tbl(T.zones.head,T.zones.rows)]},
     {name:"Specifications",widths:[14,24,14,22,9,9,9,9,9,9,9,12,12,10,10],rows:[B(["Process specifications of the parts in this report"]),N([]),...tbl(T.specs.head,T.specs.rows)]},
-    {name:"Settings",widths:[46,20],rows:[B(["Times and layout in force"]),N([]),...T.settings.map(N),N([]),B(["History of the report"]),...tbl(["Date","Event"],T.hist)]}];
+    {name:"Settings",widths:[56,20],rows:[B(["Times and layout in force"]),N([]),...T.settings.map(N),N([]),B(["History of the report"]),...tbl(["Date","Event"],T.hist)]}];
   try{dl(repName()+".xlsx",xlsxBlob(sheets));return "";}catch(e){return "The Excel file could not be made: "+e.message;}
 }
 function prodPdf(){
-  const R=curRep(); if(!R||!R.rows.length) return `No batches entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
+  const R=curRep(); if(!R||!R.tl.trays.length) return `No trays entered for ${VIEW.f} on ${fdate(VIEW.d)}.`;
   const T=prodTables(R),e=esc;
-  const table=(h,rows,cls="")=>`<table class="${cls}"><thead><tr>${h.map(x=>`<th>${e(x)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-  const bh=["#","Part","Process","Batch","Heat / code","Entry → exit","Pcs","Trays","kg","Push","In furnace","Expected exit (Δ min)","Remarks"];
-  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,`${r[8]} → ${r[9]}`,r[10],r[11],r[12],r[14],r[15],r[16]?`${r[16]} (${r[17]})`:"",r[19]]);
+  const table=(h,rows,cls="")=>rows.length?`<table class="${cls}"><thead><tr>${h.map(x=>`<th>${e(x)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
   const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join("")}</tbody></table>`;
+  const bh=["#","Part","Process","Batch","Heat / code","Rework of","Trays","Pcs","kg","Entry → exit","Push","On hold","Remarks"];
+  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,r[8],r[9],r[10],r[11],`${r[13]} → ${r[14]}`,r[15],r[17],r[18]]);
   const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(repName())}</title><style>
     @page{size:A4 landscape;margin:10mm}
-    body{font:10.5px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{font:10px/1.35 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     h1{font-size:18px;margin:0 0 2px}h2{font-size:13px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
     .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
-    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 5px;text-align:left;vertical-align:top}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:2px 4px;text-align:left;vertical-align:top}
     thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
     table.kv{width:auto;min-width:50%}table.kv th{background:#f2f4f5;font-weight:500;width:260px}
     .three{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -803,9 +971,11 @@ function prodPdf(){
   <p class="sub">${e(S().plant)} · ${e(R.id)} · ${e(R.status==="approved"?`approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"draft, not approved")}</p>
   <h2>Summary</h2>${kv(T.summary)}
   <h2>Batches</h2>${table(bh,br)}
-  <h2>Totals</h2><div class="three"><div>${table(["Part","Batches","Pieces","kg"],T.parts)}</div><div>${table(["Heat no. / code","Batches","Pieces","kg"],T.heats)}</div><div>${table(["Process","Batches","Pieces","kg"],T.procs)}</div></div>
+  <h2>Tray log</h2>${table(T.trays.head,T.trays.rows)}
+  <h2>Process parameter changes</h2>${table(T.params.head,T.params.rows)}
+  <h2>Trays on hold</h2>${table(T.holds.head,T.holds.rows)}
+  <h2>Totals</h2><div class="three"><div>${table(["Part","Batches","Trays","Pieces","kg"],T.parts)}</div><div>${table(["Heat no. / code","Batches","Trays","Pieces","kg"],T.heats)}</div><div>${table(["Process","Batches","Trays","Pieces","kg"],T.procs)}</div></div>
   <h2>Process specifications of the parts in this report</h2>${table(T.specs.head,T.specs.rows)}
-  ${T.trays.rows.length?`<h2>Tray loading log</h2>${table(T.pushes.head,T.pushes.rows)}${table(T.trays.head,T.trays.rows)}`:""}
   <h2>When each batch was in each zone</h2>${table(T.zones.head,T.zones.rows)}
   <h2>Times and layout in force</h2>${kv(T.settings)}
   <div class="sign"><div><span class="muted">Entered by</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Approved by (supervisor)</span><b>${e(R.status==="approved"?R.apprBy:"")}</b><span class="muted">Sign · Date</span></div></div>
@@ -819,33 +989,37 @@ function prodPdf(){
 
 /* ---------- example data (previous day, F-04) ---------- */
 function example(){
-  const o=blank(),d=addDays(todayISO(),-1),dt=(day,hm)=>day+"T"+hm;
+  const o=blank(),d=addDays(todayISO(),-1),dt=hm=>d+"T"+hm;
   o.specs=[
     {part:"MW-4512",name:"Gear blank 42 T",grade:"20MnCr5",proc:P_HT,h:["850","880","880"],t:["560","560","560"],push:"12",cc:"",fan:"",perTray:"40",wt:"1.85"},
     {part:"MW-3307",name:"Shaft Ø32 × 410",grade:"42CrMo4",proc:P_HT,h:["840","860","860"],t:["580","580","580"],push:"15",cc:"",fan:"",perTray:"24",wt:"2.6"},
     {part:"MW-7120",name:"Forged flange",grade:"16MnCr5",proc:P_IA,h:["900","940","940"],t:["650","650","650"],push:"18",cc:"12",fan:"",perTray:"30",wt:"1.2"},
     {part:"MW-2205",name:"Connecting rod",grade:"C45",proc:P_NO,h:["720","740","740"],t:["870","890","890"],push:"18",cc:"",fan:"20",perTray:"50",wt:"0.95"}];
-  const R={id:"PR-0001",date:d,furnace:"F-04",rows:[],status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
-  const add=(part,batch,heat,code,entry,qty,push,exitAdj)=>{const sp=o.specs.find(x=>x.part===part),tr=Math.ceil(qty/ +sp.perTray),bt=sp.proc===P_HT?13.5:0,cp=sp.proc===P_IA?1:0;
-    const e=Date.parse(entry+":00Z"),x=e+((tr-1+25+cp)*+push+bt+exitAdj)*60000;
-    R.rows.push({id:"B"+String(o.rseq++).padStart(5,"0"),part,batch,heat,heatCode:code,entry,exit:new Date(x).toISOString().slice(0,16),qty:String(qty),push:String(push)===sp.push?"":String(push),weighed:"",note:""});};
-  add("MW-4512","F4-2610-01","H-24519","K7",dt(d,"06:10"),400,12,2);
-  add("MW-4512","F4-2610-02","H-24519","K7",dt(d,"08:12"),350,12,-3);
-  add("MW-3307","F4-2610-03","H-24577","M2",dt(d,"10:05"),216,15,0);
-  add("MW-7120","F4-2610-04","H-24601","T9",dt(d,"12:20"),270,18,38); /* exit later than expected → flagged */
-  add("MW-2205","F4-2610-05","H-24633","N4",dt(d,"15:00"),480,18,1);
-  R.rows[1].weighed="645";
-  /* tray loading log: the trays in their order, a mixed tray where batch 2 ends, empty trays at process changes, push time changes and a stop */
-  const tl={start:dt(d,"06:10"),push:"12",changes:[{at:dt(d,"09:46"),push:"15",note:"MW-3307 (42CrMo4) needs 15 min"},{at:dt(d,"12:46"),push:"18",note:"Isothermal annealing MW-7120 (controlled cooling 12 min)"}],trays:[],seq:1};
-  const tray=(items,extra)=>tl.trays.push({id:"T"+String(tl.seq++).padStart(4,"0"),items,at:"",note:"",...(extra||{})});
-  const load=(i,top)=>{const row=R.rows[i],per=+o.specs.find(x=>x.part===row.part).perTray;let left=+row.qty;const last=tl.trays.at(-1);
-    if(top&&last&&last.items.length){const sp0=o.specs.find(x=>x.part===R.rows.find(r=>r.id===last.items[0].b).part),used=last.items.reduce((a,it)=>a+it.qty/ +o.specs.find(x=>x.part===R.rows.find(r=>r.id===it.b).part).perTray,0),room=Math.floor((1-used)*per+1e-9);
-      if(room>0&&sp0){const k=Math.min(room,left);last.items.push({b:row.id,qty:k});left-=k;}}
-    while(left>0){const k=Math.min(per,left);tray([{b:row.id,qty:k}]);left-=k;}};
-  load(0);load(1);load(2,true);tray([],{note:"Empty: change to isothermal annealing"});tray([]);load(3);tray([]);tray([],{note:"Empty: change to normalizing"});
-  tl.trays[40].at=dt(d,"16:06");tl.trays[40].note="Pusher stopped 20 min (tray jam), restarted; empty: change to normalizing";load(4);
-  tray([],{note:"Empty trays to push the last batch through"});tray([]);tray([]);
-  R.tl=tl;
+  const R={id:"PR-0001",date:d,furnace:"F-04",tl:{start:dt("06:10"),push:"12",trays:[],seq:1},params:[],bx:{},status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
+  const T=(items,extra)=>{const t={id:"T"+String(R.tl.seq++).padStart(4,"0"),items,at:"",note:"",hold:null,...(extra||{})};R.tl.trays.push(t);return t;};
+  const it=(part,batch,heat,heatCode,qty,rw)=>({part,batch,heat,heatCode,qty,rw:rw||null});
+  for(let i=0;i<10;i++) T([it("MW-4512","F4-2610-01","H-24519","K7",40)]);
+  for(let i=0;i<8;i++) T([it("MW-4512","F4-2610-02","H-24519","K7",40)]);
+  T([it("MW-4512","F4-2610-02","H-24519","K7",30),it("MW-3307","F4-2610-03","H-24577","M2",6)],{note:"End of batch 02 topped up with MW-3307"});
+  for(let i=0;i<8;i++) T([it("MW-3307","F4-2610-03","H-24577","M2",24)]);
+  T([it("MW-3307","F4-2610-03","H-24577","M2",18)]);
+  /* rework of trays from an earlier nonconforming batch */
+  const rw={ref:"MT-0005",reason:"Low hardness after tempering, re-harden and temper"};
+  for(let i=0;i<3;i++) T([it("MW-3307","F4-2609-11","H-24577","M2",24,rw)]);
+  T([],{note:"Empty: change to isothermal annealing"});T([]);
+  for(let i=0;i<9;i++) T([it("MW-7120","F4-2610-04","H-24601","T9",30)]);
+  T([]);const st=T([],{note:"Pusher stopped 20 min (tray jam), restarted; empty: change to normalizing"});
+  for(let i=0;i<9;i++) T([it("MW-2205","F4-2610-05","N/A","N4",50)]);T([it("MW-2205","F4-2610-05","N/A","N4",30)]);
+  T([],{note:"Empty trays to push the last batch through"});T([]);T([]);
+  /* timing: push changes and the stop */
+  R.params.push({id:"P1",at:dt("09:46"),kind:"push",zone:"",from:"12",to:"15",reason:"MW-3307 (42CrMo4) needs 15 min",by:"Shift supervisor"});
+  st.at=dt("16:52");
+  R.params.push({id:"P2",at:dt("13:31"),kind:"push",zone:"",from:"15",to:"18",reason:"Isothermal annealing MW-7120 (controlled cooling 12 min)",by:"Shift supervisor"});
+  R.params.push({id:"P3",at:dt("11:20"),kind:"hset",zone:"2",from:"880",to:"870",reason:"Zone 2 overshoot, set value lowered temporarily",by:"HT operator"});
+  R.params.push({id:"P4",at:dt("12:05"),kind:"hset",zone:"2",from:"870",to:"860",reason:"Back to the MW-3307 set value",by:"HT operator"});
+  /* trays held after the zone 2 change; one released, the rest waiting for the hardness test */
+  const held={reason:HOLD_REASONS[2],ref:"Hardening zone 2 at 870 °C 11:20–12:05",at:dt("12:10"),by:"Quality inspector",note:"Hardness check of the trays that were in zone 2",rel:null};
+  R.tl.trays.slice(18,22).forEach((t,i)=>t.hold=clone(i===0?{...held,rel:{disp:RELEASE[0],by:"Quality Manager",at:dt("15:30"),note:"MT-0007 hardness within limits"}}:held));
   o.reports.push(R);o.seq=2;
   return o;
 }
@@ -860,9 +1034,13 @@ if(HTQ){
 }
 render();
 if(!DB.specs.length&&!DB.reports.length) $("#setup").open=true;
-window.__PROD={get DB(){return DB;},calcRow,specOf,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();}};
-/* offered to the suite once everything above is defined (used by later links to the SCADA review and the home page) */
-if(HTQ) HTQ.provide("prod",{reports:()=>DB.reports.map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.status,rows:r.rows.map(x=>{const k=calcRow(x,r);return {...x,entry:k.e!=null?iso(k.e):x.entry,exit:k.x!=null?iso(k.x):x.exit,spec:k.sp,trays:k.trays,kg:k.kg,zones:k.zones,lvl:k.lvl};}),
-  trays:tlOf(r)?r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),items:(tr.items||[]).map(it=>{const x=r.rows.find(y=>y.id===it.b);return {batch:x?x.batch:"",part:x?x.part:"",qty:num(it.qty)};})};}):[]}))});
+window.__PROD={get DB(){return DB;},batchesOf,calcBatch,trayTimes,specOf,timeline,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();},LOADF};
+/* offered to the suite once everything above is defined: rows = the batches built from the trays (shape used by the SCADA review, the
+   Alarms page and the home page), trays = the tray log with holds */
+if(HTQ) HTQ.provide("prod",{reports:()=>DB.reports.map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.status,
+  rows:batchesOf(r).map(b=>{const k=calcBatch(r,b);return {id:b.key,part:b.part,batch:b.batch,heat:b.heat,heatCode:b.heatCode,qty:b.qty,rework:b.rw?b.rw.ref:"",entry:k.e!=null?iso(k.e):"",exit:k.x!=null?iso(k.x):"",
+    spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lvl:k.incomplete?"crit":k.lvl,hold:b.trays.filter(onHold).length};}),
+  trays:r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),hold:onHold(tr)?{reason:tr.hold.reason,at:tr.hold.at,ref:tr.hold.ref||""}:null,
+    items:tr.items.map(it=>({part:it.part,batch:it.batch,heat:it.heat,qty:num(it.qty),rework:it.rw?it.rw.ref:""}))};})}))});
 </script>
 </body></html>

@@ -129,6 +129,10 @@
 :root .tabs-k button{border-radius:4px;font-family:var(--sans)}
 :root .tabs-k button.on{background:var(--ink);color:var(--surface);border-color:var(--ink);box-shadow:none}
 
+/* ---------- daily production: tray tags, bulk bar ---------- */
+:root .tag{font-family:var(--sans);border-radius:4px;letter-spacing:.04em}
+:root .bulk{background:var(--surface2);border-color:var(--line)}
+
 /* ---------- print: always the light tokens ---------- */
 @media print{
   :root:root:root:root{
