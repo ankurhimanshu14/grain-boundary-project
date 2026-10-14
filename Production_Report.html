@@ -122,6 +122,7 @@ footer{font-size:12.5px;color:var(--ink2)}footer ul{margin:6px 0 0;padding-left:
 .loadgrid .field input,.loadgrid .field select{width:100%}
 .loadgrid .wide{grid-column:span 2}
 @media (max-width:520px){.loadgrid .wide{grid-column:auto}}
+.startbox{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:12px}.startbox h3{margin:0 0 8px;font-size:14px}
 .rwbox{display:none;grid-column:1/-1;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 12px}
 .rwbox.on{display:grid}
 .chk{display:flex;gap:6px;align-items:center;font-size:13px}
@@ -564,7 +565,12 @@ function partList(){
   DB.specs.filter(x=>txt(x.part)&&!plist.has(txt(x.part).toUpperCase())).forEach(x=>plist.set(txt(x.part).toUpperCase(),`<option value="${esc(x.part)}">${esc(x.name||"")} · ${esc(x.proc||"")} · ${esc(x.perTray||"")} per tray</option>`));
   return `<datalist id="partlist">${[...plist.values()].join("")}</datalist>`;
 }
-let LOADF={part:"",batch:"",heat:"",heatCode:"",qty:"",n:"1",total:"",rw:false,rwRef:"",rwReason:"",note:""};
+let LOADF={part:"",batch:"",heat:"",heatCode:"",qty:"",n:"1",total:"",rw:false,rwRef:"",rwReason:"",note:"",at:"",push:"",editStart:false};
+/* the next tray of a report: when it enters and the push time in force before it */
+function nextTray(R){
+  if(!R||!R.tl.trays.length||!hasLog(R)) return null;
+  const st=tlStepper(R),inForce=st.times.at(-1).p,nx=st.step();return {t:nx.t,p:inForce,pNext:nx.p};
+}
 function drawLoad(){
   const R=curRep(),el=$("#load");$("#load-title").textContent=`Load trays · ${VIEW.f} · ${fdate(VIEW.d)}`;
   if(locked(R)){el.innerHTML=`<p class="muted" style="margin:0">The report is approved and locked. Unlock it under Approval to add trays.</p>`;return;}
@@ -572,17 +578,25 @@ function drawLoad(){
   el.dataset.rep=R?R.id:"";
   const tl=R?R.tl:emptyTl(),sp=specOf(LOADF.part,VIEW.f),p0=R?tlPush0(R):null;
   const f=(k,lab,type="text",extra="",cls="")=>`<div class="field ${cls}"><label for="lf-${k}">${lab}</label><input id="lf-${k}" data-lf="${k}" type="${type}" value="${esc(LOADF[k]??"")}"${type==="number"?' step="any" inputmode="decimal"':""}${extra}></div>`;
+  const nx=nextTray(R),has=!!(R&&R.tl.trays.length),showStart=!has||LOADF.editStart||!tms(tl.start);
+  if(sp&&!txt(LOADF.push)&&num(sp.push)>0) LOADF.push=String(sp.push);
   el.innerHTML=`${partList()}
-    <div class="controls" style="margin-bottom:12px">
+    <div class="startbox">${showStart?`<h3>Start of the day's loading</h3>
+      <div class="controls">
       <div class="field"><label class="req" for="tl-start">First tray of the day enters</label><input id="tl-start" type="datetime-local" data-tl="start" value="${esc(tl.start||"")}"></div>
       <div class="field"><label class="req" for="tl-push">Push time at the start, min</label><input id="tl-push" type="number" step="any" data-tl="push" value="${esc(tl.push||"")}" placeholder="${esc(p0??"")}" style="width:120px"></div>
-      <p class="muted small" style="margin:0;max-width:60ch">Later push time changes go under “Process parameter changes”. Leave the push time empty to use the specification's push time of the first part.</p>
-    </div>
+      ${has?`<button class="btn small" id="b-start-done">Done</button>`:""}
+      <p class="small ${has?"caution":"muted"}" style="margin:0;max-width:62ch">${has?`These are the time of the <b>first tray of the day</b> and the push time at that moment: changing them moves the times of all ${R.tl.trays.length} trays. For a later batch use “This batch enters at” and “Push time from this batch” below.`:"Entered once per day. Leave the push time empty to use the specification's push time of the first part."}</p></div>`
+    :`<p class="small" style="margin:0">First tray of the day entered <b>${fdtShort(tms(tl.start),VIEW.d)}</b> · push time at the start <b>${esc(p0??"—")} min</b>
+      <button class="btn ghost small" id="b-start-edit" title="Changes the times of every tray of the day">Change…</button></p>`}
+      ${nx?`<p class="small" style="margin:6px 0 0">Next tray enters at <b>${fdtShort(nx.t,VIEW.d)}</b> · push time in force <b>${esc(nx.p)} min</b></p>`:""}</div>
     <div class="loadgrid">
       ${f("part","Part no.","text",' list="partlist" autocomplete="off"')}${f("batch","Batch no.")}${f("heat","Heat no.")}${f("heatCode","Heat code")}
       ${f("qty",`Pieces in each tray${sp&&num(sp.perTray)?` (spec ${sp.perTray})`:""}`,"number",sp&&num(sp.perTray)?` placeholder="${esc(sp.perTray)}"`:"")}
       ${f("n","Number of trays with this loading","number",' min="1" step="1"')}
       ${f("total","or: batch total, pcs (fills full trays + a part tray)","number","","wide")}
+      ${f("push",`Push time from this batch, min${nx?` (in force ${nx.p})`:""}`,"number")}
+      ${f("at","This batch enters at (only if off the push cycle, e.g. after a stop)","datetime-local","","wide")}
       ${f("note","Note (optional)","text","","wide")}
       <label class="chk"><input type="checkbox" id="lf-rw" data-lf="rw" ${LOADF.rw?"checked":""}> Rework (re-heat-treatment)</label>
       <div class="rwbox ${LOADF.rw?"on":""}" id="lf-rwbox">${f("rwRef","Original report / nonconformance no. (e.g. MT-0005)")}${f("rwReason","Reason for the rework","text","","wide")}</div>
@@ -600,7 +614,8 @@ function loadHint(sp){
   if(!sp) return `<span class="bad">Part no. ${esc(LOADF.part)} has no process specification.</span>`;
   const per=num(LOADF.qty)??num(sp.perTray),tot=num(LOADF.total),n=Math.max(1,Math.round(num(LOADF.n)||1));
   const plan=tot>0&&per>0?`${Math.floor(tot/per)} full tray${Math.floor(tot/per)===1?"":"s"} of ${per}${tot%per?` + 1 tray of ${tot%per}`:""} = ${tot} pcs`:per>0?`${n} tray${n>1?"s":""} × ${per} pcs = ${n*per} pcs`:"";
-  return `<b>${esc(sp.part)}</b> ${esc(sp.name||"")} · ${esc(sp.proc||"")} · push ${esc(sp.push||"?")} min · ${esc(sp.perTray||"?")} per tray${sp.src?" · "+esc(sp.src):""}${plan?` → <b>${esc(plan)}</b>`:""}`;
+  const nx=nextTray(curRep()),pw=num(LOADF.push),chg=nx&&pw>0&&pw!==nx.p?` <span class="caution">· the push time changes from ${nx.p} to ${pw} min with the first tray of this batch (recorded under “Process parameter changes”)</span>`:"";
+  return `<b>${esc(sp.part)}</b> ${esc(sp.name||"")} · ${esc(sp.proc||"")} · push ${esc(sp.push||"?")} min · ${esc(sp.perTray||"?")} per tray${sp.src?" · "+esc(sp.src):""}${plan?` → <b>${esc(plan)}</b>`:""}${chg}`;
 }
 let SEL=new Set();
 function drawTrays(){
@@ -788,6 +803,17 @@ const lfItem=()=>{const it={part:txt(LOADF.part),batch:txt(LOADF.batch),heat:txt
   if(LOADF.rw) it.rw={ref:txt(LOADF.rwRef),reason:txt(LOADF.rwReason)};const sp=specOf(it.part,VIEW.f);if(sp)it.part=sp.part;return it;};
 let LMSG={t:"",ok:false};
 function loadMsg(t,ok){LMSG={t,ok:!!ok};const m=$("#lf-msg");if(m){m.textContent=t;m.style.color=ok?"var(--good-ink)":"";}}
+/* timing of the trays just added from index i0: an entry time off the cycle (the first tray's actual time) and a new push time from
+   the first tray (a push change at its entry time), so the trays loaded before keep their times */
+function batchTiming(R,i0,nx0,what){
+  const tl=R.tl,first=tl.trays[i0];if(!first)return;
+  if(tms(LOADF.at)!=null){first.at=LOADF.at;if(i0===0&&!tl.start)tl.start=LOADF.at;}
+  const pw=num(LOADF.push),pin=nx0?nx0.p:tlPush0(R);
+  if(pw>0&&i0>0&&pin!=null&&pw!==pin){const st=tlStepper(R),t=st.times[i0]&&st.times[i0].t;
+    if(t!=null){const id="P"+(1+Math.max(0,...R.params.map(p=>+(String(p.id).match(/\d+/)||[0])[0])));
+      R.params.push({id,at:iso(t),kind:"push",zone:"",what:"",from:String(pin),to:String(pw),reason:what,by:""});logIt(R,`Push time ${pin} → ${pw} min from ${iso(t).slice(11,16)} (${what})`);}}
+  else if(pw>0&&i0===0&&!txt(tl.push)) tl.push=String(pw);
+}
 function addTrays(mode){
   const R0=curRep();if(locked(R0))return;
   if(mode!=="empty"){if(!txt(LOADF.part)){loadMsg("Enter the part no.");return;}
@@ -800,11 +826,13 @@ function addTrays(mode){
     else qtys=Array(Math.max(1,Math.min(200,Math.round(num(LOADF.n)||1)))).fill(per);
     if(mode==="mix"){const last=tl.trays.at(-1);if(!last){loadMsg("There is no tray yet to add to.");return;}
       last.items.push({...base,qty:qtys[0]});qtys=qtys.slice(1);}
+    const nx0=nextTray(R),i0=tl.trays.length;
     qtys.forEach((q,i)=>{const t=newTray(tl,[{...base,qty:q}]);if(i===0&&note)t.note=note;tl.trays.push(t);});
+    batchTiming(R,i0,nx0,`Batch ${base.batch||"?"} (${base.part})`);
     logIt(R,`${mode==="mix"?"Mixed tray and ":""}${qtys.length} tray${qtys.length===1?"":"s"} of ${base.part} ${base.batch} loaded${base.rw?" (rework)":""}`);
     save();loadMsg(`${mode==="mix"?"Added to the last tray"+(qtys.length?" and ":""):""}${qtys.length?`${qtys.length} tray${qtys.length===1?"":"s"} added`:""}.`,true);
-  }else{const R=ensureRep(),n=Math.max(1,Math.min(50,Math.round(num(LOADF.n)||1)));for(let i=0;i<n;i++)R.tl.trays.push(newTray(R.tl));logIt(R,`${n} empty tray${n>1?"s":""} added`);save();loadMsg(`${n} empty tray${n>1?"s":""} added.`,true);}
-  LOADF.total="";const t=$("#lf-total");if(t)t.value="";
+  }else{const R=ensureRep(),n=Math.max(1,Math.min(50,Math.round(num(LOADF.n)||1))),nx0=nextTray(R),i0=R.tl.trays.length;for(let i=0;i<n;i++)R.tl.trays.push(newTray(R.tl));batchTiming(R,i0,nx0,"Empty trays");logIt(R,`${n} empty tray${n>1?"s":""} added`);save();loadMsg(`${n} empty tray${n>1?"s":""} added.`,true);}
+  LOADF.total="";LOADF.at="";["total","at"].forEach(k=>{const x=$("#lf-"+k);if(x)x.value="";});
   const keep=document.activeElement;drawReport();drawSearch();if(keep&&keep.id&&$("#"+keep.id))$("#"+keep.id).focus();
 }
 /* tray dialog: contents, actual time and note */
@@ -865,7 +893,7 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   const el=e.target;
   if(tdlg.contains(el)) return;
-  if(el.dataset.lf){if(el.type==="checkbox"){LOADF.rw=el.checked;$("#lf-rwbox").classList.toggle("on",el.checked);}else{LOADF[el.dataset.lf]=el.value;if(el.dataset.lf==="part"){const sp=specOf(el.value,VIEW.f);if(sp){LOADF.part=sp.part;el.value=sp.part;}}}
+  if(el.dataset.lf){if(el.type==="checkbox"){LOADF.rw=el.checked;$("#lf-rwbox").classList.toggle("on",el.checked);}else{LOADF[el.dataset.lf]=el.value;if(el.dataset.lf==="part"){const sp=specOf(el.value,VIEW.f);if(sp){LOADF.part=sp.part;el.value=sp.part;if(num(sp.push)>0){LOADF.push=String(sp.push);const x=$("#lf-push");if(x)x.value=sp.push;}}}}
     const h=$("#lf-hint");if(h)h.innerHTML=loadHint(specOf(LOADF.part,VIEW.f));return;}
   if(el.dataset.tl){const R=ensureRep();if(locked(R))return;R.tl[el.dataset.tl]=el.value.trim();save();setTimeout(()=>{drawReport();drawSearch();},0);return;}
   if(el.dataset.sel){el.checked?SEL.add(el.dataset.sel):SEL.delete(el.dataset.sel);drawSelBar();return;}
@@ -895,6 +923,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.delspec!=null){DB.specs.splice(+t.dataset.delspec,1);save();drawSpecs();drawReport();return;}
   if(t.dataset.goto){const [f,d]=t.dataset.goto.split("|");VIEW.f=f;VIEW.d=d;SEL.clear();saveView();render();scrollTo({top:0});return;}
   switch(t.id){
+    case "b-start-edit":LOADF.editStart=true;drawLoad();{const x=$("#tl-start");if(x)x.focus();}break;
+    case "b-start-done":LOADF.editStart=false;drawLoad();break;
     case "b-ladd":LMSG={t:"",ok:false};addTrays("add");break;
     case "b-lmix":LMSG={t:"",ok:false};addTrays("mix");break;
     case "b-lempty":LMSG={t:"",ok:false};addTrays("empty");break;
