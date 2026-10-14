@@ -178,6 +178,12 @@ footer li{margin:2px 0}
 .pd .req::after{content:" *";color:var(--crit-ink)}
 .pd-foot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
 .pd-foot .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:80ch}
+.fold-hide{display:none}.fold-btn{margin:8px 0 0}
+@media print{.fold-hide{display:table-row}}
+.st-quick{display:flex;gap:6px;flex-wrap:wrap;align-self:flex-end}.st-quick .btn{padding:6px 10px}
+.st-sum{margin-top:10px}.st-sum summary{cursor:pointer}.st-sum ul{max-height:220px;overflow:auto}
+.st-log{margin:10px 0 0;padding-left:18px}.st-log li.err{color:var(--crit-ink)}.st-log li.dup{color:var(--muted)}
+#stMsg.ok{color:var(--good-ink,var(--ink))}
 .method{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:0 0 12px}
 .method div{border:1px solid var(--line);border-radius:6px;padding:8px 11px;background:var(--surface2);font-size:13px}
 .method b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
@@ -308,6 +314,22 @@ table.stat th:first-child{text-align:left}
     </details>
   </section>
 
+  <section class="panel noprint" id="storePanel" aria-label="Record store">
+    <div class="sec-head" style="margin-bottom:4px"><h2 style="font-size:14px">Record store: many days</h2><p>Add the SCADA exports of many days at once, or a whole folder of them. Each export is recognised by the furnace and chamber in its chart heading, split into days and kept in this browser; a file added twice or exports that overlap are not counted twice. Then analyse any period. Back up the store regularly: browser data can be cleared.</p></div>
+    <div class="controls">
+      <button class="btn" type="button" id="stAdd">Add exports…</button>
+      <button class="btn ghost" type="button" id="stFolder" title="Chrome and Edge: choose a folder; every export in it is added">Add a folder…</button>
+      <button class="btn ghost" type="button" id="stBackup">Back up the store</button>
+      <button class="btn ghost" type="button" id="stRestore">Restore a backup…</button>
+      <div class="field"><label for="keepDays" title="Stored days older than this are removed when exports are added. 0 keeps everything.">Keep readings for, days (0 = all)</label><input id="keepDays" type="number" min="0" step="1" style="width:110px"></div>
+      <input type="file" id="stFiles" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
+      <input type="file" id="stDir" webkitdirectory multiple hidden>
+      <input type="file" id="stRestoreFile" accept=".json,application/json" hidden>
+    </div>
+    <div id="stMsg" class="small" role="status" aria-live="polite" style="margin-top:6px"></div>
+    <div id="stBody"></div>
+  </section>
+
   <section class="panel noprint" id="replPanel" aria-label="Thermocouple replacements">
     <div class="sec-head" style="margin-bottom:8px"><h2 style="font-size:14px">Thermocouple replacements</h2><p>Enter every thermocouple that was replaced, with its new ID and the time of replacement. The register is kept on this computer and applies to any record that covers those times.</p></div>
     <div class="controls">
@@ -379,15 +401,16 @@ const MINSTAT = 10; /* min readings at one set value before it is analysed or li
 /* Valid measuring range: readings outside 500-1000 °C are treated as invalid, excluded from every statistic and never plotted. */
 const TMIN = 500, TMAX = 1000;
 const inRange = v => v!=null && v>=TMIN && v<=TMAX;
-const DEF = {tol:10, merge:10, trays1:5, trays2:4, trays3:4, ttrays1:4, ttrays2:4, ttrays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
+const DEF = {keepDays:0, tol:10, merge:10, trays1:5, trays2:4, trays3:4, ttrays1:4, ttrays2:4, ttrays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
 const S = {...DEF};
 try{ Object.assign(S, JSON.parse(localStorage.getItem("sr2-settings")||"{}")); }catch(e){}
 const IDS = Object.keys(DEF);
 IDS.forEach(k=>{
   const el=document.getElementById(k); el.value=S[k];
   el.addEventListener("change",()=>{
-    const v=parseFloat(el.value); if(!(v>0)&&!((k==="merge"||k==="settle")&&v===0)){ el.value=S[k]; return; }
+    const v=parseFloat(el.value); if(!(v>0)&&!((k==="merge"||k==="settle"||k==="keepDays")&&v===0)){ el.value=S[k]; return; }
     S[k]=v; try{localStorage.setItem("sr2-settings",JSON.stringify(S));}catch(e){}
+    if(k==="keepDays") return;
     if(DATA) run();
   });
 });
@@ -528,8 +551,10 @@ const baseOf=fk=>String(fk||"").replace(/ (HARDENING|TEMPERING)$/,"");
 const histOf=(h,fk)=>h.f===fk||h.f===baseOf(fk);
 function saveHistory(D,h){
   if(/\(example\)/.test(FILE||"")) return;
+  /* a period of several days is not one day: its days were summarised one by one when they were stored */
+  if(D.rows.length&&D.rows[D.rows.length-1].t-D.rows[0].t>26*36e5) return;
   HIST[h.f+"|"+h.day]=h;
-  const keys=Object.keys(HIST).sort((a,b)=>HIST[a].day-HIST[b].day); while(keys.length>400) delete HIST[keys.shift()];
+  const keys=Object.keys(HIST).sort((a,b)=>HIST[a].day-HIST[b].day); while(keys.length>3000) delete HIST[keys.shift()];
   try{ localStorage.setItem("sr2-hist",JSON.stringify(HIST)); }catch(e){}
 }
 const wmean=(xs,ws)=>{ let a=0,b=0; xs.forEach((x,i)=>{ if(x!=null&&isFinite(x)){ a+=x*ws[i]; b+=ws[i]; } }); return b?a/b:null; };
@@ -1001,7 +1026,7 @@ function observations(D,A){
   if(spikes.length) O.push({lvl:"warn",tag:"Sensor",title:`Sudden jumps of ${S.spike}+ °C between readings on ${spikes.map(t=>tcName(t.k)+" ("+t.spikes.length+")").join(", ")}`,detail:`Furnace wall temperature cannot physically change this fast in one reading interval (${f0(A.step/60000)} min).`,action:`Check thermocouple junction, terminal connections and compensating cable for intermittent contact.`});
   if(bad.length) O.push({lvl:"warn",tag:"Records",title:`Missing or implausible values on ${bad.map(t=>tcName(t.k)).join(", ")}`,detail:bad.map(t=>`${tcName(t.k)}: ${t.missing} blank, ${t.bad} outside 500–1000 °C (excluded from statistics and charts)`).join("; "),action:`Treat blank or out-of-range values as loss of monitoring for that period.`});
   const spc=A.tcs.filter(t=>t.spChanges.length);
-  if(spc.length) O.push({lvl:"info",tag:"Setpoint",title:`Set value changed during the record: ${A.multiSet?spTxt(A.setLevels):spc.map(t=>tcName(t.k)).join(", ")}`,detail:(A.setSegs.length>1?`Set values in time order: ${A.setSegs.map(g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`).join(" → ")}. `:"")+spc.map(t=>t.spChanges.slice(0,3).map(c=>`${tcName(t.k)} ${f0(c.from)}→${f0(c.to)} °C at ${fmtDT(c.t)}`).join("; ")).join("; "),action:`Confirm each change matches an approved process specification and was authorised.`});
+  if(spc.length) O.push({lvl:"info",tag:"Setpoint",title:`Set value changed during the record: ${A.multiSet?spTxt(A.setLevels):spc.map(t=>tcName(t.k)).join(", ")}`,detail:(A.setSegs.length>1?`Set values in time order: ${segsTxt(A,g=>`${f0(g.sp)} °C (${hmr(g.from,g.to)})`)}. `:"")+spc.map(t=>t.spChanges.slice(0,3).map(c=>`${tcName(t.k)} ${f0(c.from)}→${f0(c.to)} °C at ${fmtDT(c.t)}`).join("; ")).join("; "),action:`Confirm each change matches an approved process specification and was authorised.`});
   A.trans.filter(x=>x.reachedAt==null&&!x.ended&&!x.superseded).forEach(x=>O.push({lvl:"warn",tag:"Set change",title:`${tcName(x.k)} did not reach ${x.start?"its set value":"the new set value"} ${f0(x.to)} °C within ${S.settle} min of ${x.start?"furnace start":"the change"}`,
     detail:`${x.start?"Furnace started":"Set value changed "+f0(x.from)+" → "+f0(x.to)+" °C"} at ${fmtDT(x.t)}; the thermocouple was not within ±${tol} °C of it ${S.settle} min later, so readings after that are judged and count as out of tolerance.`,
     action:`Check burner capacity, gas supply and control loop response on the ${wallOf(x.k)} wall of Zone ${Math.floor(x.k/2)+1}; confirm the change is achievable in the time allowed. Lengthen the settling time only with the process owner's approval.`}));
@@ -1026,21 +1051,34 @@ function observations(D,A){
 
 /* ---------- render ---------- */
 let DATA=null, FILE="", charts=[];
+/* set values in time order; a long record (a period of the record store) gets a summary instead of every change */
+const segsTxt=(A,fn,sep=" → ")=>A.setSegs.length<=8?A.setSegs.map(fn).join(sep):`${[...new Set(A.setSegs.map(g=>f0(g.sp)+" °C"))].join(", ")}, ${A.setSegs.length-1} changes in the period (each one under “Response to set value changes”)`;
 function run(){
   const out=$("#out");
   try{
     ALLREPL=REPL.concat(satRepl()); opsRun();
     const A=analyze(DATA); A.sat=satStatus(A); A.prod=prodTrace(DATA,A); prodPriority(A); const O=observations(DATA,A); LASTO=O; lastSave(A,O);
-    render(DATA,A,O); showRunSrc();
+    render(DATA,A,O); showRunSrc(); foldTables();
   }catch(err){ console.error(err); out.innerHTML=`<div class="panel error">${esc(err.message)}</div>`; }
 }
 
+/* tables longer than FOLD.max rows show the first FOLD.show on screen with a button for the rest (a period of many days lists
+   hundreds of excursions); the printed report has every row */
+const FOLD={max:40,show:25};
+function foldTables(){
+  if(PRINTING) return;
+  document.querySelectorAll("#out table").forEach(t=>{ const rows=t.tBodies[0]?[...t.tBodies[0].rows]:[]; if(rows.length<=FOLD.max||t.dataset.fold) return;
+    t.dataset.fold="1"; rows.slice(FOLD.show).forEach(r=>r.classList.add("fold-hide"));
+    const b=document.createElement("button"); b.type="button"; b.className="btn ghost fold-btn noprint"; b.textContent=`Show all ${rows.length} rows`;
+    b.addEventListener("click",()=>{ const open=b.dataset.open!=="1"; rows.slice(FOLD.show).forEach(r=>r.classList.toggle("fold-hide",!open)); b.dataset.open=open?"1":""; b.textContent=open?`Show the first ${FOLD.show} rows`:`Show all ${rows.length} rows`; });
+    (t.closest(".scroll")||t).after(b); });
+}
 function render(D,A,O){
   const tol=A.tol;
   const furn=D.meta.find(m=>/furnace/i.test(m))||"Furnace temperature review";
   const plant=D.meta.find(m=>/ltd|pvt|limited|inc/i.test(m)&&!/developed by/i.test(m))||"";
   $("#furnace").textContent=furn.replace(/\s+/g," ");
-  $("#meta").innerHTML=[plant&&`<span>${esc(plant)}</span>`,`<span>Date <b>${esc(MULTI?fmtD(A.t0)+" – "+fmtD(A.t1):fmtD(A.t0))}</b></span>`,`<span>File <b>${esc(FILE)}</b></span>`,`<span>${D.n} thermocouples · ${Math.ceil(D.n/2)} zones</span>`].filter(Boolean).join("");
+  $("#meta").innerHTML=[plant&&`<span>${esc(plant)}</span>`,`<span>Date <b>${esc(MULTI?fmtD(A.t0)+" – "+fmtD(A.t1):fmtD(A.t0))}</b></span>`,`<span>File <b>${esc(FILE)}</b></span>`,D.fp?`<span title="SHA-256 fingerprint of the export file: ${esc(D.fp)}">Fingerprint <b>${esc(D.fp.slice(0,12))}</b></span>`:D.store?`<span>${D.store.days} stored day${D.store.days>1?"s":""}${D.store.missing.length?` · ${D.store.missing.length} missing`:""}</span>`:"",`<span>${D.n} thermocouples · ${Math.ceil(D.n/2)} zones</span>`].filter(Boolean).join("");
 
   const crit=O.filter(o=>o.lvl==="crit").length, warn=O.filter(o=>o.lvl==="warn").length;
   const vl=crit?"crit":warn?"warn":"good";
@@ -1064,7 +1102,7 @@ function render(D,A,O){
   </section>
 
   <section class="kpis" aria-label="Key figures">
-    <div class="kpi"><span class="eyebrow">Record period</span><span class="v num">${fmtT(A.t0)}–${fmtT(A.t1)}</span><span class="s">${f1((A.t1-A.t0)/36e5)} h · every ${f0(A.step/1000)} s</span></div>
+    <div class="kpi"><span class="eyebrow">Record period</span><span class="v num">${MULTI&&A.t1-A.t0>26*36e5?`${fmtD(A.t0).slice(0,6)} – ${fmtD(A.t1).slice(0,6)}`:`${fmtT(A.t0)}–${fmtT(A.t1)}`}</span><span class="s">${A.t1-A.t0>72*36e5?f1((A.t1-A.t0)/864e5)+" days":f1((A.t1-A.t0)/36e5)+" h"} · every ${f0(A.step/1000)} s</span></div>
     <div class="kpi"><span class="eyebrow">Readings</span><span class="v num">${A.N.toLocaleString()}</span><span class="s ${cov<99?"caution":""}">${f1(Math.min(100,cov))} % of expected · ${A.gaps.length} gap${A.gaps.length===1?"":"s"}</span></div>
     <div class="kpi"><span class="eyebrow">Readings in tolerance</span><span class="v num ${inLvl}">${f1(A.inTolPct)}<small> %</small></span><span class="s">all ${D.n} TCs, ±${tol} °C${A.settlingTotal?" · settling excluded":""}</span></div>
     <div class="kpi"><span class="eyebrow">Zone excursions</span><span class="v num ${A.events.length?"bad":"ok"}">${A.events.length}</span><span class="s">${A.events.length?dur(totEv)+" of zone-time out of window":"none"}</span></div>
@@ -1072,7 +1110,7 @@ function render(D,A,O){
     <div class="kpi"><span class="eyebrow">Max wall difference</span><span class="v num ${maxDiff&&Math.abs(maxDiff.diffMax)>tol?"caution":""}">${maxDiff?f1(Math.abs(maxDiff.diffMax)):"–"}<small> °C</small></span><span class="s">${maxDiff?`Zone ${maxDiff.z+1} at ${fmtDT(maxDiff.diffT)}`:""}</span></div>
   </section>
 
-  <div class="settings-line">Settings used: tolerance ±${tol} °C · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) ${A.run.start!=null?` · furnace start ${fmtDT(A.run.start)}`:""}${A.run.stop!=null?` · furnace stop ${fmtDT(A.run.stop)}`:""}${A.run.offRows?` (${fmtN(A.run.offRows)} readings while the furnace was off or shutting down not judged)`:""} · valid range 500–1000 °C · ${FTYPE?FTYPE+" furnace":"furnace type not recognised"} · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?A.setSegs.map(g=>`${f0(g.sp)} °C ${(procAt(g.sp)||"").toLowerCase()} (${hmr(g.from,g.to)})`).join(" → "):f0((A.setSegs[0]||{}).sp)+" °C "+(procAt((A.setSegs[0]||{}).sp)||"").toLowerCase()} · report generated ${esc(nowStamp())}</div>
+  <div class="settings-line">Settings used: tolerance ±${tol} °C · tray positions ${A.zones.map(z=>traysIn(z.z)).join(" / ")} (${totalPos()} in the chamber) · merge dips &lt; ${S.merge} min · settling after a set value change: until back within ±${tol} °C, at most ${S.settle} min (${fmtN(A.settlingTotal)} readings not judged) ${A.run.start!=null?` · furnace start ${fmtDT(A.run.start)}`:""}${A.run.stop!=null?` · furnace stop ${fmtDT(A.run.stop)}`:""}${A.run.offRows?` (${fmtN(A.run.offRows)} readings while the furnace was off or shutting down not judged)`:""} · valid range 500–1000 °C · ${FTYPE?FTYPE+" furnace":"furnace type not recognised"} · set value${A.setSegs.length>1?"s":""}: ${A.setSegs.length>1?segsTxt(A,g=>`${f0(g.sp)} °C ${(procAt(g.sp)||"").toLowerCase()} (${hmr(g.from,g.to)})`):f0((A.setSegs[0]||{}).sp)+" °C "+(procAt((A.setSegs[0]||{}).sp)||"").toLowerCase()} · report generated ${esc(nowStamp())}</div>
 
   <section class="panel layout">
     <div class="sec-head"><h2>Furnace layout and thermocouple status</h2><p>One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.</p></div>
@@ -1604,7 +1642,7 @@ function integrity(A){
   C.push(A.repl.length?{lvl:"info",name:"Thermocouple replacements",txt:A.repl.map(r=>`${tcName(r.k)} → ${r.id} at ${r.inRec?fmtDT(r.t):fmtAbs(r.t)}${r.inRec?"":" (outside this record)"}`).join("; ")}:{lvl:"good",name:"Thermocouple replacements",txt:"None entered. Enter any thermocouple replaced so the report can show the change."});
   C.push(A.run.warn?{lvl:"warn",name:"Furnace start / stop",txt:"The stop time is not later than the start time, so the stop time was ignored."}:(A.run.start!=null||A.run.stop!=null)?{lvl:"info",name:"Furnace start / stop",txt:`${A.run.start!=null?"Start "+fmtDT(A.run.start)+". ":""}${A.run.stop!=null?"Stop "+fmtDT(A.run.stop)+". ":""}${fmtN(A.run.offRows)} readings outside this period are not judged (furnace off, starting or shutting down); after the start, readings count once each thermocouple has reached its set value.`}:{lvl:"good",name:"Furnace start / stop",txt:"No start or stop time entered: the whole record is judged."});
   C.push(A.trans.length?{lvl:A.trans.some(x=>x.reachedAt==null&&!x.ended&&!x.superseded)?"warn":"info",name:"Settling after set value change",txt:`${fmtN(A.settlingTotal)} readings not judged while the furnace followed a new set value (until within ±${A.tol} °C for ${S.hold} readings, at most ${S.settle} min).`}:{lvl:"good",name:"Settling after set value change",txt:"No set value change larger than the tolerance in this record."});
-  C.push(spc.length?{lvl:"info",name:"Set value changed",txt:(A.setSegs.length>1?`${A.setSegs.map(g=>`${f0(g.sp)} °C ${hmr(g.from,g.to)}`).join(" → ")}. `:"")+spc.map(t=>`${tcName(t.k)}: ${t.spChanges.length} change(s)`).join("; ")+". Deviations and statistics use the set value in force at each reading."}:{lvl:"good",name:"Setpoint stable",txt:`Setpoints unchanged: ${[...new Set(A.tcs.map(t=>f0(t.sp)))].join(" / ")} °C.`});
+  C.push(spc.length?{lvl:"info",name:"Set value changed",txt:(A.setSegs.length>1?`${segsTxt(A,g=>`${f0(g.sp)} °C ${hmr(g.from,g.to)}`)}. `:"")+spc.map(t=>`${tcName(t.k)}: ${t.spChanges.length} change(s)`).join("; ")+". Deviations and statistics use the set value in force at each reading."}:{lvl:"good",name:"Setpoint stable",txt:`Setpoints unchanged: ${[...new Set(A.tcs.map(t=>f0(t.sp)))].join(" / ")} °C.`});
   return C;
 }
 
@@ -2007,7 +2045,7 @@ function pdStart(){
   const ex=/\(example\)$/.test(FILE), L=HTQ?link():null;
   const R={id:"RV-"+String(PD.seq++).padStart(4,"0"),key:recKey(DATA),fkey:furnaceKey(DATA),furnace:($("#furnace").textContent||"").trim(),link:L&&L.f?{f:L.f,ch:L.ch}:null,
     day0:isoDay(A.t0),day1:isoDay(A.t1),dayN:Math.floor(A.t1/864e5),file:FILE,example:ex,created:todayISO(),stage:"plan",cycle:1,tol:A.tol,
-    items:pdItems(A,LASTO),docs:[],log:[]};
+    items:pdItems(A,LASTO),docs:[],log:[],fp:DATA.fp||"",fps:DATA.store?DATA.store.fps:(DATA.fp?[DATA.fp]:[])};
   const dayN=Math.floor(A.t0/864e5);
   R.items.forEach(i=>{ const w=need8d(i,R.fkey,dayN); if(w){ i.need8d=w; i.dec="8d"; i.owner=i.sugOwner; i.due=addDay(todayISO(),S8.targetDays); } });
   /* the P0 issues of one record (trays exposed, product to hold) are one problem: one 8D */
@@ -2528,18 +2566,236 @@ function e8Pdf(d){
   });
 })();
 
+/* ---------- record store: readings of many exports per furnace and chamber (IndexedDB) ----------
+   Roadmap phase 1. Every export added (several files, a folder, or the normal upload) is fingerprinted (SHA-256), split into
+   calendar days and merged into the day records of its furnace and chamber ("FURNACE-4 HARDENING|2026-09-29"); readings already
+   stored for the same time are kept, so a file loaded twice or two overlapping exports are not counted twice. Each stored day also
+   leaves its one-line summary in HIST, so the repeat check and the 8D evidence see every stored day. A period of the store can be
+   analysed like a single export. The store has its own backup file; CALOR's Data dialog deletes it with the SCADA review's data. */
+const ST_DB="sr2-store", ST_INFO="sr2-store-info";
+let STDB=null, ST_BUSY=false;
+const rq=r=>new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+function stOpen(){
+  if(STDB) return Promise.resolve(STDB);
+  return new Promise((res,rej)=>{
+    let q; try{ q=indexedDB.open(ST_DB,1); }catch(e){ return rej(new Error("This browser does not allow a local database here.")); }
+    q.onupgradeneeded=()=>{ const db=q.result; if(!db.objectStoreNames.contains("exports")) db.createObjectStore("exports",{keyPath:"fp"}); if(!db.objectStoreNames.contains("days")) db.createObjectStore("days",{keyPath:"id"}); };
+    q.onsuccess=()=>{ STDB=q.result; STDB.onversionchange=()=>{ STDB.close(); STDB=null; }; res(STDB); };
+    q.onerror=()=>rej(q.error||new Error("The record store could not be opened."));
+    q.onblocked=()=>rej(new Error("The record store is busy in another window. Close it and try again."));
+  });
+}
+const stOS=async(name,mode)=>(await stOpen()).transaction(name,mode).objectStore(name);
+const stGet=async(name,key)=>rq((await stOS(name,"readonly")).get(key));
+const stPut=async(name,val)=>rq((await stOS(name,"readwrite")).put(val));
+const stDel=async(name,key)=>rq((await stOS(name,"readwrite")).delete(key));
+const stAll=async name=>rq((await stOS(name,"readonly")).getAll());
+/* what is stored, kept small in localStorage for the summary table (and for CALOR's Data dialog) */
+let STI={fk:{}}; try{ STI=JSON.parse(localStorage.getItem(ST_INFO)||"null")||{fk:{}}; }catch(e){}
+const stInfoSave=()=>{ try{ localStorage.setItem(ST_INFO,JSON.stringify(STI)); }catch(e){} };
+function stInfoDay(fk,day,rows,fps,meta){
+  const o=STI.fk[fk]=STI.fk[fk]||{days:{},exports:[],furnace:""};
+  o.days[day]=rows; fps.forEach(fp=>{ if(!o.exports.includes(fp)) o.exports.push(fp); });
+  const fl=(meta||[]).find(m=>/furnace/i.test(m)); if(fl) o.furnace=fl;
+}
+
+/* SHA-256 of the file: the browser's own (secure contexts) or this small implementation */
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+function sha256js(buf){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const m=new Uint8Array(buf), l=m.length, nb=((l+9+63)>>6)<<6, p=new Uint8Array(nb); p.set(m); p[l]=0x80;
+  const dv=new DataView(p.buffer); dv.setUint32(nb-8,Math.floor(l/0x20000000)); dv.setUint32(nb-4,(l<<3)>>>0);
+  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19], w=new Uint32Array(64), r=(x,n)=>(x>>>n)|(x<<(32-n));
+  for(let o=0;o<nb;o+=64){
+    for(let i=0;i<16;i++) w[i]=dv.getUint32(o+i*4);
+    for(let i=16;i<64;i++){ const s0=r(w[i-15],7)^r(w[i-15],18)^(w[i-15]>>>3), s1=r(w[i-2],17)^r(w[i-2],19)^(w[i-2]>>>10); w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0; }
+    let [a,b,c,d,e,f,g,h]=H;
+    for(let i=0;i<64;i++){ const t1=(h+(r(e,6)^r(e,11)^r(e,25))+((e&f)^(~e&g))+K[i]+w[i])>>>0, t2=((r(a,2)^r(a,13)^r(a,22))+((a&b)^(a&c)^(b&c)))>>>0; h=g; g=f; f=e; e=(d+t1)>>>0; d=c; c=b; b=a; a=(t1+t2)>>>0; }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+b)>>>0; H[2]=(H[2]+c)>>>0; H[3]=(H[3]+d)>>>0; H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  return H.map(x=>x.toString(16).padStart(8,"0")).join("");
+}
+async function sha256(buf){ try{ if(crypto&&crypto.subtle) return hex(await crypto.subtle.digest("SHA-256",buf)); }catch(e){} return sha256js(buf); }
+
+/* the parsed record of an export file (the first sheet that has the columns) */
+function parseBuffer(buf){
+  if(!window.XLSX) throw new Error("The spreadsheet reader didn't load. Check the internet connection and reload the page.");
+  const wb=XLSX.read(buf,{type:"array",cellDates:false}); let firstErr=null;
+  for(const sn of wb.SheetNames){ const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null}); try{ return parseAOA(aoa); }catch(e){ firstErr=firstErr||e; } }
+  throw firstErr||new Error("No usable sheet found.");
+}
+const isoD=ms=>new Date(ms).toISOString().slice(0,10);
+/* the summary of one stored day for HIST (the same numbers a one-day analysis saves); furnace start / stop inputs are not used */
+function stDaySummary(dayD,name){
+  const keep={run:{...RUN},file:FILE,multi:MULTI,ftype:FTYPE,nz:NZ,t0:T0DAY};
+  try{ RUN.start=RUN.stop=null; FILE=name; analyze(dayD); }catch(e){}
+  finally{ Object.assign(RUN,keep.run); FILE=keep.file; MULTI=keep.multi; FTYPE=keep.ftype; NZ=keep.nz; T0DAY=keep.t0; }
+}
+/* a stored day as a record (rows with pv rebuilt from the raw readings) */
+const dayRec2D=list=>{
+  const n=Math.max(...list.map(x=>x.n)), rows=[];
+  list.forEach(x=>{ for(let i=0;i<x.t.length;i++){ const raw=[],pv=[],sp=[]; for(let k=0;k<n;k++){ const v=k<x.n?x.raw[i*x.n+k]:null, s=k<x.n?x.sp[i*x.n+k]:null; raw.push(v); pv.push(inRange(v)?v:null); sp.push(inRange(s)?s:null); } rows.push({t:x.t[i],pv,raw,sp}); } });
+  rows.sort((a,b)=>a.t-b.t);
+  const last=list[list.length-1];
+  return {rows,n,meta:last.meta,skipped:0,zoneLabels:last.zoneLabels||[]};
+};
+/* add one parsed export to the store: returns a line for the import log */
+async function stAddParsed(D,fp,name,size){
+  const old=await stGet("exports",fp);
+  if(old) return {st:"dup",txt:`${name}: already in the store (the same file as ${old.file}, added ${dIso(old.added)})`};
+  const fk=furnaceKey(D), byDay=new Map();
+  D.rows.forEach(r=>{ const d=isoD(r.t); if(!byDay.has(d)) byDay.set(d,[]); byDay.get(d).push(r); });
+  let added=0, dup=0; const days=[];
+  for(const [day,rows] of byDay){
+    const id=fk+"|"+day, ex=await stGet("days",id), n=Math.max(D.n,ex?ex.n:0), seen=new Map();
+    const rec={id,fk,day,n,meta:D.meta,zoneLabels:D.zoneLabels||[],t:[],raw:[],sp:[],src:ex?ex.src.slice():[]};
+    const push=(t,raw,sp)=>{ rec.t.push(t); for(let k=0;k<n;k++){ rec.raw.push(raw[k]??null); rec.sp.push(sp[k]??null); } };
+    if(ex) for(let i=0;i<ex.t.length;i++){ seen.set(ex.t[i],1); push(ex.t[i],ex.raw.slice(i*ex.n,i*ex.n+ex.n),ex.sp.slice(i*ex.n,i*ex.n+ex.n)); }
+    rows.forEach(r=>{ if(seen.has(r.t)){ dup++; return; } seen.set(r.t,1); added++; push(r.t,r.raw,r.sp); });
+    /* keep the readings in time order */
+    const ord=rec.t.map((t,i)=>i).sort((a,b)=>rec.t[a]-rec.t[b]);
+    const sorted={t:ord.map(i=>rec.t[i]),raw:ord.flatMap(i=>rec.raw.slice(i*n,i*n+n)),sp:ord.flatMap(i=>rec.sp.slice(i*n,i*n+n))};
+    Object.assign(rec,sorted); if(!rec.src.includes(fp)) rec.src.push(fp); rec.upd=todayISO();
+    await stPut("days",rec); days.push(day);
+    stInfoDay(fk,day,rec.t.length,[fp],D.meta);
+    if(!/\(example\)/.test(name)) stDaySummary(dayRec2D([rec]),name);
+  }
+  await stPut("exports",{fp,file:name,fk,meta:D.meta,n:D.n,t0:D.rows[0].t,t1:D.rows[D.rows.length-1].t,rows:D.rows.length,days,added:todayISO(),size:size||0});
+  stInfoSave();
+  return {st:added?"ok":"dup",fk,txt:`${name}: ${fk}, ${days.length} day${days.length>1?"s":""} (${days.map(d=>dIso(d).slice(0,6)).join(", ")}) · ${added} readings added${dup?`, ${dup} already stored`:""}`};
+}
+/* retention: drop stored days older than S.keepDays (0 = keep everything) */
+async function stPrune(){
+  if(!(S.keepDays>0)) return 0;
+  const cut=addDay(todayISO(),-S.keepDays); let n=0;
+  for(const fk of Object.keys(STI.fk)) for(const day of Object.keys(STI.fk[fk].days)) if(day<cut){ await stDel("days",fk+"|"+day); delete STI.fk[fk].days[day]; n++; }
+  stInfoSave(); return n;
+}
+async function stImport(files){
+  if(ST_BUSY) return; ST_BUSY=true;
+  const list=[...files].filter(f=>/\.(xlsx|xls|xlsm|csv)$/i.test(f.name)).sort((a,b)=>a.name<b.name?-1:1), log=[];
+  stMsg(`Adding ${list.length} export${list.length===1?"":"s"}…`);
+  try{
+    for(let i=0;i<list.length;i++){ const f=list[i];
+      stMsg(`Adding ${i+1} of ${list.length}: ${f.name}…`);
+      try{ const buf=await f.arrayBuffer(), fp=await sha256(buf), D=parseBuffer(buf); log.push(await stAddParsed(D,fp,f.name,f.size)); }
+      catch(e){ log.push({st:"err",txt:`${f.name}: not added — ${e.message}`}); } }
+    const pr=await stPrune();
+    ST_LOG=log; if(pr) ST_LOG.push({st:"ok",txt:`${pr} day${pr>1?"s":""} older than ${S.keepDays} days removed (retention setting)`});
+    const fk=log.find(x=>x.fk)?.fk; if(fk&&!ST_SEL.fk) ST_SEL.fk=fk;
+  }catch(e){ ST_LOG=[{st:"err",txt:e.message}]; }
+  ST_BUSY=false; stMsg(""); renderStore(); if(HTQ) HTQ.emit("scada:changed");
+  if(DATA) run();
+}
+/* analyse a period of the store */
+async function stAnalyse(fk,from,to){
+  if(!fk||!from||!to) return stMsg("Choose the furnace and chamber and the period.");
+  if(to<from) [from,to]=[to,from];
+  let list=[], missing=[];
+  for(let d=from;d<=to;d=addDay(d,1)){ const x=await stGet("days",fk+"|"+d); if(x) list.push(x); else missing.push(d); }
+  if(!list.length) return stMsg(`Nothing stored for ${fk} from ${dIso(from)} to ${dIso(to)}.`);
+  /* the period runs from the first to the last stored day in it; only days missing in between are reported */
+  from=list[0].day; to=list[list.length-1].day; missing=missing.filter(d=>d>from&&d<to);
+  const D=dayRec2D(list); D.store={fk,from,to,days:list.length,missing,fps:[...new Set(list.flatMap(x=>x.src))]};
+  if(D.rows.length<5) return stMsg("Fewer than 5 readings in that period.");
+  DATA=D; FILE=`${fk} · ${dIso(from)}${to!==from?" – "+dIso(to):""} (record store)`; PD_CUR=null; resetRun(); run();
+  stMsg(`Analysed ${list.length} stored day${list.length>1?"s":""} of ${fk}${missing.length?` · ${missing.length} day${missing.length>1?"s":""} not stored: ${missing.map(d=>dIso(d).slice(0,6)).join(", ")}`:""}.`,true);
+  if(HTQ) HTQ.emit("scada:changed");
+  $("#out").scrollIntoView({behavior:"smooth"});
+}
+async function stDeleteFk(fk){
+  if(!confirm(`Delete every stored reading of ${fk} (${Object.keys((STI.fk[fk]||{}).days||{}).length} days) from this browser? Reviews, 8Ds and the day summaries are kept. Back up the store first if you may need the readings.`)) return;
+  for(const day of Object.keys((STI.fk[fk]||{}).days||{})) await stDel("days",fk+"|"+day);
+  for(const x of (await stAll("exports")).filter(x=>x.fk===fk)) await stDel("exports",x.fp);
+  delete STI.fk[fk]; stInfoSave(); ST_LOG=[{st:"ok",txt:`${fk}: stored readings deleted`}]; renderStore();
+}
+/* backup: every stored day and export, plus this page's localStorage records */
+async function stBackup(){
+  try{
+    const days=await stAll("days"), exps=await stAll("exports"), ls={};
+    for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(/^sr2-/.test(k)) ls[k]=localStorage.getItem(k); }
+    const blob=new Blob([JSON.stringify({app:"SCADA Review 2 record store",v:1,saved:new Date().toISOString(),exports:exps,days,ls})],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`scada-review-store-${todayISO()}.json`; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },800);
+    ST_LOG=[{st:"ok",txt:`Backup saved: ${days.length} stored days, ${exps.length} exports, reviews, 8Ds and settings (${(blob.size/1048576).toFixed(1)} MB)`}]; renderStore();
+  }catch(e){ ST_LOG=[{st:"err",txt:"Backup failed: "+e.message}]; renderStore(); }
+}
+async function stRestore(file){
+  try{
+    const o=JSON.parse(await file.text());
+    if(!o||o.app!=="SCADA Review 2 record store"||!Array.isArray(o.days)) throw new Error("this is not a backup of the SCADA review's record store");
+    let nd=0;
+    for(const x of o.days){ const ex=await stGet("days",x.id);
+      if(ex){ /* merge: readings already stored for a time are kept */ const D=dayRec2D([x]); D.meta=x.meta; await stAddParsed(D,"restore-"+x.id+"-"+Date.now(),`backup of ${x.id}`); }
+      else{ await stPut("days",x); stInfoDay(x.fk,x.day,x.t.length,x.src||[],x.meta); stDaySummary(dayRec2D([x]),"backup"); }
+      nd++; }
+    for(const x of o.exports||[]) if(!(await stGet("exports",x.fp))){ await stPut("exports",x); const i=STI.fk[x.fk]; if(i&&!i.exports.includes(x.fp)) i.exports.push(x.fp); }
+    /* restore-time merge entries are not exports */
+    for(const x of (await stAll("exports")).filter(x=>/^restore-/.test(x.fp))) await stDel("exports",x.fp);
+    Object.values(STI.fk).forEach(i=>i.exports=i.exports.filter(fp=>!/^restore-/.test(fp)));
+    stInfoSave();
+    const lsKeys=Object.keys(o.ls||{}).filter(k=>/^sr2-/.test(k)&&k!==ST_INFO);
+    if(lsKeys.length&&confirm(`${nd} stored days restored.\n\nAlso replace the reviews, 8Ds, settings and history in this browser with the ones in the backup (saved ${String(o.saved||"").slice(0,10)})? Cancel keeps the current ones.`)){
+      lsKeys.forEach(k=>{ try{ localStorage.setItem(k,o.ls[k]); }catch(e){} }); location.reload(); return; }
+    ST_LOG=[{st:"ok",txt:`${nd} stored day${nd===1?"":"s"} restored from ${file.name}`}]; renderStore();
+  }catch(e){ ST_LOG=[{st:"err",txt:"Restore failed: "+e.message}]; renderStore(); }
+}
+
+/* ---------- record store: panel ---------- */
+let ST_LOG=[], ST_SEL={fk:"",from:"",to:""};
+function stMsg(t,ok){ const el=$("#stMsg"); if(el){ el.textContent=t; el.className="small "+(ok?"ok":""); } }
+function renderStore(){
+  const body=$("#stBody"); if(!body) return;
+  const fks=Object.keys(STI.fk).filter(fk=>Object.keys(STI.fk[fk].days).length).sort();
+  if(!fks.includes(ST_SEL.fk)) ST_SEL.fk=fks[0]||"";
+  const rows=fks.map(fk=>{ const o=STI.fk[fk], days=Object.keys(o.days).sort(), first=days[0], last=days[days.length-1];
+    const miss=[]; for(let d=first;d<=last;d=addDay(d,1)) if(!o.days[d]) miss.push(d);
+    const n=Object.values(o.days).reduce((a,b)=>a+b,0);
+    return `<tr><td><b>${esc(fk)}</b></td><td class="n">${days.length}</td><td class="n">${esc(dIso(first))} – ${esc(dIso(last))}</td>
+      <td class="n">${miss.length?`<span class="caution" title="${esc(miss.map(dIso).join(", "))}">${miss.length}</span>`:"0"}</td><td class="n">${n.toLocaleString("en-IN")}</td><td class="n">${o.exports.length}</td>
+      <td><button class="btn ghost" type="button" style="padding:2px 10px" data-st="pick:${esc(fk)}">Analyse…</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-st="del:${esc(fk)}">Delete…</button></td></tr>`; }).join("");
+  const o=STI.fk[ST_SEL.fk], days=o?Object.keys(o.days).sort():[];
+  if(o&&!ST_SEL.to) ST_SEL.to=days[days.length-1]; if(o&&!ST_SEL.from) ST_SEL.from=days[days.length-1];
+  body.innerHTML=(fks.length?`<div class="controls" style="margin-top:10px">
+      <div class="field"><label for="stF">Furnace and chamber</label><select id="stF" style="width:auto;font-family:var(--sans)">${fks.map(f=>`<option ${f===ST_SEL.fk?"selected":""}>${esc(f)}</option>`).join("")}</select></div>
+      <div class="field"><label for="stFrom">From</label><input id="stFrom" type="date" value="${esc(ST_SEL.from||"")}" style="width:160px"></div>
+      <div class="field"><label for="stTo">To</label><input id="stTo" type="date" value="${esc(ST_SEL.to||"")}" style="width:160px"></div>
+      <div class="st-quick"><button class="btn ghost" type="button" data-st="q:1">Last day</button><button class="btn ghost" type="button" data-st="q:7">Last 7 days</button><button class="btn ghost" type="button" data-st="q:30">Last 30 days</button></div>
+      <button class="btn" type="button" data-st="go">Analyse period</button></div>
+    <div class="scroll" style="margin-top:10px"><table class="log"><thead><tr><th>Furnace · chamber</th><th>Days stored</th><th>From – to</th><th>Days missing</th><th>Readings</th><th>Exports</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+    :`<div class="empty" style="margin-top:10px">Nothing stored yet. Add the SCADA exports of several days (or a folder of them); every export you upload for a daily review is stored too.</div>`)
+    +(ST_LOG.length?(()=>{ const c=st=>ST_LOG.filter(x=>x.st===st).length, li=ST_LOG.map(x=>`<li class="${x.st}">${esc(x.txt)}</li>`).join("");
+      return ST_LOG.length<=4?`<ul class="st-log small">${li}</ul>`:`<details class="st-sum small" open><summary>Last import: ${c("ok")} added${c("dup")?` · ${c("dup")} already in the store`:""}${c("err")?` · <span class="bad">${c("err")} not added</span>`:""}</summary><ul class="st-log">${li}</ul></details>`; })():"");
+}
+(()=>{
+  const p=$("#storePanel"); if(!p) return;
+  $("#stAdd").addEventListener("click",()=>$("#stFiles").click());
+  $("#stFolder").addEventListener("click",()=>$("#stDir").click());
+  $("#stFiles").addEventListener("change",e=>{ const f=e.target.files; if(f&&f.length) stImport(f); e.target.value=""; });
+  $("#stDir").addEventListener("change",e=>{ const f=e.target.files; if(f&&f.length) stImport(f); e.target.value=""; });
+  $("#stBackup").addEventListener("click",stBackup);
+  $("#stRestore").addEventListener("click",()=>$("#stRestoreFile").click());
+  $("#stRestoreFile").addEventListener("change",e=>{ const f=e.target.files[0]; if(f) stRestore(f); e.target.value=""; });
+  p.addEventListener("change",e=>{ const id=e.target.id;
+    if(id==="stF"){ ST_SEL={fk:e.target.value,from:"",to:""}; renderStore(); }
+    if(id==="stFrom") ST_SEL.from=e.target.value; if(id==="stTo") ST_SEL.to=e.target.value; });
+  p.addEventListener("click",e=>{ const b=e.target.closest("[data-st]"); if(!b) return; const a=b.dataset.st;
+    if(a.startsWith("pick:")){ ST_SEL={fk:a.slice(5),from:"",to:""}; renderStore(); $("#stF").focus(); }
+    else if(a.startsWith("del:")) stDeleteFk(a.slice(4));
+    else if(a.startsWith("q:")){ const o=STI.fk[ST_SEL.fk]; if(!o) return; const days=Object.keys(o.days).sort(), last=days[days.length-1], f=addDay(last,1-(+a.slice(2))); ST_SEL.to=last; ST_SEL.from=f<days[0]?days[0]:f; renderStore(); }
+    else if(a==="go") stAnalyse(ST_SEL.fk,ST_SEL.from,ST_SEL.to); });
+  renderStore();
+})();
+
+
 /* ---------- file loading ---------- */
 function loadBuffer(buf,name){
   try{
-    if(!window.XLSX) throw new Error("The spreadsheet reader didn't load. Check the internet connection and reload the page.");
-    const wb=XLSX.read(buf,{type:"array",cellDates:false});
-    let D=null,firstErr=null;
-    for(const sn of wb.SheetNames){
-      const aoa=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});
-      try{ D=parseAOA(aoa); break; }catch(e){ firstErr=firstErr||e; }
-    }
-    if(!D) throw firstErr||new Error("No usable sheet found.");
+    const D=parseBuffer(buf);
     DATA=D; FILE=name; PD_CUR=null; resetRun(); run(); if(HTQ) HTQ.emit("scada:changed");
+    /* every export reviewed is also added to the record store (with its fingerprint) */
+    const copy=buf.slice(0);
+    sha256(copy).then(fp=>{ D.fp=fp; if(DATA===D) run(); return stAddParsed(D,fp,name,copy.byteLength); })
+      .then(r=>{ if(r){ ST_LOG=[r]; renderStore(); } }).catch(e=>{ ST_LOG=[{st:"err",txt:`${name}: not added to the record store — ${e.message}`}]; renderStore(); });
   }catch(err){ $("#out").innerHTML=`<div class="panel error"><b>${esc(name)} couldn't be analysed.</b> ${esc(err.message)}</div>`; }
 }
 $("#loadBtn").addEventListener("click",()=>$("#file").click());
