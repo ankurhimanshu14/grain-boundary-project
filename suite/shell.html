@@ -39,13 +39,26 @@ header.top{flex:none;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-e
 .ctrl div{padding:4px 10px;border-right:1px solid var(--line)}.ctrl div:last-child{border-right:0}
 .ctrl b{display:block;font-weight:500;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 /* module tabs in groups */
-nav.mods{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 2px;padding:8px 16px;border-bottom:1px solid var(--line)}
-.grp{display:flex;gap:2px;align-items:center;padding-right:8px;margin-right:6px;border-right:1px solid var(--line)}
-.grp.last{border-right:0}
-.pd{font-family:var(--f-display);font-weight:700;font-size:12px;color:var(--muted);letter-spacing:.1em;margin-right:4px;text-transform:uppercase}
-.tab{font:inherit;font-weight:500;color:var(--ink);background:none;border:0;padding:6px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
-.tab:hover{background:var(--sunk)}
-.tab[aria-selected="true"]{background:var(--ink);color:var(--bg)}
+nav.mods{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:8px 16px;border-bottom:1px solid var(--line);position:relative;z-index:20}
+/* a dropdown menu under each heading; the heading shows the page open in its group and the group's badges */
+.dd{position:relative}
+.ddh,.tab.top{font:inherit;font-weight:500;color:var(--ink);background:none;border:1px solid transparent;padding:6px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:6px;align-items:center}
+.ddh .pd{font-family:var(--f-display);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.ddh .cur{color:var(--muted)}.ddh .cur:not(:empty)::before{content:"· "}
+.ddh .car{font-size:10px;color:var(--muted);transition:transform .15s}
+.ddh:hover,.tab.top:hover,.ddh[aria-expanded="true"]{background:var(--sunk)}
+.ddh[aria-expanded="true"] .car{transform:rotate(180deg)}
+.ddh.on,.tab.top[aria-current="page"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ddh.on .cur,.ddh.on .car{color:inherit;opacity:.8}
+.menu{position:absolute;top:calc(100% + 4px);left:0;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;display:flex;flex-direction:column;gap:2px}
+.menu[hidden]{display:none}
+.dd.right .menu{left:auto;right:0}
+.menu .tab{font:inherit;font-weight:500;color:var(--ink);background:none;border:0;padding:8px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:8px;align-items:center;text-align:left;width:100%}
+.menu .tab .long{flex:1}
+.menu .tab .sub{display:block;font-size:11.5px;font-weight:400;color:var(--muted)}
+.menu .tab:hover,.menu .tab:focus-visible{background:var(--sunk)}
+.menu .tab[aria-current="page"]{background:var(--ink);color:var(--bg)}
+.menu .tab[aria-current="page"] .sub{color:inherit;opacity:.75}
 .tab .short{display:none}
 .badge{font-size:11px;font-weight:600;border-radius:999px;padding:0 7px;background:var(--sunk);color:var(--muted);font-family:var(--f-mono)}
 .badge.alert{background:var(--bad);color:#fff}
@@ -119,14 +132,13 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 .tc i{width:8px;height:8px;border-radius:2px;background:var(--kk);display:inline-block}
 .links{display:flex;flex-wrap:wrap;gap:6px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--muted)}.legend span{display:inline-flex;gap:6px;align-items:center}.legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
-@media (max-width:1480px){.pd{display:none}.tab{padding:6px 6px}.grp{padding-right:6px;margin-right:4px}}
 @media (max-width:860px){.ctrl{display:none}}
 @media (max-width:760px){.pdca{grid-template-columns:1fr 1fr}.pdca>div:nth-child(2){border-right:0}.pdca>div:nth-child(-n+2){border-bottom:1px solid var(--line)}}
 @media (max-width:640px){
   .chb dl{grid-template-columns:1fr}.chb dt{font-size:12px;margin-top:4px}
-  .pd{display:none}.tab .long{display:none}.tab .short{display:inline}
+  .ddh .cur{display:none}.ddh,.tab.top{padding:6px 8px}.ddh .pd{font-size:12px;letter-spacing:.04em}.tab.top .long{display:none}.tab.top .short{display:inline}
   .brand h1 small{display:none}
-  nav.mods{padding:6px 10px}.grp{padding-right:6px;margin-right:4px}
+  nav.mods{padding:6px 10px}.menu{min-width:210px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style></head>
@@ -150,27 +162,35 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   </div>
 </header>
 <nav class="mods" aria-label="Modules">
-  <div id="tablist" role="tablist" aria-label="Pages" style="display:contents">
-    <div class="grp" role="presentation">
-      <button class="tab" role="tab" id="tab-home" data-page="home" aria-controls="page-home"><span class="long">Dashboard</span><span class="short">Home</span></button>
+  <button class="tab top" id="tab-home" data-page="home" aria-controls="page-home"><span class="long">Dashboard</span><span class="short">Home</span></button>
+  <div class="dd" data-grp="production">
+    <button class="ddh" id="h-production" aria-haspopup="menu" aria-expanded="false" aria-controls="m-production"><span class="pd">Production</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
+    <div class="menu" id="m-production" role="menu" aria-labelledby="h-production" hidden>
+      <button class="tab" role="menuitem" id="tab-prod" data-page="prod" aria-controls="page-prod"><span class="long">Daily production<span class="sub">Tray log, batches, push cycle</span></span><span class="badge" id="badge-prod" hidden></span></button>
     </div>
-    <div class="grp" role="presentation"><span class="pd" aria-hidden="true">Production</span>
-      <button class="tab" role="tab" id="tab-prod" data-page="prod" aria-controls="page-prod"><span class="long">Daily production</span><span class="short">Prod</span><span class="badge" id="badge-prod" hidden></span></button>
+  </div>
+  <div class="dd" data-grp="process">
+    <button class="ddh" id="h-process" aria-haspopup="menu" aria-expanded="false" aria-controls="m-process"><span class="pd">Process</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
+    <div class="menu" id="m-process" role="menu" aria-labelledby="h-process" hidden>
+      <button class="tab" role="menuitem" id="tab-spec" data-page="spec" aria-controls="page-spec"><span class="long">Specifications<span class="sub">Process specifications (recipes)</span></span><span class="badge" id="badge-spec" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA review<span class="sub">Temperature records, review PDCA</span></span><span class="badge" id="badge-scada" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-ops" data-page="ops" aria-controls="page-ops" title="Furnace start-up, shutdown and alarm response"><span class="long">Alarms<span class="sub">Start-up, shutdown and alarm response</span></span><span class="badge" id="badge-ops" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-quench" data-page="quench" aria-controls="page-quench"><span class="long">Quench media<span class="sub">Quenchant tests</span></span><span class="badge" id="badge-quench" hidden></span></button>
     </div>
-    <div class="grp" role="presentation"><span class="pd" aria-hidden="true">Process</span>
-      <button class="tab" role="tab" id="tab-spec" data-page="spec" aria-controls="page-spec"><span class="long">Specifications</span><span class="short">Specs</span><span class="badge" id="badge-spec" hidden></span></button>
-      <button class="tab" role="tab" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA review</span><span class="short">SCADA</span><span class="badge" id="badge-scada" hidden></span></button>
-      <button class="tab" role="tab" id="tab-ops" data-page="ops" aria-controls="page-ops" title="Furnace start-up, shutdown and alarm response"><span class="long">Alarms</span><span class="short">Alarms</span><span class="badge" id="badge-ops" hidden></span></button>
-      <button class="tab" role="tab" id="tab-quench" data-page="quench" aria-controls="page-quench"><span class="long">Quench media</span><span class="short">Quench</span><span class="badge" id="badge-quench" hidden></span></button>
+  </div>
+  <div class="dd" data-grp="quality">
+    <button class="ddh" id="h-quality" aria-haspopup="menu" aria-expanded="false" aria-controls="m-quality"><span class="pd">Quality</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
+    <div class="menu" id="m-quality" role="menu" aria-labelledby="h-quality" hidden>
+      <button class="tab" role="menuitem" id="tab-metal" data-page="metal" aria-controls="page-metal"><span class="long">Hardness<span class="sub">Hardness and metallurgical tests</span></span><span class="badge" id="badge-metal" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-cpf" data-page="cpf" aria-controls="page-cpf"><span class="long">CP &amp; PFMEA<span class="sub">Control plan and process FMEA</span></span><span class="badge" id="badge-cpf" hidden></span></button>
     </div>
-    <div class="grp" role="presentation"><span class="pd" aria-hidden="true">Quality</span>
-      <button class="tab" role="tab" id="tab-metal" data-page="metal" aria-controls="page-metal"><span class="long">Hardness</span><span class="short">Lab</span><span class="badge" id="badge-metal" hidden></span></button>
-      <button class="tab" role="tab" id="tab-cpf" data-page="cpf" aria-controls="page-cpf"><span class="long">CP &amp; PFMEA</span><span class="short">CP</span><span class="badge" id="badge-cpf" hidden></span></button>
-    </div>
-    <div class="grp last" role="presentation"><span class="pd" aria-hidden="true">Pyrometry</span>
-      <button class="tab" role="tab" id="tab-sat" data-page="sat" aria-controls="page-sat"><span class="long">SAT</span><span class="short">SAT</span><span class="badge" id="badge-sat" hidden></span></button>
-      <button class="tab" role="tab" id="tab-tus" data-page="tus" aria-controls="page-tus"><span class="long">TUS</span><span class="short">TUS</span><span class="badge" id="badge-tus" hidden></span></button>
-      <button class="tab" role="tab" id="tab-equip" data-page="equip" aria-controls="page-equip"><span class="long">Equipment</span><span class="short">Equip.</span><span class="badge" id="badge-equip" hidden></span></button>
+  </div>
+  <div class="dd right" data-grp="pyrometry">
+    <button class="ddh" id="h-pyrometry" aria-haspopup="menu" aria-expanded="false" aria-controls="m-pyrometry"><span class="pd">Pyrometry</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
+    <div class="menu" id="m-pyrometry" role="menu" aria-labelledby="h-pyrometry" hidden>
+      <button class="tab" role="menuitem" id="tab-sat" data-page="sat" aria-controls="page-sat"><span class="long">SAT<span class="sub">System accuracy tests</span></span><span class="badge" id="badge-sat" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-tus" data-page="tus" aria-controls="page-tus"><span class="long">TUS<span class="sub">Temperature uniformity surveys</span></span><span class="badge" id="badge-tus" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-equip" data-page="equip" aria-controls="page-equip"><span class="long">Equipment<span class="sub">Furnace / equipment qualification</span></span><span class="badge" id="badge-equip" hidden></span></button>
     </div>
   </div>
 </nav>
@@ -232,15 +252,48 @@ const PAGES=["home","prod","spec","scada","ops","quench","metal","cpf","sat","tu
 const $=s=>document.querySelector(s);
 function show(page){
   if(!PAGES.includes(page)) page="home";
-  PAGES.forEach(p=>{ const on=p===page; $("#tab-"+p).setAttribute("aria-selected",on); $("#tab-"+p).tabIndex=on?0:-1;
+  PAGES.forEach(p=>{ const on=p===page; if(on) $("#tab-"+p).setAttribute("aria-current","page"); else $("#tab-"+p).removeAttribute("aria-current");
     const f=$("#page-"+p); if(on) f.removeAttribute("data-off"); else f.setAttribute("data-off",""); });
   if(location.hash!=="#"+page) history.replaceState(null,"","#"+page);
   if(page==="home") renderHome();
+  syncNav();
 }
-document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>show(b.dataset.page)));
-$("#tablist").addEventListener("keydown",e=>{ if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
-  const i=PAGES.indexOf(document.activeElement.dataset.page), j=(i+(e.key==="ArrowRight"?1:-1)+PAGES.length)%PAGES.length;
-  show(PAGES[j]); $("#tab-"+PAGES[j]).focus(); });
+/* ---------- navigation: a dropdown menu under each heading ---------- */
+const DDS=[...document.querySelectorAll(".dd")];
+const ddOf=el=>el.closest(".dd");
+function closeMenus(except){ DDS.forEach(d=>{ if(d===except) return; d.querySelector(".menu").hidden=true; d.querySelector(".ddh").setAttribute("aria-expanded","false"); }); }
+function openMenu(d,focus){ closeMenus(d); d.querySelector(".menu").hidden=false; d.querySelector(".ddh").setAttribute("aria-expanded","true");
+  if(focus){ const items=[...d.querySelectorAll(".menu .tab")], cur=items.find(x=>x.hasAttribute("aria-current")); (focus==="last"?items.at(-1):cur||items[0]).focus(); } }
+const anyOpen=()=>DDS.some(d=>!d.querySelector(".menu").hidden);
+/* the heading of the group holding the open page is filled and names the page; its badge adds up the group's badges */
+function syncNav(){
+  DDS.forEach(d=>{ const cur=d.querySelector(".menu .tab[aria-current]"), h=d.querySelector(".ddh");
+    h.classList.toggle("on",!!cur); h.querySelector(".cur").textContent=cur?cur.querySelector(".long").firstChild.textContent:"";
+    const bs=[...d.querySelectorAll(".menu .badge")].filter(b=>!b.hidden), n=bs.reduce((a,b)=>a+(+b.textContent||0),0), gb=h.querySelector(".badge");
+    const txt=n?String(n):"", cls="badge"+(bs.some(b=>b.classList.contains("alert"))?" alert":""), tip=bs.map(b=>b.title).filter(Boolean).join(" · ");
+    if(gb.textContent!==txt) gb.textContent=txt; if(gb.hidden!==!n) gb.hidden=!n; if(gb.className!==cls) gb.className=cls; if(gb.title!==tip) gb.title=tip; });
+}
+const NAVOBS=new MutationObserver(()=>syncNav());
+document.querySelectorAll(".menu .badge").forEach(b=>NAVOBS.observe(b,{attributes:true,childList:true,characterData:true,subtree:true}));
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ closeMenus(); show(b.dataset.page); }));
+DDS.forEach(d=>{ const h=d.querySelector(".ddh");
+  h.addEventListener("click",()=>{ if(d.querySelector(".menu").hidden) openMenu(d); else closeMenus(); });
+  /* menubar behaviour: with one menu open, pointing at another heading opens that one */
+  h.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse"&&anyOpen()&&d.querySelector(".menu").hidden) openMenu(d); });
+  h.addEventListener("keydown",e=>{ if(e.key==="ArrowDown"||e.key==="Enter"||e.key===" "){ e.preventDefault(); openMenu(d,"first"); } else if(e.key==="ArrowUp"){ e.preventDefault(); openMenu(d,"last"); } });
+  d.querySelector(".menu").addEventListener("keydown",e=>{ const items=[...d.querySelectorAll(".menu .tab")], i=items.indexOf(document.activeElement);
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); items[(i+(e.key==="ArrowDown"?1:-1)+items.length)%items.length].focus(); }
+    else if(e.key==="Home"){ e.preventDefault(); items[0].focus(); } else if(e.key==="End"){ e.preventDefault(); items.at(-1).focus(); }
+    else if(e.key==="Tab"){ closeMenus(); } });
+});
+/* move between headings with the left / right arrows */
+$("nav.mods").addEventListener("keydown",e=>{ if(e.key==="Escape"){ const d=ddOf(document.activeElement); closeMenus(); if(d) d.querySelector(".ddh").focus(); return; }
+  if(e.key!=="ArrowRight"&&e.key!=="ArrowLeft") return;
+  const heads=[$("#tab-home"),...DDS.map(d=>d.querySelector(".ddh"))], d=ddOf(document.activeElement), cur=d?d.querySelector(".ddh"):document.activeElement, i=heads.indexOf(cur); if(i<0) return;
+  e.preventDefault(); const nx=heads[(i+(e.key==="ArrowRight"?1:-1)+heads.length)%heads.length], wasOpen=anyOpen(); closeMenus(); nx.focus(); if(wasOpen&&ddOf(nx)) openMenu(ddOf(nx),"first"); });
+document.addEventListener("click",e=>{ if(!e.target.closest(".dd")) closeMenus(); });
+/* a click into a page frame does not reach this document: the shell window loses focus instead */
+addEventListener("blur",()=>closeMenus());
 addEventListener("hashchange",()=>show(location.hash.slice(1)));
 
 /* ---------- theme for the bar and every page ---------- */
