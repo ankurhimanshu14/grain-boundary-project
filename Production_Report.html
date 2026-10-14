@@ -133,8 +133,8 @@ table.trays td.sel{width:28px}
 .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:3px;padding:0 5px;margin-left:4px;border:1px solid var(--line);vertical-align:1px}
 .tag.rw{color:var(--t);border-color:var(--t)}
 .tag.hold{color:var(--crit-ink);border-color:var(--crit)}
+tr.hold-row td{background:var(--surface2);color:var(--crit-ink);font-size:12.5px;padding:4px 8px!important}
 .tag.mix{color:var(--warn-ink);border-color:var(--warn)}
-tr.t-hold td:first-child{box-shadow:inset 3px 0 0 var(--crit)}
 tr.t-rw td:first-child{box-shadow:inset 3px 0 0 var(--t)}
 dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(860px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
@@ -186,7 +186,7 @@ textarea{min-height:54px;resize:vertical}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2 id="tl-title">Tray log</h2><p>One line per tray. Select trays to put them on hold, release them, mark them as rework or delete them; “Edit” changes the contents, an actual entry time (a tray that entered off the cycle, e.g. after a stop) or the note.</p></div>
+    <div class="sec-head"><h2 id="tl-title">Tray log</h2><p>One line per tray. Select trays to mark them as rework or delete them; a pause of the push cycle shows as a line between the trays; “Edit” changes the contents, an actual entry time (a tray that entered off the cycle, e.g. after a stop) or the note.</p></div>
     <div id="trays"></div>
   </section>
 
@@ -196,7 +196,7 @@ textarea{min-height:54px;resize:vertical}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Trays on hold</h2><p>Trays held because of an issue (temperature excursion, alarm, parameter out of specification, test pending …) in this furnace, with their release: released after a check, sent for rework, scrapped or released under concession.</p></div>
+    <div class="sec-head"><h2>Push cycle on hold</h2><p>Every pause of the push cycle (line stopped by an alarm, a tray jam, a power failure, temperature not in tolerance, waiting for material …): from, to and the reason. The next push comes the length of the pause later, so every tray in the furnace stays that much longer; the batches in the furnace during a pause are flagged.</p></div>
     <div class="scroll" id="holds"></div>
   </section>
 
@@ -211,7 +211,7 @@ textarea{min-height:54px;resize:vertical}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Approval</h2><p>When every tray and batch is complete, the supervisor approves the report. It is then locked; unlocking needs a reason and is recorded. Holds can still be released on a locked report.</p></div>
+    <div class="sec-head"><h2>Approval</h2><p>When every tray and batch is complete, the supervisor approves the report. It is then locked; unlocking needs a reason and is recorded. A push cycle still on hold should be ended first.</p></div>
     <div id="approval"></div>
   </section>
 
@@ -289,13 +289,12 @@ const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing
 const PROCS=[P_HT,P_IA,P_NO,P_FA];
 const DEF={plant:"Heat treatment shop",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5};
 const DEFF=["F-01","F-02","F-03","F-04"];
-const HOLD_REASONS=["Temperature excursion (SCADA)","Alarm / line stop","Push time or process parameter out of specification","Quench / controlled cooling problem","Test result pending (hardness, microstructure)","Parts mixed up or not identified","Tray or parts damaged","Other"];
-const RELEASE=["Released after check","Sent for rework (re-heat-treatment)","Scrapped","Released under customer concession"];
+const HOLD_REASONS=["Alarm / line stop","Pusher or tray jam","Extractor or door fault","Power failure","Burner / temperature not in tolerance","Quench or controlled cooling problem","Waiting for material / trays","Planned (shift change, inspection, maintenance)","Other"];
 const PARAMS={push:["Push time","min"],hset:["Hardening chamber set value","°C"],tset:["Tempering chamber set value","°C"],cc:["Controlled cooling time","min"],quench:["Quench oil temperature","°C"],dip:["Dip time","min"],other:["Other",""]};
 const blank=()=>({v:2,lay2:true,settings:{...DEF},furnaces:DEFF.slice(),specs:[],reports:[],seq:1});
 const emptyTl=()=>({start:"",push:"",trays:[],seq:1});
-/* a report: {id, date, furnace, tl:{start, push, trays[{id, items[{part,batch,heat,heatCode,qty,rw}], at, note, hold}], seq}, params[], bx{key:{weighed,note}}, status, apprBy, apprDate, log}
-   rw = rework {ref, reason}; hold = {reason, ref, note, by, at, rel:{disp, by, at, note}} */
+/* a report: {id, date, furnace, tl:{start, push, trays[{id, items[{part,batch,heat,heatCode,qty,rw}], at, note}], seq}, params[], holds[], bx{key:{weighed,note}}, status, apprBy, apprDate, log}
+   rw = rework {ref, reason}; a hold = a pause of the push cycle {id, from, to ("" = still on hold), reason, ref, by, note} */
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.specs)||!Array.isArray(o.reports)) return null;
   o.settings={...DEF,...(o.settings||{})};
@@ -303,7 +302,7 @@ function normalize(o){
   if(!o.lay2){if(String(o.settings.posT).replace(/\s/g,"")==="5,4,4")o.settings.posT="4,4,4";o.lay2=true;}
   o.furnaces=Array.isArray(o.furnaces)&&o.furnaces.length?o.furnaces:DEFF.slice();
   o.specs=o.specs.filter(s=>s&&typeof s==="object").map(s=>({h:["","",""],t:["","",""],...s}));
-  o.reports=o.reports.filter(r=>r&&r.id&&isDate(r.date)&&r.furnace).map(r=>migrate({log:[],status:"draft",params:[],bx:{},...r},o));
+  o.reports=o.reports.filter(r=>r&&r.id&&isDate(r.date)&&r.furnace).map(r=>migrate({log:[],status:"draft",params:[],holds:[],bx:{},...r},o));
   o.seq=Math.max(+o.seq||1,...o.reports.map(r=>+(String(r.id).match(/\d+/)||[0])[0]+1));
   o.v=2;return o;
 }
@@ -319,13 +318,14 @@ function migrate(r,o){
     r.rows.filter(x=>!used.has(x.id)).forEach(x=>{
       const sp=(o.specs||[]).find(s=>txt(s.part).toUpperCase()===txt(x.part).toUpperCase()),per=sp?num(sp.perTray):null,qty=num(x.qty)||0;
       const n=per>0&&qty>0?Math.ceil(qty/per):1;let left=qty;
-      for(let i=0;i<n;i++){const k=per>0?Math.min(per,left):qty;left-=k;tl.trays.push({id:"T"+String(tl.seq++).padStart(4,"0"),items:[{...itemOf(x),qty:k||""}],at:i===0?(x.entry||""):"",note:i===0&&x.note?x.note:"",hold:null});}
+      for(let i=0;i<n;i++){const k=per>0?Math.min(per,left):qty;left-=k;tl.trays.push({id:"T"+String(tl.seq++).padStart(4,"0"),items:[{...itemOf(x),qty:k||""}],at:i===0?(x.entry||""):"",note:i===0&&x.note?x.note:""});}
       if(!tl.start&&x.entry) tl.start=x.entry;});
     r.rows.forEach(x=>{if(num(x.weighed)!=null||txt(x.note)){const k=keyBase(itemOf(x));r.bx[k]={weighed:x.weighed||"",note:x.note||""};}});
     if(tl.changes){(tl.changes||[]).forEach((c,i)=>r.params.push({id:"P"+(i+1),at:c.at,kind:"push",zone:"",from:"",to:c.push,reason:c.note||"",by:""}));delete tl.changes;}
     delete r.rows;
   }
-  tl.trays=tl.trays.map(t=>({items:[],at:"",note:"",hold:null,...t}));
+  /* an earlier version kept a quality hold per tray: on hold now means a pause of the push cycle, so it is dropped */
+  tl.trays=tl.trays.map(t=>{const x={items:[],at:"",note:"",...t};delete x.hold;return x;});
   tl.seq=Math.max(+tl.seq||1,1+Math.max(0,...tl.trays.map(t=>+(String(t.id).match(/\d+/)||[0])[0])));
   r.tl=tl;return r;
 }
@@ -384,11 +384,17 @@ function tlPush0(R){const v=num(R.tl.push);if(v>0)return v;const sp=firstSpec(R)
 const pushChanges=R=>(R.params||[]).filter(p=>p.kind==="push").map(c=>({t:tms(c.at),p:num(c.to)})).filter(c=>c.t!=null&&c.p>0).sort((a,b)=>a.t-b.t);
 const hasLog=R=>R&&R.tl&&R.tl.trays.length&&(tms(R.tl.start)!=null||tms(R.tl.trays[0].at)!=null);
 /* entry times of the trays of one report: next = previous + push in force; a push change is the first push at the new push time; an actual time overrides */
+/* pauses of the push cycle of a report: {f, t, d (ms), open (still on hold: counted until now)} */
+const nowMs=()=>tms(nowLocal());
+function holdsOf(R){return (R.holds||[]).map(h=>{const f=tms(h.from),t0=tms(h.to),open=t0==null,t=open?Math.max(f??0,nowMs()):t0;return {h,f,t,d:Math.max(0,(t??0)-(f??0)),open};}).filter(x=>x.f!=null).sort((a,b)=>a.f-b.f);}
+/* the push timer stops during a hold: a push due after the hold started comes the length of the hold later */
 function tlStepper(R){
-  const ch=pushChanges(R);let p=tlPush0(R)||0,t=null,ci=0;
+  const ch=pushChanges(R),H=holdsOf(R);let p=tlPush0(R)||0,t=null,ci=0,hi=0;
   const apply=()=>{while(ci<ch.length&&ch[ci].t<=t){p=ch[ci].p;ci++;}};
-  const step=()=>{const c=t+p*60000;if(ci<ch.length&&ch[ci].t>t&&ch[ci].t<=c){t=ch[ci].t;p=ch[ci].p;ci++;}else t=c;apply();return {t,p};};
-  const times=R.tl.trays.map((tr,i)=>{const a=tms(tr.at);if(i===0||a!=null){t=a??tms(R.tl.start);apply();return {t,p};}return step();});
+  const skipH=()=>{while(hi<H.length&&H[hi].f<t)hi++;};
+  const step=()=>{let c=t+p*60000;while(hi<H.length&&H[hi].f<c){if(H[hi].f>=t)c+=H[hi].d;hi++;}
+    if(ci<ch.length&&ch[ci].t>t&&ch[ci].t<=c){t=ch[ci].t;p=ch[ci].p;ci++;}else t=c;apply();return {t,p};};
+  const times=R.tl.trays.map((tr,i)=>{const a=tms(tr.at);if(i===0||a!=null){t=a??tms(R.tl.start);apply();skipH();return {t,p};}return step();});
   return {times,step};
 }
 /* all logged trays of a furnace in entry order (every day), and the entry time of the tray j places on (extrapolated with the push time in force) */
@@ -412,7 +418,6 @@ function trayTimes(R,tr){
 }
 /* share of a full tray: pieces ÷ pieces per tray of each part */
 const trayLoad=(R,tr)=>sum((tr.items||[]).map(it=>{const sp=itemSpec(R,it),per=sp?num(sp.perTray):null;return per>0&&num(it.qty)>0?num(it.qty)/per:0;}));
-const onHold=tr=>!!(tr.hold&&!tr.hold.rel);
 
 /* ---------- batches from the trays ---------- */
 const bName=b=>`${b.batch||"(no batch no.)"} · ${b.part||"?"}`;
@@ -441,8 +446,6 @@ function calcBatch(R,b){
   const wt=sp?num(sp.wt):null; if(b.qty>0&&wt>0) out.kg=b.qty*wt;
   const bx=R.bx[b.key]||{},wg=num(bx.weighed); if(wg!=null&&out.kg){const dp=(wg-out.kg)/out.kg*100;out.wDiff=dp;if(Math.abs(dp)>+s.wtTol)I("warn",`Weighed ${f1(wg)} kg is ${f1(Math.abs(dp))} % ${dp>0?"above":"below"} the calculated ${f1(out.kg)} kg`);}
   const mixed=b.trays.filter(t=>t.items.length>1).length; if(mixed) I("info",`${mixed} mixed tray${mixed>1?"s":""} (with another part or batch)`);
-  const held=b.trays.filter(onHold); if(held.length) I("crit",`${held.length} tray${held.length>1?"s":""} on hold: ${[...new Set(held.map(t=>t.hold.reason))].join("; ")}`);
-  const rel=b.trays.filter(t=>t.hold&&t.hold.rel); if(rel.length) I("info",`${rel.length} tray${rel.length>1?"s were":" was"} on hold: ${[...new Set(rel.map(t=>t.hold.rel.disp))].join("; ")}`);
   if(b.rw) I("info",`Rework (re-heat-treatment) of ${b.rw.ref||"?"}${b.rw.reason?": "+b.rw.reason:""}`);
   /* timing from the tray log */
   if(hasLog(R)){
@@ -459,6 +462,9 @@ function calcBatch(R,b){
       if(sp&&sp.proc===P_IA){const cc=num(sp.cc);if(cc==null) I("crit","Controlled cooling time missing in the specification");
         else{const room=b.trays.map(t=>{const j=L.idx.get(t);return (L.at(j+nH+1)-L.at(j+nH))/60000;}),short=room.filter(v=>v<g.min);
           if(short.length) I("warn",`${short.length} tray${short.length>1?"s":""}: the next push came ${f1(Math.min(...room))} min after the tray left the hardening chamber, before its controlled cooling cycle (cooling ${cc} + transfers ${f1(g.min-cc)} = ${f1(g.min)} min) was complete`);}}
+      /* pauses of the push cycle (this furnace, any day) while the batch was in the furnace: its trays stayed that much longer */
+      DB.reports.filter(r=>r.furnace===R.furnace).forEach(r=>holdsOf(r).forEach(x=>{if(x.f<out.x&&x.t>out.e){
+        const mins=Math.round(x.d/60000);I("warn",`Push cycle on hold ${fdtShort(x.f,R.date)}–${x.open?"not ended":fdtShort(x.t,R.date)} (${fmin(mins)}, ${x.h.reason}) while the batch was in the furnace: its trays stayed ${fmin(mins)} longer`);}}));
       /* process parameter changes while the batch was in the zone / furnace */
       (R.params||[]).forEach(p=>{const t=tms(p.at);if(t==null||p.kind==="push")return;const P=PARAMS[p.kind]||PARAMS.other,z=num(p.zone),to=num(p.to);
         if((p.kind==="hset"||p.kind==="tset")&&z){const ch=p.kind==="hset"?"Hardening":"Tempering",w=zones.find(q=>q.ch===ch&&q.z===z);if(!w||t<w.from||t>=w.to)return;
@@ -475,8 +481,8 @@ function calcBatch(R,b){
     const clash=other.filter(o=>txt(o.x.heat)&&txt(b.heat)&&!isNA(o.x.heat)&&!isNA(b.heat)&&txt(o.x.heat).toUpperCase()!==txt(b.heat).toUpperCase());
     if(clash.length) I("warn",`Batch ${b.batch} also appears in ${R.furnace} with heat no. ${clash.map(o=>o.x.heat+" ("+fdate(o.r.date)+")").join(", ")}`);
   }
-  out.lvl=out.issues.some(i=>i[0]==="crit"&&!/on hold/.test(i[1]))?"crit":out.issues.some(i=>i[0]==="crit"||i[0]==="warn")?"warn":"good";
-  out.incomplete=out.issues.some(i=>i[0]==="crit"&&!/on hold/.test(i[1]));
+  out.lvl=out.issues.some(i=>i[0]==="crit")?"crit":out.issues.some(i=>i[0]==="warn")?"warn":"good";
+  out.incomplete=out.lvl==="crit";
   return out;
 }
 /* checks on the trays themselves */
@@ -488,6 +494,7 @@ function trayIssues(R){
     const procs=new Set(items.map(it=>(itemSpec(R,it)||{}).proc).filter(Boolean)); if(procs.size>1) m.push(["warn",`Tray ${i+1} mixes parts of different processes (${[...procs].join(", ")})`]);});
   if(R.tl.trays.length&&!(tlPush0(R)>0)) m.push(["crit","Push time at the start missing (and no specification push time)"]);
   if(R.tl.trays.length&&!hasLog(R)) m.push(["crit","Time the first tray entered is missing"]);
+  (R.holds||[]).forEach(h=>{const f=tms(h.from),t=tms(h.to);if(f==null)m.push(["crit","A push cycle hold without its start time"]);else if(t==null)m.push(["warn",`Push cycle on hold since ${fdtShort(f,R.date)} (${h.reason}): enter the time it restarted`]);else if(t<=f)m.push(["crit",`Push cycle hold of ${fdtShort(f,R.date)}: it ends before it starts`]);});
   return m;
 }
 
@@ -554,22 +561,23 @@ let SEL=new Set();
 function drawTrays(){
   const R=curRep(),el=$("#trays");$("#tl-title").textContent=`Tray log · ${VIEW.f} · ${fdate(VIEW.d)}`;
   if(!R||!R.tl.trays.length){el.innerHTML=`<div class="empty">No trays logged yet. Enter the time the first tray entered and load the trays in their order (and empty trays where there were gaps).</div>`;return;}
-  const tl=R.tl,lk=locked(R),nT=tl.trays.length,emp=tl.trays.filter(t=>!t.items.length).length,mix=tl.trays.filter(t=>t.items.length>1).length,hold=tl.trays.filter(onHold).length,rw=tl.trays.filter(t=>t.items.some(i=>i.rw)).length;
+  const tl=R.tl,lk=locked(R),nT=tl.trays.length,emp=tl.trays.filter(t=>!t.items.length).length,mix=tl.trays.filter(t=>t.items.length>1).length,H=holdsOf(R),hmin=Math.round(sum(H.map(x=>x.d))/60000),rw=tl.trays.filter(t=>t.items.some(i=>i.rw)).length;
   SEL=new Set([...SEL].filter(id=>tl.trays.some(t=>t.id===id)));
   const a=trayTimes(R,tl.trays[0]),z=trayTimes(R,tl.trays.at(-1));
-  const rows=tl.trays.map((tr,i)=>{const T=trayTimes(R,tr),ld=trayLoad(R,tr),items=tr.items||[];
-    const cls=[onHold(tr)?"t-hold":"",items.some(x=>x.rw)?"t-rw":"",!items.length?"t-empty":ld>1.0001?"t-over":items.length>1?"t-mixed":""].filter(Boolean).join(" ");
+  const TT=tl.trays.map(tr=>trayTimes(R,tr));
+  /* a pause of the push cycle is shown after the last tray that entered before it */
+  const holdRow=i=>H.filter(x=>TT[i]&&x.f>=TT[i].t&&(i===tl.trays.length-1||!TT[i+1]||x.f<TT[i+1].t)).map(x=>`<tr class="hold-row"><td></td><td colspan="7">⏸ Push cycle on hold ${fdtShort(x.f,R.date)}–${x.open?"<b>not ended</b>":fdtShort(x.t,R.date)} (${fmin(x.d/60000)}): ${esc(x.h.reason)}${x.h.ref?" · "+esc(x.h.ref):""}${x.h.note?" · "+esc(x.h.note):""}</td></tr>`).join("");
+  const rows=tl.trays.map((tr,i)=>{const T=TT[i],ld=trayLoad(R,tr),items=tr.items||[];
+    const cls=[items.some(x=>x.rw)?"t-rw":"",!items.length?"t-empty":ld>1.0001?"t-over":items.length>1?"t-mixed":""].filter(Boolean).join(" ");
     const cont=items.length?items.map(it=>`<span class="it"><b>${esc(it.part||"?")}</b> · ${esc(it.batch||"—")} · ${esc(it.heat||"—")}${it.heatCode?" / "+esc(it.heatCode):""} × ${esc(it.qty??"")}${it.rw?`<span class="tag rw" title="Rework of ${esc(it.rw.ref||"")}">REWORK</span>`:""}</span>`).join("")+(items.length>1?`<span class="tag mix">MIXED</span>`:""):`<span class="muted">empty</span>`;
-    const st=tr.hold?(tr.hold.rel?`<span class="muted small">was on hold · ${esc(tr.hold.rel.disp)}</span>`:`<span class="tag hold">ON HOLD</span><br><span class="small">${esc(tr.hold.reason)}</span>`):"";
     return `<tr class="${cls}"><td class="sel">${lk?"":`<input type="checkbox" data-sel="${tr.id}" aria-label="Select tray ${i+1}" ${SEL.has(tr.id)?"checked":""}>`}</td><td class="n">${i+1}</td><td class="n">${T?fdtShort(T.t,R.date):"—"}${tr.at?`<br><span class="muted small">actual</span>`:""}</td><td class="n">${T&&T.p?T.p:"—"}</td>
-      <td class="c">${cont}${tr.note?`<br><span class="muted small">${esc(tr.note)}</span>`:""}</td><td class="n">${items.length?Math.round(ld*100)+" %":""}</td><td class="n">${T?fdtShort(T.tOut,R.date):"—"}</td><td>${st}</td>
-      <td style="white-space:nowrap">${lk?(onHold(tr)?`<button class="btn ghost small" data-tedit="${tr.id}">Hold…</button>`:""):`<button class="btn ghost small" data-tedit="${tr.id}">Edit</button> <button class="btn ghost small" data-tins="${tr.id}" title="Insert an empty tray before this one">+ above</button> <button class="btn danger small" data-tdel="${tr.id}" aria-label="Remove tray ${i+1}">✕</button>`}</td></tr>`;}).join("");
+      <td class="c">${cont}${tr.note?`<br><span class="muted small">${esc(tr.note)}</span>`:""}</td><td class="n">${items.length?Math.round(ld*100)+" %":""}</td><td class="n">${T?fdtShort(T.tOut,R.date):"—"}</td>
+      <td style="white-space:nowrap">${lk?"":`<button class="btn ghost small" data-tedit="${tr.id}">Edit</button> <button class="btn ghost small" data-tins="${tr.id}" title="Insert an empty tray before this one">+ above</button> <button class="btn danger small" data-tdel="${tr.id}" aria-label="Remove tray ${i+1}">✕</button>`}</td></tr>`+holdRow(i);}).join("");
   const iss=trayIssues(R);
-  el.innerHTML=`<p class="small" style="margin:0 0 6px">${nT} tray${nT>1?"s":""} · ${nT-emp} loaded · ${emp} empty · ${mix} mixed · <span class="${hold?"bad":""}">${hold} on hold</span> · ${rw} rework${a&&z?` · first tray in ${fdtShort(a.t,R.date)}, last tray in ${fdtShort(z.t,R.date)}, out of the furnace ${fdtShort(z.tOut,R.date)}`:""}</p>
+  el.innerHTML=`<p class="small" style="margin:0 0 6px">${nT} tray${nT>1?"s":""} · ${nT-emp} loaded · ${emp} empty · ${mix} mixed · <span class="${H.length?"caution":""}">push cycle on hold ${H.length}× (${fmin(hmin)})</span> · ${rw} rework${a&&z?` · first tray in ${fdtShort(a.t,R.date)}, last tray in ${fdtShort(z.t,R.date)}, out of the furnace ${fdtShort(z.tOut,R.date)}`:""}</p>
     ${lk?"":`<div class="bulk" id="bulk"><label class="chk"><input type="checkbox" id="sel-all" ${SEL.size&&SEL.size===nT?"checked":""}> all</label><span id="sel-n">${SEL.size} selected</span>
-      <button class="btn ghost small" data-bulk="hold" ${SEL.size?"":"disabled"}>Put on hold…</button><button class="btn ghost small" data-bulk="release" ${SEL.size?"":"disabled"}>Release…</button>
       <button class="btn ghost small" data-bulk="rework" ${SEL.size?"":"disabled"}>Mark as rework…</button><button class="btn danger small" data-bulk="delete" ${SEL.size?"":"disabled"}>Delete</button></div>`}
-    <div class="tl-wrap"><table class="trays"><thead><tr><th></th><th>Tray</th><th>Enters hardening</th><th>Push, min</th><th>Contents (part · batch · heat / code × pieces)</th><th>Load</th><th>Leaves tempering</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tl-wrap"><table class="trays"><thead><tr><th></th><th>Tray</th><th>Enters hardening</th><th>Push, min</th><th>Contents (part · batch · heat / code × pieces)</th><th>Load</th><th>Leaves tempering</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
     ${iss.length?`<div class="issues">${iss.map(([l,t])=>chip(l,l==="info"?"i":"!",t)).join("")}</div>`:""}`;
 }
 function drawParams(){
@@ -592,16 +600,25 @@ function drawParams(){
       <div class="field"><label for="pc-by">By</label><input id="pc-by"></div>
       <div class="actions"><button class="btn small" id="b-padd">Add change</button><span class="msg" id="pc-msg"></span></div></div>`}`;
 }
-/* holds of this furnace: open ones from any day, and those of this report */
+/* pauses of the push cycle of this report */
 function drawHolds(){
   const R=curRep(),el=$("#holds");
-  const L=DB.reports.filter(r=>r.furnace===VIEW.f).flatMap(r=>r.tl.trays.map((t,i)=>({r,t,i}))).filter(x=>x.t.hold&&(onHold(x.t)||x.r===R)).sort((a,b)=>(a.t.hold.at||"")<(b.t.hold.at||"")?-1:1);
-  if(!L.length){el.innerHTML=`<div class="empty">No tray on hold in ${esc(VIEW.f)}.</div>`;return;}
-  el.innerHTML=`<table class="log cards"><thead><tr><th>Tray</th><th>Contents</th><th>On hold since</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>${L.map(({r,t,i})=>{const h=t.hold;
-    return `<tr><td data-label="Tray"><b>${fdate(r.date)} · tray ${i+1}</b><br><span class="muted small">${esc(r.id)}</span></td><td data-label="Contents">${t.items.map(it=>`${esc(it.part)} · ${esc(it.batch||"—")} × ${esc(it.qty)}`).join("<br>")||"empty"}</td>
-      <td data-label="Since">${fdt(tms(h.at))}<br><span class="muted small">${esc(h.by||"")}</span></td><td data-label="Reason">${esc(h.reason)}${h.ref?`<br><span class="muted small">ref. ${esc(h.ref)}</span>`:""}${h.note?`<br><span class="muted small">${esc(h.note)}</span>`:""}</td>
-      <td data-label="Status">${h.rel?chip("good","✓",h.rel.disp)+`<br><span class="muted small">${esc(h.rel.by||"")} · ${fdt(tms(h.rel.at))}${h.rel.note?" · "+esc(h.rel.note):""}</span>`:chip("crit","!","On hold")}</td>
-      <td class="act">${h.rel?"":`<button class="btn ghost small" data-rel="${esc(r.id)}|${esc(t.id)}">Release…</button>`}${r!==R?` <button class="btn ghost small" data-goto="${esc(r.furnace)}|${r.date}">Open day</button>`:""}</td></tr>`;}).join("")}</tbody></table>`;
+  if(!R){el.innerHTML=`<div class="empty">Load trays first.</div>`;return;}
+  if(typing(el)) return;
+  const lk=locked(R),H=holdsOf(R);
+  el.innerHTML=`${H.length?`<table class="log cards"><thead><tr><th>From</th><th>To</th><th class="n">Duration</th><th>Reason</th><th>Reference</th><th>By</th><th>Note</th><th></th></tr></thead><tbody>${H.map(x=>`<tr>
+      <td data-label="From" class="n">${fdtShort(x.f,R.date)}</td><td data-label="To" class="n">${x.open?`<span class="bad">not ended</span>`:fdtShort(x.t,R.date)}</td><td data-label="Duration" class="n">${fmin(x.d/60000)}</td>
+      <td data-label="Reason">${esc(x.h.reason)}</td><td data-label="Reference">${esc(x.h.ref||"")}</td><td data-label="By">${esc(x.h.by||"")}</td><td data-label="Note">${esc(x.h.note||"")}</td>
+      <td class="act">${lk?"":`${x.open?`<button class="btn small" data-hend="${x.h.id}">Restarted now</button> `:""}<button class="btn danger small" data-hdel="${x.h.id}" aria-label="Remove hold">✕</button>`}</td></tr>`).join("")}</tbody></table>
+      <p class="small" style="margin:6px 0 0">${H.length} pause${H.length>1?"s":""} · ${fmin(sum(H.map(x=>x.d))/60000)} in total</p>`:`<p class="muted small" style="margin:0 0 8px">The push cycle was not on hold.</p>`}
+    ${lk?"":`<div class="loadgrid" style="margin-top:10px">
+      <div class="field"><label for="ho-from" class="req">On hold from</label><input id="ho-from" type="datetime-local"></div>
+      <div class="field"><label for="ho-to">Restarted at (empty = still on hold)</label><input id="ho-to" type="datetime-local"></div>
+      <div class="field wide"><label for="ho-reason">Reason</label><select id="ho-reason">${HOLD_REASONS.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
+      <div class="field"><label for="ho-ref">Reference (alarm record, …)</label><input id="ho-ref"></div>
+      <div class="field"><label for="ho-by">By</label><input id="ho-by"></div>
+      <div class="field wide"><label for="ho-note">Note</label><input id="ho-note"></div>
+      <div class="actions"><button class="btn small" id="b-hadd">Add hold</button><span class="msg" id="ho-msg"></span></div></div>`}`;
 }
 function drawBatches(){
   const R=curRep(),el=$("#batches");$("#rep-title").textContent=`Batches · ${VIEW.f} · ${fdate(VIEW.d)}`;
@@ -631,7 +648,7 @@ function drawKpis(){
   const heats=new Set(B.map(b=>txt(b.heat).toUpperCase()).filter(h=>h&&!isNA(h)));
   const inc=ks.filter(k=>k.incomplete).length+(R?trayIssues(R).filter(x=>x[0]==="crit").length:0);
   $("#kpis").innerHTML=[[T.length,"Trays",`${T.filter(t=>!t.items.length).length} empty · ${T.filter(t=>t.items.length>1).length} mixed`],[B.length,"Batches",`${heats.size} heat${heats.size===1?"":"s"}`],[f0(qty),"Pieces",""],
-    [f1(kg)+" <small style='font-size:13px'>kg</small>","Weight",rwkg?`${f1(rwkg)} kg rework`:`${f1(kg/1000)} t`],[T.filter(onHold).length,"Trays on hold","",T.some(onHold)?"bad":"ok"],
+    [f1(kg)+" <small style='font-size:13px'>kg</small>","Weight",rwkg?`${f1(rwkg)} kg rework`:`${f1(kg/1000)} t`],(()=>{const H=R?holdsOf(R):[];return [H.length,"Push cycle holds",H.length?`${fmin(sum(H.map(x=>x.d))/60000)} in total${H.some(x=>x.open)?" · still on hold":""}`:"none",H.some(x=>x.open)?"bad":H.length?"caution":"ok"];})(),
     [T.filter(t=>t.items.some(i=>i.rw)).length,"Rework trays","re-heat-treatment"],[inc,"Incomplete entries",inc?"must be completed before approval":"none",inc?"bad":"ok"]]
     .map(([v,l,s,c])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
 }
@@ -656,7 +673,7 @@ function drawApproval(){
   if(!R){el.innerHTML=`<div class="empty">Nothing to approve yet.</div>`;return;}
   const crit=incompleteCount(R),none=!R.tl.trays.length;
   const log=R.log.length?`<details style="margin-top:8px"><summary class="small muted" style="cursor:pointer">History (${R.log.length})</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${R.log.map(x=>`<li>${fdate(x.d)} — ${esc(x.t)}</li>`).join("")}</ul></details>`:"";
-  const msg=none?"Load the trays first.":crit?`${crit} incomplete entr${crit>1?"ies":"y"}.`:R.tl.trays.some(onHold)?"Trays on hold stay on hold after the approval.":"";
+  const msg=none?"Load the trays first.":crit?`${crit} incomplete entr${crit>1?"ies":"y"}.`:holdsOf(R).some(x=>x.open)?"The push cycle is still on hold: enter the time it restarted.":"";
   /* while the approver is being typed, only refresh the button and the message: rebuilding would drop the field */
   if(R.status!=="approved"&&$("#appr-by")&&el.dataset.rep===R.id){$("#b-approve").disabled=none||!!crit;$("#appr-msg").textContent=msg;return;}
   el.dataset.rep=R.status==="approved"?"":R.id;
@@ -695,7 +712,7 @@ function drawSearch(){
   const hits=DB.reports.flatMap(r=>batchesOf(r).filter(b=>[b.heat,b.heatCode,b.batch,b.part,b.rw&&b.rw.ref].some(v=>txt(v).toUpperCase().includes(q))).map(b=>({r,b,k:calcBatch(r,b)}))).sort((a,b)=>a.r.date<b.r.date?1:-1);
   $("#results").innerHTML=hits.length?`<table class="log cards"><thead><tr><th>Date</th><th>Furnace</th><th>Part</th><th>Batch no.</th><th>Heat no. / code</th><th class="n">Trays</th><th class="n">Pieces</th><th class="n">kg</th><th>Entry → exit</th><th>Report</th></tr></thead><tbody>${
     hits.map(({r,b,k})=>`<tr><td data-label="Date" class="n">${fdate(r.date)}</td><td data-label="Furnace">${esc(r.furnace)}</td><td data-label="Part">${esc(b.part)}${k.sp?` <span class="muted">${esc(k.sp.name||"")}</span>`:""}${b.rw?`<span class="tag rw">REWORK</span>`:""}</td>
-      <td data-label="Batch no.">${esc(b.batch)}</td><td data-label="Heat no. / code">${esc(b.heat)} / ${esc(b.heatCode)}</td><td data-label="Trays" class="n">${k.n}${b.trays.some(onHold)?` <span class="tag hold">HOLD</span>`:""}</td><td data-label="Pieces" class="n">${f0(b.qty)}</td><td data-label="kg" class="n">${f1(k.kg)}</td>
+      <td data-label="Batch no.">${esc(b.batch)}</td><td data-label="Heat no. / code">${esc(b.heat)} / ${esc(b.heatCode)}</td><td data-label="Trays" class="n">${k.n}</td><td data-label="Pieces" class="n">${f0(b.qty)}</td><td data-label="kg" class="n">${f1(k.kg)}</td>
       <td data-label="Entry → exit">${fdt(k.e)} → ${fdt(k.x)}</td><td data-label="Report"><button class="btn ghost small" data-goto="${esc(r.furnace)}|${r.date}">Open</button> ${r.status==="approved"?chip("good","✓","Approved"):chip("warn","…","Draft")}</td></tr>`).join("")}</tbody></table>
     <p class="muted small">${hits.length} batch${hits.length===1?"":"es"} · ${f0(sum(hits.map(h=>h.b.qty)))} pieces · ${f1(sum(hits.map(h=>h.k.kg||0)))} kg</p>`:`<div class="empty">Nothing found for “${esc(q)}”.</div>`;
 }
@@ -710,10 +727,10 @@ function drawSettings(){
 /* ---------- editing ---------- */
 function ensureRep(){
   let R=curRep(); if(R) return R;
-  R={id:"PR-"+String(DB.seq++).padStart(4,"0"),date:VIEW.d,furnace:VIEW.f,tl:emptyTl(),params:[],bx:{},status:"draft",created:todayISO(),log:[]};
+  R={id:"PR-"+String(DB.seq++).padStart(4,"0"),date:VIEW.d,furnace:VIEW.f,tl:emptyTl(),params:[],holds:[],bx:{},status:"draft",created:todayISO(),log:[]};
   logIt(R,"Report created"); DB.reports.push(R); return R;
 }
-const newTray=(tl,items)=>({id:"T"+String(tl.seq++).padStart(4,"0"),items:items||[],at:"",note:"",hold:null});
+const newTray=(tl,items)=>({id:"T"+String(tl.seq++).padStart(4,"0"),items:items||[],at:"",note:""});
 const lfItem=()=>{const it={part:txt(LOADF.part),batch:txt(LOADF.batch),heat:txt(LOADF.heat),heatCode:txt(LOADF.heatCode),qty:"",rw:null};
   if(LOADF.rw) it.rw={ref:txt(LOADF.rwRef),reason:txt(LOADF.rwReason)};const sp=specOf(it.part,VIEW.f);if(sp)it.part=sp.part;return it;};
 let LMSG={t:"",ok:false};
@@ -737,14 +754,14 @@ function addTrays(mode){
   LOADF.total="";const t=$("#lf-total");if(t)t.value="";
   const keep=document.activeElement;drawReport();drawSearch();if(keep&&keep.id&&$("#"+keep.id))$("#"+keep.id).focus();
 }
-/* tray dialog: contents, actual time, note and hold */
+/* tray dialog: contents, actual time and note */
 const tdlg=$("#tdlg");let TED=null;
 function openTray(R,id){
   const tr=R.tl.trays.find(t=>t.id===id);if(!tr)return;
   TED={rid:R.id,id,t:clone(tr),no:R.tl.trays.indexOf(tr)+1,lk:locked(R)};drawTdlg();tdlg.showModal();
 }
 function drawTdlg(msg){
-  const E=TED,t=E.t,R=DB.reports.find(r=>r.id===E.rid),lk=E.lk,dis=lk?" disabled":"",h=t.hold;
+  const E=TED,t=E.t,R=DB.reports.find(r=>r.id===E.rid),lk=E.lk,dis=lk?" disabled":"";
   const T=trayTimes(R,R.tl.trays.find(x=>x.id===E.id));
   tdlg.innerHTML=`<div class="dlg-h"><h2>Tray ${E.no} · ${esc(R.furnace)} · ${fdate(R.date)}</h2><span class="muted small">${T?`enters ${fdt(T.t)} · leaves the hardening chamber ${fdtShort(T.hOut,R.date)} · leaves the tempering chamber ${fdtShort(T.tOut,R.date)}`:""}</span></div>
   <div class="dlg-b">
@@ -757,22 +774,10 @@ function drawTdlg(msg){
       ${lk?"":`<div class="actions" style="margin-top:6px"><button class="btn ghost small" data-itadd="1">Add a part (mixed tray)</button></div>`}</section>
     <section class="fgrid"><div class="field"><label for="td-at">Actual entry time, if off the cycle</label><input id="td-at" type="datetime-local" value="${esc(t.at||"")}"${dis}></div>
       <div class="field" style="grid-column:span 2"><label for="td-note">Note</label><input id="td-note" value="${esc(t.note||"")}"${dis}></div></section>
-    <section><h3 style="margin-bottom:6px">Hold ${h&&!h.rel?`<span class="tag hold">ON HOLD</span>`:""}</h3>
-      ${!h?`<p class="muted small" style="margin:0 0 6px">Not on hold.</p><div class="fgrid">${holdFields({})}</div><div class="actions" style="margin-top:6px"><button class="btn ghost small" data-hold="1">Put on hold</button></div>`
-        :`<p class="small" style="margin:0 0 6px">On hold since ${fdt(tms(h.at))}${h.by?" by "+esc(h.by):""}: <b>${esc(h.reason)}</b>${h.ref?" · ref. "+esc(h.ref):""}${h.note?" · "+esc(h.note):""}</p>
-          ${h.rel?`<p class="small ok" style="margin:0">${esc(h.rel.disp)} · ${esc(h.rel.by||"")} · ${fdt(tms(h.rel.at))}${h.rel.note?" · "+esc(h.rel.note):""}</p>`:`<div class="fgrid">${relFields()}</div><div class="actions" style="margin-top:6px"><button class="btn small" data-release="1">Release</button></div>`}`}</section>
   </div>
   <div class="dlg-f"><span class="msg" id="td-msg">${esc(msg||"")}</span><button class="btn ghost" data-tclose="1">Close</button>${lk?"":`<button class="btn" data-tsave="1">Save</button>`}</div>
   ${partList()}`;
 }
-const holdFields=v=>`<div class="field"><label for="h-reason">Reason</label><select id="h-reason">${HOLD_REASONS.map(x=>`<option ${x===v.reason?"selected":""}>${esc(x)}</option>`).join("")}</select></div>
-  <div class="field"><label for="h-ref">Reference (alarm, SCADA review, test no.)</label><input id="h-ref" value="${esc(v.ref||"")}"></div><div class="field"><label for="h-at">Since</label><input id="h-at" type="datetime-local" value="${esc(v.at||nowLocal())}"></div>
-  <div class="field"><label for="h-by">By</label><input id="h-by" value="${esc(v.by||"")}"></div><div class="field span"><label for="h-note">Details</label><input id="h-note" value="${esc(v.note||"")}"></div>`;
-const relFields=()=>`<div class="field"><label for="r-disp">Disposition</label><select id="r-disp">${RELEASE.map(x=>`<option>${esc(x)}</option>`).join("")}</select></div>
-  <div class="field"><label for="r-by" class="req">Released by</label><input id="r-by"></div><div class="field"><label for="r-at">When</label><input id="r-at" type="datetime-local" value="${esc(nowLocal())}"></div>
-  <div class="field span"><label for="r-note">Check / evidence (e.g. hardness test no.)</label><input id="r-note"></div>`;
-const readHold=()=>({reason:$("#h-reason").value,ref:txt($("#h-ref").value),at:$("#h-at").value||nowLocal(),by:txt($("#h-by").value),note:txt($("#h-note").value),rel:null});
-const readRel=()=>({disp:$("#r-disp").value,by:txt($("#r-by").value),at:$("#r-at").value||nowLocal(),note:txt($("#r-note").value)});
 tdlg.addEventListener("input",e=>{const el=e.target;if(!TED||TED.lk||!el.dataset.it)return;const [j,f]=el.dataset.it.split("|"),it=TED.t.items[+j];if(!it)return;
   if(f==="rw") it.rw=txt(el.value)?{...(it.rw||{}),ref:txt(el.value)}:null; else it[f]=f==="qty"?(num(el.value)??""):el.value;});
 tdlg.addEventListener("click",e=>{
@@ -781,17 +786,15 @@ tdlg.addEventListener("click",e=>{
   if(b.dataset.tclose){tdlg.close();TED=null;return;}
   if(b.dataset.itadd){readMain();const last=TED.t.items.at(-1);TED.t.items.push({part:"",batch:"",heat:"",heatCode:"",qty:"",rw:last&&last.rw?{...last.rw}:null});drawTdlg();return;}
   if(b.dataset.itdel!=null){readMain();TED.t.items.splice(+b.dataset.itdel,1);drawTdlg();return;}
-  if(b.dataset.hold){readMain();const h=readHold();if(!h.by){drawTdlg("Enter who put the tray on hold.");return;}tr.hold=h;TED.t.hold=clone(h);logIt(R,`Tray ${TED.no} put on hold: ${h.reason}`);save();drawReport();drawTdlg("Tray put on hold.");return;}
-  if(b.dataset.release){const r=readRel();if(!r.by){drawTdlg("Enter who released the tray.");return;}tr.hold.rel=r;TED.t.hold=clone(tr.hold);logIt(R,`Tray ${TED.no} released from hold: ${r.disp}${r.note?" ("+r.note+")":""}`);save();drawReport();drawTdlg("Tray released.");return;}
   if(b.dataset.tsave){readMain();
     TED.t.items.forEach(it=>{it.part=txt(it.part);const sp=specOf(it.part,R.furnace);if(sp)it.part=sp.part;["batch","heat","heatCode"].forEach(k=>it[k]=txt(it[k]));});
-    const i=R.tl.trays.indexOf(tr);R.tl.trays[i]={...TED.t,hold:tr.hold};logIt(R,`Tray ${TED.no} edited`);save();drawReport();drawSearch();tdlg.close();TED=null;return;}
+    const i=R.tl.trays.indexOf(tr);R.tl.trays[i]={...TED.t};logIt(R,`Tray ${TED.no} edited`);save();drawReport();drawSearch();tdlg.close();TED=null;return;}
 });
 /* bulk actions on the selected trays */
 function bulkDlg(kind){
   const R=curRep();if(!R||!SEL.size)return;const ids=[...SEL];
-  TED=null;tdlg.innerHTML=`<div class="dlg-h"><h2>${{hold:"Put on hold",release:"Release",rework:"Mark as rework"}[kind]} · ${ids.length} tray${ids.length>1?"s":""}</h2><span class="muted small">trays ${ids.map(id=>R.tl.trays.findIndex(t=>t.id===id)+1).sort((a,b)=>a-b).join(", ")}</span></div>
-    <div class="dlg-b"><div class="fgrid">${kind==="hold"?holdFields({}):kind==="release"?relFields():`<div class="field"><label for="rw-ref" class="req">Original report / nonconformance no.</label><input id="rw-ref"></div><div class="field span"><label for="rw-reason">Reason for the rework</label><input id="rw-reason"></div>`}</div></div>
+  TED=null;tdlg.innerHTML=`<div class="dlg-h"><h2>Mark as rework · ${ids.length} tray${ids.length>1?"s":""}</h2><span class="muted small">trays ${ids.map(id=>R.tl.trays.findIndex(t=>t.id===id)+1).sort((a,b)=>a-b).join(", ")}</span></div>
+    <div class="dlg-b"><div class="fgrid">${`<div class="field"><label for="rw-ref" class="req">Original report / nonconformance no.</label><input id="rw-ref"></div><div class="field span"><label for="rw-reason">Reason for the rework</label><input id="rw-reason"></div>`}</div></div>
     <div class="dlg-f"><span class="msg" id="bk-msg"></span><button class="btn ghost" data-bclose="1">Cancel</button><button class="btn" data-bok="${kind}">Apply</button></div>`;
   tdlg.showModal();
 }
@@ -799,8 +802,6 @@ tdlg.addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b||TED)return;
   if(b.dataset.bclose){tdlg.close();return;}
   if(b.dataset.bok){const R=curRep(),k=b.dataset.bok,T=R.tl.trays.filter(t=>SEL.has(t.id)),nos=T.map(t=>R.tl.trays.indexOf(t)+1).join(", ");
-    if(k==="hold"){const h=readHold();if(!h.by){$("#bk-msg").textContent="Enter who put the trays on hold.";return;}T.forEach(t=>{if(!onHold(t))t.hold=clone(h);});logIt(R,`Trays ${nos} put on hold: ${h.reason}`);}
-    if(k==="release"){const r=readRel();if(!r.by){$("#bk-msg").textContent="Enter who released the trays.";return;}T.forEach(t=>{if(onHold(t))t.hold.rel=clone(r);});logIt(R,`Trays ${nos} released from hold: ${r.disp}`);}
     if(k==="rework"){const ref=txt($("#rw-ref").value);if(!ref){$("#bk-msg").textContent="Enter the original report / nonconformance no.";return;}const rw={ref,reason:txt($("#rw-reason").value)};T.forEach(t=>t.items.forEach(it=>it.rw={...rw}));logIt(R,`Trays ${nos} marked as rework of ${ref}`);}
     SEL.clear();save();drawReport();drawSearch();tdlg.close();}
 });
@@ -835,7 +836,8 @@ document.addEventListener("click",e=>{
   if(t.dataset.tins){if(locked(R))return;const i=R.tl.trays.findIndex(x=>x.id===t.dataset.tins);if(i>=0){R.tl.trays.splice(i,0,newTray(R.tl));logIt(R,`Empty tray inserted before tray ${i+1}`);save();drawReport();}return;}
   if(t.dataset.tdel){if(locked(R))return;const i=R.tl.trays.findIndex(x=>x.id===t.dataset.tdel),tr=R.tl.trays[i];if(tr&&(!tr.items.length||confirm(`Remove tray ${i+1} (${tr.items.map(x=>x.part+" "+x.batch).join(" + ")})?`))){R.tl.trays.splice(i,1);logIt(R,`Tray ${i+1} removed`);save();drawReport();drawSearch();}return;}
   if(t.dataset.bulk){const k=t.dataset.bulk;if(k==="delete"){const n=SEL.size;if(n&&confirm(`Delete ${n} selected tray${n>1?"s":""}?`)){R.tl.trays=R.tl.trays.filter(x=>!SEL.has(x.id));logIt(R,`${n} tray${n>1?"s":""} deleted`);SEL.clear();save();drawReport();drawSearch();}return;}bulkDlg(k);return;}
-  if(t.dataset.rel){const [rid,tid]=t.dataset.rel.split("|"),R2=DB.reports.find(r=>r.id===rid);if(R2)openTray(R2,tid);return;}
+  if(t.dataset.hdel){if(locked(R))return;R.holds=R.holds.filter(h=>h.id!==t.dataset.hdel);logIt(R,"Push cycle hold removed");save();drawReport();drawSearch();return;}
+  if(t.dataset.hend){if(locked(R))return;const h=R.holds.find(x=>x.id===t.dataset.hend);if(h){h.to=nowLocal();logIt(R,`Push cycle restarted at ${h.to.slice(11,16)} (on hold since ${String(h.from).slice(11,16)})`);save();drawReport();drawSearch();}return;}
   if(t.dataset.pdel){if(locked(R))return;R.params=R.params.filter(p=>p.id!==t.dataset.pdel);logIt(R,"Process parameter change removed");save();drawReport();return;}
   if(t.dataset.delspec!=null){DB.specs.splice(+t.dataset.delspec,1);save();drawSpecs();drawReport();return;}
   if(t.dataset.goto){const [f,d]=t.dataset.goto.split("|");VIEW.f=f;VIEW.d=d;SEL.clear();saveView();render();scrollTo({top:0});return;}
@@ -849,6 +851,11 @@ document.addEventListener("click",e=>{
       const id="P"+(1+Math.max(0,...R2.params.map(p=>+(String(p.id).match(/\d+/)||[0])[0])));
       R2.params.push({id,at,kind,zone:kind==="hset"||kind==="tset"?zone:"",what:txt($("#pc-what").value),from:txt($("#pc-from").value),to,reason:txt($("#pc-reason").value),by:txt($("#pc-by").value)});
       logIt(R2,`${PARAMS[kind][0]}${zone?" zone "+zone:""} changed to ${to} at ${at.slice(11,16)}`);save();drawReport();break;}
+    case "b-hadd":{const R2=ensureRep();if(locked(R2))return;const from=$("#ho-from").value,to=$("#ho-to").value;
+      if(!tms(from)){$("#ho-msg").textContent="Enter the time the push cycle was put on hold.";return;}if(to&&tms(to)<=tms(from)){$("#ho-msg").textContent="The restart must be after the start of the hold.";return;}
+      const id="H"+(1+Math.max(0,...R2.holds.map(h=>+(String(h.id).match(/\d+/)||[0])[0])));
+      R2.holds.push({id,from,to:to||"",reason:$("#ho-reason").value,ref:txt($("#ho-ref").value),by:txt($("#ho-by").value),note:txt($("#ho-note").value)});
+      logIt(R2,`Push cycle on hold from ${from.slice(11,16)}${to?" to "+to.slice(11,16):""}: ${$("#ho-reason").value}`);save();drawReport();drawSearch();break;}
     case "b-delrep":{if(R&&!R.tl.trays.length){DB.reports=DB.reports.filter(x=>x!==R);save();drawReport();}break;}
     case "b-approve":{const by=txt($("#appr-by").value);if(!by){$("#appr-msg").textContent="Enter who approves the report.";return;}
       R.status="approved";R.apprBy=by;R.apprDate=todayISO();logIt(R,`Approved by ${by}`);SEL.clear();save();drawReport();drawSearch();break;}
@@ -909,16 +916,15 @@ function xlsxBlob(sheets){
 const repName=()=>`Production report ${VIEW.f} ${VIEW.d}`.replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-");
 function prodTables(R){
   const B=batchesOf(R),ks=B.map(b=>calcBatch(R,b)),T=groupTotals(R),s=S();
-  const trays={head:["Tray","Enters hardening","Push min","Part no.","Batch no.","Heat no.","Heat code","Pieces","Rework of","Load %","Leaves hardening","Leaves tempering","Status","Actual entry","Note"],
-    rows:R.tl.trays.flatMap((tr,i)=>{const Tt=trayTimes(R,tr),ld=trayLoad(R,tr),st=tr.hold?(tr.hold.rel?`was on hold (${tr.hold.reason}) · ${tr.hold.rel.disp}`:`ON HOLD: ${tr.hold.reason}`):"";
-      const base=[i+1,Tt?fdt(Tt.t):"",Tt?Tt.p:""],tail=[tr.items.length?Math.round(ld*100):"",Tt?fdt(Tt.hOut):"",Tt?fdt(Tt.tOut):"",st,tr.at?fdt(tms(tr.at)):"",tr.note||""];
-      return tr.items.length?tr.items.map((it,j)=>[...(j?["","",""]:base),it.part,it.batch,it.heat,it.heatCode,num(it.qty)??"",it.rw?it.rw.ref:"",...(j?["","","","","","",""]:tail)]):[[...base,"empty","","","","","",...tail]];})};
-  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Rework of","Trays","Pieces","Weight kg","Weighed kg","Entry (hardening)","Exit (tempering)","Push min","Time in furnace","Trays on hold","Remarks"];
-  const rows=B.map((b,i)=>{const k=ks[i],bx=R.bx[b.key]||{};return [i+1,k.sp?.part||b.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",b.batch,b.heat,b.heatCode,b.rw?b.rw.ref:"",k.n,b.qty,k.kg!=null?Math.round(k.kg*10)/10:"",num(bx.weighed)??"",fdt(k.e),fdt(k.x),k.pushTxt||"",k.mins!=null?fmin(k.mins):"",b.trays.filter(onHold).length||"",[...k.issues.map(x=>x[1]),bx.note].filter(Boolean).join(" | ")];});
+  const trays={head:["Tray","Enters hardening","Push min","Part no.","Batch no.","Heat no.","Heat code","Pieces","Rework of","Load %","Leaves hardening","Leaves tempering","Actual entry","Note"],
+    rows:R.tl.trays.flatMap((tr,i)=>{const Tt=trayTimes(R,tr),ld=trayLoad(R,tr);
+      const base=[i+1,Tt?fdt(Tt.t):"",Tt?Tt.p:""],tail=[tr.items.length?Math.round(ld*100):"",Tt?fdt(Tt.hOut):"",Tt?fdt(Tt.tOut):"",tr.at?fdt(tms(tr.at)):"",tr.note||""];
+      return tr.items.length?tr.items.map((it,j)=>[...(j?["","",""]:base),it.part,it.batch,it.heat,it.heatCode,num(it.qty)??"",it.rw?it.rw.ref:"",...(j?["","","","","",""]:tail)]):[[...base,"empty","","","","","",...tail]];})};
+  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Rework of","Trays","Pieces","Weight kg","Weighed kg","Entry (hardening)","Exit (tempering)","Push min","Time in furnace","Remarks"];
+  const rows=B.map((b,i)=>{const k=ks[i],bx=R.bx[b.key]||{};return [i+1,k.sp?.part||b.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",b.batch,b.heat,b.heatCode,b.rw?b.rw.ref:"",k.n,b.qty,k.kg!=null?Math.round(k.kg*10)/10:"",num(bx.weighed)??"",fdt(k.e),fdt(k.x),k.pushTxt||"",k.mins!=null?fmin(k.mins):"",[...k.issues.map(x=>x[1]),bx.note].filter(Boolean).join(" | ")];});
   const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Batch in zone from","to"],rows:B.flatMap((b,i)=>(ks[i].zones||[]).map(z=>[i+1,b.batch,b.part,z.ch,z.z,fdt(z.from),fdt(z.to)]))};
   const params={head:["Time","Parameter","Zone","From","To","Reason","By"],rows:[[fdt(tms(R.tl.start)),"Push time (at the start)","","",tlPush0(R)??"","",""],...(R.params||[]).slice().sort((a,b)=>(a.at||"")<(b.at||"")?-1:1).map(p=>[fdt(tms(p.at)),(PARAMS[p.kind]||PARAMS.other)[0]+(p.what?": "+p.what:""),p.zone||"",p.from||"",p.to||"",p.reason||"",p.by||""])]};
-  const holds={head:["Tray","Contents","On hold since","By","Reason","Reference","Details","Disposition","Released by","Released","Evidence"],rows:R.tl.trays.map((t,i)=>({t,i})).filter(x=>x.t.hold).map(({t,i})=>{const h=t.hold,r=h.rel||{};
-    return [i+1,t.items.map(it=>`${it.part} ${it.batch} × ${it.qty}`).join(" + ")||"empty",fdt(tms(h.at)),h.by||"",h.reason,h.ref||"",h.note||"",r.disp||"ON HOLD",r.by||"",r.at?fdt(tms(r.at)):"",r.note||""];})};
+  const holds={head:["On hold from","Restarted","Duration","Reason","Reference","By","Note"],rows:holdsOf(R).map(x=>[fdt(x.f),x.open?"not ended":fdt(x.t),fmin(x.d/60000),x.h.reason,x.h.ref||"",x.h.by||"",x.h.note||""])};
   const usedParts=[...new Set(B.map(b=>txt(b.part).toUpperCase()))].map(p=>specOf(p,R.furnace)).filter(Boolean);
   const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
     rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
@@ -927,7 +933,7 @@ function prodTables(R){
     ["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"]];
   const Tr=R.tl.trays;
   const summary=[["Report",R.id],["Furnace",R.furnace],["Production date",fdate(R.date)],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],["First tray entered",fdt(tms(R.tl.start))],
-    ["Trays",`${Tr.length} (${Tr.filter(t=>!t.items.length).length} empty, ${Tr.filter(t=>t.items.length>1).length} mixed)`],["Trays on hold",Tr.filter(onHold).length],["Rework trays",Tr.filter(t=>t.items.some(i=>i.rw)).length],["Batches",B.length],
+    ["Trays",`${Tr.length} (${Tr.filter(t=>!t.items.length).length} empty, ${Tr.filter(t=>t.items.length>1).length} mixed)`],["Push cycle on hold",(()=>{const H=holdsOf(R);return H.length?`${H.length}× · ${fmin(sum(H.map(x=>x.d))/60000)}`:"no";})()],["Rework trays",Tr.filter(t=>t.items.some(i=>i.rw)).length],["Batches",B.length],
     ["Pieces",sum(B.map(b=>b.qty))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Incomplete entries",incompleteCount(R)],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
   return {summary,trays,batch:{head,rows},zones,params,holds,specs,parts:tot(T.parts),heats:tot(T.heats),procs:tot(T.procs),settings,hist:R.log.map(x=>[fdate(x.d),x.t])};
 }
@@ -937,9 +943,9 @@ function prodXlsx(){
   const sheets=[
     {name:"Summary",widths:[34,46],rows:[B(["Production report"]),N([]),...T.summary.map(N)]},
     {name:"Trays",widths:[6,18,8,14,14,12,10,8,14,7,18,18,34,18,30],rows:[B([`Tray log · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.trays.head,T.trays.rows)]},
-    {name:"Batches",widths:[5,14,24,14,22,14,12,10,14,7,9,11,11,18,18,9,14,8,60],rows:[B([`Batches · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
+    {name:"Batches",widths:[5,14,24,14,22,14,12,10,14,7,9,11,11,18,18,9,14,60],rows:[B([`Batches · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
     {name:"Parameter changes",widths:[18,34,7,10,10,40,16],rows:[B(["Process parameter changes"]),N([]),...tbl(T.params.head,T.params.rows)]},
-    {name:"Holds",widths:[6,40,18,14,36,18,30,30,14,18,30],rows:[B(["Trays on hold"]),N([]),...tbl(T.holds.head,T.holds.rows)]},
+    {name:"Holds",widths:[18,18,10,36,20,16,40],rows:[B(["Push cycle on hold"]),N([]),...tbl(T.holds.head,T.holds.rows)]},
     {name:"Totals",widths:[40,10,8,12,12],rows:[B(["Per part"]),...tbl(["Part","Batches","Trays","Pieces","kg"],T.parts),N([]),B(["Per heat"]),...tbl(["Heat no. / code","Batches","Trays","Pieces","kg"],T.heats),N([]),B(["Per process"]),...tbl(["Process","Batches","Trays","Pieces","kg"],T.procs)]},
     {name:"Zone windows",widths:[5,14,14,18,7,20,20],rows:[B(["When each batch was in each zone (first tray in → last tray out)"]),N([]),...tbl(T.zones.head,T.zones.rows)]},
     {name:"Specifications",widths:[14,24,14,22,9,9,9,9,9,9,9,12,12,10,10],rows:[B(["Process specifications of the parts in this report"]),N([]),...tbl(T.specs.head,T.specs.rows)]},
@@ -951,8 +957,8 @@ function prodPdf(){
   const T=prodTables(R),e=esc;
   const table=(h,rows,cls="")=>rows.length?`<table class="${cls}"><thead><tr>${h.map(x=>`<th>${e(x)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
   const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join("")}</tbody></table>`;
-  const bh=["#","Part","Process","Batch","Heat / code","Rework of","Trays","Pcs","kg","Entry → exit","Push","On hold","Remarks"];
-  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,r[8],r[9],r[10],r[11],`${r[13]} → ${r[14]}`,r[15],r[17],r[18]]);
+  const bh=["#","Part","Process","Batch","Heat / code","Rework of","Trays","Pcs","kg","Entry → exit","Push","In furnace","Remarks"];
+  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,r[8],r[9],r[10],r[11],`${r[13]} → ${r[14]}`,r[15],r[16],r[17]]);
   const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(repName())}</title><style>
     @page{size:A4 landscape;margin:10mm}
     body{font:10px/1.35 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -973,7 +979,7 @@ function prodPdf(){
   <h2>Batches</h2>${table(bh,br)}
   <h2>Tray log</h2>${table(T.trays.head,T.trays.rows)}
   <h2>Process parameter changes</h2>${table(T.params.head,T.params.rows)}
-  <h2>Trays on hold</h2>${table(T.holds.head,T.holds.rows)}
+  <h2>Push cycle on hold</h2>${table(T.holds.head,T.holds.rows)}
   <h2>Totals</h2><div class="three"><div>${table(["Part","Batches","Trays","Pieces","kg"],T.parts)}</div><div>${table(["Heat no. / code","Batches","Trays","Pieces","kg"],T.heats)}</div><div>${table(["Process","Batches","Trays","Pieces","kg"],T.procs)}</div></div>
   <h2>Process specifications of the parts in this report</h2>${table(T.specs.head,T.specs.rows)}
   <h2>When each batch was in each zone</h2>${table(T.zones.head,T.zones.rows)}
@@ -995,8 +1001,8 @@ function example(){
     {part:"MW-3307",name:"Shaft Ø32 × 410",grade:"42CrMo4",proc:P_HT,h:["840","860","860"],t:["580","580","580"],push:"15",cc:"",fan:"",perTray:"24",wt:"2.6"},
     {part:"MW-7120",name:"Forged flange",grade:"16MnCr5",proc:P_IA,h:["900","940","940"],t:["650","650","650"],push:"18",cc:"12",fan:"",perTray:"30",wt:"1.2"},
     {part:"MW-2205",name:"Connecting rod",grade:"C45",proc:P_NO,h:["720","740","740"],t:["870","890","890"],push:"18",cc:"",fan:"20",perTray:"50",wt:"0.95"}];
-  const R={id:"PR-0001",date:d,furnace:"F-04",tl:{start:dt("06:10"),push:"12",trays:[],seq:1},params:[],bx:{},status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
-  const T=(items,extra)=>{const t={id:"T"+String(R.tl.seq++).padStart(4,"0"),items,at:"",note:"",hold:null,...(extra||{})};R.tl.trays.push(t);return t;};
+  const R={id:"PR-0001",date:d,furnace:"F-04",tl:{start:dt("06:10"),push:"12",trays:[],seq:1},params:[],holds:[],bx:{},status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
+  const T=(items,extra)=>{const t={id:"T"+String(R.tl.seq++).padStart(4,"0"),items,at:"",note:"",...(extra||{})};R.tl.trays.push(t);return t;};
   const it=(part,batch,heat,heatCode,qty,rw)=>({part,batch,heat,heatCode,qty,rw:rw||null});
   for(let i=0;i<10;i++) T([it("MW-4512","F4-2610-01","H-24519","K7",40)]);
   for(let i=0;i<8;i++) T([it("MW-4512","F4-2610-02","H-24519","K7",40)]);
@@ -1008,18 +1014,17 @@ function example(){
   for(let i=0;i<3;i++) T([it("MW-3307","F4-2609-11","H-24577","M2",24,rw)]);
   T([],{note:"Empty: change to isothermal annealing"});T([]);
   for(let i=0;i<9;i++) T([it("MW-7120","F4-2610-04","H-24601","T9",30)]);
-  T([]);const st=T([],{note:"Pusher stopped 20 min (tray jam), restarted; empty: change to normalizing"});
+  T([]);T([],{note:"Empty: change to normalizing"});
   for(let i=0;i<9;i++) T([it("MW-2205","F4-2610-05","N/A","N4",50)]);T([it("MW-2205","F4-2610-05","N/A","N4",30)]);
   T([],{note:"Empty trays to push the last batch through"});T([]);T([]);
   /* timing: push changes and the stop */
   R.params.push({id:"P1",at:dt("09:46"),kind:"push",zone:"",from:"12",to:"15",reason:"MW-3307 (42CrMo4) needs 15 min",by:"Shift supervisor"});
-  st.at=dt("16:52");
-  R.params.push({id:"P2",at:dt("13:31"),kind:"push",zone:"",from:"15",to:"18",reason:"Isothermal annealing MW-7120 (controlled cooling 12 min)",by:"Shift supervisor"});
+  R.params.push({id:"P2",at:dt("13:43"),kind:"push",zone:"",from:"15",to:"18",reason:"Isothermal annealing MW-7120 (controlled cooling 12 min)",by:"Shift supervisor"});
   R.params.push({id:"P3",at:dt("11:20"),kind:"hset",zone:"2",from:"880",to:"870",reason:"Zone 2 overshoot, set value lowered temporarily",by:"HT operator"});
   R.params.push({id:"P4",at:dt("12:05"),kind:"hset",zone:"2",from:"870",to:"860",reason:"Back to the MW-3307 set value",by:"HT operator"});
-  /* trays held after the zone 2 change; one released, the rest waiting for the hardness test */
-  const held={reason:HOLD_REASONS[2],ref:"Hardening zone 2 at 870 °C 11:20–12:05",at:dt("12:10"),by:"Quality inspector",note:"Hardness check of the trays that were in zone 2",rel:null};
-  R.tl.trays.slice(18,22).forEach((t,i)=>t.hold=clone(i===0?{...held,rel:{disp:RELEASE[0],by:"Quality Manager",at:dt("15:30"),note:"MT-0007 hardness within limits"}}:held));
+  /* pauses of the push cycle */
+  R.holds.push({id:"H1",from:dt("10:20"),to:dt("10:32"),reason:"Burner / temperature not in tolerance",ref:"",by:"Shift supervisor",note:"Zone 2 below tolerance after burner 2R flame failure"});
+  R.holds.push({id:"H2",from:dt("16:47"),to:dt("17:08"),reason:"Pusher or tray jam",ref:"Alarm log",by:"Shift supervisor",note:"Tray jammed at the hardening chamber exit; extractor reset"});
   o.reports.push(R);o.seq=2;
   return o;
 }
@@ -1036,11 +1041,12 @@ render();
 if(!DB.specs.length&&!DB.reports.length) $("#setup").open=true;
 window.__PROD={get DB(){return DB;},batchesOf,calcBatch,trayTimes,specOf,timeline,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();},LOADF};
 /* offered to the suite once everything above is defined: rows = the batches built from the trays (shape used by the SCADA review, the
-   Alarms page and the home page), trays = the tray log with holds */
+   Alarms page and the home page), trays = the tray log, holds = the pauses of the push cycle */
 if(HTQ) HTQ.provide("prod",{reports:()=>DB.reports.map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.status,
   rows:batchesOf(r).map(b=>{const k=calcBatch(r,b);return {id:b.key,part:b.part,batch:b.batch,heat:b.heat,heatCode:b.heatCode,qty:b.qty,rework:b.rw?b.rw.ref:"",entry:k.e!=null?iso(k.e):"",exit:k.x!=null?iso(k.x):"",
-    spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lvl:k.incomplete?"crit":k.lvl,hold:b.trays.filter(onHold).length};}),
-  trays:r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),hold:onHold(tr)?{reason:tr.hold.reason,at:tr.hold.at,ref:tr.hold.ref||""}:null,
+    spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lvl:k.incomplete?"crit":k.lvl};}),
+  holds:holdsOf(r).map(x=>({from:x.f,to:x.open?null:x.t,min:Math.round(x.d/60000),reason:x.h.reason,open:x.open})),
+  trays:r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),
     items:tr.items.map(it=>({part:it.part,batch:it.batch,heat:it.heat,qty:num(it.qty),rework:it.rw?it.rw.ref:""}))};})}))});
 </script>
 </body></html>
