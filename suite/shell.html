@@ -52,6 +52,7 @@ nav.mods{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px;paddin
 .ddh.on .cur,.ddh.on .car{color:inherit;opacity:.8}
 .menu{position:absolute;top:calc(100% + 4px);left:0;min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:4px;display:flex;flex-direction:column;gap:2px}
 .menu[hidden]{display:none}
+.menu::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px} /* bridges the gap under the heading so the pointer can reach the menu */
 .dd.right .menu{left:auto;right:0}
 .menu .tab{font:inherit;font-weight:500;color:var(--ink);background:none;border:0;padding:8px 10px;border-radius:4px;cursor:pointer;white-space:nowrap;display:flex;gap:8px;align-items:center;text-align:left;width:100%}
 .menu .tab .long{flex:1}
@@ -256,7 +257,7 @@ function show(page){
     const f=$("#page-"+p); if(on) f.removeAttribute("data-off"); else f.setAttribute("data-off",""); });
   if(location.hash!=="#"+page) history.replaceState(null,"","#"+page);
   if(page==="home") renderHome();
-  syncNav();
+  clearTimeout(HOV); closeMenus(); syncNav();
 }
 /* ---------- navigation: a dropdown menu under each heading ---------- */
 const DDS=[...document.querySelectorAll(".dd")];
@@ -275,11 +276,17 @@ function syncNav(){
 }
 const NAVOBS=new MutationObserver(()=>syncNav());
 document.querySelectorAll(".menu .badge").forEach(b=>NAVOBS.observe(b,{attributes:true,childList:true,characterData:true,subtree:true}));
-document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ closeMenus(); show(b.dataset.page); }));
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{ clearTimeout(HOV); closeMenus(); show(b.dataset.page); }));
+/* a mouse opens a menu by pointing at its heading and closes it on leaving the heading and the menu (short grace so the pointer
+   can cross to the menu); touch and pen still open and close it by tapping the heading */
+let PTR="mouse", HOV=0;
+const hoverIn=(d,ms)=>{ clearTimeout(HOV); HOV=setTimeout(()=>openMenu(d),ms); };
+const hoverOut=()=>{ clearTimeout(HOV); HOV=setTimeout(()=>{ if(!$("nav.mods").contains(document.activeElement)||document.activeElement.classList.contains("ddh")) closeMenus(); },250); };
 DDS.forEach(d=>{ const h=d.querySelector(".ddh");
-  h.addEventListener("click",()=>{ if(d.querySelector(".menu").hidden) openMenu(d); else closeMenus(); });
-  /* menubar behaviour: with one menu open, pointing at another heading opens that one */
-  h.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse"&&anyOpen()&&d.querySelector(".menu").hidden) openMenu(d); });
+  h.addEventListener("pointerdown",e=>{ PTR=e.pointerType; });
+  h.addEventListener("click",()=>{ const shut=d.querySelector(".menu").hidden; if(PTR==="mouse") openMenu(d); else if(shut) openMenu(d); else closeMenus(); });
+  d.addEventListener("pointerenter",e=>{ if(e.pointerType==="mouse") hoverIn(d,anyOpen()?0:60); });
+  d.addEventListener("pointerleave",e=>{ if(e.pointerType==="mouse") hoverOut(); });
   h.addEventListener("keydown",e=>{ if(e.key==="ArrowDown"||e.key==="Enter"||e.key===" "){ e.preventDefault(); openMenu(d,"first"); } else if(e.key==="ArrowUp"){ e.preventDefault(); openMenu(d,"last"); } });
   d.querySelector(".menu").addEventListener("keydown",e=>{ const items=[...d.querySelectorAll(".menu .tab")], i=items.indexOf(document.activeElement);
     if(e.key==="ArrowDown"||e.key==="ArrowUp"){ e.preventDefault(); items[(i+(e.key==="ArrowDown"?1:-1)+items.length)%items.length].focus(); }
