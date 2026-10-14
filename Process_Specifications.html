@@ -260,7 +260,7 @@ table.zones td.n{font-family:var(--mono);white-space:nowrap}
     <ul>
       <li>CQI-9 4th Edition: hardening &amp; tempering (with the quench) is covered by Process Table A; normalizing and isothermal annealing by Process Table E. Confirm the table letters and every numeric requirement against the controlled copy of CQI-9 and the customer-specific requirements.</li>
       <li>A specification holds the part, steel grade, process, the furnaces it is approved for, the load, the set value and tolerance of every zone, the push time, the quench or controlled-cooling parameters, the quality requirements with sampling, and the approval.</li>
-      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = (positions of both chambers) × push time + time between the chambers. Hardening chamber 13 positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). Between the chambers: hardening &amp; tempering = quench delay + dip time + transfer; isothermal annealing = the controlled cooling cycle: at each push the extractor takes the 13th tray out of the hardening chamber (and the 26th out of the tempering chamber); the tray goes on the rail into the controlled cooling chamber, air is blown for the cooling time, then it is pushed into the tempering chamber. Cooling time + transfers (setting) must end before the next push, because the controlled cooling chamber holds one tray; normalizing = transfer.</li>
+      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = (positions of both chambers) × push time: a tray is taken out of the hardening chamber and out of the tempering chamber at a push, so the time between the chambers shortens the last tempering zone instead of adding to the total. Hardening chamber 13 positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). Between the chambers: hardening &amp; tempering = quench delay + dip time + transfer; isothermal annealing = the controlled cooling cycle: at each push the extractor takes the 13th tray out of the hardening chamber (and the 26th out of the tempering chamber); the tray goes on the rail into the controlled cooling chamber, air is blown for the cooling time, then it is pushed into the tempering chamber. Cooling time + transfers (setting) must end before the next push, because the controlled cooling chamber holds one tray; normalizing = transfer.</li>
       <li>The line checks (hardening chamber above 800 °C for hardening and isothermal annealing, 700–750 °C preheat for normalizing, tempering below the austenitizing set value) follow this line's practice; they are warnings, not CQI-9 requirements.</li>
       <li>The furnaces are direct-fired without a protective atmosphere, so scale and surface decarburization are expected: specify the decarburization limit and check it.</li>
     </ul>
@@ -358,6 +358,9 @@ function calc(s){
   const gapPos=0,gapMin=s.proc==="HT"?(num(s.q.delay)||0)/60+(num(s.q.dip)||0)+(num(s.q.transfer)||0):s.proc==="IA"?(cool||0)+xfer:(num(s.nm.transfer)||0);
   const between=gapMin;
   const pcs=num(s.pcs),wt=num(s.wt),trayKg=pcs!=null&&wt!=null?pcs*wt:null;
+  /* the tray enters the tempering chamber the gap after the push and is taken out at a push: the last tempering zone is shorter by the gap,
+     and the time through the line is (hardening + tempering positions) × push */
+  if(zt.length) zt[zt.length-1]=Math.max(0,zt.at(-1)-between);
   return {zh,zt,ch:sum(zh),ct:sum(zt),between,gapPos,gapMin,cool,xfer,idle:cool!=null?p-gapMin:null,total:sum(zh)+sum(zt)+between,trays:60/p,pcsH:pcs!=null?60/p*pcs:null,trayKg,kgH:trayKg!=null?60/p*trayKg:null,PH,PT};
 }
 /* ---------- approval gate and line checks ---------- */
