@@ -347,7 +347,11 @@ const furnaces=()=>{const a=HTQ&&HTQ.api("sat"),l=a?a.furnaces():["F-01","F-02",
 const specs=()=>{const a=HTQ&&HTQ.api("spec");return a&&a.inForce?a.inForce():[];};
 const tsKey=t=>(t.date||"")+" "+(t.time||"00:00");
 const byTime=(a,b)=>tsKey(a)<tsKey(b)?-1:tsKey(a)>tsKey(b)?1:0;
-const same=(a,b)=>String(a||"").trim().toLowerCase()===String(b||"").trim().toLowerCase();
+/* "N/A" (also "NA", "not available") means the value is not available: it is accepted as an entry but never used to match records */
+const isNA=v=>/^(n\s*\/?\s*a|not\s+available)$/i.test(String(v??"").trim());
+const same=(a,b)=>!isNA(a)&&!isNA(b)&&String(a||"").trim().toLowerCase()===String(b||"").trim().toLowerCase();
+/* what identifies the batch for a re-test: the batch no., else the heat no., else the heat code (the first one available) */
+const idKey=t=>[["batch","batch"],["heat","heat no."],["heatCode","heat code"]].find(([k])=>String(t[k]||"").trim()&&!isNA(t[k]))||null;
 const newId=()=>"MT-"+String(DB.seq++).padStart(4,"0");
 const logIt=(t,text)=>t.log.push({d:today(),t:text});
 /* page filter (per viewer) */
@@ -403,15 +407,22 @@ function evalT(t){
 const status=t=>{const E=evalT(t);return !E.res?"empty":E.res==="fail"?(t.closed?"closed":"open"):E.res;};
 const STATUS={empty:["info","–","No results"],pass:["good","✓","Conforms"],warn:["warn","!","Conforms, with notes"],invalid:["crit","✕","Invalid test"],open:["crit","✕","Nonconforming · reaction open"],closed:["good","✓","Nonconforming · reaction closed"]};
 const stChip=t=>{const s=STATUS[status(t)];return chip(s[0],s[1],s[2]);};
-/* the first later test of the same part and batch that conforms */
-const retestOf=t=>DB.tests.filter(x=>x.id!==t.id&&tsKey(x)>tsKey(t)&&same(x.part,t.part)&&same(x.batch,t.batch)).sort(byTime).find(x=>["pass","warn"].includes(evalT(x).res))||null;
+/* the first later test of the same part and batch (or heat when the batch no. is not available) that conforms; the re-test record named in the reaction plan comes first */
+function retestOf(t){
+  const ok=x=>x&&x.id!==t.id&&tsKey(x)>tsKey(t)&&["pass","warn"].includes(evalT(x).res);
+  const ref=String((t.act||{}).retest||"").trim().toUpperCase();
+  if(ref){const x=DB.tests.find(y=>y.id===ref);return ok(x)?x:null;}
+  const k=idKey(t);if(!k) return null;
+  return DB.tests.filter(x=>same(x.part,t.part)&&same(x[k[0]],t[k[0]])).sort(byTime).find(ok)||null;
+}
+const idTxt=t=>{const k=idKey(t);return k?`${k[1]} ${t[k[0]]}`:"batch, heat no. and heat code not available";};
 function missingAct(t){
   if(evalT(t).res!=="fail") return [];
   const a=t.act||{},m=[];
   if(!a.contain) m.push("containment"); if(!a.cause) m.push("root cause"); if(!a.action) m.push("corrective action");
   if(!a.impact) m.push("product-impact assessment"); if(!a.disp) m.push("disposition of the batch");
   else if(a.disp==="hold") m.push("a final disposition (the batch is still on hold)");
-  else if((a.disp==="accepted"||a.disp==="rework")&&!retestOf(t)) m.push("a passing re-test of the same part and batch");
+  else if((a.disp==="accepted"||a.disp==="rework")&&!retestOf(t)) m.push(idKey(t)||a.retest?"a passing re-test of the same part and batch":"the re-test record no. (batch, heat no. and heat code are not available)");
   if(!a.by) m.push("action owner"); if(!isDate(a.date)) m.push("action date");
   return m;
 }
@@ -558,10 +569,11 @@ function actBox(){
   const E=evalT(ED);if(E.res!=="fail") return "";
   const rt=ED.id?retestOf(ED):null,m=missingAct(ED);
   return `<section class="stage" style="--k:var(--a)"><h3>Act <small>Reaction plan for the nonconforming batch</small></h3>
-    <p class="reqline">${E.fails.map(c=>esc(c.txt)).join("<br>")}<br>Re-test of part ${esc(ED.part)}, batch ${esc(ED.batch||"—")}: ${rt?`<span class="ok">${esc(rt.id)} on ${fdate(rt.date)} conforms</span>`:`<span class="bad">not yet done</span>`}</p>
+    <p class="reqline">${E.fails.map(c=>esc(c.txt)).join("<br>")}<br>Re-test of part ${esc(ED.part)}, ${esc(idTxt(ED))}: ${rt?`<span class="ok">${esc(rt.id)} on ${fdate(rt.date)} conforms</span>`:`<span class="bad">not yet done</span>`}</p>
     <div class="fgrid">${fld("act.contain","Containment",{opts:CONTAIN,req:true,span:true})}${fld("act.cause","Root cause",{type:"textarea",req:true,span:true})}
       ${fld("act.action","Corrective action",{opts:ACTIONS,req:true})}${fld("act.disp","Disposition of the batch",{opts:Object.entries(DISP),req:true})}${fld("act.detail","Action details",{type:"textarea",span:true})}
-      ${fld("act.impact","Product-impact assessment (other batches, customer)",{type:"textarea",req:true,span:true})}${fld("act.by","Action owner",{req:true})}${fld("act.date","Action date",{type:"date",req:true})}</div>
+      ${fld("act.impact","Product-impact assessment (other batches, customer)",{type:"textarea",req:true,span:true})}${fld("act.by","Action owner",{req:true})}${fld("act.date","Action date",{type:"date",req:true})}
+      ${fld("act.retest",idKey(ED)?"Re-test record no. (optional: found by part and "+idKey(ED)[1]+")":"Re-test record no. (MT-…): batch, heat no. and heat code are not available")}</div>
     <p class="muted" id="act-miss" style="margin:10px 0 0;font-size:12.5px">${ED.closed?"Reaction closed.":m.length?"To close the reaction: "+esc(m.join(", "))+".":"Everything needed is recorded: the reaction can be closed."}</p></section>`;
 }
 function drawDlg(){

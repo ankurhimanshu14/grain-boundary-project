@@ -314,6 +314,9 @@ function normalize(o){
 let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 if(!DB) DB=blank();
 const S=()=>DB.settings;
+/* "N/A" (also "NA", "not available") means the value is not available: it is accepted as an entry but never used to match records */
+const isNA=v=>/^(n\s*\/?\s*a|not\s+available)$/i.test(String(v??"").trim());
+
 /* a new specification with the line's defaults; fill() also completes older records */
 function fill(s){
   const d={id:"",rev:0,status:"draft",part:"",name:"",customer:"",drawing:"",grade:"",proc:"HT",furnaces:[],pcs:"",wt:"",fixture:"",
@@ -388,7 +391,7 @@ function advice(s){
     else if(c&&cc!=null&&c.between-cc<2) a.push(["warn",`Only ${Math.round((c.between-cc)*10)/10} min of the ${Math.round(c.between*10)/10} min in the controlled cooling chamber is left for the transfers in and out.`]);}
   if(s.proc==="HT"&&num(s.q.tLo)!=null&&num(s.q.tHi)!=null&&num(s.q.tLo)>num(s.q.tHi)) a.push(["crit","Quenchant temperature: the lower limit is above the upper limit."]);
   if(num(s.req.hMin)!=null&&num(s.req.hMax)!=null&&num(s.req.hMin)>num(s.req.hMax)) a.push(["crit","Hardness: the minimum is above the maximum."]);
-  const dup=DB.specs.filter(x=>x.id!==s.id&&x.status!=="obsolete"&&x.part&&x.part.trim().toLowerCase()===String(s.part).trim().toLowerCase()&&x.proc===s.proc);
+  const dup=isNA(s.part)?[]:DB.specs.filter(x=>x.id!==s.id&&x.status!=="obsolete"&&x.part&&!isNA(x.part)&&x.part.trim().toLowerCase()===String(s.part).trim().toLowerCase()&&x.proc===s.proc);
   if(dup.length) a.push(["warn",`Another specification for this part and process exists: ${dup.map(x=>docNo(x)).join(", ")}.`]);
   /* the quench tank of each furnace (CALOR only) */
   const qa=HTQ&&HTQ.api("quench");

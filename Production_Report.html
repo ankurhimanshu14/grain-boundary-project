@@ -222,6 +222,9 @@ const addDays=(d,n)=>new Date(Date.parse(d+"T00:00:00Z")+n*864e5).toISOString().
 const fdate=d=>isDate(d)?`${d.slice(8,10)}-${MON[+d.slice(5,7)-1]}-${d.slice(0,4)}`:"—";
 const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
 const txt=v=>String(v??"").trim();
+/* "N/A" (also "NA", "not available") means the value is not available: it is accepted as an entry but never used to match records */
+const isNA=v=>/^(n\s*\/?\s*a|not\s+available)$/i.test(String(v??"").trim());
+
 /* times are clock times without a time zone (as in the SCADA review): "YYYY-MM-DDTHH:MM" ↔ ms */
 const tms=v=>{if(!v||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v))return null;const t=Date.parse(v.slice(0,16)+":00Z");return isFinite(t)?t:null;};
 const iso=ms=>new Date(ms).toISOString().slice(0,16);
@@ -399,9 +402,9 @@ function calcRow(row,rep){
   if(sp&&row.sets){ const d=[];["h","t"].forEach(c=>[0,1,2].forEach(i=>{const v=num(row.sets[c]?.[i]),w=num(sp[c]?.[i]);if(v!=null&&w!=null&&v!==w)d.push(`${c==="h"?"hardening":"tempering"} Z${i+1} ${v} °C (spec ${w})`);}));
     if(d.length) I("warn","Set values differ from the specification: "+d.join(", ")); }
   /* the same batch no. in this furnace with another heat no. */
-  if(rep&&txt(row.batch)){
+  if(rep&&txt(row.batch)&&!isNA(row.batch)){
     const other=DB.reports.filter(r=>r.furnace===rep.furnace).flatMap(r=>r.rows.filter(x=>x!==row&&txt(x.batch).toUpperCase()===txt(row.batch).toUpperCase()).map(x=>({x,r})));
-    const clash=other.filter(o=>txt(o.x.heat)&&txt(row.heat)&&txt(o.x.heat).toUpperCase()!==txt(row.heat).toUpperCase());
+    const clash=other.filter(o=>txt(o.x.heat)&&txt(row.heat)&&!isNA(o.x.heat)&&!isNA(row.heat)&&txt(o.x.heat).toUpperCase()!==txt(row.heat).toUpperCase());
     if(clash.length) I("warn",`Batch ${row.batch} also appears in ${rep.furnace} with heat no. ${clash.map(o=>o.x.heat+" ("+fdate(o.r.date)+")").join(", ")}`);
     else if(other.some(o=>o.r===rep)) I("info",`Batch ${row.batch} is entered more than once in this report`);
   }
@@ -519,7 +522,7 @@ function drawKpis(){
   const R=curRep(), ks=R?R.rows.map(r=>calcRow(r,R)):[];
   const qty=sum(R?R.rows.map(r=>num(r.qty)||0):[]), kg=sum(ks.map(k=>k.kg||0)), trays=sum(ks.map(k=>k.trays||0));
   const crit=ks.filter(k=>k.lvl==="crit").length, warn=ks.filter(k=>k.lvl==="warn").length;
-  const heats=new Set(R?R.rows.map(r=>txt(r.heat).toUpperCase()).filter(Boolean):[]);
+  const heats=new Set(R?R.rows.map(r=>txt(r.heat).toUpperCase()).filter(h=>h&&!isNA(h)):[]);
   $("#kpis").innerHTML=[[R?R.rows.length:0,"Batches",`${heats.size} heat${heats.size===1?"":"s"}`],[f0(qty),"Pieces processed",""],[f1(kg)+" <small style='font-size:13px'>kg</small>","Weight processed",`${f1(kg/1000)} t`],
     [trays,"Trays",""],[crit,"Incomplete entries",crit?"missing data must be completed":"none",crit?"bad":"ok"],[warn,"Entries to check","times, weights or settings",warn?"caution":"ok"]]
     .map(([v,l,s,c])=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${esc(s)}</span></div>`).join("");
@@ -527,7 +530,8 @@ function drawKpis(){
 function groupTotals(R){
   const g=(keyf,label)=>{const m=new Map();R.rows.forEach(r=>{const k=calcRow(r,R),key=keyf(r,k);if(!key)return;const o=m.get(key)||{key,label:label(r,k),n:0,qty:0,kg:0,trays:0};o.n++;o.qty+=num(r.qty)||0;o.kg+=k.kg||0;o.trays+=k.trays||0;m.set(key,o);});return [...m.values()];};
   return {parts:g(r=>txt(r.part).toUpperCase(),(r,k)=>k.sp?`${k.sp.part} · ${k.sp.name||""}`:r.part),
-    heats:g(r=>txt(r.heat).toUpperCase(),r=>`${r.heat}${txt(r.heatCode)?" / "+r.heatCode:""}`),
+    /* batches whose heat no. is not available are listed together, not as one heat */
+    heats:g(r=>isNA(r.heat)?"\u0000na":txt(r.heat).toUpperCase(),r=>isNA(r.heat)?"Heat no. not available":`${r.heat}${txt(r.heatCode)&&!isNA(r.heatCode)?" / "+r.heatCode:""}`),
     procs:g((r,k)=>k.sp?.proc||"",(r,k)=>k.sp?.proc||"")};
 }
 function drawTotals(){
