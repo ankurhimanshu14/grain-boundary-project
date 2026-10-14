@@ -391,7 +391,7 @@ function renderHome(){
   if(PR){
     /* push cycle still on hold (paused) on the Daily production page */
     PR.forEach(r=>(r.holds||[]).filter(h=>h.open).forEach(h=>att.push({lvl:"crit",o:0,txt:`<b>${esc(r.furnace)}</b>: push cycle on hold since ${fd(new Date(h.from).toISOString().slice(0,10))} ${new Date(h.from).toISOString().slice(11,16)} (${esc(h.reason)}): enter the restart on the production report`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`})));
-    prodDrafts().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>att.push({lvl:"warn",o:5,txt:`<b>${esc(r.furnace)} · ${esc(r.id)}</b>: production report of ${fd(r.date)} not approved (${r.rows.length} batch${r.rows.length===1?"":"es"}${r.rows.some(x=>x.lvl==="crit")?", some incomplete":""})`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`}));
+    prodDrafts().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>att.push({lvl:"warn",o:5,txt:`<b>${esc(r.furnace)} · ${esc(r.id||"no report yet")}</b>: production report of ${fd(r.date)} ${r.status==="none"?"not created, trays came out of the furnace that day":"not approved"} (${r.rows.length} batch${r.rows.length===1?"":"es"}${r.rows.some(x=>x.lvl==="crit")?", some incomplete":""})`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`}));
   }
   if(MT){
     MT.open.forEach(x=>att.push({lvl:"crit",o:1,txt:`<b>${esc(x.furnace)} · ${esc(x.id)}</b>: part ${esc(x.part)}, batch ${esc(x.batch)} does not conform (${fd(x.date)}): reaction plan open`,btn:`<button class="nb" data-mtest="${esc(x.id)}">Open test</button>`}));
