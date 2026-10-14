@@ -174,7 +174,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
     <button class="ddh" id="h-process" aria-haspopup="menu" aria-expanded="false" aria-controls="m-process"><span class="pd">Process</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
     <div class="menu" id="m-process" role="menu" aria-labelledby="h-process" hidden>
       <button class="tab" role="menuitem" id="tab-spec" data-page="spec" aria-controls="page-spec"><span class="long">Specifications<span class="sub">Process specifications (recipes)</span></span><span class="badge" id="badge-spec" hidden></span></button>
-      <button class="tab" role="menuitem" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA review<span class="sub">Temperature records, review PDCA</span></span><span class="badge" id="badge-scada" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-scada" data-page="scada" aria-controls="page-scada"><span class="long">SCADA review<span class="sub">Temperature records, PDCA review, 8D</span></span><span class="badge" id="badge-scada" hidden></span></button>
       <button class="tab" role="menuitem" id="tab-ops" data-page="ops" aria-controls="page-ops" title="Furnace start-up, shutdown and alarm response"><span class="long">Alarms<span class="sub">Start-up, shutdown and alarm response</span></span><span class="badge" id="badge-ops" hidden></span></button>
       <button class="tab" role="menuitem" id="tab-quench" data-page="quench" aria-controls="page-quench"><span class="long">Quench media<span class="sub">Quenchant tests</span></span><span class="badge" id="badge-quench" hidden></span></button>
     </div>
@@ -451,6 +451,7 @@ function renderHome(){
   if(PR){
     /* push cycle still on hold (paused) on the Daily production page */
     PR.forEach(r=>(r.holds||[]).filter(h=>h.open).forEach(h=>att.push({lvl:"crit",o:0,txt:`<b>${esc(r.furnace)}</b>: push cycle on hold since ${fd(new Date(h.from).toISOString().slice(0,10))} ${new Date(h.from).toISOString().slice(11,16)} (${esc(h.reason)}): enter the restart on the production report`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`})));
+    (sc.e8?sc.e8():[]).filter(d=>d.late||d.contain).forEach(d=>att.push({lvl:"crit",o:2,txt:`<b>${esc(d.furnace||d.fkey||"8D")} · ${esc(d.id)}</b>: ${esc(d.title||"8D")} — ${d.contain?"containment not complete":"past its target "+fd(d.target)} (at ${esc(d.stageName)})`,btn:`<button class="nb" data-e8="${esc(d.id)}">Open 8D</button>`}));
     prodDrafts().sort((a,b)=>a.date<b.date?-1:1).forEach(r=>att.push({lvl:"warn",o:5,txt:`<b>${esc(r.furnace)} · ${esc(r.id||"no report yet")}</b>: production report of ${fd(r.date)} ${r.status==="none"?"not created, trays came out of the furnace that day":"not approved"} (${r.rows.length} batch${r.rows.length===1?"":"es"}${r.rows.some(x=>x.lvl==="crit")?", some incomplete":""})`,btn:`<button class="nb" data-prod="${esc(r.furnace)}|${esc(r.date)}">Open report</button>`}));
   }
   if(MT){
@@ -499,6 +500,7 @@ function renderHome(){
 $("#home").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   if(b.dataset.review) HTQ.go("scada",{review:b.dataset.review});
+  if(b.dataset.e8) HTQ.go("scada",{e8:b.dataset.e8});
   else if(b.dataset.qt) HTQ.go("quench",{tank:b.dataset.qt});
   else if(b.dataset.spec) HTQ.go("spec",{spec:b.dataset.spec});
   else if(b.dataset.mtest) HTQ.go("metal",{test:b.dataset.mtest});
@@ -511,9 +513,9 @@ $("#home").addEventListener("click",e=>{
 let homeT=0; const homeSoon=()=>{ clearTimeout(homeT); homeT=setTimeout(()=>{ if(!$("#page-home").hasAttribute("data-off")) renderHome(); },150); };
 ["sat:ready","sat:changed","scada:ready","scada:changed","scada:pdca","quench:ready","quench:changed","spec:ready","spec:changed","metal:ready","metal:changed","prod:ready","prod:changed","tus:ready","tus:changed","equip:ready","equip:changed","cpf:ready","cpf:changed","ops:ready","ops:changed"].forEach(ev=>HTQ.on(ev,homeSoon));
 function badgeScada(){
-  const b=$("#badge-scada"), api=HTQ.api("scada"), c=api&&api.pdca?api.pdca():{overdue:0,open:0};
-  b.hidden=!c.overdue; b.textContent=c.overdue; b.className="badge"+(c.overdue?" alert":"");
-  b.title=c.overdue?c.overdue+" overdue action"+(c.overdue>1?"s":"")+" in "+c.open+" open review"+(c.open>1?"s":""):"";
+  const b=$("#badge-scada"), api=HTQ.api("scada"), c=api&&api.pdca?api.pdca():{overdue:0,open:0}, n=c.overdue+(c.e8late||0);
+  b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":"");
+  b.title=[c.overdue?c.overdue+" overdue action"+(c.overdue>1?"s":"")+" in "+c.open+" open review"+(c.open>1?"s":""):"",c.e8late?c.e8late+" 8D"+(c.e8late>1?"s":"")+" past target or with containment late":""].filter(Boolean).join(" · ");
 }
 HTQ.on("scada:ready",badgeScada); HTQ.on("scada:pdca",badgeScada);
 /* quench badge: parameters overdue or out of limits, and open reaction plans */
@@ -575,7 +577,7 @@ function badgeOps(){
 HTQ.on("ops:ready",badgeOps); HTQ.on("ops:changed",badgeOps);
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */
-const KEYS={"prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","pfsr-last":"SCADA latest record per furnace / chamber","pfsr-pdca":"SCADA review PDCA (reaction plans)","pfsr-repl":"SCADA replacement register","pfsr-hist":"SCADA day summaries (history)","pfsr-settings":"SCADA settings","pfsr-link":"SCADA links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","htq-theme":"Theme"};
+const KEYS={"prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","sr2-pdca":"SCADA review: PDCA reviews","sr2-8d":"SCADA review: 8D problem solving","sr2-hist":"SCADA review: day summaries (history)","sr2-repl":"SCADA review: replacement register","sr2-last":"SCADA review: latest record per furnace / chamber","sr2-link":"SCADA review: links to furnaces / chambers","sr2-settings":"SCADA review: settings","sr2-mig":"SCADA review: earlier data imported (date)","pfsr-last":"Earlier SCADA review: latest record per furnace / chamber","pfsr-pdca":"Earlier SCADA review: review PDCA (reaction plans)","pfsr-repl":"Earlier SCADA review: replacement register","pfsr-hist":"Earlier SCADA review: day summaries (history)","pfsr-settings":"Earlier SCADA review: settings","pfsr-link":"Earlier SCADA review: links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","htq-theme":"Theme"};
 const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const jget=k=>{ try{ return JSON.parse(get(k)||"null"); }catch(e){ return null; } };
 const cnt=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
@@ -586,8 +588,9 @@ const MODS=[
     what:()=>{const v=jget("prod-reg");return v?`${cnt((v.reports||[]).length,"report")} · ${cnt((v.reports||[]).reduce((a,r)=>a+(r.rows||[]).length,0),"batch","batches")} · ${cnt((v.specs||[]).length,"part")} in its own list`:"";}},
   {page:"spec",name:"Process specifications",keys:["psr-reg","psr-view"],reset:{key:"psr-reg",fields:["settings"]},
     what:()=>{const v=jget("psr-reg");return v?cnt((v.specs||[]).length,"specification"):"";}},
-  {page:"scada",name:"SCADA temperature review",keys:["pfsr-pdca","pfsr-hist","pfsr-repl","pfsr-last","pfsr-link","pfsr-settings"],reset:{remove:["pfsr-settings"]},
-    what:()=>[jget("pfsr-pdca")&&cnt((jget("pfsr-pdca").reviews||[]).length,"review"),jget("pfsr-hist")&&cnt(Object.keys(jget("pfsr-hist")).length,"day")+" analysed",jget("pfsr-repl")&&cnt(jget("pfsr-repl").length,"replacement entry","replacement entries"),get("pfsr-settings")!=null&&"own settings"].filter(Boolean).join(" · ")},
+  /* the SCADA review is SCADA Review 2 (sr2-*); the earlier page's keys (pfsr-*) go with it, or a delete would import them again */
+  {page:"scada",name:"SCADA temperature review (PDCA + 8D)",keys:["sr2-pdca","sr2-8d","sr2-hist","sr2-repl","sr2-last","sr2-link","sr2-settings","sr2-mig","pfsr-pdca","pfsr-hist","pfsr-repl","pfsr-last","pfsr-link","pfsr-settings"],reset:{remove:["sr2-settings"]},
+    what:()=>[jget("sr2-pdca")&&cnt((jget("sr2-pdca").reviews||[]).length,"review"),jget("sr2-8d")&&cnt((jget("sr2-8d").list||[]).length,"8D"),jget("sr2-hist")&&cnt(Object.keys(jget("sr2-hist")).length,"day")+" analysed",jget("sr2-repl")&&cnt(jget("sr2-repl").length,"replacement entry","replacement entries"),get("sr2-settings")!=null&&"own settings"].filter(Boolean).join(" · ")},
   {page:"quench",name:"Quench media testing",keys:["qmt-reg","qmt-view"],reset:{key:"qmt-reg",fields:["settings","plan"],note:"settings and test plan"},
     what:()=>{const v=jget("qmt-reg");return v?`${cnt((v.tanks||[]).length,"tank")} · ${cnt((v.tests||[]).length,"test record")}`:"";}},
   {page:"metal",name:"Hardness & metallurgy",keys:["hmt-reg","hmt-view"],reset:{key:"hmt-reg",fields:["settings"]},
