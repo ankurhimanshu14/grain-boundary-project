@@ -272,9 +272,12 @@ table.stat th:first-child{text-align:left}
     <div class="controls">
       <div class="field"><label for="tol">Tolerance ± °C</label><input id="tol" type="number" min="1" step="1"></div>
       <div class="field"><label for="merge">Merge dips less than, min apart</label><input id="merge" type="number" min="0" step="1"></div>
-      <div class="field"><label for="trays1">Tray positions, Zone 1</label><input id="trays1" type="number" min="1" step="1"></div>
-      <div class="field"><label for="trays2">Tray positions, Zone 2</label><input id="trays2" type="number" min="1" step="1"></div>
-      <div class="field"><label for="trays3">Tray positions, Zone 3</label><input id="trays3" type="number" min="1" step="1"></div>
+      <div class="field"><label for="trays1">Hardening chamber: tray positions, Zone 1</label><input id="trays1" type="number" min="1" step="1"></div>
+      <div class="field"><label for="trays2">Hardening chamber: tray positions, Zone 2</label><input id="trays2" type="number" min="1" step="1"></div>
+      <div class="field"><label for="trays3">Hardening chamber: tray positions, Zone 3</label><input id="trays3" type="number" min="1" step="1"></div>
+      <div class="field"><label for="ttrays1">Tempering chamber: tray positions, Zone 1</label><input id="ttrays1" type="number" min="1" step="1"></div>
+      <div class="field"><label for="ttrays2">Tempering chamber: tray positions, Zone 2</label><input id="ttrays2" type="number" min="1" step="1"></div>
+      <div class="field"><label for="ttrays3">Tempering chamber: tray positions, Zone 3</label><input id="ttrays3" type="number" min="1" step="1"></div>
       <div class="field"><label for="persist">Min. readings for an event</label><input id="persist" type="number" min="1" step="1"></div>
       <div class="field"><label for="settle" title="After a set value change the furnace needs time to reach the new value. Readings are not judged until the thermocouple is back within the tolerance, or until this time has passed, whichever comes first. 0 = judge every reading.">Max. settling after set change, min</label><input id="settle" type="number" min="0" step="5"></div>
       <div class="field"><label for="runStart" title="Optional. Enter the time the furnace was lit / started up. Readings before it are not judged; after it, readings are judged once the thermocouple has reached its set value.">Furnace start (if started in this record)</label><input id="runStart" type="datetime-local" step="60" style="width:190px"></div>
@@ -336,7 +339,7 @@ const MINSTAT = 10; /* min readings at one set value before it is analysed or li
 /* Valid measuring range: readings outside 500-1000 °C are treated as invalid, excluded from every statistic and never plotted. */
 const TMIN = 500, TMAX = 1000;
 const inRange = v => v!=null && v>=TMIN && v<=TMAX;
-const DEF = {tol:10, merge:10, trays1:5, trays2:4, trays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
+const DEF = {tol:10, merge:10, trays1:5, trays2:4, trays3:4, ttrays1:4, ttrays2:4, ttrays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
 const S = {...DEF};
 try{ Object.assign(S, JSON.parse(localStorage.getItem("pfsr-settings")||"{}")); }catch(e){}
 const IDS = Object.keys(DEF);
@@ -350,7 +353,8 @@ IDS.forEach(k=>{
 });
 
 /* ---------- helpers ---------- */
-const traysIn=z=>Math.max(1,Math.round(S["trays"+(z+1)]??S.trays3??4));
+/* tray positions per zone: hardening chamber 5 + 4 + 4, tempering chamber 4 + 4 + 4 (by the chamber in the chart heading) */
+const traysIn=z=>{ const p=FTYPE==="tempering"?"ttrays":"trays"; return Math.max(1,Math.round(S[p+(z+1)]??S[p+"3"]??4)); };
 let NZ=3;
 const posStart=z=>{ let s=1; for(let i=0;i<z;i++) s+=traysIn(i); return s; };
 const totalPos=()=>{ let s=0; for(let i=0;i<NZ;i++) s+=traysIn(i); return s; };

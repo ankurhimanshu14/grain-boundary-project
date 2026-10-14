@@ -298,7 +298,7 @@ const DEFCLS=[{c:"1",tol:3},{c:"2",tol:6},{c:"3",tol:8},{c:"4",tol:10},{c:"5",to
 const DEFTYPES=[{t:"A",rec:true,ind:true,load:true,otpInd:true,otp:true,sat:90,tus:365},{t:"B",rec:true,ind:true,load:false,otpInd:true,otp:true,sat:90,tus:365},
   {t:"C",rec:true,ind:false,load:false,otpInd:true,otp:true,sat:90,tus:365},{t:"D",rec:true,ind:false,load:false,otpInd:false,otp:true,sat:90,tus:365},{t:"E",rec:false,ind:false,load:false,otpInd:false,otp:true,sat:90,tus:365}];
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",calSoon:30,otpDays:90,reviewDays:365};
-const defRec=(f,ch)=>({id:`${f}|${ch}`,furnace:f,chamber:ch,kind:"Pusher, continuous",heating:"Direct-fired gas burners",atm:ATM[0],zones:"3",pos:"5,4,4",burners:"",work:"",ctrlTc:"6 × type K (2 per zone, one per wall)",control:"PID loop per thermocouple",
+const defRec=(f,ch)=>({id:`${f}|${ch}`,furnace:f,chamber:ch,kind:"Pusher, continuous",heating:"Direct-fired gas burners",atm:ATM[0],zones:"3",pos:ch==="Tempering"?"4,4,4":"5,4,4",burners:"",work:"",ctrlTc:"6 × type K (2 per zone, one per wall)",control:"PID loop per thermocouple",
   rec:"",recInt:"",otp:"",otpSensor:"",otpTest:"",load:"",ctrlCal:"",recCal:"",instType:"",notes:"",prep:"",appr:"",apprDate:"",gaps:{},changes:[],log:[]});
 const blank=fs=>({v:1,settings:{...DEF},classes:DEFCLS.map(c=>({...c})),types:DEFTYPES.map(t=>({...t})),recs:(fs||["F-01","F-02","F-03","F-04"]).flatMap(f=>CHAMBERS.map(ch=>defRec(f,ch))),cseq:1});
 function normalize(o){
@@ -307,6 +307,8 @@ function normalize(o){
   if(!Array.isArray(o.classes)||!o.classes.length) o.classes=DEFCLS.map(c=>({...c}));
   if(!Array.isArray(o.types)||!o.types.length) o.types=DEFTYPES.map(t=>({...t}));
   o.recs=o.recs.filter(r=>r&&r.furnace&&r.chamber).map(r=>({...defRec(r.furnace,r.chamber),...r,gaps:r.gaps||{},changes:r.changes||[],log:r.log||[]}));
+  /* the tempering chamber holds 12 trays (4 + 4 + 4): records saved with the earlier default are corrected once */
+  if(!o.lay2){o.recs.forEach(r=>{if(r.chamber==="Tempering"&&String(r.pos).replace(/\s/g,"")==="5,4,4")r.pos="4,4,4";});o.lay2=true;}
   o.cseq=Math.max(+o.cseq||1,...o.recs.flatMap(r=>r.changes.map(c=>+(String(c.id).match(/\d+/)||[0])[0]+1)));
   o.v=1; return o;
 }

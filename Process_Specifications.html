@@ -260,7 +260,7 @@ table.zones td.n{font-family:var(--mono);white-space:nowrap}
     <ul>
       <li>CQI-9 4th Edition: hardening &amp; tempering (with the quench) is covered by Process Table A; normalizing and isothermal annealing by Process Table E. Confirm the table letters and every numeric requirement against the controlled copy of CQI-9 and the customer-specific requirements.</li>
       <li>A specification holds the part, steel grade, process, the furnaces it is approved for, the load, the set value and tolerance of every zone, the push time, the quench or controlled-cooling parameters, the quality requirements with sampling, and the approval.</li>
-      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = (positions of both chambers) × push time + time between the chambers (quench delay + dip time + transfer; controlled cooling; or transfer).</li>
+      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = (positions of both chambers) × push time + time between the chambers. Hardening chamber 13 positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). Between the chambers: hardening &amp; tempering = quench delay + dip time + transfer; isothermal annealing = one push time in the controlled cooling chamber (the push from the controlled cooling chamber into the tempering chamber happens with the push into the hardening chamber), of which the controlled cooling time is the air blowing and the rest the transfers in and out and idle time; normalizing = transfer.</li>
       <li>The line checks (hardening chamber above 800 °C for hardening and isothermal annealing, 700–750 °C preheat for normalizing, tempering below the austenitizing set value) follow this line's practice; they are warnings, not CQI-9 requirements.</li>
       <li>The furnaces are direct-fired without a protective atmosphere, so scale and surface decarburization are expected: specify the decarburization limit and check it.</li>
     </ul>
@@ -300,11 +300,13 @@ const ROLE={
 const MEDIA={oil:"Quench oil",polymer:"Polymer quenchant",water:"Water / brine"};
 const SCALES=["HRC","HRB","HB","HV"];
 const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
-const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"5,4,4",tol:10,pushTol:0.5,qDelay:30,dip:8,transfer:5,reviewDays:365,reviewSoon:30};
-const blank=()=>({v:1,settings:{...DEF},specs:[],seq:1});
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"4,4,4",ccPos:1,tol:10,pushTol:0.5,qDelay:30,dip:8,transfer:5,reviewDays:365,reviewSoon:30};
+const blank=()=>({v:1,lay2:true,settings:{...DEF},specs:[],seq:1});
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.specs)) return null;
   o.settings={...DEF,...(o.settings||{})};
+  /* the tempering chamber holds 12 trays (4 + 4 + 4): settings saved with the earlier default 5,4,4 are corrected once */
+  if(!o.lay2){if(String(o.settings.posT).replace(/\s/g,"")==="5,4,4")o.settings.posT="4,4,4";o.lay2=true;}
   o.specs=o.specs.filter(s=>s&&s.id).map(s=>fill(s));
   o.seq=Math.max(+o.seq||1,...o.specs.map(s=>+(String(s.id).match(/\d+/)||[0])[0]+1));
   o.v=1; return o;
@@ -345,9 +347,13 @@ function calc(s){
   const p=num(s.push),PH=pos(S().posH),PT=pos(S().posT);
   if(p==null||p<=0) return null;
   const zh=PH.map(n=>n*p),zt=PT.map(n=>n*p),sum=a=>a.reduce((x,y)=>x+y,0);
-  const between=s.proc==="HT"?(num(s.q.delay)||0)/60+(num(s.q.dip)||0)+(num(s.q.transfer)||0):s.proc==="IA"?(num(s.cc.time)||0):(num(s.nm.transfer)||0);
+  /* between the chambers: quench (minutes), or for isothermal annealing the controlled cooling chamber, which the tray leaves at the next push:
+     one position = one push time, of which the controlled cooling time is the blowing, the rest transfer in / out and idle time */
+  const ccPos=Math.max(1,num(S().ccPos)||1);
+  const gapPos=s.proc==="IA"?ccPos:0,gapMin=s.proc==="HT"?(num(s.q.delay)||0)/60+(num(s.q.dip)||0)+(num(s.q.transfer)||0):s.proc==="IA"?0:(num(s.nm.transfer)||0);
+  const between=gapPos*p+gapMin,cool=s.proc==="IA"?num(s.cc.time):null;
   const pcs=num(s.pcs),wt=num(s.wt),trayKg=pcs!=null&&wt!=null?pcs*wt:null;
-  return {zh,zt,ch:sum(zh),ct:sum(zt),between,total:sum(zh)+sum(zt)+between,trays:60/p,pcsH:pcs!=null?60/p*pcs:null,trayKg,kgH:trayKg!=null?60/p*trayKg:null,PH,PT};
+  return {zh,zt,ch:sum(zh),ct:sum(zt),between,gapPos,gapMin,cool,idle:cool!=null?between-cool:null,total:sum(zh)+sum(zt)+between,trays:60/p,pcsH:pcs!=null?60/p*pcs:null,trayKg,kgH:trayKg!=null?60/p*trayKg:null,PH,PT};
 }
 /* ---------- approval gate and line checks ---------- */
 function missing(s){
@@ -377,6 +383,9 @@ function advice(s){
     if(h.some(v=>v!=null&&(v<700||v>750))) a.push(["warn","Normalizing preheat in the hardening chamber is normally set at 700–750 °C on this line."]);
     if(t.some(v=>v!=null&&v<=800)) a.push(["warn","Normalizing austenitizes in the tempering chamber: a set value at or below 800 °C is unusual."]);
   }
+  if(s.proc==="IA"){const c=calc(s),cc=num(s.cc.time);
+    if(c&&cc!=null&&cc>=c.between) a.push(["crit",`Controlled cooling ${cc} min does not fit: the tray spends ${c.gapPos>1?c.gapPos+" push times":"one push time"} (${Math.round(c.between*10)/10} min) in the controlled cooling chamber, which also has to cover the transfers in and out.`]);
+    else if(c&&cc!=null&&c.between-cc<2) a.push(["warn",`Only ${Math.round((c.between-cc)*10)/10} min of the ${Math.round(c.between*10)/10} min in the controlled cooling chamber is left for the transfers in and out.`]);}
   if(s.proc==="HT"&&num(s.q.tLo)!=null&&num(s.q.tHi)!=null&&num(s.q.tLo)>num(s.q.tHi)) a.push(["crit","Quenchant temperature: the lower limit is above the upper limit."]);
   if(num(s.req.hMin)!=null&&num(s.req.hMax)!=null&&num(s.req.hMin)>num(s.req.hMax)) a.push(["crit","Hardness: the minimum is above the maximum."]);
   const dup=DB.specs.filter(x=>x.id!==s.id&&x.status!=="obsolete"&&x.part&&x.part.trim().toLowerCase()===String(s.part).trim().toLowerCase()&&x.proc===s.proc);
@@ -464,13 +473,13 @@ function drawRoutes(){
   $("#routes").innerHTML=Object.keys(PROC).map(p=>{const R=ROLE[p];
     return `<div><h3>${esc(PROC[p])} <small>CQI-9 Process Table ${TABLE[p]}</small></h3><div class="flow">
       <span class="ch"><b>Hardening chamber</b>${esc(R.h)}${R.hz1?`<small class="muted">${esc(R.hz1)}</small>`:""}<small class="muted">${PH.join("+")} positions</small></span><i>→</i>
-      <span><b>Between</b>${esc(R.mid)}<small class="muted">${p==="HT"?`delay ${S().qDelay} s · dip ${S().dip} min · transfer ${S().transfer} min`:p==="IA"?"time per specification":"transfer"}</small></span><i>→</i>
+      <span><b>Between</b>${esc(R.mid)}<small class="muted">${p==="HT"?`delay ${S().qDelay} s · dip ${S().dip} min · transfer ${S().transfer} min`:p==="IA"?`controlled cooling chamber: ${S().ccPos||1} tray, one push time (cooling time per specification + transfers)`:"transfer"}</small></span><i>→</i>
       <span class="ch"><b>Tempering chamber</b>${esc(R.t)}<small class="muted">${PT.join("+")} positions</small></span><i>→</i>
       <span><b>After exit</b>${esc(R.after)}</span></div></div>`;}).join("");
 }
 function drawSettings(){
   const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
-  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("posH","Tray positions per zone, hardening chamber","text")+f("posT","Tray positions per zone, tempering chamber","text")
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("posH","Tray positions per zone, hardening chamber","text")+f("posT","Tray positions per zone, tempering chamber","text")+f("ccPos","Tray positions, controlled cooling chamber","number")
     +f("tol","Default set value tolerance ± °C","number")+f("pushTol","Default push time tolerance ± min","number")
     +f("qDelay","Default quench delay (s)","number")+f("dip","Default dip time (min)","number")+f("transfer","Default transfer to tempering (min)","number")
     +f("reviewDays","Periodic review every (days)","number")+f("reviewSoon","Show review due this many days before","number");
@@ -505,7 +514,7 @@ function calcBox(){
   const c=calc(ED);
   if(!c) return `<p class="muted" style="margin:0">Enter the push time to see the time per zone and through the line.</p>`;
   return `<div><b>Time at temperature:</b> hardening chamber ${fmin(c.ch)} (${c.PH.reduce((a,b)=>a+b,0)} positions) · tempering chamber ${fmin(c.ct)} (${c.PT.reduce((a,b)=>a+b,0)} positions)</div>
-    <div><b>Between the chambers:</b> ${fmin(c.between)} (${esc(ROLE[ED.proc].mid.toLowerCase())}) · <b>through the line per tray:</b> ${fmin(c.total)}</div>
+    <div><b>Between the chambers:</b> ${fmin(c.between)} (${ED.proc==="IA"?`controlled cooling chamber, ${c.gapPos>1?c.gapPos+" push times":"one push time"}${c.cool!=null?`: cooling ${fmin(c.cool)}, transfers and idle ${fmin(c.idle)}`:""}`:esc(ROLE[ED.proc].mid.toLowerCase())}) · <b>through the line per tray:</b> ${fmin(c.total)}</div>
     <div><b>Output:</b> ${(Math.round(c.trays*10)/10)} trays/h${c.pcsH!=null?` · ${Math.round(c.pcsH)} pcs/h`:""}${c.trayKg!=null?` · ${Math.round(c.trayKg*10)/10} kg per tray · ${Math.round(c.kgH)} kg/h`:""}</div>`;
 }
 function advBox(){
@@ -518,8 +527,8 @@ function midFields(){
     ${fld("q.medium","Quench medium",{opts:Object.entries(MEDIA),req:true,blank:false})}${fld("q.tLo","Quenchant temperature min °C",{type:"number",req:true})}${fld("q.tHi","Quenchant temperature max °C",{type:"number"})}
     ${fld("q.delay","Quench delay max (s)",{type:"number",req:true})}${fld("q.dip","Dip time (min)",{type:"number",req:true})}${fld("q.transfer","Transfer to tempering chamber max (min)",{type:"number",req:true})}
     ${fld("q.agit","Agitation",{opts:["Required","Not required"],blank:false})}</div></section>`;
-  if(ED.proc==="IA") return `<section class="stage" style="--k:var(--c)"><h3>Controlled cooling <small>between the chambers, before the isothermal hold</small></h3><div class="fgrid">
-    ${fld("cc.time","Controlled cooling time (min)",{type:"number",req:true})}${fld("cc.method","Method",{opts:["Forced-air cooling","Cooling chamber / tunnel","Still air","Other (see notes)"],req:true})}${fld("cc.target","Target temperature before the tempering chamber °C",{type:"number"})}</div>
+  if(ED.proc==="IA") return `<section class="stage" style="--k:var(--c)"><h3>Controlled cooling <small>controlled cooling chamber between the chambers: the tray stays one push time; air is blown for the cooling time</small></h3><div class="fgrid">
+    ${fld("cc.time","Controlled cooling (air blowing) time (min), shorter than the push time",{type:"number",req:true})}${fld("cc.method","Method",{opts:["Forced-air cooling","Cooling chamber / tunnel","Still air","Other (see notes)"],req:true})}${fld("cc.target","Target temperature before the tempering chamber °C",{type:"number"})}</div>
     <p class="muted" style="margin:8px 0 0;font-size:12.5px">An unmonitored timed cooling step is controlled by its time and method, validated once with load thermocouples, and verified by the hardness / microstructure check.</p></section>`;
   return `<section class="stage" style="--k:var(--c)"><h3>Transfer and cooling <small>normalizing</small></h3><div class="fgrid">
     ${fld("nm.transfer","Transfer between the chambers (min)",{type:"number",req:true})}${fld("nm.fan","Fan cooling after exit",{opts:[["none","Not required (still air)"],["required","Required"]],blank:false})}${ED.nm.fan==="required"?fld("nm.fanTime","Fan cooling time (min)",{type:"number",req:true}):""}</div></section>`;
@@ -649,7 +658,7 @@ function specTables(s){
   [0,1,2].forEach(i=>zones.rows.push(["Hardening",R.h+(i===0&&R.hz1?" ("+R.hz1+")":""),i+1,PH[i]??"",n(s.h[i]),n(s.htol[i]),c?Math.round(c.zh[i]*10)/10:""]));
   [0,1,2].forEach(i=>zones.rows.push(["Tempering",R.t,i+1,PT[i]??"",n(s.t[i]),n(s.ttol[i]),c?Math.round(c.zt[i]*10)/10:""]));
   const cycle=[["Push time (min)",n(s.push)],["Push time tolerance ± (min)",n(s.pushTol)],["Time in the hardening chamber",c?fmin(c.ch):""],["Time in the tempering chamber",c?fmin(c.ct):""],
-    ["Time between the chambers",c?fmin(c.between):""],["Time through the line per tray",c?fmin(c.total):""],["Output",c?`${Math.round(c.trays*10)/10} trays/h${c.pcsH!=null?" · "+Math.round(c.pcsH)+" pcs/h":""}${c.kgH!=null?" · "+Math.round(c.kgH)+" kg/h":""}`:""]];
+    ["Time between the chambers",c?fmin(c.between)+(s.proc==="IA"&&c.cool!=null?` (controlled cooling chamber, one push time: cooling ${fmin(c.cool)}, transfers and idle ${fmin(c.idle)})`:""):""],["Time through the line per tray",c?fmin(c.total):""],["Output",c?`${Math.round(c.trays*10)/10} trays/h${c.pcsH!=null?" · "+Math.round(c.pcsH)+" pcs/h":""}${c.kgH!=null?" · "+Math.round(c.kgH)+" kg/h":""}`:""]];
   const mid=s.proc==="HT"?[["Quench medium",MEDIA[s.q.medium]||""],["Quenchant temperature °C",[num(s.q.tLo),num(s.q.tHi)].map(v=>v??"—").join(" – ")],["Quench delay max (s)",n(s.q.delay)],["Dip time (min)",n(s.q.dip)],["Transfer to tempering chamber max (min)",n(s.q.transfer)],["Agitation",s.q.agit]]
     :s.proc==="IA"?[["Controlled cooling time (min)",n(s.cc.time)],["Method",s.cc.method],["Target temperature before the tempering chamber °C",n(s.cc.target)]]
     :[["Transfer between the chambers (min)",n(s.nm.transfer)],["Fan cooling after exit",s.nm.fan==="required"?`Required, ${n(s.nm.fanTime)} min`:"Not required (still air)"]];
@@ -761,8 +770,8 @@ function example(){
     req:{hMin:"28",hMax:"32",scale:"HRC",core:"",micro:"Tempered martensite",decarb:"≤ 0.10 mm total",grain:"",other:"",sample:"2 pcs per batch (first and last tray)",method:"WI hardness testing"},
     ...who,status:"approved",apprDate:addDays(td,-400)});
   a.revs=[{...clone(a),rev:0,push:"14",apprDate:addDays(td,-760),change:"",revs:undefined,log:undefined}];a.rev=1;a.change="Push time 14 → 12 min after output increase; hardness unchanged in the trial.";
-  mk({part:"EX-2001",name:"Example gear blank",grade:"20MnCr5",proc:"IA",furnaces:["F-03"],pcs:"24",wt:"3.5",h:["880","930","930"],t:["650","650","650"],push:"15",
-    cc:{time:"20",method:"Forced-air cooling",target:"650"},req:{hMin:"156",hMax:"207",scale:"HB",micro:"Ferrite and pearlite, no bainite",decarb:"≤ 0.15 mm total",grain:"ASTM 5–8",sample:"1 pc per batch",method:"WI hardness testing"},
+  mk({part:"EX-2001",name:"Example gear blank",grade:"20MnCr5",proc:"IA",furnaces:["F-03"],pcs:"24",wt:"3.5",h:["880","930","930"],t:["650","650","650"],push:"18",
+    cc:{time:"12",method:"Forced-air cooling",target:"650"},req:{hMin:"156",hMax:"207",scale:"HB",micro:"Ferrite and pearlite, no bainite",decarb:"≤ 0.15 mm total",grain:"ASTM 5–8",sample:"1 pc per batch",method:"WI hardness testing"},
     ...who,status:"approved",apprDate:addDays(td,-40)});
   mk({part:"EX-3001",name:"Example flange",grade:"C45",proc:"NORM",furnaces:["F-04"],pcs:"30",wt:"2.2",h:["720","740","750"],t:["860","880","880"],push:"10",
     nm:{transfer:"5",fan:"required",fanTime:"30"},req:{hMin:"170",hMax:"220",scale:"HB",decarb:"",sample:"1 pc per batch"},prep:"HT Engineer"});
@@ -773,7 +782,7 @@ function example(){
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
   const brief=s=>({id:s.id,rev:s.rev,part:s.part,name:s.name,grade:s.grade,proc:s.proc,procName:PROC[s.proc],furnaces:s.furnaces.slice(),h:s.h.map(num),t:s.t.map(num),htol:s.htol.map(num),ttol:s.ttol.map(num),push:num(s.push),pushTol:num(s.pushTol),req:{...s.req},q:{...s.q},nm:{...s.nm},ccM:s.cc.method,customer:s.customer,drawing:s.drawing,
-    pcs:num(s.pcs),wt:num(s.wt),cc:num(s.cc.time),fan:s.proc==="NORM"&&s.nm.fan==="required"?num(s.nm.fanTime):null,between:(calc(s)||{}).between??null});
+    pcs:num(s.pcs),wt:num(s.wt),cc:num(s.cc.time),fan:s.proc==="NORM"&&s.nm.fan==="required"?num(s.nm.fanTime):null,between:(calc(s)||{}).between??null,gapPos:(calc(s)||{}).gapPos??0,gapMin:(calc(s)||{}).gapMin??null});
   HTQ.provide("spec",{
     overview:()=>({inForce:DB.specs.filter(eff).length,drafts:DB.specs.filter(s=>s.status==="draft").map(s=>({id:s.id,rev:s.rev,part:s.part})),
       review:DB.specs.map(s=>({s,r:review(s)})).filter(x=>x.r.st==="overdue"||x.r.st==="soon").map(x=>({id:x.s.id,rev:eff(x.s).rev,part:x.s.part,st:x.r.st,due:x.r.due})),

@@ -316,8 +316,8 @@ const txt=v=>String(v??"").trim();
 /* ---------- data model ---------- */
 const KEY="fop-reg", VKEY="fop-view"; /* own storage keys */
 const KINDS={startup:"Start-up",shutdown:"Shutdown",alarm:"Alarm"};
-const AREAS=["Whole line","Hardening chamber","Quench","Tempering chamber"];
-const AREA_CH={"Hardening chamber":"Hardening","Tempering chamber":"Tempering"};
+const AREAS=["Whole line","Hardening chamber","Quench","Controlled cooling chamber","Tempering chamber"];
+const AREA_CH={"Hardening chamber":"Hardening","Tempering chamber":"Tempering","Controlled cooling chamber":"Controlled cooling"};
 const SU_TYPES=["Cold start after a shutdown","Restart after an unplanned stop","Restart after maintenance / rebuild","Return from hot idle"];
 const SD_TYPES=["Planned stop (weekend / holiday)","Planned maintenance","No production","Hot idle (set values reduced)","Emergency shutdown"];
 const SEV={crit:["crit","!","Critical"],major:["warn","!","Major"],minor:["info","i","Minor"]};
@@ -379,6 +379,9 @@ const DEF_ALARMS=[
   {k:"PUSH",name:"Pusher / tray transport failure (jam, tray stuck)",cat:"Mechanical",sev:"major",resp:10,stop:true,notify:"Production Manager",
     imm:"Stop the line; free the tray without opening the furnace longer than needed. Record when pushing resumed.",
     prod:"Trays held longer than specified in the hot zones: check against the process specification (over-soak, decarburization); hardness before release."},
+  {k:"CCAIR",name:"Controlled cooling air / blower failure (isothermal annealing)",cat:"Cooling",sev:"major",resp:5,stop:false,notify:"HT Manager",
+    imm:"Check the blowers and the air supply of the controlled cooling chamber; do not push the next tray before the tray inside has had its cooling time.",
+    prod:"Hold the tray(s) in the controlled cooling chamber during the failure; hardness and microstructure before release."},
   {k:"QDELAY",name:"Quench delay / transfer time exceeded",cat:"Quench",sev:"major",resp:5,stop:false,notify:"HT Manager",
     imm:"Check the transfer mechanism and the door / elevator timing.",prod:"Hold the tray(s) quenched late; hardness before release."},
   {k:"QTEMP",name:"Quench oil temperature out of limits",cat:"Quench",sev:"major",resp:10,stop:false,notify:"HT Manager",
@@ -438,7 +441,7 @@ function batchesIn(e,from,to){
   const p=api("prod");if(!p||!isDT(from)) return null;
   const t0=ms(from),t1=isDT(to)?ms(to):ms(nowStr()),ch=AREA_CH[e.area]||null,z=num(e.zone),out=[];
   try{p.reports().filter(r=>r.furnace===e.furnace).forEach(r=>(r.rows||[]).forEach(x=>{
-    const zs=(x.zones||[]).filter(q=>(!ch||q.ch===ch)&&(z==null||!ch||q.z===z));
+    const zs=(x.zones||[]).filter(q=>(!ch||q.ch===ch)&&(z==null||!ch||ch==="Controlled cooling"||q.z===z));
     /* quench: the tray leaves the hardening chamber into the quench */
     const hit=e.area==="Quench"?(x.zones||[]).filter(q=>q.ch==="Hardening").some(q=>q.z===3&&q.to>t0&&q.to<=t1+600000)
       :zs.some(q=>q.from<t1&&q.to>t0);
