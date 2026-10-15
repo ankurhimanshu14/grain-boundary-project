@@ -168,6 +168,7 @@ footer li{margin:2px 0}
 .pd-item{border:1px solid var(--line);border-left:4px solid var(--k,var(--line));border-radius:6px;padding:10px 12px;margin-bottom:10px;background:var(--surface)}
 .pd-item h3{font-size:14px;margin:0 0 2px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .pd-item .sug{background:var(--surface2);border-radius:4px;padding:6px 9px;margin:6px 0;font-size:13px}
+.pd-low{border:1px dashed var(--line);border-radius:6px;padding:8px 12px;margin-bottom:10px}.pd-low summary{cursor:pointer;font-size:13.5px}.pd-low table{margin-top:8px}
 .pd-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;margin-top:8px}
 .pd-grid .wide{grid-column:1/-1}
 .pd-grid h4{grid-column:1/-1;margin:6px 0 0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
@@ -344,7 +345,7 @@ table.stat th:first-child{text-align:left}
   <div id="out"></div>
 
   <section class="panel noprint pd" id="pdcaPanel" aria-label="Review PDCA">
-    <div class="sec-head"><h2>Review (PDCA) with 8D problem solving</h2><p>The temperature record is reviewed through a <b>PDCA</b> cycle; every problem that needs a root cause is solved through an <b>8D</b> below. In <b>Plan</b> the reviewer decides each issue the application found: solve it with an 8D (required when product was affected or the problem repeats), take a simple action, or no action with a reason. <b>Do</b> runs the actions and the 8Ds up to D6, <b>Check</b> confirms the effect (an 8D must be closed), <b>Act</b> standardises and the review is approved.</p></div>
+    <div class="sec-head"><h2>Review (PDCA) with 8D problem solving</h2><p>The temperature record is reviewed through a <b>PDCA</b> cycle; every problem that needs a root cause is solved through an <b>8D</b> below. Only the <b>top priorities</b> become actions: P0 (product affected) and priority A (the vital few causes of the Pareto and the critical findings); lower-priority issues (B, C) are listed with the review but not taken for action. In <b>Plan</b> the reviewer decides each top-priority issue: solve it with an 8D (required when product was affected or the problem repeats), take a simple action, or no action with a reason. <b>Do</b> runs the actions and the 8Ds up to D6, <b>Check</b> confirms the effect (an 8D must be closed), <b>Act</b> standardises and the review is approved.</p></div>
     <div class="method">
       <div><b>PDCA · the review</b>Manages the whole record: what the analysis found, who decides, which issues need work, whether the work was effective and what was standardised. One review per SCADA record.</div>
       <div><b>8D · the problem</b>Solves one problem: team (D1), problem description (D2), containment of the product (D3), root cause of occurrence and escape (D4), corrective actions (D5), implementation and validation (D6), prevention incl. other furnaces (D7), closure (D8).</div>
@@ -2011,19 +2012,28 @@ function pdItems(A,O){
     suggested:o.action,sugOwner:TAGOWN[o.tag],sugDays:o.lvl==="crit"?1:7,when:"",k:null,base:A.inTolPct,tag:o.tag}));
   return items;
 }
+/* only the top priorities become actions of the review (the user's rule): P0 (product) and A (the vital few of the Pareto,
+   critical findings); the lower priorities (B, C) are kept with the review as a list, not actioned */
+const PD_TOP=["P0","A"];
+function pdSplit(A,O){
+  const all=pdItems(A,O), top=all.filter(i=>PD_TOP.includes(i.pr));
+  top.forEach((i,n)=>i.id="A"+(n+1));
+  const ord={B:0,C:1}, low=all.filter(i=>!PD_TOP.includes(i.pr)).map((i,n)=>({i,n})).sort((a,b)=>(ord[a.i.pr]??2)-(ord[b.i.pr]??2)||a.n-b.n).map(({i})=>i).map(i=>({pr:i.pr,src:i.src,issue:i.issue,detail:i.detail||"",suggested:i.suggested,sugOwner:i.sugOwner,when:i.when||`within ${i.sugDays} day(s)`}));
+  return {top,low};
+}
 function pdStart(){
   const A=window.__A; if(!DATA||!A) return;
-  const ex=/\(example\)$/.test(FILE), L=HTQ?link():null;
+  const ex=/\(example\)$/.test(FILE), L=HTQ?link():null, sp=pdSplit(A,LASTO);
   const R={id:"RV-"+String(PD.seq++).padStart(4,"0"),key:recKey(DATA),fkey:furnaceKey(DATA),furnace:($("#furnace").textContent||"").trim(),link:L&&L.f?{f:L.f,ch:L.ch}:null,
     day0:isoDay(A.t0),day1:isoDay(A.t1),dayN:Math.floor(A.t1/864e5),file:FILE,example:ex,created:todayISO(),stage:"plan",cycle:1,tol:A.tol,
-    items:pdItems(A,LASTO),docs:[],log:[]};
+    items:sp.top,low:sp.low,docs:[],log:[]};
   const dayN=Math.floor(A.t0/864e5);
   R.items.forEach(i=>{ const w=need8d(i,R.fkey,dayN); if(w){ i.need8d=w; i.dec="8d"; i.owner=i.sugOwner; i.due=addDay(todayISO(),S8.targetDays); } });
   /* the P0 issues of one record (trays exposed, product to hold) are one problem: one 8D */
   const p0=R.items.filter(i=>i.dec==="8d"&&i.pr==="P0"); p0.slice(1).forEach(i=>i.join=p0[0].id);
   /* what the 8D needs from the analysis: affected windows and the record's tolerance */
   R.wins=(A.windows||[]).map(w=>({no:w.no,from:w.from,to:w.to,zones:[...w.zones].map(z=>z+1),inc:w.inc.slice()}));
-  pdLog(R,`Review started: ${R.items.length} suggested action${R.items.length===1?"":"s"}`);
+  pdLog(R,`Review started: ${R.items.length} top-priority action${R.items.length===1?"":"s"} (P0 / A); ${R.low.length} lower-priority issue${R.low.length===1?"":"s"} listed, not actioned`);
   if(ex) PD_MEM.push(R); else PD.reviews.push(R);
   PD_CUR=R.id; pdSave(); renderPdca(); run();
 }
@@ -2089,13 +2099,13 @@ function renderPdca(){
   const inp=(id,v,ro,type="text")=>`<input type="${type}" data-pd="${id}" value="${esc(v||"")}"${dis(ro)}>`;
   const area=(id,v,ro)=>`<textarea data-pd="${id}"${dis(ro)}>${esc(v||"")}</textarea>`;
   let h="";
-  if(DATA&&!recR) h+=`<div class="empty" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>No review has been started for this record (${esc(furnaceKey(DATA))}, ${esc(fmtD(window.__A?window.__A.t0:DATA.rows[0].t))}). The application suggests <b>${window.__A?pdItems(window.__A,LASTO).length:0}</b> action(s).${/\(example\)$/.test(FILE)?" A review of the example record is not saved.":""}</span><button class="btn" type="button" data-pdact="start">Start review (Plan)</button></div>`;
+  if(DATA&&!recR) h+=`<div class="empty" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>No review has been started for this record (${esc(furnaceKey(DATA))}, ${esc(fmtD(window.__A?window.__A.t0:DATA.rows[0].t))}). ${(()=>{ const sp=window.__A?pdSplit(window.__A,LASTO):{top:[],low:[]}; return `The application suggests <b>${sp.top.length}</b> top-priority action(s) (P0 / A)${sp.low.length?`; ${sp.low.length} lower-priority issue(s) (B / C) will be listed, not actioned`:""}.`; })()}${/\(example\)$/.test(FILE)?" A review of the example record is not saved.":""}</span><button class="btn" type="button" data-pdact="start">Start review (Plan)</button></div>`;
   else if(!DATA&&!R) h+=`<div class="empty">Load a SCADA record to review it, or open an earlier review from the register below.</div>`;
   if(R){
     const si=PD_ST.indexOf(R.stage), closed=R.stage==="closed", od=pdOverdue(R).length;
     h+=`<div class="pd-head"><div><b>${esc(R.id)}</b> · ${esc(R.fkey)} · ${esc(fmtD(Date.parse(R.day0+"T00:00:00Z")))}${R.day1!==R.day0?" – "+esc(fmtD(Date.parse(R.day1+"T00:00:00Z"))):""} · <span class="muted">${esc(R.file)}${R.example?" · not saved":""}</span>${R.cycle>1?` · cycle ${R.cycle}`:""}${od?" "+chip("crit",od+" overdue"):""}${DATA&&R.key!==recKey(DATA)?` <span class="muted small">(not the record loaded above)</span>`:""}</div>
       <div class="pd-steps">${PD_ST.slice(0,4).map((s,i)=>`<span class="${i<si?"done":i===si?"on":""}">${PD_NM[s]}</span>`).join("")}${closed?`<span class="on" style="background:var(--good);border-color:var(--good)">Closed</span>`:""}</div></div>`;
-    if(!R.items.length) h+=`<div class="empty">The application found no issues that need an action in this record. Confirm the review in each stage.</div>`;
+    if(!R.items.length) h+=`<div class="empty">${R.low&&R.low.length?"No top-priority issue (P0 product or priority A) in this record, so there is nothing to action.":"The application found no issues that need an action in this record."} Confirm the review in each stage.</div>`;
     R.items.forEach(i=>{
       const lv=PR[i.pr]?PR[i.pr].lvl:"info", k={crit:"var(--crit)",warn:"var(--warn)",info:"var(--muted)"}[lv], p=`it:${i.id}:`, doIt=i.dec&&i.dec!=="none";
       const lock=R.cycle>1&&!i.replan; /* in a re-plan cycle only the actions that were not effective are open again */
@@ -2129,6 +2139,8 @@ function renderPdca(){
             ${!roCheck?(i.dec==="8d"&&e8Closed(i.d8)?`<div class="wide small"><span class="muted">From ${esc(i.d8)} (D6 validation): ${esc(e8Get(i.d8).d6.valid)}</span> <button class="linkbtn" type="button" data-pdact="ev8:${esc(i.id)}">Use the 8D result</button></div>`:`<div class="wide small"><span class="muted">Suggested evidence: ${esc(pdEvidence(R,i))}</span> <button class="linkbtn" type="button" data-pdact="ev:${esc(i.id)}">Use this</button></div>`):""}`:""}
         </div></div>`;
     });
+    if(R.low&&R.low.length) h+=`<details class="pd-low"><summary><b>Lower priority (B / C): ${R.low.length} issue${R.low.length===1?"":"s"}</b> <span class="muted">· listed with the review, not taken for action</span></summary>
+      <table class="log"><thead><tr><th>Priority</th><th>Issue found</th><th>Suggested action</th><th>Owner</th><th>Timing</th></tr></thead><tbody>${R.low.map(x=>`<tr><td>${chip(PR[x.pr]?PR[x.pr].lvl:"info","Priority "+esc(x.pr))}</td><td>${esc(x.issue)}${x.detail?`<br><span class="muted small">${esc(x.detail)}</span>`:""}</td><td>${esc(x.suggested||"")}</td><td style="white-space:nowrap">${esc(x.sugOwner||"")}</td><td>${esc(x.when||"")}</td></tr>`).join("")}</tbody></table></details>`;
     h+=`<div class="pd-grid">
       <label><span class="req">Reaction plan decided by</span>${inp("rv:planBy",R.planBy,R.stage!=="plan")}</label>
       ${si>=2?`<label><span class="req">Effect verified by</span>${inp("rv:checkBy",R.checkBy,R.stage!=="check")}</label>`:""}
@@ -2174,7 +2186,7 @@ function pdTables(R){
     ["Review started",dIso(R.created)],["Plan: reaction plan decided by",R.planBy||""],["Do: started",dIso(R.doDate)],["Check: effect verified by",R.checkBy||""],["Check: date",dIso(R.checkDate)],
     ["Act: documents standardised",(R.docs||[]).join(", ")],["Act: lessons learned",R.lessons||""],["Act: approved by",R.apprBy?`${R.apprBy} (${R.apprRole||""})`:""],["Act: date",dIso(R.actDate)],["Closed",dIso(R.closedDate)],
     ...(R.past||[]).map(c=>[`Cycle ${c.cycle} (earlier)`,`plan decided by ${c.planBy||"—"}; Do started ${dIso(c.doDate)||"—"}; effect verified by ${c.checkBy||"—"}${c.checkDate?" on "+dIso(c.checkDate):""}; not effective: ${c.notEffective.join(", ")}`]),
-    ["Suggested actions",n.total],["Adopted / changed / no action / not decided",`${n.adopt} / ${n.modify} / ${n.none} / ${n.undecided}`],["Actions done",`${n.done} of ${n.act}`],["Effective / not effective",`${n.eff} / ${n.not}`],["Overdue actions",n.od],["Downloaded",dIso(today)]];
+    ["Suggested actions (top priority: P0 / A)",n.total],["Lower-priority issues (B / C), not actioned",R.low?R.low.length:"not recorded"],["Adopted / changed / no action / not decided",`${n.adopt} / ${n.modify} / ${n.none} / ${n.undecided}`],["Actions done",`${n.done} of ${n.act}`],["Effective / not effective",`${n.eff} / ${n.not}`],["Overdue actions",n.od],["Downloaded",dIso(today)]];
   const plan={head:["#","Priority","Source","Issue found","Details","Suggested action","Suggested owner","Suggested timing","Decision","Reaction plan / reason for no action","Owner","Due date"],
     rows:R.items.map(i=>[i.id,i.pr==="P0"?"P0 product":i.pr,i.src,i.issue,i.detail||"",i.suggested,i.sugOwner,i.when||`within ${i.sugDays} day(s)`,(PD_DEC[i.dec]||"Not decided")+(i.need8d?" (required: "+i.need8d+")":""),i.dec==="8d"?`${i.d8||"8D"} · leader ${i.leader||"—"}${i.plan?" · "+i.plan:""}`:i.plan||"",i.owner||"",dIso(i.due)])};
   const doT={head:["#","Issue found","Reaction plan","Owner","Due date","Date done","Done by","What was done","Product disposition","On time"],
@@ -2187,7 +2199,8 @@ function pdTables(R){
     rows:R.items.flatMap(i=>(i.hist||[]).map(h=>[i.id,i.issue,h.cycle,h.plan||"",h.owner||"",h.done||"",h.evid||""]))};
   const act=[["Documents standardised",(R.docs||[]).join(", ")||"not yet"],["Lessons learned / what was standardised",R.lessons||""],["Approved by",R.apprBy||""],["Role",R.apprRole||""],["Date",dIso(R.actDate)],["Review closed",R.stage==="closed"?dIso(R.closedDate)||"Yes":"No"]];
   const hist={head:["Date","Event"],rows:R.log.map(x=>[dIso(x.d),x.t])};
-  return {summary,plan,doT,check,none,earlier,act,hist};
+  const low={head:["Priority","Source","Issue found","Details","Suggested action","Suggested owner","Suggested timing"],rows:(R.low||[]).map(x=>[x.pr,x.src,x.issue,x.detail||"",x.suggested||"",x.sugOwner||"",x.when||""])};
+  return {summary,plan,doT,check,none,earlier,act,hist,low};
 }
 function pdXlsx(R){
   if(!window.XLSX||!XLSX.utils||!XLSX.writeFile) return "The spreadsheet library did not load (check the internet connection), so the Excel file cannot be made. Use Download PDF instead.";
@@ -2196,6 +2209,7 @@ function pdXlsx(R){
   const tbl=(t,widths,title)=>sheet([[title],[],t.head,...(t.rows.length?t.rows:[["—"]])],widths);
   XLSX.utils.book_append_sheet(wb,sheet([["Review PDCA: reaction plan"],[],...T.summary],[44,70]),"Summary");
   XLSX.utils.book_append_sheet(wb,tbl(T.plan,[6,11,22,48,48,48,18,20,26,52,18,13],"PLAN: suggested actions and the reaction plan decided by the reviewer"),"Plan");
+  if(R.low) XLSX.utils.book_append_sheet(wb,tbl(T.low,[10,22,48,48,48,18,20],"LOWER PRIORITY (B / C): listed with the review, not taken for action"),"Lower priority");
   XLSX.utils.book_append_sheet(wb,tbl(T.doT,[6,48,52,18,13,13,18,52,34,10],"DO: what was done"),"Do");
   XLSX.utils.book_append_sheet(wb,tbl(T.check,[6,48,52,16,60],"CHECK: was it effective?"),"Check");
   const actRows=[["ACT: standardise and approve"],[],...T.act,[],["Actions with no reaction plan"],T.none.head,...(T.none.rows.length?T.none.rows:[["—"]]),[],["Earlier cycles: actions that were not effective"],T.earlier.head,...(T.earlier.rows.length?T.earlier.rows:[["—"]])];
@@ -2226,6 +2240,7 @@ function pdPdf(R){
   <p class="sub">${e(R.furnace||R.fkey)} · record ${e(T.summary[4][1])} · ${e(R.file)} · stage ${e(PD_NM[R.stage])}${R.cycle>1?" · cycle "+R.cycle:""}</p>
   <h2>Summary</h2>${kv(T.summary)}
   <h2>Plan: suggested actions and the reaction plan decided by the reviewer</h2>${table(plan)}<p>Reaction plan decided by: <b>${e(R.planBy||"—")}</b></p>
+  ${R.low?`<h2>Lower priority (B / C): listed, not taken for action</h2>${table(T.low)}`:""}
   <h2>Do: what was done</h2>${table(T.doT)}
   <h2>Check: was it effective?</h2>${table(T.check)}<p>Effect verified by: <b>${e(R.checkBy||"—")}</b>${R.checkDate?" on "+e(dIso(R.checkDate)):""}</p>
   <h2>Act: standardise and approve</h2>${kv(T.act)}
@@ -2250,6 +2265,7 @@ function pdPrint(D){
   return `<section class="panel print-only">${head}<table class="log"><thead><tr><th>#</th><th>Issue</th><th>Decision and reaction plan</th><th>Owner</th><th>Due</th><th>Done</th><th>Effective</th></tr></thead><tbody>${
     R.items.map(i=>`<tr><td>${esc(i.id)} ${esc(i.pr)}</td><td>${esc(i.issue)}</td><td><b>${dec[i.dec]||"Not decided"}</b>${i.dec==="8d"?" "+esc(i.d8||"")+(e8Get(i.d8)?" · "+esc(E8_NM[e8Get(i.d8).stage]):""):""}: ${esc(i.plan||"")}${i.dispo?`<br>Product: ${esc(i.dispo)}`:""}</td><td>${esc(i.owner||"–")}</td><td class="n">${i.due?esc(fmtD(Date.parse(i.due+"T00:00:00Z"))):"–"}</td>
       <td>${i.doneDate?esc(fmtD(Date.parse(i.doneDate+"T00:00:00Z")))+": "+esc(i.doneNote||""):"–"}</td><td>${i.res==="effective"?"Effective":i.res==="not"?"Not effective":"–"}${i.evid?`<br><span class="muted">${esc(i.evid)}</span>`:""}</td></tr>`).join("")}</tbody></table>
+    ${R.low&&R.low.length?`<p class="small">Lower priority (B / C), not taken for action: ${R.low.map(x=>esc(x.pr+" "+x.issue)).join("; ")}</p>`:""}
     ${R.docs&&R.docs.length?`<p class="small">Standardised: ${esc(R.docs.join(", "))}${R.lessons?" · "+esc(R.lessons):""}</p>`:""}</section>`;
 }
 (()=>{
