@@ -182,7 +182,7 @@ footer li{margin:2px 0}
 @media print{.fold-hide{display:table-row}}
 .st-quick{display:flex;gap:6px;flex-wrap:wrap;align-self:flex-end}.st-quick .btn{padding:6px 10px}
 .st-sum{margin-top:10px}.st-sum summary{cursor:pointer}.st-sum ul{max-height:220px;overflow:auto}
-.st-log{margin:10px 0 0;padding-left:18px}.st-log li.err{color:var(--crit-ink)}.st-log li.dup{color:var(--muted)}
+.st-log{margin:10px 0 0;padding-left:18px}.st-log li.err{color:var(--crit-ink)}.st-log li.warn{color:var(--warn-ink)}.st-log li.dup{color:var(--muted)}
 #stMsg.ok{color:var(--good-ink,var(--ink))}
 .method{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:0 0 12px}
 .method div{border:1px solid var(--line);border-radius:6px;padding:8px 11px;background:var(--surface2);font-size:13px}
@@ -321,7 +321,7 @@ table.stat th:first-child{text-align:left}
       <button class="btn ghost" type="button" id="stFolder" title="Chrome and Edge: choose a folder; every export in it is added">Add a folder…</button>
       <button class="btn ghost" type="button" id="stBackup">Back up the store</button>
       <button class="btn ghost" type="button" id="stRestore">Restore a backup…</button>
-      <div class="field"><label for="keepDays" title="Stored days older than this are removed when exports are added. 0 keeps everything.">Keep readings for, days (0 = all)</label><input id="keepDays" type="number" min="0" step="1" style="width:110px"></div>
+      <div class="field"><label for="keepDays" title="Stored days older than this are removed when exports are added (28 days = 4 weeks, the retention period set for the SCADA readings). 0 keeps everything.">Keep readings for, days (0 = all)</label><input id="keepDays" type="number" min="0" step="1" style="width:110px"></div>
       <input type="file" id="stFiles" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
       <input type="file" id="stDir" webkitdirectory multiple hidden>
       <input type="file" id="stRestoreFile" accept=".json,application/json" hidden>
@@ -401,7 +401,7 @@ const MINSTAT = 10; /* min readings at one set value before it is analysed or li
 /* Valid measuring range: readings outside 500-1000 °C are treated as invalid, excluded from every statistic and never plotted. */
 const TMIN = 500, TMAX = 1000;
 const inRange = v => v!=null && v>=TMIN && v<=TMAX;
-const DEF = {keepDays:0, tol:10, merge:10, trays1:5, trays2:4, trays3:4, ttrays1:4, ttrays2:4, ttrays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
+const DEF = {keepDays:28, tol:10, merge:10, trays1:5, trays2:4, trays3:4, ttrays1:4, ttrays2:4, ttrays3:4, persist:1, settle:120, hold:3, spike:15, stuck:30, gap:2.5};
 const S = {...DEF};
 try{ Object.assign(S, JSON.parse(localStorage.getItem("sr2-settings")||"{}")); }catch(e){}
 const IDS = Object.keys(DEF);
@@ -2639,6 +2639,14 @@ const dayRec2D=list=>{
   const last=list[list.length-1];
   return {rows,n,meta:last.meta,skipped:0,zoneLabels:last.zoneLabels||[]};
 };
+/* the date in an export's file name (01102026, 2026-10-01, 01-10-2026, 01.10.2026), to catch a file saved under the wrong date */
+function nameDay(name){
+  const b=String(name).replace(/\.[a-z]+$/i,""); let m, d=null;
+  if((m=b.match(/(?:^|\D)(20\d\d)[-_.]?(\d\d)[-_.]?(\d\d)(?:\D|$)/))) d=[+m[1],+m[2],+m[3]];
+  else if((m=b.match(/(?:^|\D)(\d\d)[-_.]?(\d\d)[-_.]?(20\d\d)(?:\D|$)/))) d=[+m[3],+m[2],+m[1]];
+  if(!d||d[1]<1||d[1]>12||d[2]<1||d[2]>31) return "";
+  return `${d[0]}-${pad(d[1])}-${pad(d[2])}`;
+}
 /* add one parsed export to the store: returns a line for the import log */
 async function stAddParsed(D,fp,name,size){
   const old=await stGet("exports",fp);
@@ -2662,6 +2670,8 @@ async function stAddParsed(D,fp,name,size){
   }
   await stPut("exports",{fp,file:name,fk,meta:D.meta,n:D.n,t0:D.rows[0].t,t1:D.rows[D.rows.length-1].t,rows:D.rows.length,days,added:todayISO(),size:size||0});
   stInfoSave();
+  const nd=nameDay(name), wrongDay=nd&&!days.includes(nd);
+  if(wrongDay) return {st:"warn",fk,txt:`${name}: the file name says ${dIso(nd)} but it holds ${days.map(d=>dIso(d)).join(", ")} (stored under the dates inside: ${added} readings added${dup?`, ${dup} already stored`:""}). Check that the right export was saved; ${dIso(nd)} may be missing.`};
   return {st:added?"ok":"dup",fk,txt:`${name}: ${fk}, ${days.length} day${days.length>1?"s":""} (${days.map(d=>dIso(d).slice(0,6)).join(", ")}) · ${added} readings added${dup?`, ${dup} already stored`:""}`};
 }
 /* retention: drop stored days older than S.keepDays (0 = keep everything) */
@@ -2764,7 +2774,7 @@ function renderStore(){
     <div class="scroll" style="margin-top:10px"><table class="log"><thead><tr><th>Furnace · chamber</th><th>Days stored</th><th>From – to</th><th>Days missing</th><th>Readings</th><th>Exports</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
     :`<div class="empty" style="margin-top:10px">Nothing stored yet. Add the SCADA exports of several days (or a folder of them); every export you upload for a daily review is stored too.</div>`)
     +(ST_LOG.length?(()=>{ const c=st=>ST_LOG.filter(x=>x.st===st).length, li=ST_LOG.map(x=>`<li class="${x.st}">${esc(x.txt)}</li>`).join("");
-      return ST_LOG.length<=4?`<ul class="st-log small">${li}</ul>`:`<details class="st-sum small" open><summary>Last import: ${c("ok")} added${c("dup")?` · ${c("dup")} already in the store`:""}${c("err")?` · <span class="bad">${c("err")} not added</span>`:""}</summary><ul class="st-log">${li}</ul></details>`; })():"");
+      return ST_LOG.length<=4?`<ul class="st-log small">${li}</ul>`:`<details class="st-sum small" open><summary>Last import: ${c("ok")} added${c("dup")?` · ${c("dup")} already in the store`:""}${c("warn")?` · <span class="caution">${c("warn")} to check</span>`:""}${c("err")?` · <span class="bad">${c("err")} not added</span>`:""}</summary><ul class="st-log">${li}</ul></details>`; })():"");
 }
 (()=>{
   const p=$("#storePanel"); if(!p) return;
