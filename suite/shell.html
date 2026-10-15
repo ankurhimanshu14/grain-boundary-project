@@ -167,7 +167,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   <div class="dd" data-grp="management">
     <button class="ddh" id="h-management" aria-haspopup="menu" aria-expanded="false" aria-controls="m-management"><span class="pd">Management</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
     <div class="menu" id="m-management" role="menu" aria-labelledby="h-management" hidden>
-      <button class="tab" role="menuitem" id="tab-org" data-page="org" aria-controls="page-org" title="Heat treat organization and personnel"><span class="long">HT organization<span class="sub">Heat treat person, organization chart, job descriptions (HTSA 1.1)</span></span><span class="badge" id="badge-org" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-org" data-page="org" aria-controls="page-org" title="Heat treat organization and personnel"><span class="long">HT organization<span class="sub">HTSA section 1: heat treat person (1.1), organization chart, job descriptions, spec authorization (1.6)</span></span><span class="badge" id="badge-org" hidden></span></button>
     </div>
   </div>
   <div class="dd" data-grp="production">
@@ -375,6 +375,7 @@ function renderHome(){
   const opa=HTQ.api("ops"), OP=opa?opa.overview():null;
   const lba=HTQ.api("load"), LB=lba?lba.overview():null;
   const ora=HTQ.api("org"), OR=ora?ora.overview():null;
+  const S16=spa&&spa.htsa16?spa.htsa16():null;
   /* equipment items that no other page reports */
   const EQOWN={"Instrumentation type supported by the equipment":"instrumentation type not supported by the installed equipment","Control instruments calibrated":"controller calibration expired","Recording instrument calibrated":"recorder calibration expired","Over-temperature protection tested":"over-temperature protection test overdue","Over-temperature protection":"no over-temperature protection","Furnace class meets the parts":"furnace class not proven for the tolerance the parts need","No equipment change waiting for requalification":"equipment change waiting for TUS / SAT"};
   const TLV={ok:"good",soon:"warn",partial:"warn",none:"warn",overdue:"crit",fail:"crit"};
@@ -462,6 +463,9 @@ function renderHome(){
   if(OR){
     OR.items.forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?0:6,txt:`<b>HTSA 1.1 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="org">HT organization</button>`}));
   }
+  if(S16){
+    S16.items.forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?1:7,txt:`<b>HTSA 1.6 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="spec">Specifications</button>`}));
+  }
   if(LB){
     LB.open.forEach(x=>att.push({lvl:"crit",o:1,txt:`<b>${esc(x.furnace)} · ${esc(x.id)}</b>: load of part ${esc(x.part)}${x.batch?", batch "+esc(x.batch):""} (${fd(x.date)}) not as the loading standard: reaction plan open`,btn:`<button class="nb" data-lbchk="${esc(x.id)}">Open check</button>`}));
     Object.entries(LB.perFurnace).forEach(([f,v])=>{ if(v.overdue+v.lifeOver) att.push({lvl:"crit",o:3,txt:`<b>${esc(f)}</b>: ${v.overdue+v.lifeOver} tray${v.overdue+v.lifeOver>1?"s / fixtures":" / fixture"} in use with the inspection overdue or past the life limit`,btn:`<button class="nb" data-go="load|${esc(f)}">Load build</button>`});
@@ -497,7 +501,8 @@ function renderHome(){
       ${PR?(()=>{const d=new Date(Date.now()-864e5),y=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),L=PR.filter(r=>r.date===y),kg=L.reduce((a,r)=>a+r.rows.reduce((b,x)=>b+(x.kg||0),0),0),nb=L.reduce((a,r)=>a+r.rows.length,0),dr=prodDrafts().length;
         return tile(L.length?Math.round(kg).toLocaleString("en-IN")+'<small style="font-size:16px"> kg</small>':"—","Production yesterday",`${nb} batch${nb===1?"":"es"} in ${L.length} report${L.length===1?"":"s"} · ${dr} report${dr===1?"":"s"} of earlier days not approved`,dr?"warn":"");})():""}
       ${CP?(()=>{const inF=CP.docs.filter(d=>d.status==="approved"||d.rev>0).length,dr=CP.docs.filter(d=>d.status==="draft").length;return tile(inF,"Control plans & PFMEA",`in force · ${dr} draft${dr===1?"":"s"} · ${CP.apH} AP-High row${CP.apH===1?"":"s"} open`,CP.late.length?"bad":CP.apH||dr?"warn":"");})():""}
-      ${OR?tile(`<span style="font-size:22px">${esc(OR.label)}</span>`,"Heat treat person (HTSA 1.1)",OR.person?`${esc(OR.person.name)} · ${esc(OR.person.position)} · ${OR.person.qualified?"qualified":"minimum not met"}${OR.deputy?" · deputy "+esc(OR.deputy):" · no deputy"}`:"no heat treat person appointed",OR.score==="s"?"ok":OR.score==="ns"?"warn":"bad"):""}
+      ${OR||S16?(()=>{const Q=[OR&&["1.1",OR],S16&&["1.6",S16]].filter(Boolean),rank={s:0,ns:1,nia:2},w=Q.reduce((a,[,x])=>rank[x.score]>rank[a.score]?x:a,Q[0][1]);
+        return tile(`<span style="font-size:22px">${esc(w.label)}</span>`,"HTSA section 1",Q.map(([q,x])=>`${q} ${esc(x.label.toLowerCase())}`).join(" · ")+(OR&&OR.person?` · HT person ${esc(OR.person.name)}`:""),w.score==="s"?"ok":w.score==="ns"?"warn":"bad");})():""}
       ${LB?(()=>{const n=LB.overdue+LB.lifeOver+LB.open.length;return tile(n,"Load build & fixtures",`${LB.overdue} inspection${LB.overdue===1?"":"s"} overdue · ${LB.lifeOver} past life · ${LB.open.length} load check${LB.open.length===1?"":"s"} not OK · ${LB.unchecked.length} batch${LB.unchecked.length===1?"":"es"} unchecked`,n?"bad":LB.unchecked.length||LB.never||LB.noStd.length?"warn":"ok");})():""}
       ${OP?(()=>{const a=OP.items.filter(x=>x.status==="active").length,r=OP.items.filter(x=>x.status==="react").length,v=OP.items.filter(x=>x.status==="review"||x.status==="incomplete").length;return tile(a+r,"Alarms & start-ups",`${a} alarm${a===1?"":"s"} active · ${r} reaction${r===1?"":"s"} open · ${v} to review or complete`,a+r?"bad":v?"warn":"ok");})():""}
       ${MT?tile(MT.open.length,"Hardness & metallurgy",`nonconforming batches open · ${MT.tests30} tests, ${MT.nok30} not conforming or invalid in 30 days`,MT.open.length?"bad":MT.nok30?"warn":"ok"):""}
@@ -611,11 +616,11 @@ function badgeLoad(){
 }
 /* HT organization badge: HTSA 1.1 items not met */
 function badgeOrg(){
-  const b=$("#badge-org"), api=HTQ.api("org"), c=api?api.counts():{crit:0,warn:0}, n=c.crit;
+  const b=$("#badge-org"), api=HTQ.api("org"), c=api?api.counts():{crit:0,warn:0}, sp=HTQ.api("spec"), c16=sp&&sp.htsa16?sp.htsa16().crit:0, n=c.crit+c16;
   b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":"");
-  b.title=n?n+" HTSA 1.1 item"+(n>1?"s":"")+" not met":"";
+  b.title=[c.crit&&c.crit+" HTSA 1.1 item"+(c.crit>1?"s":"")+" not met",c16&&c16+" HTSA 1.6 item"+(c16>1?"s":"")+" not met"].filter(Boolean).join(", ");
 }
-HTQ.on("org:ready",badgeOrg); HTQ.on("org:changed",badgeOrg);
+["org:ready","org:changed","spec:ready","spec:changed","prod:changed"].forEach(ev=>HTQ.on(ev,badgeOrg));
 HTQ.on("load:ready",badgeLoad); HTQ.on("load:changed",badgeLoad); HTQ.on("prod:changed",badgeLoad);
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */

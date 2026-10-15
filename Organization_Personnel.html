@@ -238,6 +238,11 @@ table.rows td{vertical-align:top}
   </header>
 
   <section class="panel">
+    <div class="sec-head"><h2>HTSA section 1 · Management responsibility</h2><p>The section-1 questions implemented in CALOR and their assessment. Each question's evidence lives on the page shown.</p></div>
+    <div class="scroll" id="sec1"></div>
+  </section>
+
+  <section class="panel">
     <div class="sec-head"><h2>HTSA 1.1 · Dedicated and qualified heat treat person on site</h2><p>The requirement, the evidence this page holds for it and the resulting assessment. The scoring follows the HTSA categories; confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
     <div class="req-q"><b>1.1 Is there a dedicated and qualified heat treat person on-site?</b>To ensure readily available expertise the following requirements shall be met:
       <ul><li>There shall be a dedicated and qualified full-time heat treat person on site.</li><li>The position shall be reflected in the organization chart.</li><li>A job description shall exist identifying the qualifications for the positions including appropriate metallurgical and heat treat knowledge for the individuals.</li><li>Evidence shall be available regarding the qualifications with a minimum of <span id="q-min">5</span> years experience in heat treat operations or as a combination of a minimum of <span id="q-min2">5</span> years of formal metallurgical education and heat treat experience.</li></ul></div>
@@ -294,6 +299,7 @@ table.rows td{vertical-align:top}
       <li><b>Dedicated:</b> heat treatment is the main duty of the position (ticked on the position) and its holder holds no other position in the chart. <b>Full-time</b> and <b>on site</b> are checked on both the position and the person's employment.</li>
       <li><b>Organization chart:</b> built from the positions (“reports to”). It is approved with a revision and date; any change to a position, holder or reporting line after the approval asks for a new approval. A periodic re-approval is due after the review interval.</li>
       <li><b>Job description:</b> a controlled document per position (draft → approved, new revision with a reason). For the heat treat position it must state the education, the metallurgical and heat treat knowledge and a minimum experience of at least the HTSA minimum.</li>
+      <li><b>Process specifications (HTSA 1.6):</b> the holder and the deputy of the heat treat position, and of every position marked “authorized to establish and approve process specifications”, are the people the Specifications page accepts as approvers.</li>
       <li><b>Qualification:</b> heat treat experience = the dated experience entries marked as heat treat work with evidence (overlaps counted once, an open entry runs to today); formal metallurgical education = the duration of metallurgy / materials programmes with evidence. Qualified when the heat treat experience reaches the minimum, or when the heat treat experience plus the metallurgical education together reach it (both present).</li>
     </ul>
   </footer>
@@ -336,7 +342,7 @@ const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.positions)||!Array.isArray(o.people)) return null;
   o.settings={...DEF,...(o.settings&&typeof o.settings==="object"?o.settings:{})};
-  o.positions=o.positions.filter(p=>p&&p.id).map(p=>({title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,log:[],...p,jd:{...blankJd(),...(p.jd||{})}}));
+  o.positions=o.positions.filter(p=>p&&p.id).map(p=>({title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,specAuth:false,log:[],...p,jd:{...blankJd(),...(p.jd||{})}}));
   o.people=o.people.filter(p=>p&&p.id).map(p=>({name:"",empNo:"",employment:"full",site:"on",joined:"",edu:[],exp:[],trn:[],notes:"",log:[],...p}));
   o.chart={rev:0,apprDate:"",appr:"",dirty:false,log:[],...(o.chart||{})};
   const s=o.seq&&typeof o.seq==="object"?o.seq:{};
@@ -358,6 +364,12 @@ const posById=id=>DB.positions.find(p=>p.id===id)||null;
 const perById=id=>DB.people.find(p=>p.id===id)||null;
 const pname=id=>{const p=perById(id);return p?p.name:"";};
 const htPos=()=>DB.positions.filter(p=>p.ht);
+/* HTSA 1.6: who may establish and approve process specifications: the heat treat position (1.1) and the positions marked, holder and deputy */
+function authorized(){
+  const L=[],seen=new Set();
+  DB.positions.filter(p=>p.ht||p.specAuth).sort((a,b)=>b.ht-a.ht).forEach(p=>[[p.holder,p.title],[p.deputy,"deputy, "+p.title]].forEach(([id,pos])=>{const per=perById(id);if(per&&!seen.has(per.id)){seen.add(per.id);L.push({name:per.name,position:pos});}}));
+  return L;
+}
 const heldBy=pid=>DB.positions.filter(p=>p.holder===pid);
 
 /* ---------- qualification: years of heat treat experience and metallurgical education with evidence ---------- */
@@ -453,7 +465,14 @@ const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","�
 function render(){
   $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(DB.positions.length,"position")} · ${plural(DB.people.length,"person","people")}</span><span>Today ${fdate(today())}</span>`;
   $("#q-min").textContent=$("#q-min2").textContent=MIN();
-  drawAssess();drawWho();drawTree();drawPositions();drawPeople();drawSettings();
+  drawSec1();drawAssess();drawWho();drawTree();drawPositions();drawPeople();drawSettings();
+}
+function drawSec1(){
+  const A=assess(),sp=HTQ&&HTQ.api("spec"),s16=sp&&sp.htsa16?(()=>{try{return sp.htsa16();}catch(e){return null;}})():null;
+  const row=(q,t,sc,where,btn)=>`<tr><td data-label="Question"><b>${q}</b></td><td data-label="Topic">${esc(t)}</td><td data-label="Assessment">${sc?chip(SCORE[sc][0],sc==="s"?"✓":"!",SCORE[sc][1]):`<span class="muted">${esc(where)}</span>`}</td><td data-label="Evidence">${esc(where)}</td><td class="act noprint">${btn||""}</td></tr>`;
+  $("#sec1").innerHTML=`<table class="log cards"><thead><tr><th>Question</th><th>Topic</th><th>Assessment</th><th>Evidence on</th><th class="noprint"></th></tr></thead><tbody>
+    ${row("1.1","Dedicated and qualified heat treat person on site",A.score,"this page (below)","")}
+    ${row("1.6","Documented system to create process specifications",s16?s16.score:null,HTQ?"Specifications page":"Specifications page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-spec="1">Specifications</button>`:"")}</tbody></table>`;
 }
 function drawAssess(){
   const A=assess(),sc=SCORE[A.score];
@@ -491,7 +510,7 @@ function drawPositions(){
   if(!DB.positions.length){$("#positions").innerHTML=`<div class="empty">No positions yet.</div>`;return;}
   const L=DB.positions.slice().sort((a,b)=>(b.ht-a.ht)||a.title.localeCompare(b.title));
   $("#positions").innerHTML=`<table class="log cards"><thead><tr><th>Position</th><th>Reports to</th><th>Holder</th><th>Deputy</th><th>Employment</th><th>Job description</th><th class="noprint"></th></tr></thead><tbody>${L.map(p=>{const m=p.jd.status==="draft"?jdMissing(p):[];
-    return `<tr><td data-label="Position"><b>${esc(p.title)}</b>${p.ht?" "+chip("info","★","Heat treat position"):""}<br><span class="kind">${esc(p.dept||"")}${p.dedicated?(p.dept?" · ":"")+"dedicated":""}</span></td>
+    return `<tr><td data-label="Position"><b>${esc(p.title)}</b>${p.ht?" "+chip("info","★","Heat treat position"):""}${p.ht||p.specAuth?" "+chip("good","✓","Approves process specifications"):""}<br><span class="kind">${esc(p.dept||"")}${p.dedicated?(p.dept?" · ":"")+"dedicated":""}</span></td>
       <td data-label="Reports to">${esc(posById(p.reportsTo)?posById(p.reportsTo).title:"—")}</td><td data-label="Holder">${esc(pname(p.holder)||"vacant")}</td><td data-label="Deputy">${esc(pname(p.deputy)||"—")}</td>
       <td data-label="Employment">${p.fte==="full"?"Full-time":"Part-time"} · ${esc(SITE[p.site]||"")}</td>
       <td data-label="Job description">${jdChip(p)}${jdEff(p)?`<br><span class="muted">rev ${jdEff(p).rev} · ${fdate(jdEff(p).apprDate)}</span>`:""}${m.length?`<br><span class="muted small">Missing: ${esc(m.slice(0,4).join(", "))}${m.length>4?" …":""}</span>`:""}</td>
@@ -538,7 +557,7 @@ function dlgPos(){
       ${fld("title","Position title",{req:true})}${fld("dept","Department")}${fld("reportsTo","Reports to",{opts:others})}
       ${fld("holder","Holder",{opts:people,hint:people.length?"":"Add the person first (Add person)."})}${fld("deputy","Deputy (covers absences)",{opts:people})}
       ${fld("fte","Position is",{opts:[["full","Full-time"],["part","Part-time"]],blank:false})}${fld("site","Location",{opts:Object.entries(SITE),blank:false})}
-      <div class="field span">${fld("ht","",{type:"check",text:"This is the heat treat position (HTSA 1.1): the dedicated and qualified heat treat person on site"})}${fld("dedicated","",{type:"check",text:"Heat treatment is the main duty of this position (dedicated)"})}</div></div></section>
+      <div class="field span">${fld("ht","",{type:"check",text:"This is the heat treat position (HTSA 1.1): the dedicated and qualified heat treat person on site"})}${fld("dedicated","",{type:"check",text:"Heat treatment is the main duty of this position (dedicated)"})}${fld("specAuth","",{type:"check",text:"Authorized to establish and approve process specifications (HTSA 1.6; the heat treat position always is; holder and deputy)"})}</div></div></section>
     <section class="stage" style="--k:var(--d)"><h3>Job description <small>${E.jd.rev>0?"Revision "+E.jd.rev:"Controlled document"} · ${E.jd.status==="approved"?"approved, locked":"draft"}</small></h3><div class="fgrid">
       ${fld("jd.purpose","Purpose of the position",{type:"textarea",req:true,span:true,ro})}${fld("jd.resp","Responsibilities",{type:"textarea",req:true,span:true,ro})}${fld("jd.auth","Authority (e.g. stop the line, release product, approve recipes)",{type:"textarea",span:true,ro})}
       ${fld("jd.edu","Required education",{type:"textarea",req:true,span:true,ro,hint:"e.g. B.E. / B.Tech in Metallurgical Engineering, or diploma with experience"})}
@@ -598,6 +617,7 @@ function onDlgInput(ev){
 }
 dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
 const STRUCT=["title","reportsTo","holder","deputy","ht","fte","site","dedicated"];
+const AUTHF=["specAuth"];
 function commitPos(text){
   const E=ED;
   if(!txt(E.title)) return "Enter the position title.";
@@ -608,6 +628,7 @@ function commitPos(text){
   else{const old=posById(E.id),ch=STRUCT.filter(k=>String(old[k]??"")!==String(E[k]??""));
     if(ch.length) markChart(`${E.title}: ${ch.map(k=>({title:"title",reportsTo:"reporting line",holder:"holder",deputy:"deputy",ht:"heat treat position",fte:"full-time",site:"location",dedicated:"dedicated"}[k])).join(", ")} changed`);
     if(old.holder!==E.holder) logIt(E,`Holder ${pname(old.holder)||"vacant"} → ${pname(E.holder)||"vacant"}`);
+    if(!!old.specAuth!==!!E.specAuth) logIt(E,E.specAuth?"Authorized to establish and approve process specifications (HTSA 1.6)":"Authorization for process specifications withdrawn");
     logIt(E,text||"Position updated");DB.positions[DB.positions.findIndex(p=>p.id===E.id)]=E;}
   ED=clone(E);save();render();return "";
 }
@@ -648,6 +669,7 @@ dlg.addEventListener("click",ev=>{
 document.addEventListener("click",ev=>{
   if(dlg.contains(ev.target)) return;
   const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.goSpec){if(HTQ)HTQ.go("spec");return;}
   if(b.dataset.openPos){const p=posById(b.dataset.openPos);if(p)openDlg("pos",clone(p));return;}
   if(b.dataset.openP){const p=perById(b.dataset.openP);if(p)openDlg("per",clone(p));return;}
   if(b.dataset.jdPdf){const m=jdPdf(posById(b.dataset.jdPdf));if(m)alert(m);return;}
@@ -802,7 +824,7 @@ function example(){
   const pos=x=>{const p={id:"POS-"+String(o.seq.pos++).padStart(2,"0"),dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,log:[{d:d(300),t:"Position created"}],...x,jd:{...blankJd(),...(x.jd||{})}};o.positions.push(p);return p;};
   const appr={prep:"HR executive",appr:"Director (example)",status:"approved",apprDate:d(280)};
   const D=pos({title:"Director",dept:"Management",holder:md.id,jd:{purpose:"Lead the plant.",resp:"Business, resources, quality policy, management review.",edu:"Graduate engineer",minYears:"15",...appr}});
-  const Q=pos({title:"Quality Manager",dept:"Quality",reportsTo:D.id,holder:qm.id,jd:{purpose:"Quality system and customer quality.",resp:"IATF 16949 system, audits, customer complaints, CQI-9 self-assessment.",edu:"Graduate (science or engineering)",minYears:"8",...appr}});
+  const Q=pos({title:"Quality Manager",dept:"Quality",reportsTo:D.id,holder:qm.id,specAuth:true,jd:{purpose:"Quality system and customer quality.",resp:"IATF 16949 system, audits, customer complaints, CQI-9 self-assessment.",edu:"Graduate (science or engineering)",minYears:"8",...appr}});
   const H=pos({title:"HT Manager",dept:"Heat treatment",reportsTo:D.id,holder:ht.id,deputy:dep.id,ht:true,dedicated:true,jd:{purpose:"Responsible for the heat treatment process and its metallurgical results: the dedicated heat treat person on site (CQI-9 HTSA 1.1).",
     resp:"Process specifications and recipes; pyrometry (SAT, TUS, thermocouples); quench media; metallurgical testing and release; reaction plans and 8D for heat treat problems; training of operators; CQI-9 self-assessment of the heat treat process.",
     auth:"Stop the line or put product on hold; approve process specifications; release or reject heat-treated product.",edu:"B.E. / B.Tech in Metallurgical Engineering (or equivalent)",
@@ -822,8 +844,10 @@ if(HTQ){
     overview:()=>{const A=assess();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),
       person:A.per?{name:A.per.name,position:A.p.title,qualified:A.q.qualified,ht:A.q.ht,edu:A.q.edu}:null,deputy:A.p&&perById(A.p.deputy)?pname(A.p.deputy):"",positions:DB.positions.length};},
     counts:()=>{const A=assess();return {crit:A.I.filter(i=>i.lvl==="crit").length,warn:A.I.filter(i=>i.lvl==="warn").length,score:A.score};},
-    people:()=>DB.people.map(p=>({id:p.id,name:p.name,positions:heldBy(p.id).map(x=>x.title)}))
+    people:()=>DB.people.map(p=>({id:p.id,name:p.name,positions:heldBy(p.id).map(x=>x.title)})),
+    authorized
   });
+  ["spec:ready","spec:changed","prod:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)drawSec1();}));
   HTQ.on("nav:org",o=>{if(o&&o.pos){const p=posById(o.pos);if(p)openDlg("pos",clone(p));}if(o&&o.person){const p=perById(o.person);if(p)openDlg("per",clone(p));}});
 }
 
@@ -832,6 +856,6 @@ try{const th=localStorage.getItem("org-theme");if(th&&!HTQ)document.documentElem
 render();
 if(!DB.positions.length&&!DB.people.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
 setInterval(()=>{if(!dlg.open) render();},3600000);
-window.__ORG={get DB(){return DB;},qual,assess,jdMissing,jdEff,mergedMonths,loops,openDlg};
+window.__ORG={get DB(){return DB;},qual,assess,jdMissing,jdEff,mergedMonths,loops,openDlg,authorized};
 </script>
 </body></html>
