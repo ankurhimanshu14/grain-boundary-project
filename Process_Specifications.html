@@ -790,7 +790,7 @@ function example(){
 /* ---------- CALOR: overview for the home page and the other pages ---------- */
 if(HTQ){
   $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
-  const brief=s=>({id:s.id,rev:s.rev,part:s.part,name:s.name,grade:s.grade,proc:s.proc,procName:PROC[s.proc],furnaces:s.furnaces.slice(),h:s.h.map(num),t:s.t.map(num),htol:s.htol.map(num),ttol:s.ttol.map(num),push:num(s.push),pushTol:num(s.pushTol),req:{...s.req},q:{...s.q},nm:{...s.nm},ccM:s.cc.method,customer:s.customer,drawing:s.drawing,
+  const brief=s=>({id:s.id,rev:s.rev,part:s.part,name:s.name,grade:s.grade,proc:s.proc,procName:PROC[s.proc],furnaces:s.furnaces.slice(),h:s.h.map(num),t:s.t.map(num),htol:s.htol.map(num),ttol:s.ttol.map(num),push:num(s.push),pushTol:num(s.pushTol),req:{...s.req},q:{...s.q},nm:{...s.nm},ccM:s.cc.method,customer:s.customer,drawing:s.drawing,fixture:s.fixture||"",
     pcs:num(s.pcs),wt:num(s.wt),cc:num(s.cc.time),fan:s.proc==="NORM"&&s.nm.fan==="required"?num(s.nm.fanTime):null,between:(calc(s)||{}).between??null,gapPos:(calc(s)||{}).gapPos??0,gapMin:(calc(s)||{}).gapMin??null});
   HTQ.provide("spec",{
     overview:()=>({inForce:DB.specs.filter(eff).length,drafts:DB.specs.filter(s=>s.status==="draft").map(s=>({id:s.id,rev:s.rev,part:s.part})),

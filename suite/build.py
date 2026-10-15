@@ -1,6 +1,6 @@
 """Build CALOR.html, the main application: one file with a navigation bar that
-runs Production_Report.html, Process_Specifications.html, SCADA_Review_2.html,
-Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html, Control_Plan_PFMEA.html,
+runs Production_Report.html, Load_Build_Fixturing.html, Process_Specifications.html,
+SCADA_Review_2.html, Furnace_Operations.html, Quench_Media_Testing.html, Hardness_Metallurgical_Testing.html, Control_Plan_PFMEA.html,
 Thermocouple_SAT_PDCA.html, Temperature_Uniformity_Survey.html and
 Equipment_Qualification.html as pages
 
@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SHELL = ROOT / "suite" / "shell.html"
 APPS = {"/*@PROD@*/": ROOT / "Production_Report.html",
+        "/*@LOAD@*/": ROOT / "Load_Build_Fixturing.html",
         "/*@SPEC@*/": ROOT / "Process_Specifications.html",
         "/*@SCADA@*/": ROOT / "SCADA_Review_2.html",  # SCADA Review 2 replaced the earlier SCADA review
         "/*@OPS@*/": ROOT / "Furnace_Operations.html",

@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Load Build and Fixturing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+/* load build and fixturing */
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.crit{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.info{color:var(--ink2)}
+.crit-mark{color:var(--crit-ink);font-weight:600}
+.nw{white-space:nowrap}
+.kind{font-size:12px;color:var(--ink2)}
+table.vals td.cl{width:150px}
+table.vals td.note{width:30%}
+table.edit textarea{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:220px;min-height:52px}
+.defs{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px}
+.defs label{display:flex;gap:5px;align-items:center;white-space:nowrap}
+.defs input{width:auto}
+table.insp td{vertical-align:top}
+table.insp td:first-child{min-width:120px}
+table.insp select,table.insp input[type=number],table.insp input[type=text]{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink)}
+table.insp input[type=number]{width:70px}
+.wi{display:grid;grid-template-columns:200px 1fr;gap:4px 14px;font-size:13px;background:var(--surface2);border-radius:5px;padding:10px 12px}
+.wi b{font-weight:500;color:var(--ink2)}
+@media (max-width:600px){.wi{grid-template-columns:1fr}}
+.tabs-k{display:flex;gap:6px;flex-wrap:wrap}
+.tabs-k button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:2px 11px;cursor:pointer}
+.tabs-k button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · Floor and material handling · Load build and fixturing</div>
+      <h1>Load build and fixturing</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-check">Record a load check</button>
+      <button class="btn ghost" id="b-insp">Inspect trays / fixtures</button>
+      <button class="btn ghost" id="b-std">New loading standard</button>
+      <button class="btn ghost" id="b-fx">Add trays / fixtures</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Furnaces</h2><p>Trays and fixtures of each line and the load checks of the last days. Select a furnace to show only its trays, fixtures and checks.</p></div>
+    <div class="fgrid4" id="furnaces"></div>
+    <div class="viewbar" id="viewbar"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Needs action</h2><p>Load checks that found the load not as the standard, trays and fixtures in use whose inspection is overdue or that are past their life, parts without a loading standard in force.</p></div>
+    <div class="scroll" id="attn"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Loading standards</h2><p>How each part is loaded: tray or fixture, pieces per tray, arrangement, orientation, separators, load height and cleanliness. The standard in force is the work instruction at the loading station; it is checked against the process specification (pieces per tray) and the tray's maximum load.</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-xlsx">Download register (Excel)</button></div></div>
+    <div class="scroll" id="stds"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Load checks</h2><p>Verification of the load build when a batch is loaded: pattern, orientation, pieces per tray, separators, cleanliness of the parts, condition of the trays used and identification. A check that finds the load not as the standard needs a correction before the trays are pushed and a reaction plan.</p>
+      <div class="actions noprint"><div class="tabs-k" id="chkf"></div></div></div>
+    <div class="scroll" id="checks"></div>
+  </section>
+
+  <section class="panel" id="coverPanel" hidden>
+    <div class="sec-head"><h2>Batches and their load check</h2><p id="coverNote"></p></div>
+    <div class="scroll" id="cover"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Trays and fixtures</h2><p>Every tray, basket and fixture with its identification, maximum load, service life and the periodic inspection for cracks, distortion, broken welds and build-up. A tray or fixture goes back into use only after a passing inspection.</p>
+      <div class="actions noprint"><div class="tabs-k" id="fxf"></div></div></div>
+    <div class="scroll" id="fixtures"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Inspection history</h2><p>The latest inspections of trays and fixtures (result, defects, measured distortion, inspector).</p></div>
+    <div class="scroll" id="insps"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (Production Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The inspection interval, distortion limit and life limits are site rules for this furnace line, not CQI-9 figures: set them from the tray supplier's data and the site's experience, and confirm them against the controlled CQI-9 copy and any customer-specific requirement.</p>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only. Export a backup regularly and import it on another computer.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li>CQI-9 expects parts to be loaded to a defined load build (fixture or tray, quantity, arrangement and orientation) so that every part sees the same heating, quench and cooling, and trays, baskets and fixtures to be kept in a condition that does not distort or contaminate the parts. The question numbers and process-table items this page gives evidence for are to be confirmed against the controlled CQI-9 copy.</li>
+      <li>A <b>loading standard</b> is approved like a controlled document (revision, prepared and approved by, reason for a change). Its pieces per tray must match the process specification in force, and the net load (pieces × part weight) must stay within the tray's maximum load.</li>
+      <li>A <b>load check</b> verifies the first trays of each batch against the standard in force. Critical items not OK, or more pieces than the standard, make the check not OK: the load is corrected before the trays are pushed and a reaction plan (containment, cause, action, owner, date) closes it. Inside CALOR the batches of the Daily production page show which batches have a load check.</li>
+      <li>A <b>tray or fixture</b> is inspected at the set interval; a crack, broken weld, missing bars, distortion beyond the limit or heavy build-up takes it out of use (repair or scrap). Its life is counted in months in service and, inside CALOR, in cycles estimated from the trays pushed on its furnace (trays loaded ÷ trays of the same kind in use on the furnace).</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowHM=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const daysBetween=(a,b)=>dnum(b)-dnum(a);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+MON[+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+const up=v=>txt(v).toUpperCase();
+/* "N/A" (also "NA", "not available") counts as an entry but is never an identity */
+const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
+const kg=v=>v==null?"—":(Math.round(v*10)/10).toLocaleString("en-IN")+" kg";
+
+/* ---------- data model ---------- */
+const KEY="lbf-reg", VKEY="lbf-view"; /* own storage keys */
+const KINDS=["Tray (cast grid)","Tray (fabricated)","Basket","Fixture / jig","Separator grid / insert"];
+const MATS=["Cast heat-resistant alloy (HK / HT type)","Fabricated heat-resistant stainless (309 / 310)","Fabricated nickel alloy (330 / 600)","Other (state in the notes)"];
+const STAT={use:["good","✓","In use"],quar:["warn","!","Quarantined"],repair:["warn","!","Out for repair"],scrap:["info","✕","Scrapped"]};
+const DEFECTS=[["crack","Cracks"],["warp","Distortion beyond the limit"],["weld","Broken welds / joints"],["bars","Missing or broken bars"],["scale","Heavy scale / build-up"],["dirt","Oil, chips or residue"],["ident","Identification mark illegible"]];
+const RESULTS={pass:["good","✓","Pass: in use"],repair:["warn","!","Repair: out of use"],scrap:["crit","✕","Scrap"]};
+const ORIENT=["Lying flat, single layer","Lying flat, in layers with separator grids","Standing on end","Hanging on a fixture","Held in a fixture / jig","Random (bulk) in a basket"];
+const PROCS=["Hardening & tempering","Isothermal annealing","Normalizing","Other"];
+const PMAP={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
+/* what is checked when a batch is loaded (critical items must be OK or not applicable) */
+const LC_ITEMS=[["pattern","Loading pattern as the standard (arrangement, rows × columns, spacing)",1],["orient","Part orientation as the standard",1],["pcs","Pieces per tray counted and within the standard",1],
+  ["height","Load height / number of layers within the standard",0],["sep","Separator grids / spacers as the standard",0],["clean","Parts clean: no oil, coolant, chips, rust or paint",1],
+  ["fixture","Trays / fixtures used are in service and without visible damage",1],["ident","Batch identification (route card / tag) travels with the trays",1]];
+const ROLES=["Production Manager","HT Manager","Maintenance Head","Quality Manager","Director"];
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",inspDays:30,soonDays:7,warpMax:6,lifeCycles:0,lifeMonths:0,trayKgMax:150,covDays:7};
+const blank=()=>({v:1,settings:{...DEF},fixtures:[],insps:[],stds:[],checks:[],seq:{fx:1,fi:1,lb:1,lc:1}});
+const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.fixtures)||!Array.isArray(o.stds)||!Array.isArray(o.checks)) return null;
+  o.settings={...DEF,...(o.settings&&typeof o.settings==="object"?o.settings:{})};
+  o.insps=Array.isArray(o.insps)?o.insps.filter(i=>i&&i.id&&i.fx):[];
+  o.fixtures=o.fixtures.filter(f=>f&&f.id).map(f=>({tag:f.id,kind:KINDS[0],mat:"",furnace:"",size:"",tare:"",maxLoad:"",maker:"",inService:"",cycles0:"",cycAt:"",status:"use",notes:"",log:[],...f}));
+  o.stds=o.stds.filter(s=>s&&s.id).map(s=>({rev:0,status:"draft",part:"",name:"",proc:"",fkind:"",pcs:"",wt:"",layers:"",orient:"",spacing:"",height:"",pattern:"",sep:"",avoid:"",clean:"",sketch:"",notes:"",prep:"",appr:"",apprDate:"",change:"",revs:[],log:[],...s}));
+  o.checks=o.checks.filter(c=>c&&c.id).map(c=>({date:"",time:"",furnace:"",rep:"",part:"",batch:"",heat:"",lb:"",lbRev:"",pcs:"",trays:"",fx:"",cl:{},cln:{},by:"",note:"",act:{},closed:false,log:[],...c}));
+  const s=o.seq&&typeof o.seq==="object"?o.seq:{};
+  o.seq={fx:Math.max(+s.fx||1,seqOf(o.fixtures)),fi:Math.max(+s.fi||1,seqOf(o.insps)),lb:Math.max(+s.lb||1,seqOf(o.stds)),lc:Math.max(+s.lc||1,seqOf(o.checks))};
+  o.v=1; return o;
+}
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n)||null;}catch(e){return null;}};
+let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("load:changed"),300);}};
+const S=()=>DB.settings;
+const furnaces=()=>{let L=null;try{const a=api("sat");L=a?a.furnaces():null;}catch(e){}
+  return [...new Set((L&&L.length?L:["F-01","F-02","F-03","F-04"]).concat(DB.fixtures.map(f=>f.furnace),DB.checks.map(c=>c.furnace)))].filter(Boolean).sort();};
+const newId=(p,k)=>p+"-"+String(DB.seq[k]++).padStart(4,"0");
+const logIt=(x,t)=>x.log.push({d:today(),t});
+let VIEW={f:"",cf:"",ff:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const fxView=f=>!VIEW.f||f.furnace===VIEW.f||!f.furnace;
+const chkView=c=>!VIEW.f||c.furnace===VIEW.f;
+
+/* ---------- links to the other CALOR pages ---------- */
+/* the part's data: the process specification in force (Specifications page), else the part as the Daily production page knows it */
+function partInfo(part,furnace){
+  if(!txt(part)) return null;
+  const sp=api("spec");
+  if(sp&&sp.inForce){try{const L=sp.inForce().filter(s=>up(s.part)===up(part));
+    if(L.length){const s=L.find(x=>!furnace||x.furnaces.includes(furnace))||L[0];
+      return {src:`${s.id} rev ${s.rev}`,specId:s.id,name:s.name,proc:PMAP[s.proc]||s.proc,pcs:s.pcs,wt:s.wt,fixture:s.fixture||"",furnaces:s.furnaces,reg:true};}}catch(e){}}
+  const R=prodReports();
+  if(R){for(const r of R.slice().reverse()){const x=(r.rows||[]).find(y=>up(y.part)===up(part)&&y.spec);
+    if(x){const s=x.spec;return {src:s.src||"Daily production page",name:s.name||"",proc:s.proc||"",pcs:num(s.perTray),wt:num(s.wt),fixture:"",reg:false};}}}
+  return null;
+}
+let PRC=null,PRT=0;
+function prodReports(){const p=api("prod");if(!p) return null;
+  if(PRC&&Date.now()-PRT<1500) return PRC;
+  try{PRC=p.reports();PRT=Date.now();return PRC;}catch(e){return null;}}
+HTQ&&HTQ.on("prod:changed",()=>{PRC=null;});
+/* parts with a process specification in force (for "no loading standard") */
+function partsInForce(){const sp=api("spec");if(!sp||!sp.inForce) return [];
+  try{return [...new Map(sp.inForce().map(s=>[up(s.part),{part:s.part,name:s.name,spec:`${s.id} rev ${s.rev}`,furnaces:s.furnaces}])).values()];}catch(e){return [];}}
+/* trays pushed into a furnace since a date (Daily production page tray logs) */
+function traysSince(f,day){
+  const R=prodReports();if(!R||!isDate(day)) return null;
+  const t0=Date.parse(day+"T00:00:00Z");let n=0;
+  R.filter(r=>r.furnace===f).forEach(r=>(r.trays||[]).forEach(t=>{if(t.t!=null&&t.t>=t0) n++;}));
+  return n;
+}
+
+/* ---------- trays and fixtures: inspection, life, status ---------- */
+const fxById=id=>DB.fixtures.find(f=>f.id===id)||null;
+const fxByTag=tag=>DB.fixtures.find(f=>up(f.tag)===up(tag))||null;
+const inspsOf=f=>DB.insps.filter(i=>i.fx===f.id).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+const lastInsp=f=>inspsOf(f).at(-1)||null;
+function inspState(f){
+  if(f.status!=="use") return {st:"na",txt:"not in use"};
+  const L=lastInsp(f),iv=+S().inspDays||30;
+  if(!L) return {st:"none",txt:"never inspected",due:f.inService||null};
+  const due=addDays(L.date,iv),left=daysBetween(today(),due);
+  return {st:left<0?"overdue":left<=(+S().soonDays||0)?"soon":"ok",due,txt:left<0?`overdue since ${fdate(due)}`:`next ${fdate(due)}`,last:L};
+}
+/* cycles: the count entered on the record, plus (inside CALOR) the trays pushed on its furnace since then shared over the trays of the same kind in use there */
+function cyclesOf(f){
+  const base=num(f.cycles0)||0,since=isDate(f.cycAt)?f.cycAt:f.inService;
+  if(!f.furnace||!isDate(since)) return {n:num(f.cycles0),est:false};
+  const n=traysSince(f.furnace,since);if(n==null) return {n:num(f.cycles0),est:false};
+  const fleet=DB.fixtures.filter(x=>x.furnace===f.furnace&&x.kind===f.kind&&x.status==="use").length||1;
+  return {n:Math.round(base+n/fleet),est:true,pushed:n,fleet};
+}
+function lifeOf(f){
+  const out={st:"ok",why:[]},lc=+S().lifeCycles||0,lm=+S().lifeMonths||0;
+  if(lc){const c=cyclesOf(f);if(c.n!=null){if(c.n>=lc){out.st="over";out.why.push(`${c.n} cycles (limit ${lc})`);}else if(c.n>=lc*0.9){out.st="soon";out.why.push(`${c.n} of ${lc} cycles`);}}}
+  if(lm&&isDate(f.inService)){const end=(()=>{const d=new Date(f.inService+"T00:00:00Z");d.setUTCMonth(d.getUTCMonth()+lm);return d.toISOString().slice(0,10);})(),left=daysBetween(today(),end);
+    if(left<0){out.st="over";out.why.push(`in service since ${fdate(f.inService)} (limit ${lm} months)`);}else if(left<=31&&out.st!=="over"){out.st="soon";out.why.push(`${lm}-month limit on ${fdate(end)}`);}}
+  return out;
+}
+const ageTxt=f=>{if(!isDate(f.inService)) return "—";const d=daysBetween(f.inService,today());return d<62?plural(d,"day"):Math.floor(d/30.4)+" months";};
+function fxLevel(f){
+  if(f.status==="scrap") return "idle";
+  if(f.status!=="use") return "warn";
+  const i=inspState(f),l=lifeOf(f);
+  return i.st==="overdue"||l.st==="over"?"crit":i.st==="soon"||i.st==="none"||l.st==="soon"?"warn":"good";
+}
+/* maximum net load of a kind of tray: the lowest maximum among the trays of that kind in use, else the setting */
+function maxLoadOf(kind,furnace){
+  const L=DB.fixtures.filter(f=>f.kind===kind&&f.status==="use"&&(!furnace||!f.furnace||f.furnace===furnace)).map(f=>num(f.maxLoad)).filter(v=>v!=null);
+  return L.length?{v:Math.min(...L),src:"lowest maximum load of the trays of this kind in use"}:{v:num(S().trayKgMax),src:"default maximum net load per tray (Settings)"};
+}
+
+/* ---------- loading standards: document control ---------- */
+const stdById=id=>DB.stds.find(s=>s.id===id)||null;
+/* the revision in force: the approved one, or the last approved snapshot while a new revision is a draft */
+const eff=s=>s.status==="approved"?s:s.status==="draft"?(s.revs||[]).filter(r=>r.status==="approved").at(-1)||null:null;
+const stdFor=part=>{const L=DB.stds.filter(s=>up(s.part)===up(part)).map(eff).filter(Boolean);return L.at(-1)||null;};
+function stdCalc(s,furnace){
+  const P=partInfo(s.part,furnace),out=[],pcs=num(s.pcs),add=(j,t)=>out.push([j,t]);
+  const wt=P&&P.wt!=null?P.wt:num(s.wt),net=pcs!=null&&wt!=null?pcs*wt:null,ml=s.fkind?maxLoadOf(s.fkind,furnace):null;
+  if(P&&P.pcs!=null&&pcs!=null&&P.pcs!==pcs) add("crit",`${pcs} pieces per tray differ from the process specification ${P.src} (${P.pcs}).`);
+  if(net!=null&&ml&&ml.v!=null&&net>ml.v) add("crit",`Net load ${kg(net)} (${pcs} × ${wt} kg) is above the maximum load ${kg(ml.v)} (${ml.src}).`);
+  else if(net!=null&&ml&&ml.v!=null&&net>0.9*ml.v) add("warn",`Net load ${kg(net)} is close to the maximum load ${kg(ml.v)}.`);
+  if(HTQ&&!P&&txt(s.part)) add("warn","No process specification in force for this part: pieces per tray and part weight cannot be checked.");
+  if(P&&txt(P.fixture)&&!up(s.pattern).includes(up(P.fixture))) add("info",`The process specification gives the loading pattern / fixture as “${P.fixture}”: keep the two consistent.`);
+  if(P&&P.proc&&s.proc&&P.proc!==s.proc) add("warn",`Process “${s.proc}” differs from the specification (${P.proc}).`);
+  return {P,net,wt,ml,F:out,res:out.some(x=>x[0]==="crit")?"crit":out.some(x=>x[0]==="warn")?"warn":"ok"};
+}
+function missingStd(s){
+  const m=[];
+  if(!txt(s.part)) m.push("part no."); if(num(s.pcs)==null) m.push("pieces per tray"); if(!s.fkind) m.push("tray / fixture"); if(!s.orient) m.push("orientation");
+  if(!txt(s.pattern)) m.push("loading pattern"); if(!txt(s.clean)) m.push("cleanliness of the parts"); if(!txt(s.prep)) m.push("prepared by"); if(!txt(s.appr)) m.push("approved by");
+  if(s.rev>0&&!txt(s.change)) m.push("reason for the change");
+  if(stdCalc(s).F.some(x=>x[0]==="crit")) m.push("the critical findings resolved");
+  const dup=DB.stds.find(x=>x.id!==s.id&&x.status!=="obsolete"&&txt(s.part)&&!isNA(s.part)&&up(x.part)===up(s.part));
+  if(dup) m.push(`only one loading standard per part (${dup.id} exists)`);
+  return m;
+}
+const STD_ST={approved:["good","✓","Approved"],draft:["warn","…","Draft"],obsolete:["info","✕","Obsolete"]};
+const stdChip=s=>{const e=eff(s);return s.status==="draft"&&e?chip("warn","…",`Rev ${s.rev} draft · rev ${e.rev} in force`):chip(...STD_ST[s.status]);};
+
+/* ---------- load checks ---------- */
+const chkById=id=>DB.checks.find(c=>c.id===id)||null;
+function chkCalc(c){
+  const F=[],add=(j,t)=>F.push({j,txt:t});
+  const sd=c.lb?(()=>{const s=stdById(c.lb);if(!s) return null;return +c.lbRev===s.rev?s:(s.revs||[]).find(r=>r.rev===+c.lbRev)||eff(s);})():null;
+  if(!sd&&txt(c.part)) add("warn",`No loading standard in force for part ${c.part}: the load was checked without a standard.`);
+  LC_ITEMS.forEach(([k,t,crit])=>{if(c.cl[k]==="nok") add(crit?"crit":"warn",`${crit?"Critical check":"Check"} not OK: ${t}${txt(c.cln[k])?" ("+txt(c.cln[k])+")":""}`);});
+  const pc=num(c.pcs),std=sd?num(sd.pcs):null;
+  if(pc!=null&&std!=null){if(pc>std) add("crit",`${pc} pieces per tray: more than the standard (${std}). Tray overloaded.`);else if(pc<std) add("warn",`${pc} pieces per tray: fewer than the standard (${std}); a part tray at the end of a batch is normal.`);}
+  txt(c.fx).split(/[,;\s]+/).filter(Boolean).forEach(tag=>{const f=fxByTag(tag);
+    if(!f) add("warn",`Tray / fixture ${tag} is not in the register.`);
+    else if(f.status!=="use") add("crit",`Tray / fixture ${f.tag} is ${STAT[f.status][2].toLowerCase()}: it must not be used.`);
+    else{const i=inspState(f),l=lifeOf(f);if(i.st==="overdue"||i.st==="none") add("warn",`Tray / fixture ${f.tag}: inspection ${i.txt}.`);if(l.st==="over") add("warn",`Tray / fixture ${f.tag} is past its life (${l.why.join("; ")}).`);}});
+  const res=F.some(f=>f.j==="crit")?"crit":F.some(f=>f.j==="warn")?"warn":"ok";
+  return {F,res,sd,need:res==="crit"};
+}
+function missingChk(c){
+  const m=[];
+  if(!c.furnace) m.push("furnace"); if(!isDate(c.date)) m.push("date"); if(!txt(c.part)) m.push("part no."); if(!txt(c.batch)&&!txt(c.heat)) m.push("batch or heat no.");
+  if(num(c.pcs)==null) m.push("pieces per tray counted"); if(!txt(c.by)) m.push("checked by");
+  const open=LC_ITEMS.filter(([k,,crit])=>crit&&!c.cl[k]);if(open.length) m.push(plural(open.length,"critical check")+" not answered");
+  return m;
+}
+function missingAct(c){
+  if(!chkCalc(c).need) return [];
+  const a=c.act||{},m=[];
+  if(!txt(a.contain)) m.push("correction / containment of the trays"); if(!txt(a.cause)) m.push("cause"); if(!txt(a.action)) m.push("corrective action");
+  if(!txt(a.owner)) m.push("action owner"); if(!isDate(a.date)) m.push("action date");
+  return m;
+}
+function chkStatus(c){
+  if(c.closed) return "closed";
+  const k=chkCalc(c);
+  if(k.need) return "react";
+  if(missingChk(c).length) return "incomplete";
+  return k.res==="warn"?"warn":"ok";
+}
+const CHK_ST={react:["crit","✕","Not as the standard"],incomplete:["warn","!","Incomplete"],warn:["warn","!","OK with notes"],ok:["good","✓","As the standard"],closed:["good","✓","Closed"]};
+const chkChip=c=>chip(...CHK_ST[chkStatus(c)]);
+const canClose=c=>{const m=missingChk(c).concat(missingAct(c));return m;};
+
+/* ---------- batch coverage (Daily production page) ---------- */
+/* a batch is matched by furnace + part + batch no.; with the batch no. not available by its production report + part + heat */
+const bKey=(f,part,batch,heat,rep)=>!isNA(batch)&&txt(batch)?`${f}|${up(part)}|B:${up(batch)}`:!isNA(heat)&&txt(heat)?`${rep}|${up(part)}|H:${up(heat)}`:null;
+function coverage(){
+  const R=prodReports();if(!R) return null;
+  const from=Date.parse(addDays(today(),-(+S().covDays||7))+"T00:00:00Z"),seen=new Map();
+  R.forEach(r=>(r.rows||[]).forEach(x=>{
+    const t=x.entry?Date.parse(x.entry.slice(0,16)+":00Z"):null;if(t==null||t<from) return;
+    const k=bKey(r.furnace,x.part,x.batch,x.heat,r.id)||`${r.id}|${x.id}`;
+    if(!seen.has(k)) seen.set(k,{k,furnace:r.furnace,rep:r.id,date:r.date,part:x.part,batch:x.batch,heat:x.heat,trays:x.trays,entry:x.entry,rework:x.rework});
+    else{const b=seen.get(k);b.trays+=x.trays||0;}}));
+  return [...seen.values()].map(b=>{const C=DB.checks.filter(c=>bKey(c.furnace,c.part,c.batch,c.heat,c.rep)===b.k);
+    return {...b,checks:C,st:!C.length?"none":C.some(c=>chkStatus(c)==="react")?"react":"ok"};}).sort((a,b)=>a.entry<b.entry?1:-1);
+}
+
+/* ---------- render: page ---------- */
+function render(){
+  const inUse=DB.fixtures.filter(f=>f.status==="use").length;
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(DB.stds.filter(eff).length,"loading standard")} in force · ${plural(inUse,"tray / fixture","trays / fixtures")} in use · ${plural(DB.checks.length,"load check")}</span><span>Today ${fdate(today())}</span>`;
+  drawFurnaces();drawKpis();drawAttn();drawStds();drawChkF();drawChecks();drawCover();drawFxF();drawFixtures();drawInsps();drawSettings();
+}
+const d7=()=>addDays(today(),-7);
+function drawFurnaces(){
+  const all=DB.fixtures.filter(f=>f.status==="use").length;
+  $("#furnaces").innerHTML=`<button class="fall ${!VIEW.f?"on":""}" data-view=""><b>All furnaces</b><span>${plural(all,"tray / fixture","trays / fixtures")} in use</span></button>`+furnaces().map(f=>{
+    const L=DB.fixtures.filter(x=>x.furnace===f),use=L.filter(x=>x.status==="use"),od=use.filter(x=>fxLevel(x)==="crit").length,out=L.filter(x=>x.status==="quar"||x.status==="repair").length;
+    const C=DB.checks.filter(c=>c.furnace===f&&c.date>=d7()),nok=C.filter(c=>chkStatus(c)==="react").length;
+    return `<div class="fcard ${VIEW.f===f?"on":""}"><button class="fhead" data-view="${esc(f)}">${esc(f)} <small>${plural(use.length,"in use","in use")}</small></button>
+      <button class="fch" style="--k:${nok||od?"var(--crit)":out?"var(--warn)":use.length?"var(--good)":"var(--line)"}" data-view="${esc(f)}"><b>${nok?plural(nok,"load check")+" not OK":od?plural(od,"tray / fixture","trays / fixtures")+" overdue or past life":out?plural(out,"tray / fixture","trays / fixtures")+" out of use":use.length?"Trays and fixtures in order":"No trays registered"}</b><span>${plural(C.length,"load check")} in 7 days${out?` · ${out} out of use`:""}</span></button></div>`;}).join("");
+  $("#viewbar").innerHTML=`Showing: <b>${VIEW.f?esc(VIEW.f):"All furnaces"}</b>${VIEW.f?` <button class="btn ghost small" data-view="">Show all</button>`:""}`;
+}
+function counts(view){
+  const F=DB.fixtures.filter(f=>!view||fxView(f)),use=F.filter(f=>f.status==="use");
+  const od=use.filter(f=>inspState(f).st==="overdue"),none=use.filter(f=>inspState(f).st==="none"),soon=use.filter(f=>inspState(f).st==="soon"),lo=use.filter(f=>lifeOf(f).st==="over"),ls=use.filter(f=>lifeOf(f).st==="soon");
+  const out=F.filter(f=>f.status==="quar"||f.status==="repair");
+  const C=DB.checks.filter(c=>!view||chkView(c)),open=C.filter(c=>chkStatus(c)==="react");
+  const pin=partsInForce(),noStd=pin.filter(p=>!stdFor(p.part));
+  return {F,use,od,none,soon,lo,ls,out,C,open,noStd,pin};
+}
+function drawKpis(){
+  const c=counts(true),C7=c.C.filter(x=>x.date>=d7()),nok7=C7.filter(x=>chkCalc(x).res==="crit").length,cov=coverage();
+  const k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
+  const nc=cov?cov.filter(b=>(!VIEW.f||b.furnace===VIEW.f)&&b.st==="none").length:null;
+  $("#kpis").innerHTML=k("Trays / fixtures in use",c.use.length,`${c.out.length} out of use (quarantine or repair)`,"")
+    +k("Inspection overdue",c.od.length+c.none.length,`${c.od.length} overdue · ${c.none.length} never inspected · ${c.soon.length} due within ${S().soonDays} days`,c.od.length?"bad":c.none.length||c.soon.length?"caution":"ok")
+    +k("Past life limit",c.lo.length,(+S().lifeCycles||+S().lifeMonths)?`${c.ls.length} near the limit`:"no life limit set (Settings)",c.lo.length?"bad":c.ls.length?"caution":"")
+    +k("Loading standards in force",DB.stds.filter(eff).length,HTQ?`${c.noStd.length} part${c.noStd.length===1?"":"s"} with a specification but no standard`:`${DB.stds.filter(s=>s.status==="draft").length} draft${DB.stds.filter(s=>s.status==="draft").length===1?"":"s"}`,HTQ&&c.noStd.length?"caution":"")
+    +k("Load checks, last 7 days",C7.length,`${nok7} not as the standard · ${c.open.length} reaction${c.open.length===1?"":"s"} open`,c.open.length?"bad":nok7?"caution":"")
+    +(nc!=null?k("Batches without a load check",nc,`loaded in the last ${S().covDays} days (Daily production)`,nc?"caution":"ok"):"");
+}
+function attnItems(view){
+  const c=counts(view),out=[];
+  c.open.forEach(x=>out.push({lvl:"crit",o:0,txt:`<b>${esc(x.furnace)} · ${esc(x.id)}</b>: load of part ${esc(x.part)}${txt(x.batch)?", batch "+esc(x.batch):""} (${fdate(x.date)}) not as the standard; reaction plan open`,btn:`<button class="btn ghost small" data-open-chk="${esc(x.id)}">Open</button>`,id:x.id,kind:"check"}));
+  c.od.forEach(f=>out.push({lvl:"crit",o:1,txt:`<b>${esc(f.furnace||"Any furnace")} · ${esc(f.tag)}</b> (${esc(f.kind.toLowerCase())}): inspection ${esc(inspState(f).txt)}`,btn:`<button class="btn ghost small" data-insp-fx="${esc(f.id)}">Inspect</button>`,id:f.id,kind:"fixture",furnace:f.furnace}));
+  c.lo.forEach(f=>out.push({lvl:"crit",o:2,txt:`<b>${esc(f.furnace||"Any furnace")} · ${esc(f.tag)}</b>: past its life (${esc(lifeOf(f).why.join("; "))}); inspect and decide repair or scrap`,btn:`<button class="btn ghost small" data-insp-fx="${esc(f.id)}">Inspect</button>`,id:f.id,kind:"fixture",furnace:f.furnace}));
+  c.none.forEach(f=>out.push({lvl:"warn",o:3,txt:`<b>${esc(f.furnace||"Any furnace")} · ${esc(f.tag)}</b>: never inspected`,btn:`<button class="btn ghost small" data-insp-fx="${esc(f.id)}">Inspect</button>`,id:f.id,kind:"fixture",furnace:f.furnace}));
+  c.noStd.forEach(p=>out.push({lvl:"warn",o:4,txt:`<b>Part ${esc(p.part)}</b> ${esc(p.name||"")}: process specification ${esc(p.spec)} in force but no loading standard`,btn:`<button class="btn ghost small" data-new-std="${esc(p.part)}">New standard</button>`,kind:"std",part:p.part}));
+  DB.stds.filter(s=>s.status==="draft").forEach(s=>out.push({lvl:"warn",o:5,txt:`<b>${esc(s.id)} rev ${s.rev}</b> (part ${esc(s.part)}): loading standard awaiting approval`,btn:`<button class="btn ghost small" data-open-std="${esc(s.id)}">Open</button>`,id:s.id,kind:"std"}));
+  return out.sort((a,b)=>(a.lvl==="crit"?0:1)-(b.lvl==="crit"?0:1)||a.o-b.o);
+}
+function drawAttn(){
+  const L=attnItems(true);
+  $("#attn").innerHTML=L.length?`<table class="log"><tbody>${L.map(a=>`<tr><td style="width:1%">${chip(a.lvl==="crit"?"crit":"warn","!",a.lvl==="crit"?"Action":"Check")}</td><td>${a.txt}</td><td class="act noprint">${a.btn}</td></tr>`).join("")}</tbody></table>`
+    :`<div class="empty">Nothing needs action${VIEW.f?" in "+esc(VIEW.f):""}: every tray and fixture in use is inspected and within its life, and no load check is open.</div>`;
+}
+function drawStds(){
+  const L=DB.stds.slice().sort((a,b)=>up(a.part)<up(b.part)?-1:1);
+  if(!L.length){$("#stds").innerHTML=`<div class="empty">No loading standard yet. Use “New loading standard”, or load the example data under Settings.</div>`;return;}
+  $("#stds").innerHTML=`<table class="log cards"><thead><tr><th>Standard</th><th>Part</th><th>Tray / fixture</th><th class="n">Pcs / tray</th><th>Orientation</th><th class="n">Net load</th><th>Findings</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(s=>{const e=eff(s)||s,k=stdCalc(e);
+    return `<tr><td data-label="Standard"><b class="nw">${esc(s.id)}</b><br><span class="kind">rev ${e.rev}${e.apprDate?" · "+fdate(e.apprDate):""}</span></td>
+      <td data-label="Part"><b>${esc(e.part)}</b> ${esc(e.name||(k.P&&k.P.name)||"")}<br><span class="muted">${esc(e.proc||(k.P&&k.P.proc)||"")}${k.P?" · "+esc(k.P.src):""}</span></td>
+      <td data-label="Tray / fixture">${esc(e.fkind)}</td><td data-label="Pcs / tray" class="n">${esc(e.pcs)}</td><td data-label="Orientation">${esc(e.orient)}</td>
+      <td data-label="Net load" class="n nw">${kg(k.net)}${k.ml&&k.ml.v!=null?`<br><span class="muted">max ${kg(k.ml.v)}</span>`:""}</td>
+      <td data-label="Findings">${k.F.filter(f=>f[0]!=="info").length?`<ul class="findings">${k.F.filter(f=>f[0]!=="info").map(f=>`<li class="${f[0]}">${esc(f[1])}</li>`).join("")}</ul>`:`<span class="muted">none</span>`}</td>
+      <td data-label="Status">${stdChip(s)}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open-std="${esc(s.id)}">Open</button> <button class="btn ghost small" data-std-pdf="${esc(s.id)}">PDF</button> <button class="btn ghost small" data-std-xl="${esc(s.id)}">Excel</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawChkF(){
+  $("#chkf").innerHTML=[["","All"],["open","Not as the standard"],["7","Last 7 days"]].map(([k,t])=>`<button class="${VIEW.cf===k?"on":""}" data-cf="${k}">${t}</button>`).join("");
+}
+function drawChecks(){
+  const L=DB.checks.filter(c=>chkView(c)&&(VIEW.cf==="open"?chkStatus(c)==="react":VIEW.cf==="7"?c.date>=d7():true)).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
+  if(!L.length){$("#checks").innerHTML=`<div class="empty">No load checks${VIEW.f||VIEW.cf?" for this selection":""}. Use “Record a load check” when a batch is loaded.</div>`;return;}
+  $("#checks").innerHTML=`<table class="log cards"><thead><tr><th>Check</th><th>Date</th><th>Furnace</th><th>Part · batch</th><th>Standard</th><th class="n">Pcs / tray</th><th>Findings</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(c=>{const k=chkCalc(c);
+    return `<tr><td data-label="Check"><b class="nw">${esc(c.id)}</b><br><span class="kind">${esc(c.by||"")}</span></td><td data-label="Date" class="nw">${fdate(c.date)} ${esc(c.time||"")}</td><td data-label="Furnace">${esc(c.furnace)}</td>
+      <td data-label="Part · batch"><b>${esc(c.part)}</b> · ${esc(c.batch||"—")}${txt(c.heat)?`<br><span class="muted">heat ${esc(c.heat)}</span>`:""}${c.rep?`<br><span class="muted">${esc(c.rep)}</span>`:""}</td>
+      <td data-label="Standard">${k.sd?`${esc(k.sd.id)} rev ${k.sd.rev}`:`<span class="caution">none</span>`}</td><td data-label="Pcs / tray" class="n">${esc(c.pcs)}${k.sd?` <span class="muted">/ ${esc(k.sd.pcs)}</span>`:""}</td>
+      <td data-label="Findings">${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.txt)}</li>`).join("")}</ul>`:`<span class="muted">none</span>`}</td>
+      <td data-label="Status">${chkChip(c)}</td><td class="act noprint"><button class="btn ghost small" data-open-chk="${esc(c.id)}">Open</button> <button class="btn ghost small" data-chk-pdf="${esc(c.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawCover(){
+  const P=$("#coverPanel"),cov=coverage();
+  if(!cov){P.hidden=true;return;}
+  P.hidden=false;
+  $("#coverNote").textContent=`Batches loaded in the last ${S().covDays} days on the Daily production page and the load check of each (matched by furnace, part and batch no.; with the batch no. not available, by production report, part and heat no.). Each batch needs a check of its first trays.`;
+  const L=cov.filter(b=>!VIEW.f||b.furnace===VIEW.f);
+  if(!L.length){$("#cover").innerHTML=`<div class="empty">No batches loaded in the last ${S().covDays} days${VIEW.f?" in "+esc(VIEW.f):""}.</div>`;return;}
+  $("#cover").innerHTML=`<table class="log cards"><thead><tr><th>Loaded</th><th>Furnace</th><th>Part</th><th>Batch · heat</th><th class="n">Trays</th><th>Report</th><th>Load check</th><th class="noprint"></th></tr></thead><tbody>${L.map(b=>`<tr>
+    <td data-label="Loaded" class="nw">${fdate(b.entry.slice(0,10))} ${esc(b.entry.slice(11,16))}</td><td data-label="Furnace">${esc(b.furnace)}</td><td data-label="Part">${esc(b.part)}${b.rework?` <span class="muted">(rework)</span>`:""}</td>
+    <td data-label="Batch · heat">${esc(b.batch||"—")} · ${esc(b.heat||"—")}</td><td data-label="Trays" class="n">${b.trays||""}</td><td data-label="Report">${esc(b.rep)} · ${fdate(b.date)}</td>
+    <td data-label="Load check">${b.checks.length?b.checks.map(c=>`${esc(c.id)} ${chkChip(c)}`).join("<br>"):chip("warn","!","No load check")}</td>
+    <td class="act noprint">${b.checks.length?`<button class="btn ghost small" data-open-chk="${esc(b.checks.at(-1).id)}">Open</button>`:`<button class="btn ghost small" data-chk-batch="${esc(b.k)}">Record check</button>`}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawFxF(){
+  $("#fxf").innerHTML=[["","All"],["use","In use"],["due","Overdue or past life"],["out","Out of use"],["scrap","Scrapped"]].map(([k,t])=>`<button class="${VIEW.ff===k?"on":""}" data-ff="${k}">${t}</button>`).join("");
+}
+function drawFixtures(){
+  const L=DB.fixtures.filter(f=>fxView(f)&&(VIEW.ff==="use"?f.status==="use":VIEW.ff==="due"?fxLevel(f)==="crit":VIEW.ff==="out"?(f.status==="quar"||f.status==="repair"):VIEW.ff==="scrap"?f.status==="scrap":f.status!=="scrap"))
+    .sort((a,b)=>(a.furnace||"~")<(b.furnace||"~")?-1:(a.furnace||"~")>(b.furnace||"~")?1:up(a.tag)<up(b.tag)?-1:1);
+  if(!L.length){$("#fixtures").innerHTML=`<div class="empty">${DB.fixtures.length?"No trays or fixtures for this selection.":"No trays or fixtures registered. Use “Add trays / fixtures” (several numbered trays can be added at once)."}</div>`;return;}
+  const lim=+S().lifeCycles||0;
+  $("#fixtures").innerHTML=`<table class="log cards"><thead><tr><th>Tray / fixture</th><th>Furnace</th><th>Material</th><th class="n">Max load</th><th>In service</th><th class="n">Cycles</th><th>Last inspection</th><th>Next inspection</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(f=>{
+    const i=inspState(f),l=lifeOf(f),c=cyclesOf(f),li=lastInsp(f),lv=fxLevel(f);
+    return `<tr><td data-label="Tray / fixture"><b class="nw">${esc(f.tag)}</b><br><span class="kind">${esc(f.kind)}${txt(f.size)?" · "+esc(f.size):""}</span></td><td data-label="Furnace">${esc(f.furnace||"any")}</td>
+      <td data-label="Material">${esc(f.mat||"—")}</td><td data-label="Max load" class="n nw">${num(f.maxLoad)!=null?kg(num(f.maxLoad)):"—"}</td>
+      <td data-label="In service" class="nw">${fdate(f.inService)}<br><span class="muted">${ageTxt(f)}</span></td>
+      <td data-label="Cycles" class="n nw">${c.n!=null?(c.est?"≈ ":"")+c.n.toLocaleString("en-IN"):"—"}${lim?`<br><span class="muted">of ${lim.toLocaleString("en-IN")}</span>`:""}</td>
+      <td data-label="Last inspection" class="nw">${li?`${fdate(li.date)} ${chip(...RESULTS[li.res])}`:"—"}</td>
+      <td data-label="Next inspection" class="nw ${i.st==="overdue"?"bad":i.st==="soon"||i.st==="none"?"caution":""}">${f.status==="use"?esc(i.txt):"—"}${l.st!=="ok"?`<br><span class="${l.st==="over"?"bad":"caution"}">${l.st==="over"?"past life":"near life limit"}</span>`:""}</td>
+      <td data-label="Status">${chip(...STAT[f.status])}${lv==="crit"?" "+chip("crit","!","Action"):""}</td>
+      <td class="act noprint"><button class="btn ghost small" data-insp-fx="${esc(f.id)}">Inspect</button> <button class="btn ghost small" data-open-fx="${esc(f.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawInsps(){
+  const L=DB.insps.filter(i=>{const f=fxById(i.fx);return f&&fxView(f);}).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:a.id<b.id?1:-1).slice(0,40);
+  if(!L.length){$("#insps").innerHTML=`<div class="empty">No inspections recorded yet.</div>`;return;}
+  $("#insps").innerHTML=`<table class="log cards"><thead><tr><th>Inspection</th><th>Date</th><th>Tray / fixture</th><th>Result</th><th>Defects</th><th class="n">Distortion</th><th>Inspector</th><th>Note</th></tr></thead><tbody>${L.map(i=>{const f=fxById(i.fx);
+    return `<tr><td data-label="Inspection" class="nw">${esc(i.id)}</td><td data-label="Date" class="nw">${fdate(i.date)}</td><td data-label="Tray / fixture"><b>${esc(f.tag)}</b> <span class="muted">${esc(f.furnace||"")}</span></td>
+      <td data-label="Result">${chip(...RESULTS[i.res])}</td><td data-label="Defects">${(i.def||[]).map(d=>esc((DEFECTS.find(x=>x[0]===d)||[d,d])[1])).join(", ")||`<span class="muted">none</span>`}</td>
+      <td data-label="Distortion" class="n nw">${num(i.warp)!=null?num(i.warp)+" mm":"—"}</td><td data-label="Inspector">${esc(i.by||"")}</td><td data-label="Note">${esc(i.note||"")}</td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("inspDays","Inspect trays / fixtures every (days)","number")+f("soonDays","Inspection due soon within (days)","number")
+    +f("warpMax","Distortion limit (mm)","number")+f("lifeCycles","Life limit in cycles (0 = none)","number")+f("lifeMonths","Life limit in months (0 = none)","number")
+    +f("trayKgMax","Default maximum net load per tray (kg)","number")+(HTQ?f("covDays","Batch coverage: last (days)","number"):"");
+}
+
+/* ---------- dialog: one form for fixtures, inspections, loading standards and load checks ---------- */
+const dlg=$("#dlg");
+let ED=null,MODE="",MSG="",MSGOK=false;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+const locked=()=>MODE==="std"?ED.status!=="draft":MODE==="chk"?ED.closed:false;
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=(o.ro??locked())?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${path}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${path}" ${dis}>${o.blank!==false?`<option value=""></option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any"':""} ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+const partList=()=>{const s=new Set();partsInForce().forEach(p=>s.add(p.part));DB.stds.forEach(x=>txt(x.part)&&s.add(x.part));DB.checks.forEach(x=>txt(x.part)&&s.add(x.part));
+  return `<datalist id="dl-parts">${[...s].sort().map(p=>`<option value="${esc(p)}">`).join("")}</datalist>`;};
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
+function drawDlg(){
+  const f={fx:dlgFx,insp:dlgInsp,std:dlgStd,chk:dlgChk}[MODE];
+  dlg.innerHTML=f();
+  if(MODE==="chk") refreshChk(true);
+}
+/* --- trays / fixtures: add one or several numbered ones, or edit one --- */
+function newFx(){return {id:"",tag:"",kind:KINDS[0],mat:MATS[0],furnace:VIEW.f||"",size:"",tare:"",maxLoad:"",maker:"",inService:today(),cycles0:"",cycAt:"",status:"use",notes:"",log:[],_n:"1",_first:"1",_prefix:VIEW.f?VIEW.f.replace("F-0","T")+"-":"T-"};}
+function dlgFx(){
+  const E=ED,isNew=!E.id,c=isNew?null:cyclesOf(E),l=isNew?null:lifeOf(E),i=isNew?null:inspState(E);
+  const tagFields=isNew?`${fld("_prefix","Tag prefix",{req:true,hint:"e.g. T4- gives T4-01, T4-02 …"})}${fld("_first","First number",{type:"number",req:true})}${fld("_n","How many",{type:"number",req:true,hint:"Trays of one kind are usually added as a numbered set."})}`
+    :fld("tag","Tag (as marked on the tray / fixture)",{req:true});
+  return `<div class="dlg-h"><div class="row"><h2>${isNew?"Add trays / fixtures":esc(E.tag)}</h2>${isNew?"":chip(...STAT[E.status])}<span class="muted">${esc(E.kind)}${E.furnace?" · "+esc(E.furnace):""}</span></div></div>
+  <div class="dlg-b"><section class="stage" style="--k:var(--p)"><h3>Identification <small>What it is and where it is used</small></h3><div class="fgrid">
+    ${tagFields}${fld("kind","Kind",{opts:KINDS,req:true,blank:false})}${fld("furnace","Furnace (empty = any)",{opts:furnaces()})}${fld("mat","Material",{opts:MATS})}
+    ${fld("size","Size (L × W × H, mm)")}${fld("maker","Supplier / casting no.")}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Load and life <small>Maximum load and the start of its service</small></h3><div class="fgrid">
+      ${fld("tare","Own weight (kg)",{type:"number"})}${fld("maxLoad","Maximum net load (kg)",{type:"number",hint:"From the supplier's data for the furnace temperature."})}${fld("inService","In service since",{type:"date",req:true})}
+      ${fld("cycles0","Cycles at the count date",{type:"number",hint:"Leave empty for a new tray (0)."})}${fld("cycAt","Count date",{type:"date"})}${fld("notes","Notes",{type:"textarea",span:true})}</div>
+      ${isNew?"":`<p class="muted" style="margin:10px 0 0;font-size:12.5px">Cycles ${c.n!=null?(c.est?`≈ ${c.n} (${c.pushed} trays pushed on ${esc(E.furnace)} since ${fdate(isDate(E.cycAt)?E.cycAt:E.inService)} shared over ${c.fleet} ${esc(E.kind.toLowerCase())}s in use)`:c.n):"not counted"} · age ${ageTxt(E)} · life ${l.st==="over"?`<span class="bad">past the limit: ${esc(l.why.join("; "))}</span>`:l.st==="soon"?`<span class="caution">${esc(l.why.join("; "))}</span>`:(+S().lifeCycles||+S().lifeMonths)?"within the limit":"no limit set"} · inspection ${esc(i.txt)}</p>`}
+    </section>
+    ${isNew?"":`<section class="stage" style="--k:var(--c)"><h3>Inspections and status <small>${E.status==="use"?"In use":"Out of use: returns to use only after a passing inspection"}</small></h3>
+      ${inspsOf(E).length?`<table class="log"><thead><tr><th>Date</th><th>Result</th><th>Defects</th><th class="n">Distortion</th><th>Inspector</th><th>Note</th></tr></thead><tbody>${inspsOf(E).reverse().map(x=>`<tr><td class="nw">${fdate(x.date)}</td><td>${chip(...RESULTS[x.res])}</td><td>${(x.def||[]).map(d=>esc((DEFECTS.find(y=>y[0]===d)||[d,d])[1])).join(", ")||"—"}</td><td class="n">${num(x.warp)!=null?num(x.warp)+" mm":"—"}</td><td>${esc(x.by||"")}</td><td>${esc(x.note||"")}</td></tr>`).join("")}</tbody></table>`:`<p class="muted" style="margin:0">Not inspected yet.</p>`}
+      <div class="actions" style="margin-top:8px"><button class="btn ghost small" data-d="inspect">Inspect now</button>${E.status==="use"?`<button class="btn ghost small" data-d="quar">Quarantine…</button>`:""}${E.status!=="scrap"?`<button class="btn danger small" data-d="scrap">Scrap…</button>`:""}</div></section>`}
+    ${E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    ${!isNew&&!DB.insps.some(x=>x.fx===E.id)&&!DB.checks.some(c=>txt(c.fx).split(/[,;\s]+/).some(t=>up(t)===up(E.tag)))?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
+    <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">${isNew?"Add":"Save"}</button></div>`;
+}
+function saveFx(){
+  const E=ED;
+  if(!E.kind) return "Choose the kind.";
+  if(!isDate(E.inService)) return "Enter the date it went into service.";
+  if(num(E.maxLoad)!=null&&num(E.maxLoad)<=0) return "The maximum load must be above 0 kg.";
+  if(!E.id){
+    const n=Math.round(num(E._n)??0),first=Math.round(num(E._first)??1),pre=txt(E._prefix);
+    if(n<1||n>200) return "Add between 1 and 200 at a time.";
+    if(!pre) return "Enter the tag prefix.";
+    const w=Math.max(2,String(first+n-1).length),tags=Array.from({length:n},(_,i)=>pre+String(first+i).padStart(w,"0"));
+    const clash=tags.filter(t=>fxByTag(t));if(clash.length) return `Tag${clash.length>1?"s":""} already in the register: ${clash.slice(0,5).join(", ")}${clash.length>5?" …":""}.`;
+    tags.forEach(t=>{const {_n,_first,_prefix,...base}=E;const f={...clone(base),id:newId("FX","fx"),tag:t,log:[]};logIt(f,`Added to the register (${f.kind}${f.furnace?", "+f.furnace:""})`);DB.fixtures.push(f);});
+    save();render();dlg.close();return "";
+  }
+  if(!txt(E.tag)) return "Enter the tag.";
+  const o=DB.fixtures.find(f=>f.id!==E.id&&up(f.tag)===up(E.tag));if(o) return `Tag ${E.tag} is already used.`;
+  logIt(E,"Record updated");const i=DB.fixtures.findIndex(f=>f.id===E.id);DB.fixtures[i]=E;ED=clone(E);save();render();return "";
+}
+/* --- inspection round: one or several trays / fixtures --- */
+function newInsp(ids,furnace){
+  const pick=ids&&ids.length?ids:DB.fixtures.filter(f=>f.status!=="scrap"&&(!furnace||f.furnace===furnace)&&(f.status!=="use"||["overdue","soon","none"].includes(inspState(f).st))).map(f=>f.id);
+  return {date:today(),by:"",furnace:furnace||"",rows:pick.map(id=>({fx:id,res:"",def:[],warp:"",note:""}))};
+}
+function dlgInsp(){
+  const E=ED,wm=+S().warpMax||0;
+  const choose=DB.fixtures.filter(f=>f.status!=="scrap"&&!E.rows.some(r=>r.fx===f.id)&&(!E.furnace||f.furnace===E.furnace));
+  return `<div class="dlg-h"><div class="row"><h2>Inspect trays / fixtures</h2><span class="muted">${plural(E.rows.length,"item")} · distortion limit ${wm} mm</span></div></div>
+  <div class="dlg-b"><section class="stage" style="--k:var(--p)"><h3>Inspection <small>Date and inspector</small></h3><div class="fgrid">
+    ${fld("date","Date",{type:"date",req:true,ro:false})}${fld("by","Inspector",{req:true,ro:false})}${fld("furnace","Furnace",{opts:furnaces(),ro:false})}</div>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">Look at each tray / fixture for cracks, broken welds, missing bars, distortion (measure the worst bow with a straight edge) and build-up. Any defect, or distortion beyond ${wm} mm, means repair or scrap: the item goes out of use until a passing inspection.</p></section>
+    <section class="stage" style="--k:var(--d)"><h3>Results <small>One line per tray / fixture</small></h3>
+    ${E.rows.length?`<div class="scroll"><table class="log insp"><thead><tr><th>Tray / fixture</th><th>Result</th><th>Defects found</th><th>Distortion (mm)</th><th>Note</th><th></th></tr></thead><tbody>${E.rows.map((r,i)=>{const f=fxById(r.fx);if(!f) return "";const st=inspState(f);
+      return `<tr><td><b>${esc(f.tag)}</b><br><span class="kind">${esc(f.kind)}${f.furnace?" · "+esc(f.furnace):""}<br>${f.status==="use"?esc(st.txt):esc(STAT[f.status][2])}</span></td>
+        <td><select data-ir="${i}.res" aria-label="Result ${esc(f.tag)}"><option value=""></option>${Object.entries(RESULTS).map(([k,v])=>`<option value="${k}" ${r.res===k?"selected":""}>${v[2]}</option>`).join("")}</select></td>
+        <td><div class="defs">${DEFECTS.map(([k,t])=>`<label><input type="checkbox" data-id="${i}.${k}" ${r.def.includes(k)?"checked":""}>${esc(t)}</label>`).join("")}</div></td>
+        <td><input type="number" step="any" data-ir="${i}.warp" value="${esc(r.warp)}" aria-label="Distortion ${esc(f.tag)}"></td>
+        <td><input type="text" data-ir="${i}.note" value="${esc(r.note)}" aria-label="Note ${esc(f.tag)}"></td>
+        <td><button class="btn ghost small" data-d="rm:${i}" title="Remove from this round">✕</button></td></tr>`;}).join("")}</tbody></table></div>`:`<p class="muted" style="margin:0">No tray or fixture in this round. Add one below.</p>`}
+    <div class="actions" style="margin-top:8px"><select id="addfx" aria-label="Add a tray or fixture"><option value="">Add a tray / fixture…</option>${choose.map(f=>`<option value="${esc(f.id)}">${esc(f.tag)} · ${esc(f.kind)}${f.furnace?" · "+esc(f.furnace):""}</option>`).join("")}</select>
+      <button class="btn ghost small" data-d="addall">Add all${E.furnace?" of "+esc(E.furnace):""}</button><button class="btn ghost small" data-d="allpass">Mark all without a result as Pass</button></div></section>
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span><button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save inspections</button></div>`;
+}
+function saveInsp(){
+  const E=ED,wm=+S().warpMax||0;
+  if(!isDate(E.date)) return "Enter the inspection date.";
+  if(E.date>today()) return "The inspection date cannot be in the future.";
+  if(!txt(E.by)) return "Enter the inspector.";
+  const done=E.rows.filter(r=>r.res);
+  if(!done.length) return "Give a result for at least one tray / fixture.";
+  for(const r of done){const f=fxById(r.fx),w=num(r.warp);
+    if(r.res==="pass"&&(r.def.length||(w!=null&&wm&&w>wm))) return `${f.tag}: a tray / fixture with a defect${w!=null&&wm&&w>wm?` or ${w} mm distortion (limit ${wm} mm)`:""} cannot pass. Choose repair or scrap.`;
+    if(r.res!=="pass"&&!r.def.length&&!txt(r.note)) return `${f.tag}: name the defect (or a note) for ${RESULTS[r.res][2].toLowerCase()}.`;
+    if(isDate(f.inService)&&E.date<f.inService) return `${f.tag}: the inspection is before the date it went into service.`;}
+  done.forEach(r=>{const f=fxById(r.fx),i={id:newId("FI","fi"),fx:f.id,date:E.date,by:txt(E.by),res:r.res,def:r.def.slice(),warp:r.warp,note:txt(r.note)};DB.insps.push(i);
+    const before=f.status,latest=inspsOf(f).at(-1)===i;
+    if(latest){f.status=r.res==="pass"?"use":r.res==="repair"?"repair":"scrap";}
+    logIt(f,`Inspected ${fdate(E.date)} by ${i.by}: ${RESULTS[r.res][2].toLowerCase()} (${i.id})${before!==f.status?` · status ${STAT[before][2].toLowerCase()} → ${STAT[f.status][2].toLowerCase()}`:""}`);});
+  save();render();dlg.close();return "";
+}
+/* --- loading standard --- */
+function newStd(part){
+  const P=part?partInfo(part):null;
+  return {id:"",rev:0,status:"draft",part:part||"",name:P?P.name||"":"",proc:P?P.proc||"":"",fkind:KINDS[0],pcs:P&&P.pcs!=null?String(P.pcs):"",wt:"",layers:"1",orient:"",spacing:"",height:"",pattern:P&&P.fixture?P.fixture:"",sep:"",avoid:"",
+    clean:"Parts free of oil, coolant, chips, rust and paint; washed and dried where the route card says so.",sketch:"",notes:"",prep:"",appr:"",apprDate:"",change:"",revs:[],log:[]};
+}
+function dlgStd(){
+  const E=ED,k=stdCalc(E),ro=E.status!=="draft",m=missingStd(E),e=E.id?eff(DB.stds.find(s=>s.id===E.id)||E):null;
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id)+" rev "+E.rev:"New loading standard"}</h2>${E.id?stdChip(E):""}<span class="muted">${esc(E.part)} ${esc(E.name)}</span></div></div>
+  <div class="dlg-b">${partList()}
+    <section class="stage" style="--k:var(--p)"><h3>Part <small>${k.P?"Process specification "+esc(k.P.src):HTQ?"No process specification in force for this part":"Part data typed here"}</small></h3><div class="fgrid">
+      ${fld("part","Part no.",{req:true,list:"dl-parts"})}${fld("name","Part name")}${fld("proc","Process",{opts:PROCS})}${k.P&&k.P.wt!=null?"":fld("wt","Part weight (kg)",{type:"number",hint:"Only when no specification gives it."})}
+    </div>${k.P?`<p class="muted" style="margin:8px 0 0;font-size:12.5px">From ${esc(k.P.src)}: ${k.P.pcs!=null?k.P.pcs+" pcs per tray":"pcs per tray not set"} · part weight ${k.P.wt!=null?k.P.wt+" kg":"not set"}${txt(k.P.fixture)?` · loading pattern / fixture “${esc(k.P.fixture)}”`:""}</p>`:""}</section>
+    <section class="stage" style="--k:var(--d)"><h3>Load build <small>How the tray is loaded</small></h3><div class="fgrid">
+      ${fld("fkind","Tray / fixture",{opts:KINDS,req:true})}${fld("pcs","Pieces per tray",{type:"number",req:true})}${fld("layers","Layers",{type:"number"})}${fld("orient","Orientation",{opts:ORIENT,req:true})}
+      ${fld("spacing","Spacing between parts (mm)",{type:"number"})}${fld("height","Maximum load height (mm)",{type:"number"})}
+      ${fld("pattern","Loading pattern (arrangement, rows × columns, position on the tray)",{type:"textarea",req:true,span:true})}
+      ${fld("sep","Separator grids / spacers",{type:"textarea",span:true})}
+      ${fld("avoid","Do not (contact faces, nesting, parts touching, bores horizontal …)",{type:"textarea",span:true})}
+      ${fld("clean","Cleanliness of the parts before loading",{type:"textarea",req:true,span:true})}
+      ${fld("sketch","Sketch / photo reference (drawing or photo no.)",{span:true})}${fld("notes","Notes",{type:"textarea",span:true})}</div>
+      <div id="stdcalc" style="margin-top:10px">${stdCalcBox(k)}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Approval <small>${E.rev>0?"Revision "+E.rev+": the reason for the change is required":"Controlled document"}</small></h3><div class="fgrid">
+      ${fld("prep","Prepared by",{req:true})}${fld("appr","Approved by",{req:true})}${E.rev>0?fld("change","Reason for the change",{type:"textarea",req:true,span:true}):""}</div>
+      <p class="muted" id="std-miss" style="margin:10px 0 0;font-size:12.5px">${E.status==="draft"?(m.length?"To approve: "+esc(m.join(", "))+".":"Ready to approve."):E.status==="approved"?`Approved by ${esc(E.appr)} on ${fdate(E.apprDate)}. Locked: start a new revision to change it.`:"Obsolete."}</p></section>
+    ${(E.revs||[]).length?`<section><h3 style="margin-bottom:4px">Earlier revisions</h3><ul class="loglist">${E.revs.map(r=>`<li>Rev ${r.rev}: ${r.status==="approved"?`approved ${fdate(r.apprDate)} by ${esc(r.appr)}`:esc(r.status)}${r.change?" · "+esc(r.change):""} · ${esc(r.pcs)} pcs, ${esc(r.orient)}</li>`).join("")}</ul></section>`:""}
+    ${E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    ${E.id?`<button class="btn ghost small" data-d="pdf">PDF</button><button class="btn ghost small" data-d="xlsx">Excel</button>`:""}
+    ${E.id&&E.status==="draft"&&E.rev===0&&!(E.revs||[]).length?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
+    ${E.status==="draft"&&E.rev>0&&e?`<button class="btn ghost small" data-d="discard">Discard revision</button>`:""}
+    ${E.status==="approved"?`<button class="btn ghost small" data-d="obsolete">Make obsolete…</button><button class="btn ghost" data-d="revise">New revision</button>`:""}
+    <button class="btn ghost" data-d="cancel">Close</button>${E.status==="draft"?`<button class="btn ghost" data-d="save">Save draft</button><button class="btn" data-d="approve">Approve</button>`:""}</div>`;
+}
+function stdCalcBox(k){
+  return `<div class="wi"><b>Net load per tray</b><span>${k.net!=null?`${kg(k.net)} (${num(ED.pcs)} × ${k.wt} kg)`:"part weight not known"}</span><b>Maximum load</b><span>${k.ml&&k.ml.v!=null?`${kg(k.ml.v)} · ${esc(k.ml.src)}`:"not set"}</span>
+    <b>Findings</b><span>${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f[0]}">${esc(f[1])}</li>`).join("")}</ul>`:"none"}</span></div>`;
+}
+function commitStd(text){
+  const E=ED;
+  if(!txt(E.part)) return "Enter the part no.";
+  if(!E.id){E.id=newId("LB","lb");logIt(E,text||"Loading standard created (draft)");DB.stds.push(E);}
+  else{logIt(E,text||"Draft updated");const i=DB.stds.findIndex(s=>s.id===E.id);DB.stds[i]=E;}
+  ED=clone(E);save();render();return "";
+}
+/* --- load check --- */
+function newChk(pre){
+  return {id:"",date:today(),time:nowHM(),furnace:VIEW.f||furnaces()[0]||"",rep:"",part:"",batch:"",heat:"",lb:"",lbRev:"",pcs:"",trays:"",fx:"",cl:{},cln:{},by:"",note:"",act:{},closed:false,log:[],...(pre||{})};
+}
+function batchOpts(){
+  const cov=coverage();if(!cov) return null;
+  return cov.filter(b=>b.furnace===ED.furnace).slice(0,60);
+}
+function dlgChk(){
+  const E=ED,dis=locked()?"disabled":"",B=batchOpts();
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id):"New load check"}</h2><span id="dlg-st">${E.id?chkChip(E):""}</span><span class="muted">${esc(E.part)} ${esc(E.batch)} · ${esc(E.furnace)}</span></div></div>
+  <div class="dlg-b">${partList()}
+    <section class="stage" style="--k:var(--p)"><h3>Batch <small>${B?"Choose the batch from the Daily production page, or type it":"Part and batch loaded"}</small></h3><div class="fgrid">
+      ${fld("furnace","Furnace",{opts:furnaces(),req:true,blank:false})}${fld("date","Date",{type:"date",req:true})}${fld("time","Time",{type:"time"})}
+      ${B?`<div class="field span"><label for="f-pick">Batch from the Daily production page</label><select id="f-pick" ${dis}><option value="">— type the batch below —</option>${B.map(b=>`<option value="${esc(b.k)}" ${bKey(E.furnace,E.part,E.batch,E.heat,E.rep)===b.k?"selected":""}>${esc(b.part)} · batch ${esc(b.batch||"—")} · heat ${esc(b.heat||"—")} · ${esc(b.rep)} · loaded ${fdate(b.entry.slice(0,10))} ${esc(b.entry.slice(11,16))}${b.checks.length?" · checked":""}</option>`).join("")}</select></div>`:""}
+      ${fld("part","Part no.",{req:true,list:"dl-parts"})}${fld("batch","Batch no.")}${fld("heat","Heat no.")}${fld("rep","Production report",{hint:B?"filled from the batch chosen above":""})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Load as found <small id="stdline"></small></h3><div class="fgrid">
+      ${fld("pcs","Pieces per tray counted",{type:"number",req:true})}${fld("trays","Trays checked",{type:"number"})}${fld("fx","Tray / fixture tags used (comma-separated)",{span:true})}</div>
+      <table class="vals" style="margin-top:10px"><thead><tr><th>Check</th><th>Result</th><th>Note</th></tr></thead><tbody>${LC_ITEMS.map(([k,t,crit])=>`<tr><td>${crit?`<span class="crit-mark" title="critical">●</span> `:""}${esc(t)}</td>
+        <td class="cl"><select aria-label="${esc(t)}" data-cl="${k}" ${dis}><option value=""></option>${[["ok","OK"],["nok","Not OK"],["na","Not applicable"]].map(([a,b])=>`<option value="${a}" ${E.cl[k]===a?"selected":""}>${b}</option>`).join("")}</select></td>
+        <td class="note"><input aria-label="Note: ${esc(t)}" data-cln="${k}" value="${esc(E.cln[k]||"")}" ${dis}></td></tr>`).join("")}</tbody></table>
+      <p class="muted" style="margin:6px 0 0;font-size:12.5px"><span class="crit-mark">●</span> critical: must be OK or not applicable. ${locked()?"":`<button class="btn ghost small" type="button" data-d="allok">Mark all unanswered OK</button>`}</p>
+      <div class="fgrid" style="margin-top:10px">${fld("by","Checked by",{req:true})}${fld("note","Remarks",{type:"textarea",span:true})}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Check <small>Findings against the loading standard</small></h3><div id="chk"></div></section>
+    <div id="actbox"></div>
+    ${E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:""}
+  </div>
+  <div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>
+    ${E.id?`<button class="btn danger small" data-d="delete">Delete</button><button class="btn ghost small" data-d="pdf">PDF</button>`:""}
+    ${E.id&&chkCalc(E).need?(E.closed?`<button class="btn ghost" data-d="reopen">Reopen</button>`:`<button class="btn ghost" data-d="close-r">Close reaction</button>`):""}
+    <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save" ${dis}>Save</button></div>`;
+}
+function actBox(){
+  const k=chkCalc(ED);if(!k.need) return "";
+  const m=missingAct(ED),f=(p,l,o)=>fld(p,l,o);
+  return `<section class="stage" style="--k:var(--a)"><h3>Act <small>Reaction plan: the load was not as the standard</small></h3><div class="fgrid">
+    ${f("act.contain","Correction / containment (trays reloaded before the push, trays already pushed held …)",{type:"textarea",req:true,span:true})}
+    ${f("act.cause","Cause",{type:"textarea",req:true,span:true})}${f("act.action","Corrective action (and how a repeat is prevented)",{type:"textarea",req:true,span:true})}
+    ${f("act.owner","Action owner",{opts:ROLES,req:true})}${f("act.date","Action date",{type:"date",req:true})}</div>
+    <p class="muted" id="act-miss" style="margin:10px 0 0;font-size:12.5px">${ED.closed?"Reaction closed.":m.length?"To close: "+esc(m.join(", "))+".":"The reaction plan is complete: close it."}</p></section>`;
+}
+let RT=0;
+function refreshChk(now){
+  const go=()=>{if(MODE!=="chk"||!ED) return;const k=chkCalc(ED),m=missingChk(ED);
+    const c=$("#chk");if(!c) return;
+    c.innerHTML=`${m.length?`<p class="caution" style="margin:0 0 6px;font-size:13px">To complete the check: ${esc(m.join(", "))}.</p>`:""}${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.txt)}</li>`).join("")}</ul>`:`<p class="muted" style="margin:0">No findings: the load is as the standard.</p>`}`;
+    $("#stdline").textContent=k.sd?`Loading standard ${k.sd.id} rev ${k.sd.rev}: ${k.sd.pcs} pcs per tray · ${k.sd.fkind} · ${k.sd.orient}`:"No loading standard in force for this part";
+    const ab=$("#actbox"),st=k.need?"a":"";if(ab.dataset.state!==st||now){ab.innerHTML=actBox();ab.dataset.state=st;}
+    else{const p=$("#act-miss");if(p&&!ED.closed){const mm=missingAct(ED);p.textContent=mm.length?"To close: "+mm.join(", ")+".":"The reaction plan is complete: close it.";}}
+    if(ED.id){const s=$("#dlg-st");if(s)s.innerHTML=chkChip(ED);}};
+  clearTimeout(RT);if(now) go();else RT=setTimeout(go,120);
+}
+function commitChk(text){
+  const E=ED;
+  if(!E.furnace) return "Choose the furnace.";
+  if(!isDate(E.date)) return "Enter the date.";
+  if(E.date>today()) return "The date of the check cannot be in the future.";
+  if(!txt(E.part)) return "Enter the part no.";
+  const sd=stdFor(E.part);if(sd&&!E.lb){E.lb=sd.id;E.lbRev=sd.rev;}
+  if(!E.id){E.id=newId("LC","lc");logIt(E,text||"Load check recorded");DB.checks.push(E);}
+  else{logIt(E,text||"Check updated");const i=DB.checks.findIndex(c=>c.id===E.id);DB.checks[i]=E;}
+  ED=clone(E);save();render();return "";
+}
+
+/* ---------- dialog events ---------- */
+function onDlgInput(ev){
+  const el=ev.target;if(!ED) return;
+  if(MODE==="insp"){
+    if(el.dataset.ir){const [i,f]=el.dataset.ir.split(".");ED.rows[+i][f]=el.value;return;}
+    if(el.dataset.id){const [i,k]=el.dataset.id.split("."),r=ED.rows[+i];r.def=el.checked?[...new Set([...r.def,k])]:r.def.filter(x=>x!==k);if(el.checked&&r.res==="pass"){r.res="repair";const s=dlg.querySelector(`[data-ir="${i}.res"]`);if(s)s.value="repair";}return;}
+    if(el.id==="addfx"&&ev.type==="change"&&el.value){ED.rows.push({fx:el.value,res:"",def:[],warp:"",note:""});drawDlg();return;}
+    if(el.dataset.f){setPath(ED,el.dataset.f,el.value);if(el.dataset.f==="furnace"&&ev.type==="change")drawDlg();}
+    return;
+  }
+  if(locked()) return;
+  if(MODE==="chk"){
+    if(el.dataset.cl){ED.cl[el.dataset.cl]=el.value;refreshChk();return;}
+    if(el.dataset.cln!=null){ED.cln[el.dataset.cln]=el.value;refreshChk();return;}
+    if(el.id==="f-pick"&&ev.type==="change"){const b=(batchOpts()||[]).find(x=>x.k===el.value);
+      if(b){Object.assign(ED,{part:b.part,batch:b.batch||"",heat:b.heat||"",rep:b.rep});const sd=stdFor(b.part);ED.lb=sd?sd.id:"";ED.lbRev=sd?sd.rev:"";if(!txt(ED.pcs)&&sd)ED.pcs=String(sd.pcs);drawDlg();}return;}
+  }
+  if(!el.dataset.f) return;
+  setPath(ED,el.dataset.f,el.value);
+  if(MODE==="chk"){if(el.dataset.f==="part"&&ev.type==="change"){const sd=stdFor(ED.part);ED.lb=sd?sd.id:"";ED.lbRev=sd?sd.rev:"";}
+    if(el.dataset.f==="furnace"&&ev.type==="change"){drawDlg();return;}refreshChk();}
+  if(MODE==="std"){
+    if(el.dataset.f==="part"&&ev.type==="change"){const P=partInfo(ED.part);if(P){if(!txt(ED.name))ED.name=P.name||"";if(!ED.proc)ED.proc=P.proc||"";if(!txt(ED.pcs)&&P.pcs!=null)ED.pcs=String(P.pcs);}drawDlg();return;}
+    clearTimeout(RT);RT=setTimeout(()=>{const b=$("#stdcalc");if(b)b.innerHTML=stdCalcBox(stdCalc(ED));const p=$("#std-miss");if(p&&ED.status==="draft"){const m=missingStd(ED);p.textContent=m.length?"To approve: "+m.join(", ")+".":"Ready to approve.";}},150);
+  }
+}
+dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
+dlg.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(MODE==="fx"){
+    if(a==="save"){const e=saveFx();if(dlg.open)done(e,"Saved.");return;}
+    if(a==="inspect"){const id=ED.id;openDlg("insp",newInsp([id]));return;}
+    if(a==="quar"||a==="scrap"){const why=prompt(a==="quar"?`Reason for taking ${ED.tag} out of use (quarantine):`:`Reason for scrapping ${ED.tag}:`);if(!why||!why.trim()) return;
+      const f=fxById(ED.id);const before=f.status;f.status=a==="quar"?"quar":"scrap";logIt(f,`${STAT[before][2]} → ${STAT[f.status][2].toLowerCase()}: ${why.trim()}`);save();render();ED=clone(f);done("",a==="quar"?"Quarantined: it returns to use after a passing inspection.":"Scrapped.");return;}
+    if(a==="delete"){if(confirm(`Delete ${ED.tag} from the register? Only a tray / fixture without inspections or load checks can be deleted.`)){DB.fixtures=DB.fixtures.filter(f=>f.id!==ED.id);save();render();dlg.close();}return;}
+  }
+  if(MODE==="insp"){
+    if(a==="save"){const e=saveInsp();if(dlg.open)done(e);return;}
+    if(a.startsWith("rm:")){ED.rows.splice(+a.slice(3),1);drawDlg();return;}
+    if(a==="addall"){DB.fixtures.filter(f=>f.status!=="scrap"&&(!ED.furnace||f.furnace===ED.furnace)&&!ED.rows.some(r=>r.fx===f.id)).forEach(f=>ED.rows.push({fx:f.id,res:"",def:[],warp:"",note:""}));drawDlg();return;}
+    if(a==="allpass"){ED.rows.forEach(r=>{if(!r.res&&!r.def.length)r.res="pass";});drawDlg();return;}
+  }
+  if(MODE==="std"){
+    if(a==="save"){done(commitStd(),"Draft saved.");return;}
+    if(a==="approve"){const m=missingStd(ED);if(m.length){done("To approve: "+m.join(", ")+".");return;}
+      ED.status="approved";ED.apprDate=today();const err=commitStd(`Revision ${ED.rev} approved by ${txt(ED.appr)}`);if(err){ED.status="draft";ED.apprDate="";}done(err,`Revision ${ED.rev} approved.`);return;}
+    if(a==="revise"){const snap=clone(ED);delete snap.revs;delete snap.log;ED.revs=[...(ED.revs||[]),snap];ED.rev+=1;ED.status="draft";ED.appr="";ED.apprDate="";ED.change="";done(commitStd(`Revision ${ED.rev} started (rev ${ED.rev-1} stays in force until it is approved)`),`Revision ${ED.rev} started.`);return;}
+    if(a==="discard"){if(!confirm(`Discard the draft of revision ${ED.rev}?`)) return;const prev=ED.revs.pop(),keep={revs:ED.revs,log:ED.log,id:ED.id};ED={...prev,...keep};done(commitStd(`Draft of revision ${ED.rev+1} discarded`),"Draft discarded.");return;}
+    if(a==="obsolete"){const why=prompt("Reason for making this loading standard obsolete:");if(!why||!why.trim()) return;ED.status="obsolete";done(commitStd("Made obsolete: "+why.trim()),"Loading standard made obsolete.");return;}
+    if(a==="delete"){if(confirm(`Delete draft ${ED.id}? This cannot be undone.`)){DB.stds=DB.stds.filter(s=>s.id!==ED.id);save();render();dlg.close();}return;}
+    if(a==="pdf"||a==="xlsx"){const s=stdById(ED.id)||ED,m=a==="pdf"?stdPdf(s):stdXlsx(s);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  }
+  if(MODE==="chk"){
+    if(a==="allok"){LC_ITEMS.forEach(([k])=>{if(!ED.cl[k])ED.cl[k]="ok";});drawDlg();return;}
+    if(a==="save"){done(commitChk(),"Saved.");return;}
+    if(a==="pdf"){const m=chkPdf(chkById(ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+    if(a==="delete"){if(confirm(`Delete load check ${ED.id}? This cannot be undone.`)){DB.checks=DB.checks.filter(c=>c.id!==ED.id);save();render();dlg.close();}return;}
+    if(a==="close-r"){const m=canClose(ED);if(m.length){done("To close: "+m.join(", ")+".");return;}ED.closed=true;const err=commitChk("Reaction closed");if(err)ED.closed=false;done(err,"Reaction closed.");return;}
+    if(a==="reopen"){const why=prompt("Reason for reopening the reaction:");if(!why||!why.trim()) return;ED.closed=false;done(commitChk("Reopened: "+why.trim()),"Reopened.");return;}
+  }
+});
+
+/* ---------- page actions ---------- */
+function openStd(id){const s=stdById(id);if(s)openDlg("std",clone(s));}
+function openChk(id){const c=chkById(id);if(c)openDlg("chk",clone(c));}
+function openFx(id){const f=fxById(id);if(f)openDlg("fx",clone(f));}
+document.addEventListener("click",ev=>{
+  if(dlg.contains(ev.target)) return;
+  const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.view!=null){setView({f:b.dataset.view});render();return;}
+  if(b.dataset.cf!=null){setView({cf:b.dataset.cf});drawChkF();drawChecks();return;}
+  if(b.dataset.ff!=null){setView({ff:b.dataset.ff});drawFxF();drawFixtures();return;}
+  if(b.dataset.openStd){openStd(b.dataset.openStd);return;}
+  if(b.dataset.openChk){openChk(b.dataset.openChk);return;}
+  if(b.dataset.openFx){openFx(b.dataset.openFx);return;}
+  if(b.dataset.inspFx){openDlg("insp",newInsp([b.dataset.inspFx]));return;}
+  if(b.dataset.newStd!=null){openDlg("std",newStd(b.dataset.newStd));return;}
+  if(b.dataset.stdPdf){const m=stdPdf(stdById(b.dataset.stdPdf));if(m)alert(m);return;}
+  if(b.dataset.stdXl){const m=stdXlsx(stdById(b.dataset.stdXl));if(m)alert(m);return;}
+  if(b.dataset.chkPdf){const m=chkPdf(chkById(b.dataset.chkPdf));if(m)alert(m);return;}
+  if(b.dataset.chkBatch){const x=(coverage()||[]).find(y=>y.k===b.dataset.chkBatch);if(x){const sd=stdFor(x.part);openDlg("chk",newChk({furnace:x.furnace,part:x.part,batch:x.batch||"",heat:x.heat||"",rep:x.rep,lb:sd?sd.id:"",lbRev:sd?sd.rev:"",pcs:sd?String(sd.pcs):""}));}return;}
+  const id=b.id;
+  if(id==="b-check") openDlg("chk",newChk());
+  else if(id==="b-insp") openDlg("insp",newInsp(null,VIEW.f));
+  else if(id==="b-std") openDlg("std",newStd(""));
+  else if(id==="b-fx") openDlg("fx",newFx());
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("lbf-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-export") download(`load-build-fixturing-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!(DB.fixtures.length||DB.stds.length||DB.checks.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete all trays, fixtures, inspections, loading standards and load checks, and reset the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#setup").addEventListener("change",ev=>{
+  const el=ev.target;if(!el.dataset.set) return;const k=el.dataset.set;
+  if(el.type==="number"){const v=num(el.value);S()[k]=v==null||v<0?DEF[k]:v;}else S()[k]=el.value;
+  save();render();
+});
+$("#imp").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a load build and fixturing backup");
+    if(confirm(`Import ${plural(o.fixtures.length,"tray / fixture","trays / fixtures")}, ${plural(o.stds.length,"loading standard")} and ${plural(o.checks.length,"load check")}? This replaces the records now in this browser.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+/* plain ASCII file name: Chrome ignores a download name with characters such as "·" */
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+const CLTXT={ok:"OK",nok:"Not OK",na:"Not applicable"};
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells}),kvRows=rows=>rows.map(r=>N([r[0],r[1]===""||r[1]==null?"":r[1]]));
+const tblRows=t=>[B(t.head),...(t.rows.length?t.rows.map(N):[N(["—"])])];
+function stdTables(s){
+  const e=s,k=stdCalc(e);
+  const head=[["Loading standard",`${e.id} rev ${e.rev}`],["Status",e.status==="draft"&&eff(s)?`Rev ${e.rev} draft (rev ${eff(s).rev} in force)`:STD_ST[e.status][2]],["Part",`${e.part} ${e.name||""}`.trim()],["Process",e.proc||(k.P&&k.P.proc)||""],["Process specification",k.P?k.P.src:"—"]];
+  const load=[["Tray / fixture",e.fkind],["Pieces per tray",num(e.pcs)??""],["Layers",num(e.layers)??""],["Orientation",e.orient],["Spacing between parts (mm)",num(e.spacing)??""],["Maximum load height (mm)",num(e.height)??""],
+    ["Loading pattern",e.pattern],["Separator grids / spacers",e.sep],["Do not",e.avoid],["Cleanliness of the parts",e.clean],["Sketch / photo reference",e.sketch],["Notes",e.notes],
+    ["Net load per tray",k.net!=null?`${Math.round(k.net*10)/10} kg (${num(e.pcs)} × ${k.wt} kg)`:""],["Maximum load",k.ml&&k.ml.v!=null?`${k.ml.v} kg (${k.ml.src})`:""],["Findings",k.F.map(f=>f[1]).join(" | ")||"none"]];
+  const appr=[["Prepared by",e.prep],["Approved by",e.appr],["Approval date",fdate(e.apprDate)],["Reason for the change",e.change]];
+  const revs={head:["Rev","Status","Approved","By","Pcs / tray","Orientation","Reason for the change"],rows:[...(e.revs||[]),e].map(r=>[r.rev,STD_ST[r.status]?STD_ST[r.status][2]:r.status,fdate(r.apprDate),r.appr||"",num(r.pcs)??"",r.orient||"",r.change||""])};
+  const hist={head:["Date","Event"],rows:e.log.map(x=>[fdate(x.d),x.t])};
+  return {head,load,appr,revs,hist};
+}
+function stdXlsx(s){
+  if(!s||!s.id) return "Save the loading standard first.";
+  const T=stdTables(s);
+  const sheets=[{name:"Loading standard",widths:[30,90],rows:[B([`Loading standard ${s.id} rev ${s.rev}`]),N([S().plant]),N([]),...kvRows(T.head),N([]),B(["Load build"]),...kvRows(T.load),N([]),B(["Approval"]),...kvRows(T.appr)]},
+    {name:"Revisions",widths:[6,22,14,20,10,30,60],rows:[B(["Revisions"]),N([]),...tblRows(T.revs)]},{name:"History",widths:[14,90],rows:[B(["History"]),N([]),...tblRows(T.hist)]}];
+  try{download(ascii(`Loading standard ${s.id} rev ${s.rev} ${s.part}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top;white-space:pre-wrap}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}table.kv th{background:#f2f4f5;font-weight:500;width:32%}
+    .tb{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;border:1px solid #cfd5d9;margin:0 0 10px}.tb div{padding:5px 8px;border-left:1px solid #cfd5d9}.tb div:first-child{border-left:0}.tb span{display:block;color:#76838c;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em}
+    .sketch{border:1px dashed #9aa6ad;min-height:200px;border-radius:3px;display:flex;align-items:flex-end;padding:6px;color:#76838c}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:64px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}`;
+function popup(title,body){
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PDF_CSS}</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>${body}</body></html>`);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+const kvH=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v??"")}</td></tr>`).join("")}</tbody></table>`;
+const tblH=t=>t.rows.length?`<table><thead><tr>${t.head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+function stdPdf(s){
+  if(!s||!s.id) return "Save the loading standard first.";
+  const T=stdTables(s);
+  return popup(ascii(`Loading standard ${s.id} rev ${s.rev} ${s.part}`),`
+  <div class="tb"><div><span>${esc(S().plant)}</span><b>Loading standard (work instruction) · ${esc(s.part)} ${esc(s.name||"")}</b></div><div><span>Document</span>${esc(s.id)}</div><div><span>Revision</span>${s.rev}${s.status==="draft"?" (draft)":s.status==="obsolete"?" (obsolete)":""}</div><div><span>Approved</span>${fdate(s.apprDate)}</div></div>
+  <h2>Part</h2>${kvH(T.head)}
+  <h2>Load build</h2>${kvH(T.load)}
+  <h2>Sketch / photo of the loaded tray</h2><div class="sketch">${esc(s.sketch||"Attach or draw the loading pattern here.")}</div>
+  <h2>Revisions</h2>${tblH(T.revs)}
+  <div class="sign"><div><span class="muted">Prepared by</span><b>${esc(s.prep||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Approved by</span><b>${esc(s.appr||"")}</b><span class="muted">Sign · Date ${fdate(s.apprDate)}</span></div><div><span class="muted">Controlled copy at the loading station</span><b>&nbsp;</b><span class="muted">Issued</span></div></div>`);
+}
+function chkTables(c){
+  const k=chkCalc(c),a=c.act||{};
+  const rec=[["Load check",c.id],["Date",`${fdate(c.date)} ${c.time||""}`],["Furnace",c.furnace],["Part",c.part],["Batch no.",c.batch],["Heat no.",c.heat],["Production report",c.rep],
+    ["Loading standard",k.sd?`${k.sd.id} rev ${k.sd.rev}: ${k.sd.pcs} pcs per tray · ${k.sd.fkind} · ${k.sd.orient}`:"none in force"],["Pieces per tray counted",num(c.pcs)??""],["Trays checked",num(c.trays)??""],["Tray / fixture tags",c.fx],["Checked by",c.by],["Remarks",c.note],["Status",CHK_ST[chkStatus(c)][2]]];
+  const cl={head:["Check","Critical","Result","Note"],rows:LC_ITEMS.map(([kk,t,crit])=>[t,crit?"yes":"",CLTXT[c.cl[kk]]||"not answered",c.cln[kk]||""])};
+  const act=[["Findings",k.F.map(f=>f.txt).join(" | ")||"none"],["Reaction plan",k.need?"required":"not required"],["Correction / containment",a.contain],["Cause",a.cause],["Corrective action",a.action],["Owner",a.owner],["Date",fdate(a.date)],["Closed",c.closed?"Yes":"No"]];
+  const hist={head:["Date","Event"],rows:c.log.map(x=>[fdate(x.d),x.t])};
+  return {rec,cl,act,hist,k};
+}
+function chkPdf(c){
+  if(!c||!c.id) return "Save the load check first.";
+  const T=chkTables(c);
+  return popup(ascii(`Load check ${c.id} ${c.furnace} ${c.date}`),`<h1>Load check · ${esc(c.id)}</h1><p class="sub">${esc(S().plant)} · ${esc(c.furnace)} · ${esc(c.part)} ${esc(c.batch||"")} · ${fdate(c.date)}</p>
+  <h2>Record</h2>${kvH(T.rec)}<h2>Checks</h2>${tblH(T.cl)}<h2>Findings and reaction plan</h2>${kvH(T.act)}<h2>History</h2>${tblH(T.hist)}
+  <div class="sign"><div><span class="muted">Checked by</span><b>${esc(c.by||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Shift supervisor</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Action owner</span><b>${esc((c.act||{}).owner||"")}</b><span class="muted">Sign · Date</span></div></div>`);
+}
+function regXlsx(){
+  const F=DB.fixtures.filter(fxView),lim=+S().lifeCycles||0;
+  const sheets=[
+    {name:"Trays and fixtures",widths:[12,22,10,34,18,10,10,13,10,13,14,22,16],rows:[B(["Tag","Kind","Furnace","Material","Size","Own kg","Max load kg","In service","Cycles","Last inspection","Next inspection","Life","Status"]),
+      ...F.map(f=>{const i=inspState(f),c=cyclesOf(f),l=lifeOf(f),li=lastInsp(f);return N([f.tag,f.kind,f.furnace||"any",f.mat,f.size,num(f.tare)??"",num(f.maxLoad)??"",fdate(f.inService),c.n!=null?c.n:"",li?fdate(li.date)+" "+RESULTS[li.res][2]:"",f.status==="use"?i.txt:"",l.st==="ok"?(lim||+S().lifeMonths?"within limit":""):l.why.join("; "),STAT[f.status][2]]);})]},
+    {name:"Inspections",widths:[10,13,12,10,22,40,12,18,40],rows:[B(["Inspection","Date","Tag","Furnace","Result","Defects","Distortion mm","Inspector","Note"]),
+      ...DB.insps.filter(i=>{const f=fxById(i.fx);return f&&fxView(f);}).sort((a,b)=>a.date<b.date?-1:1).map(i=>{const f=fxById(i.fx);return N([i.id,fdate(i.date),f.tag,f.furnace||"",RESULTS[i.res][2],(i.def||[]).map(d=>(DEFECTS.find(x=>x[0]===d)||[d,d])[1]).join(", "),num(i.warp)??"",i.by,i.note]);})]},
+    {name:"Loading standards",widths:[10,5,12,14,24,22,8,30,40,40,16,13,16],rows:[B(["Standard","Rev","Status","Part","Name","Tray / fixture","Pcs","Orientation","Pattern","Cleanliness","Approved by","Approved","Net load kg"]),
+      ...DB.stds.map(s=>{const k=stdCalc(s);return N([s.id,s.rev,STD_ST[s.status][2],s.part,s.name,s.fkind,num(s.pcs)??"",s.orient,s.pattern,s.clean,s.appr,fdate(s.apprDate),k.net!=null?Math.round(k.net*10)/10:""]);})]},
+    {name:"Load checks",widths:[10,13,8,8,14,14,12,14,8,60,20,16],rows:[B(["Check","Date","Time","Furnace","Part","Batch","Heat","Standard","Pcs","Findings","Status","Checked by"]),
+      ...DB.checks.filter(chkView).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1).map(c=>{const k=chkCalc(c);return N([c.id,fdate(c.date),c.time,c.furnace,c.part,c.batch,c.heat,k.sd?`${k.sd.id} rev ${k.sd.rev}`:"",num(c.pcs)??"",k.F.map(f=>f.txt).join(" | "),CHK_ST[chkStatus(c)][2],c.by]);})]}];
+  const cov=coverage();
+  if(cov) sheets.push({name:"Batch coverage",widths:[17,8,14,14,12,8,22,30],rows:[B(["Loaded","Furnace","Part","Batch","Heat","Trays","Production report","Load check"]),
+    ...cov.filter(b=>!VIEW.f||b.furnace===VIEW.f).map(b=>N([b.entry.replace("T"," "),b.furnace,b.part,b.batch,b.heat,b.trays||"",`${b.rep} ${fdate(b.date)}`,b.checks.length?b.checks.map(c=>c.id+" "+CHK_ST[chkStatus(c)][2]).join(", "):"none"]))]});
+  try{download(ascii(`Load build and fixturing ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+
+/* ---------- example data (dates relative to today) ---------- */
+function example(){
+  const o=blank(),td=today(),d=n=>addDays(td,-n);DB=o;
+  o.settings.lifeCycles=4000;o.settings.lifeMonths=36;
+  const fx=(tag,f,kind,mat,inS,extra)=>{const x={id:"FX-"+String(o.seq.fx++).padStart(4,"0"),tag,kind,mat,furnace:f,size:kind===KINDS[2]?"600 × 600 × 250":"600 × 600 × 40",tare:kind===KINDS[2]?"28":"34",maxLoad:kind===KINDS[2]?"90":"120",maker:"Foundry lot "+tag.slice(0,2),inService:inS,cycles0:"",cycAt:"",status:"use",notes:"",log:[{d:inS,t:`Added to the register (${kind}, ${f})`}],...(extra||{})};o.fixtures.push(x);return x;};
+  const ins=(x,date,res,def,warp,by,note)=>{const i={id:"FI-"+String(o.seq.fi++).padStart(4,"0"),fx:x.id,date,by:by||"Maintenance fitter",res,def:def||[],warp:warp==null?"":String(warp),note:note||""};o.insps.push(i);x.status=res==="pass"?"use":res==="repair"?"repair":"scrap";x.log.push({d:date,t:`Inspected: ${RESULTS[res][2].toLowerCase()} (${i.id})`});return i;};
+  /* F-04: 12 cast trays (the circuit is shortened for the example), a basket and two separator grids */
+  const T4=[];for(let n=1;n<=12;n++) T4.push(fx("T4-"+pad(n),"F-04",KINDS[0],MATS[0],n<=4?d(1080):d(420),n<=4?{cycles0:n===2?"4010":"2600",cycAt:d(400)}:{}));
+  T4.forEach((x,i)=>{ins(x,d(70),"pass",[],1+(i%3));if(i!==5&&i!==8) ins(x,d(i<6?20:26),"pass",[],2+(i%2));});
+  ins(T4[8],d(12),"repair",["crack","weld"],4,"Maintenance fitter","Crack at a corner node; send for weld repair");
+  ins(T4[10],d(5),"scrap",["warp","crack"],14,"Maintenance fitter","Bowed 14 mm and cracked across two bars");
+  fx("B4-01","F-04",KINDS[2],MATS[1],d(300));ins(o.fixtures.at(-1),d(25),"pass",[],2);
+  fx("S4-01","F-04",KINDS[4],MATS[1],d(200));fx("S4-02","F-04",KINDS[4],MATS[1],d(15));
+  /* F-01: four trays, one quarantined */
+  for(let n=1;n<=4;n++){const x=fx("T1-"+pad(n),"F-01",KINDS[1],MATS[2],d(500));ins(x,d(18),"pass",[],2);}
+  const q=o.fixtures.at(-1);q.status="quar";q.log.push({d:d(2),t:"In use → quarantined: dropped from the fork-lift, check for distortion"});
+  /* loading standards */
+  const std=(p)=>{const s={id:"LB-"+String(o.seq.lb++).padStart(4,"0"),rev:0,status:"approved",layers:"1",spacing:"",height:"",sep:"",avoid:"",sketch:"",notes:"",prep:"HT Engineer",appr:"HT Manager",apprDate:d(200),change:"",revs:[],log:[],...p};
+    s.log.push({d:s.apprDate||td,t:"Loading standard created (draft)"});if(s.status==="approved") s.log.push({d:s.apprDate,t:`Revision ${s.rev} approved by ${s.appr}`});o.stds.push(s);return s;};
+  std({part:"MW-4512",name:"Gear blank 42 T",proc:PROCS[0],fkind:KINDS[0],pcs:"40",orient:ORIENT[0],spacing:"10",height:"60",pattern:"5 rows × 8 parts, faces down, bores vertical; 10 mm gap between parts and 25 mm from the tray edge.",
+    avoid:"Parts must not touch or overlap; no part on the tray rim.",clean:"Washed in the alkaline washer and dried; no coolant or chips in the bore.",sketch:"Photo LB-0001-1"});
+  const s2=std({part:"MW-3307",name:"Shaft Ø32 × 410",proc:PROCS[0],fkind:KINDS[3],pcs:"24",orient:ORIENT[3],height:"",pattern:"Hung in the 24-position hanger fixture, one shaft per position, shaft axis vertical for an even quench.",
+    avoid:"Do not lay shafts flat (distortion); do not double-hang.",clean:"Wiped free of oil; no rust on the journals.",sketch:"Drawing FX-HNG-24",apprDate:d(500)});
+  s2.revs=[{...clone(s2),rev:0,pcs:"20",apprDate:d(500),change:"",revs:undefined,log:undefined}];s2.rev=1;s2.apprDate=d(120);s2.change="New 24-position hanger; quench trial: runout within the drawing limit.";s2.log.push({d:d(120),t:"Revision 1 approved by HT Manager"});
+  std({part:"MW-7120",name:"Forged flange",proc:PROCS[1],fkind:KINDS[0],pcs:"30",orient:ORIENT[1],spacing:"15",height:"120",pattern:"2 layers of 15, a separator grid between the layers.",sep:"One S4 separator grid between the layers.",clean:"Shot-blasted forgings; no scale flakes left on the tray.",status:"draft",appr:"",apprDate:"",prep:"HT Engineer"});
+  std({part:"MW-2205",name:"Connecting rod",proc:PROCS[2],fkind:KINDS[2],pcs:"50",orient:ORIENT[5],height:"200",pattern:"Bulk in the basket, levelled; load height not above 200 mm.",clean:"Free of forging lubricant residue.",apprDate:d(90)});
+  /* load checks: the example production day of the Daily production page (F-04, yesterday) and earlier days */
+  const chk=(p)=>{const c={id:"LC-"+String(o.seq.lc++).padStart(4,"0"),time:"06:15",furnace:"F-04",rep:"",heat:"",lb:"",lbRev:"",trays:"2",fx:"",cl:Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),cln:{},by:"Loading operator",note:"",act:{},closed:false,log:[],...p};
+    c.log.push({d:c.date,t:"Load check recorded"});o.checks.push(c);return c;};
+  chk({date:d(1),part:"MW-4512",batch:"F4-2610-01",heat:"H-24519",rep:"PR-0002",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T4-01, T4-02"});
+  chk({date:d(1),time:"10:40",part:"MW-3307",batch:"F4-2610-02",heat:"H-24611",lb:"LB-0002",lbRev:1,pcs:"26",fx:"T4-03",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),pcs:"nok"},cln:{pcs:"26 shafts on a 24-position hanger: two double-hung"},
+    act:{contain:"The two double-hung shafts taken off before the push; tray reloaded and re-checked."}});
+  chk({date:d(9),part:"MW-4512",batch:"F4-2609-04",heat:"H-24480",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T4-05",furnace:"F-04"});
+  chk({date:d(9),time:"14:20",part:"MW-7120",batch:"F4-2609-05",heat:"H-24402",pcs:"30",fx:"T4-09",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),clean:"nok"},cln:{clean:"Scale flakes on the tray"},
+    act:{contain:"Trays blown clean before loading.",cause:"Shot-blast hopper not emptied at shift change.",action:"Hopper emptied each shift; added to the shift checklist.",owner:"Production Manager",date:d(8)},closed:true});
+  return o;
+}
+
+/* ---------- CALOR: status for the other pages and the home page ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
+  HTQ.provide("load",{
+    overview:()=>{const c=counts(false),cov=coverage();
+      return {perFurnace:Object.fromEntries(furnaces().map(f=>{const L=DB.fixtures.filter(x=>x.furnace===f),use=L.filter(x=>x.status==="use");
+          return [f,{use:use.length,overdue:use.filter(x=>inspState(x).st==="overdue").length,never:use.filter(x=>inspState(x).st==="none").length,lifeOver:use.filter(x=>lifeOf(x).st==="over").length,out:L.filter(x=>x.status==="quar"||x.status==="repair").length,
+            open:DB.checks.filter(x=>x.furnace===f&&chkStatus(x)==="react").length,unchecked:cov?cov.filter(b=>b.furnace===f&&b.st==="none").length:0}];})),
+        use:c.use.length,overdue:c.od.length,never:c.none.length,lifeOver:c.lo.length,out:c.out.length,open:c.open.map(x=>({id:x.id,furnace:x.furnace,part:x.part,batch:x.batch,date:x.date})),
+        noStd:c.noStd,stdInForce:DB.stds.filter(eff).length,drafts:DB.stds.filter(s=>s.status==="draft").map(s=>({id:s.id,rev:s.rev,part:s.part})),
+        unchecked:cov?cov.filter(b=>b.st==="none").map(b=>({furnace:b.furnace,part:b.part,batch:b.batch,heat:b.heat,rep:b.rep,entry:b.entry})):[],covDays:+S().covDays||7,
+        items:attnItems(false).map(a=>({lvl:a.lvl,txt:a.txt.replace(/<[^>]+>/g,""),kind:a.kind,id:a.id||"",furnace:a.furnace||"",part:a.part||""}))};},
+    counts:()=>{const c=counts(false);return {overdue:c.od.length,lifeOver:c.lo.length,open:c.open.length,never:c.none.length};},
+    stdFor:part=>{const s=stdFor(part);return s?{id:s.id,rev:s.rev,part:s.part,pcs:num(s.pcs),fkind:s.fkind,orient:s.orient}:null;}
+  });
+  HTQ.on("nav:load",o=>{if(!o) return;if(o.view){setView({f:o.view.f||""});render();}if(o.check)openChk(o.check);if(o.std)openStd(o.std);if(o.fx)openFx(o.fx);if(o.newStd)openDlg("std",newStd(o.newStd));});
+  ["sat:ready","prod:ready","prod:changed","spec:ready","spec:changed"].forEach(ev=>HTQ.on(ev,()=>{PRC=null;if(!dlg.open)render();}));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("lbf-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.fixtures.length&&!DB.stds.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__LBF={get DB(){return DB;},inspState,lifeOf,cyclesOf,stdCalc,missingStd,chkCalc,chkStatus,missingChk,missingAct,coverage,partInfo,eff,stdFor,openDlg,newChk,newStd,newFx,newInsp};
+</script>
+</body></html>
