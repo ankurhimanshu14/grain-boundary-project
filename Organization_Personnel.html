@@ -468,11 +468,12 @@ function render(){
   drawSec1();drawAssess();drawWho();drawTree();drawPositions();drawPeople();drawSettings();
 }
 function drawSec1(){
-  const A=assess(),sp=HTQ&&HTQ.api("spec"),s16=sp&&sp.htsa16?(()=>{try{return sp.htsa16();}catch(e){return null;}})():null,tp=HTQ&&HTQ.api("trap"),s25=tp&&tp.htsa25?(()=>{try{return tp.htsa25();}catch(e){return null;}})():null;
+  const A=assess(),sp=HTQ&&HTQ.api("spec"),s16=sp&&sp.htsa16?(()=>{try{return sp.htsa16();}catch(e){return null;}})():null,tp=HTQ&&HTQ.api("trap"),s25=tp&&tp.htsa25?(()=>{try{return tp.htsa25();}catch(e){return null;}})():null,wi=HTQ&&HTQ.api("wi"),s115=wi&&wi.htsa115?(()=>{try{return wi.htsa115();}catch(e){return null;}})():null;
   const row=(q,t,sc,where,btn)=>`<tr><td data-label="Question"><b>${q}</b></td><td data-label="Topic">${esc(t)}</td><td data-label="Assessment">${sc?chip(SCORE[sc][0],sc==="s"?"✓":"!",SCORE[sc][1]):`<span class="muted">${esc(where)}</span>`}</td><td data-label="Evidence">${esc(where)}</td><td class="act noprint">${btn||""}</td></tr>`;
   $("#sec1").innerHTML=`<table class="log cards"><thead><tr><th>Question</th><th>Topic</th><th>Assessment</th><th>Evidence on</th><th class="noprint"></th></tr></thead><tbody>
     ${row("1.1","Dedicated and qualified heat treat person on site",A.score,"this page (below)","")}
     ${row("1.6","Documented system to create process specifications",s16?s16.score:null,HTQ?"Specifications page":"Specifications page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-spec="1">Specifications</button>`:"")}
+    ${row("1.15","Procedures and work instructions available to the heat treat personnel",s115?s115.score:null,HTQ?"Procedures & WIs page":"Procedures & WIs page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-wi="1">Procedures &amp; WIs</button>`:"")}
     ${row("2.5","Trap points identified and monitored at every lot changeover",s25?s25.score:null,HTQ?"Trap points page":"Trap points page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-trap="1">Trap points</button>`:"")}</tbody></table>`;
 }
 function drawAssess(){
@@ -672,6 +673,7 @@ document.addEventListener("click",ev=>{
   const b=ev.target.closest("button");if(!b) return;
   if(b.dataset.goSpec){if(HTQ)HTQ.go("spec");return;}
   if(b.dataset.goTrap){if(HTQ)HTQ.go("trap");return;}
+  if(b.dataset.goWi){if(HTQ)HTQ.go("wi");return;}
   if(b.dataset.openPos){const p=posById(b.dataset.openPos);if(p)openDlg("pos",clone(p));return;}
   if(b.dataset.openP){const p=perById(b.dataset.openP);if(p)openDlg("per",clone(p));return;}
   if(b.dataset.jdPdf){const m=jdPdf(posById(b.dataset.jdPdf));if(m)alert(m);return;}
@@ -849,7 +851,7 @@ if(HTQ){
     people:()=>DB.people.map(p=>({id:p.id,name:p.name,positions:heldBy(p.id).map(x=>x.title)})),
     authorized
   });
-  ["spec:ready","spec:changed","prod:changed","trap:ready","trap:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)drawSec1();}));
+  ["spec:ready","spec:changed","prod:changed","trap:ready","trap:changed","wi:ready","wi:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)drawSec1();}));
   HTQ.on("nav:org",o=>{if(o&&o.pos){const p=posById(o.pos);if(p)openDlg("pos",clone(p));}if(o&&o.person){const p=perById(o.person);if(p)openDlg("per",clone(p));}});
 }
 

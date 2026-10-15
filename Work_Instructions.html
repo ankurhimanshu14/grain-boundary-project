@@ -1,0 +1,1105 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Procedures and Work Instructions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+/* procedures and work instructions */
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.crit{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.info{color:var(--ink2)}
+.nw{white-space:nowrap}
+.kind{font-size:12px;color:var(--ink2)}
+.req-q{border-left:4px solid var(--accent);background:var(--surface2);border-radius:5px;padding:10px 14px;font-size:13.5px}
+.req-q b{display:block;font-size:14.5px;margin-bottom:4px}
+.req-q ul{margin:4px 0 0;padding-left:18px}
+.score{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.score .big{font-size:22px;font-weight:600}
+.score .big.good{color:var(--good-ink)}.score .big.warn{color:var(--warn-ink)}.score .big.crit{color:var(--crit-ink)}
+.tabs-k{display:flex;gap:6px;flex-wrap:wrap}
+.tabs-k button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:2px 11px;cursor:pointer}
+.tabs-k button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.ck{display:inline-flex;gap:7px;align-items:center;font-size:13.5px;margin:2px 14px 2px 0}.ck input{width:auto}
+.cks{display:flex;flex-wrap:wrap;align-items:center}
+.cklbl{display:block;font-size:12px;color:var(--ink2);margin-bottom:2px}
+table.mx{border-collapse:collapse;font-size:12.5px;width:100%}
+table.mx th,table.mx td{border-bottom:1px solid var(--grid);padding:5px 7px;text-align:center;vertical-align:middle}
+table.mx th:first-child,table.mx td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1}
+table.mx thead th{font-weight:500;color:var(--ink2);font-size:11.5px;vertical-align:bottom;white-space:nowrap}
+table.mx td.l{text-align:left}
+.mc{display:inline-block;min-width:24px;border-radius:4px;padding:0 5px;font-weight:600;font-size:12px;border:1px solid currentColor;line-height:18px;white-space:nowrap}
+.mc.good{color:var(--good-ink)}.mc.warn{color:var(--warn-ink)}.mc.crit{color:var(--crit-ink)}.mc.na{color:var(--muted);border-color:transparent;font-weight:400}
+.mc.btnl{cursor:pointer;background:none;font:inherit;font-size:12px;font-weight:600}
+.lnk{font:inherit;background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+table.steps{width:100%;border-collapse:collapse;font-size:13px}
+table.steps td{padding:3px 6px 3px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.steps td.no{width:28px;color:var(--ink2);font-family:var(--mono);font-size:12px}
+table.steps td.k{width:150px}
+table.steps td.b{width:70px;white-space:nowrap;text-align:right}
+table.steps input,table.steps select{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+table.vals input[data-avn]{font-family:inherit}
+.sub2{font-size:12px;color:var(--ink2)}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · HTSA 1.15 · Management responsibility</div>
+      <h1>Procedures and work instructions</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-doc">New document</button>
+      <button class="btn ghost" id="b-trn">Record training</button>
+      <button class="btn ghost" id="b-av">Availability check</button>
+      <button class="btn ghost" id="b-h115">HTSA 1.15 evidence (PDF)</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>HTSA 1.15 · Procedures and work instructions</h2><p>The requirement, the evidence this page holds for it and the resulting assessment. Confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
+    <div class="req-q"><b>1.15 Are there procedures or work instructions available to the heat treat personnel that define the heat treating process?</b>
+      <ul><li>There shall be procedures or work instructions available to all employees involved in heat treating and inspection of heat treated product.</li><li>These procedures or work instructions shall include methods of addressing potential emergencies (such as power failure), equipment start-up, equipment shut-down, product segregation (see 2.8), product inspection, and general operating procedures.</li></ul></div>
+    <div class="score" id="h115score"></div>
+    <div class="scroll" id="h115"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>What the documents cover</h2><p id="covNote"></p></div>
+    <div class="scroll" id="cover"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Document register</h2><p>Every procedure, work instruction, emergency instruction and checklist of the heat treat process, under document control: a draft is approved by name and locked; a change is a new revision, and the revision in force stays in force until the new one is approved.</p>
+      <div class="actions noprint"><div class="tabs-k" id="docf"></div><button class="btn ghost small" id="b-xlsx">Download register (Excel)</button></div></div>
+    <div class="scroll" id="docs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Available at the point of use</h2><p id="avNote"></p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-loc">Add location</button></div></div>
+    <div class="scroll" id="locs"></div>
+    <h3 style="margin:16px 0 6px">Availability checks</h3>
+    <div class="scroll" id="avs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Employees: read and understood</h2><p id="trnNote"></p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-person">Add employee</button><button class="btn ghost small" id="b-orgpeople" hidden>Add the people of the HT organization page</button></div></div>
+    <div class="scroll" id="matrix"></div>
+    <details style="margin-top:12px"><summary class="sub2" style="cursor:pointer">Training records</summary><div class="scroll" id="trns" style="margin-top:8px"></div></details>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (HT Engineer)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The review interval, the availability check interval and the time allowed to train after a new revision are site rules, not CQI-9 figures. The typical documents are drafts for a direct-fired gas pusher line with an oil quench, a controlled cooling chamber and a tempering chamber: adapt them to the furnace manuals, the site's emergency plan and the way the line is really run before approving them.</p>
+    <div class="controls" id="settings"></div>
+    <div class="actions" style="margin-top:10px"><button class="btn ghost small" id="b-defaults">Add the typical procedures and work instructions of this line</button></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only. Export a backup regularly and import it on another computer.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li><b>Define the process:</b> the register lists every procedure and work instruction with the topics it covers. Each furnace needs, in force, a general operating procedure, a start-up and a shut-down instruction and an emergency instruction for a power failure (a gas / flame failure instruction is recommended for every gas-fired line and a fire instruction for the site); the site needs a product segregation procedure (see HTSA 2.8) and a product inspection procedure. A document with no furnace ticked applies to every furnace.</li>
+      <li><b>Controlled:</b> approved by name (the approval locks it), reviewed at least every review interval (“Record review” when it is still right), changed only through a new revision with the reason for the change; earlier revisions are kept.</li>
+      <li><b>Available at the point of use:</b> each document in force names the places where it is kept (furnace control panel, loading station, laboratory, quarantine area, screen). An availability check at each place confirms the current revision is there and legible; an earlier revision, a missing or illegible copy, or an uncontrolled copy left in place is a finding. After a new revision the places are checked again.</li>
+      <li><b>Available to all employees involved:</b> every employee in heat treating and inspection is listed with the roles they work in. Each document names the roles that use it, so the matrix shows who must have read and understood which revision. Training on the current revision is due within the time set after its approval (or after the employee started in the role).</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowHM=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+MON[+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+const up=v=>txt(v).toUpperCase();
+/* "N/A" (also "NA", "not available") counts as an entry but is never an identity */
+const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
+const uniq=a=>[...new Set(a)];
+const lim=(L,n=6)=>L.slice(0,n).join("; ")+(L.length>n?` … (${L.length} in all)`:"");
+
+/* ---------- data model ---------- */
+const KEY="wi-reg", VKEY="wi-view"; /* own storage keys */
+/* topics; the level: F required for every furnace, S required once for the site, f recommended for every furnace, s recommended for the site */
+const TOPICS={
+  general:["General operating procedure","F"],
+  startup:["Equipment start-up","F"],
+  shutdown:["Equipment shut-down","F"],
+  e_power:["Emergency: power failure","F"],
+  e_gas:["Emergency: gas supply / flame failure","f"],
+  e_fire:["Emergency: fire","s"],
+  e_other:["Emergency: other (quench, cooling water …)",""],
+  segregation:["Product segregation (see HTSA 2.8)","S"],
+  inspection:["Product inspection","S"],
+  loading:["Loading and unloading",""],
+  quench:["Quench / controlled cooling",""],
+  pyro:["Pyrometry (SAT, TUS)",""],
+  maint:["Maintenance",""],
+  other:["Other",""]};
+const REQTXT={F:"Required, every furnace",S:"Required, site",f:"Recommended, every furnace",s:"Recommended, site","":"Optional"};
+/* the second bullet of HTSA 1.15, one assessment item each */
+const GROUPS=[["Methods of addressing potential emergencies (such as power failure)",["e_power","e_gas","e_fire"]],["Equipment start-up",["startup"]],["Equipment shut-down",["shutdown"]],
+  ["Product segregation (see 2.8)",["segregation"]],["Product inspection",["inspection"]],["General operating procedures",["general"]]];
+const KINDS={proc:"Procedure (SOP)",wi:"Work instruction",emer:"Emergency instruction",chk:"Checklist",form:"Form / record"};
+const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
+const STEPK={"":"—",safety:"Safety",quality:"Quality",crit:"Critical (check)"};
+const STEPKP={safety:"⚠ Safety",quality:"◆ Quality",crit:"● Critical"};
+const LOCK={paper:"Paper copy",screen:"Screen",both:"Paper and screen"};
+const AVRES={ok:["good","✓","Present, current revision"],old:["crit","✕","Earlier revision found"],missing:["crit","✕","Missing"],illeg:["warn","!","Damaged / not legible"]};
+const UNC={"":"None found",removed:"Found and removed",left:"Found, still in place"};
+const METHODS=["Read and signed","Briefing at the line","On-the-job training","Classroom training"];
+const DEF_ROLES=["Furnace operator","Loading operator","Unloading / quench operator","Shift supervisor","Hardness tester / lab technician","Final inspector","Maintenance technician","HT Engineer","HT Manager","Quality Manager","Production Manager","Maintenance Head"];
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",reviewDays:365,soonDays:30,auditDays:90,retrainDays:30,roles:DEF_ROLES};
+const blank=()=>({v:1,settings:clone(DEF),docs:[],locs:[],avs:[],people:[],trn:[],seq:{d:1,l:1,e:1,tr:1,av:1}});
+const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
+const DOCF={no:"",title:"",kind:"wi",topics:[],furnaces:[],procs:[],purpose:"",scope:"",safety:"",steps:[],react:"",refs:"",lang:"English",file:"",roles:[],locs:[],rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",lastRev:null,revs:[],log:[]};
+const fixDoc=d=>{const x={...clone(DOCF),...d};["topics","furnaces","procs","roles","locs"].forEach(k=>{if(!Array.isArray(x[k]))x[k]=[];});
+  x.steps=(Array.isArray(x.steps)?x.steps:[]).map(s=>typeof s==="string"?{t:s,k:""}:{t:"",k:"",...s});x.rev=+x.rev||0;return x;};
+function normalize(o){
+  if(!o||typeof o!=="object"||!Array.isArray(o.docs)) return null;
+  o.settings={...clone(DEF),...(o.settings&&typeof o.settings==="object"?o.settings:{})};
+  if(!Array.isArray(o.settings.roles)||!o.settings.roles.length) o.settings.roles=clone(DEF_ROLES);
+  o.docs=o.docs.filter(d=>d&&d.id).map(d=>{const x=fixDoc(d);x.revs=(Array.isArray(d.revs)?d.revs:[]).map(fixDoc);x.revs.forEach(r=>{delete r.revs;delete r.log;});return x;});
+  o.locs=(Array.isArray(o.locs)?o.locs:[]).filter(l=>l&&l.id).map(l=>({name:"",furnace:"",kind:"paper",active:true,note:"",...l}));
+  o.avs=(Array.isArray(o.avs)?o.avs:[]).filter(a=>a&&a.id).map(a=>({date:"",time:"",by:"",loc:"",lines:{},unc:"",uncNote:"",note:"",log:[],...a}));
+  o.people=(Array.isArray(o.people)?o.people:[]).filter(p=>p&&p.id).map(p=>({name:"",empNo:"",roles:[],since:"",lang:"",active:true,notes:"",log:[],...p}));
+  o.trn=(Array.isArray(o.trn)?o.trn:[]).filter(t=>t&&t.id&&t.person&&t.doc);
+  const s=o.seq&&typeof o.seq==="object"?o.seq:{};
+  o.seq={d:Math.max(+s.d||1,seqOf(o.docs)),l:Math.max(+s.l||1,seqOf(o.locs)),e:Math.max(+s.e||1,seqOf(o.people)),tr:Math.max(+s.tr||1,seqOf(o.trn)),av:Math.max(+s.av||1,seqOf(o.avs))};
+  o.v=1;return o;
+}
+/* inside CALOR the parent page offers a bridge to the other pages; standalone it is null */
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n)||null;}catch(e){return null;}};
+let DB=null;try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("wi:changed"),300);}};
+const S=()=>DB.settings;
+const furnaces=()=>{let L=null;try{const a=api("sat");L=a?a.furnaces():null;}catch(e){}
+  return uniq((L&&L.length?L:["F-01","F-02","F-03","F-04"]).concat(DB.docs.flatMap(d=>d.furnaces),DB.locs.map(l=>l.furnace))).filter(Boolean).sort();};
+const roles=()=>uniq(S().roles.concat(DB.docs.flatMap(d=>d.roles),DB.people.flatMap(p=>p.roles))).filter(Boolean);
+const newId=(p,k,w)=>p+"-"+String(DB.seq[k]++).padStart(w||4,"0");
+const logIt=(x,t)=>x.log.push({d:today(),t});
+const docById=id=>DB.docs.find(d=>d.id===id)||null;
+const locById=id=>DB.locs.find(l=>l.id===id)||null;
+const perById=id=>DB.people.find(p=>p.id===id)||null;
+const avById=id=>DB.avs.find(a=>a.id===id)||null;
+let VIEW={df:"force"};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const dnoOf=d=>txt(d.no)||d.id;
+const docName=d=>`${dnoOf(d)} ${txt(d.title)}`.trim();
+
+/* ---------- document control ---------- */
+/* the revision in force: the approved document, or the last approved revision while a new one is drafted */
+const eff=d=>d.status==="approved"?d:d.status==="draft"?(d.revs||[]).filter(r=>r.status==="approved").at(-1)||null:null;
+const inForce=()=>DB.docs.map(d=>({d,E:eff(d)})).filter(x=>x.E);
+function review(d){
+  const E=eff(d);if(!E) return {st:"none"};
+  const base=[E.apprDate,d.lastRev&&d.lastRev.date].filter(isDate).sort().at(-1);
+  if(!base) return {st:"none"};
+  const due=addDays(base,+S().reviewDays||365);
+  return {due,st:due<today()?"overdue":due<=addDays(today(),+S().soonDays||30)?"soon":"ok"};
+}
+function missingDoc(d){
+  const m=[];
+  if(!txt(d.no)||isNA(d.no)) m.push("document no."); if(!txt(d.title)) m.push("title"); if(!KINDS[d.kind]) m.push("kind");
+  if(!d.topics.length) m.push("what it covers (topics)"); if(!txt(d.purpose)) m.push("purpose");
+  const st=d.steps.filter(s=>txt(s.t));if(st.length<2) m.push("the steps (at least 2)");
+  if(!txt(d.react)) m.push("what to do when something goes wrong");
+  if(!d.roles.length) m.push("who uses it (roles)"); if(!d.locs.length) m.push("where it is available (locations)");
+  if(!txt(d.prep)) m.push("prepared by"); if(!txt(d.appr)) m.push("approved by");
+  if(d.rev>0&&!txt(d.change)) m.push("reason for the change");
+  const dup=txt(d.no)&&!isNA(d.no)?DB.docs.find(x=>x.id!==d.id&&x.status!=="obsolete"&&up(x.no)===up(d.no)):null;
+  if(dup) m.push(`a document no. of its own (${dup.no} is ${dup.id})`);
+  return m;
+}
+const DOC_ST={approved:["good","✓","Approved"],draft:["warn","…","Draft"],obsolete:["info","✕","Obsolete"]};
+const docChip=d=>{const E=eff(d);return d.status==="draft"&&E?chip("good","✓",`Rev ${E.rev} in force`)+" "+chip("warn","…",`Rev ${d.rev} draft`):chip(...DOC_ST[d.status]);};
+
+/* ---------- coverage: the documents in force for a topic (and furnace) ---------- */
+const docsFor=(topic,f)=>inForce().filter(x=>x.E.topics.includes(topic)&&(!f||!x.E.furnaces.length||x.E.furnaces.includes(f)));
+function topicGaps(topic){
+  const lv=TOPICS[topic][1];
+  if(lv==="F"||lv==="f") return furnaces().filter(f=>!docsFor(topic,f).length);
+  if(lv==="S"||lv==="s") return docsFor(topic).length?[]:["site"];
+  return [];
+}
+
+/* ---------- availability at the point of use ---------- */
+const byDT=(a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:(a.date+(a.time||""))>(b.date+(b.time||""))?1:0;
+const lastAv=loc=>DB.avs.filter(a=>a.loc===loc).sort(byDT).at(-1)||null;
+/* state of one document at one place: the latest check of the place that covered the document */
+function avState(d,loc){
+  const E=eff(d);if(!E) return {st:"na"};
+  const C=DB.avs.filter(a=>a.loc===loc&&a.lines[d.id]&&a.lines[d.id].res).sort(byDT).at(-1);
+  if(!C) return {st:"none"};
+  const l=C.lines[d.id],ok=l.res==="ok"||l.fixed;
+  if(!ok) return {st:"bad",c:C,l};
+  if((+l.cur||0)<+E.rev) return {st:"notver",c:C,l};
+  const due=addDays(C.date,+S().auditDays||90);
+  return {st:due<today()?"overdue":"ok",due,c:C,l};
+}
+const AVST={ok:["good","✓","Current"],notver:["warn","!","New revision not verified"],overdue:["warn","!","Check overdue"],none:["warn","!","Never checked"],bad:["crit","✕","Not available"],na:["info","–","—"]};
+const expectedAt=loc=>inForce().filter(x=>x.E.locs.includes(loc));
+function locState(l){
+  const X=expectedAt(l.id),st=X.map(x=>avState(x.d,l.id).st),C=lastAv(l.id),due=C?addDays(C.date,+S().auditDays||90):null;
+  const lvl=st.includes("bad")||(C&&C.unc==="left")?"crit":st.some(s=>s!=="ok")||(due&&due<today())?"warn":X.length?"good":"info";
+  return {X,st,C,due,lvl};
+}
+/* a check: findings */
+function avCalc(a){
+  const F=[],add=(j,t)=>F.push({j,t});
+  Object.entries(a.lines).forEach(([id,l])=>{const d=docById(id),n=d?dnoOf(d):id;
+    if(!l.res) return;
+    if(l.res!=="ok") add(l.fixed?"info":AVRES[l.res][0],`${n}: ${AVRES[l.res][2].toLowerCase()}${l.fixed?", replaced by the current revision on the spot":""}${txt(l.note)?" · "+txt(l.note):""}`);});
+  if(a.unc==="left") add("crit",`Uncontrolled or obsolete copies left in place${txt(a.uncNote)?": "+txt(a.uncNote):""}`);
+  if(a.unc==="removed") add("info",`Uncontrolled or obsolete copies found and removed${txt(a.uncNote)?": "+txt(a.uncNote):""}`);
+  const miss=[];if(!a.loc) miss.push("location");if(!isDate(a.date)) miss.push("date");if(!txt(a.by)) miss.push("checked by");
+  const open=Object.values(a.lines).filter(l=>!l.res).length;if(open) miss.push(plural(open,"document")+" not answered");
+  const lvl=F.some(f=>f.j==="crit")?"crit":miss.length?"incomplete":F.some(f=>f.j==="warn")?"warn":"good";
+  return {F,miss,lvl};
+}
+const AVCHK={crit:["crit","✕","Not available"],incomplete:["warn","…","Incomplete"],warn:["warn","!","Findings"],good:["good","✓","All current"]};
+
+/* ---------- employees: read and understood ---------- */
+const people=()=>DB.people.filter(p=>p.active);
+const needs=(p,E)=>p.active&&E.roles.some(r=>p.roles.includes(r));
+const langOk=(p,E)=>{const pl=txt(p.lang).split(/[,;/]/).map(up).filter(Boolean),dl=txt(E.lang).split(/[,;/]/).map(up).filter(Boolean);return !pl.length||!dl.length||pl.some(x=>dl.includes(x));};
+function trnState(p,d){
+  const E=eff(d);if(!E||!needs(p,E)) return {st:"na"};
+  const T=DB.trn.filter(t=>t.person===p.id&&t.doc===d.id).sort((a,b)=>a.date<b.date?-1:1);
+  const cur=T.filter(t=>+t.rev===+E.rev).at(-1);
+  if(cur) return {st:"ok",t:cur};
+  const from=[E.apprDate,p.since].filter(isDate).sort().at(-1);
+  const due=from?addDays(from,+S().retrainDays||30):today();
+  return {st:due<today()?"late":"due",due,old:T.at(-1)||null};
+}
+const TRST={ok:["good","✓"],due:["warn","due"],late:["crit","✕"],na:["na","–"]};
+
+/* ---------- HTSA 1.15 assessment ---------- */
+function assess115(){
+  const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),F=inForce(),P=people(),fs=furnaces();
+  const dl=L=>L.map(x=>`${dnoOf(x.d)} rev ${x.E.rev}${x.E.furnaces.length?" ("+x.E.furnaces.join(", ")+")":""}`);
+  /* procedures and work instructions for every topic the requirement names */
+  GROUPS.forEach(([req,T])=>{
+    const crit=[],warn=[],have=uniq(T.flatMap(t=>dl(docsFor(t))));
+    /* several topics: name each one; one topic: only the furnaces it is missing for */
+    T.forEach(t=>{const g=topicGaps(t),lv=TOPICS[t][1];if(!g.length) return;
+      const s=(T.length>1?TOPICS[t][0].replace(/^Emergency: /,"").toLowerCase()+" ":"")+(g[0]==="site"?(T.length>1?"(site)":""):"for "+g.join(", "));(lv==="F"||lv==="S"?crit:warn).push(s.trim());});
+    add(crit.length?"crit":warn.length?"warn":"ok",req,[have.length?`In force: ${lim(have)}.`:"No document in force.",crit.filter(Boolean).length?`Missing ${T.length>1?": ":""}${crit.join("; ")}.`:"",warn.length?`Recommended, not found: ${warn.join("; ")}.`:""].filter(Boolean).join(" "),
+      crit.length||warn.length?`Write and approve ${crit.length?"the missing":"the recommended"} instruction${crit.length+warn.length>1?"s":""} (Settings: add the typical procedures and work instructions of this line).`:"");
+  });
+  /* controlled: approved, reviewed */
+  const drafts=DB.docs.filter(d=>d.status==="draft"&&!eff(d)),revOver=F.filter(x=>review(x.d).st==="overdue"),pend=DB.docs.filter(d=>d.status==="draft"&&eff(d));
+  add(!F.length?"crit":revOver.length?"warn":"ok","Documents approved and kept up to date",F.length?`${plural(F.length,"document")} in force, approved by name and locked.${revOver.length?` Periodic review overdue: ${lim(revOver.map(x=>dnoOf(x.d)+" (due "+fdate(review(x.d).due)+")"))}.`:` Each reviewed within ${S().reviewDays} days.`}${pend.length?` New revision in preparation: ${lim(pend.map(d=>dnoOf(d)+" rev "+d.rev))}.`:""}${drafts.length?` Drafts not yet approved: ${lim(drafts.map(dnoOf))}.`:""}`:"No document approved yet.",
+    !F.length?"Approve the documents.":revOver.length?"Review the documents (“Record review” when they are still right, else a new revision).":"");
+  /* available at the point of use */
+  const noLoc=F.filter(x=>!x.E.locs.length),bad=[],weak=[];
+  F.forEach(x=>x.E.locs.forEach(lid=>{const l=locById(lid),n=`${dnoOf(x.d)} at ${l?l.name:lid}`,s=avState(x.d,lid).st;
+    if(s==="bad") bad.push(n);else if(s==="none") weak.push(n+" never checked");else if(s==="notver") weak.push(n+": rev "+x.E.rev+" not verified");else if(s==="overdue") weak.push(n+": check overdue");}));
+  const left=DB.locs.filter(l=>{const C=lastAv(l.id);return C&&C.unc==="left";}).map(l=>l.name);
+  const nAt=F.reduce((a,x)=>a+x.E.locs.length,0);
+  add(noLoc.length||bad.length||left.length?"crit":weak.length?"warn":F.length?"ok":"crit","Available at the point of use",!F.length?"No document in force.":[noLoc.length?`Not kept anywhere: ${lim(noLoc.map(x=>dnoOf(x.d)))}.`:"",bad.length?`Copy missing, an earlier revision or not legible: ${lim(bad)}.`:"",left.length?`Uncontrolled / obsolete copies left at: ${left.join(", ")}.`:"",weak.length?`To verify: ${lim(weak)}.`:"",!noLoc.length&&!bad.length&&!left.length&&!weak.length?`${plural(F.length,"document")} kept at ${plural(nAt,"point of use","points of use")}; the current revision verified at each within the last ${S().auditDays} days.`:""].filter(Boolean).join(" "),
+    noLoc.length?"Name where each document is kept and put the copies there.":bad.length||left.length?"Put the current revision in place, remove the old copies and check the place again.":weak.length?"Do the availability checks (the button per location).":"");
+  /* available to all employees involved: listed, with roles, trained on the current revision */
+  const late=[],due=[],noRole=P.filter(p=>!p.roles.length),noDoc=[],lang=[];
+  P.forEach(p=>{const mine=F.filter(x=>needs(p,x.E));if(p.roles.length&&!mine.length) noDoc.push(p.name);
+    mine.forEach(x=>{const s=trnState(p,x.d);if(s.st==="late") late.push(`${p.name}: ${dnoOf(x.d)} rev ${x.E.rev}`);else if(s.st==="due") due.push(`${p.name}: ${dnoOf(x.d)} by ${fdate(s.due)}`);if(!langOk(p,x.E)) lang.push(`${p.name} (${p.lang}): ${dnoOf(x.d)} in ${x.E.lang}`);});});
+  const noUser=F.filter(x=>!x.E.roles.length);
+  const lv=!P.length||late.length?"crit":due.length||noRole.length||noDoc.length||noUser.length||lang.length?"warn":"ok";
+  add(lv,"Available to all employees involved in heat treating and inspection",!P.length?"No employee listed.":[late.length?`Not trained on the revision in force (time allowed passed): ${lim(late)}.`:"",due.length?`Training due: ${lim(due)}.`:"",noRole.length?`Without a role: ${lim(noRole.map(p=>p.name))}.`:"",noDoc.length?`No document for their roles: ${lim(noDoc)}.`:"",noUser.length?`Documents with no user role: ${lim(noUser.map(x=>dnoOf(x.d)))}.`:"",lang.length?`Not in a language the employee reads: ${lim(lang)}.`:"",lv==="ok"?`${plural(P.length,"employee")} listed with their roles; each has read and understood the revision in force of every document of their roles.`:""].filter(Boolean).join(" "),
+    !P.length?"List every employee in heat treating and inspection with their roles.":late.length||due.length?"Train the employees on the revision in force (“Record training”; the sign sheet from the document).":lv==="warn"?"Give every employee a role and every role its documents.":"");
+  const crit=I.filter(i=>i.lvl==="crit");
+  const core=["e_power","startup","shutdown"].some(t=>!docsFor(t).length);
+  return {I,score:!F.length||core?"nia":crit.length?"ns":"s"};
+}
+const SCORE={s:["good","Satisfactory"],ns:["warn","Not satisfactory"],nia:["crit","Needs immediate action"]};
+const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","✕","Not met"],info:["info","i","Note"]};
+
+/* ---------- render ---------- */
+function render(){
+  const F=inForce();
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(F.length,"document")} in force · ${plural(people().length,"employee")} · ${plural(DB.locs.filter(l=>l.active).length,"point of use","points of use")}</span><span>Today ${fdate(today())}</span>`;
+  $("#b-orgpeople").hidden=!api("org");
+  drawH115();drawKpis();drawCover();drawDocF();drawDocs();drawLocs();drawAvs();drawMatrix();drawTrns();drawSettings();
+}
+function drawH115(){
+  const A=assess115(),sc=SCORE[A.score];
+  $("#h115score").innerHTML=`<span class="big ${sc[0]}">${sc[1]}</span><span class="muted">${plural(A.I.filter(i=>i.lvl==="ok").length,"item")} met · ${plural(A.I.filter(i=>i.lvl==="crit").length,"item")} not met · ${plural(A.I.filter(i=>i.lvl==="warn").length,"item")} needing attention</span>`;
+  $("#h115").innerHTML=`<table class="log cards"><thead><tr><th>Requirement</th><th>Evidence in this register</th><th>Result</th><th>Action</th></tr></thead><tbody>${A.I.map(i=>`<tr><td data-label="Requirement"><b>${esc(i.req)}</b></td><td data-label="Evidence">${esc(i.ev)}</td><td data-label="Result">${chip(...LV[i.lvl])}</td><td data-label="Action">${esc(i.act||"—")}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawKpis(){
+  const F=inForce(),k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
+  const drafts=DB.docs.filter(d=>d.status==="draft").length,ro=F.filter(x=>review(x.d).st==="overdue").length,rs=F.filter(x=>review(x.d).st==="soon").length;
+  const L=DB.locs.filter(l=>l.active).map(l=>({l,s:locState(l)})),lb=L.filter(x=>x.s.lvl==="crit").length,lw=L.filter(x=>x.s.lvl==="warn").length;
+  const P=people(),pl=P.filter(p=>F.some(x=>trnState(p,x.d).st==="late")).length,pd=P.filter(p=>F.some(x=>trnState(p,x.d).st==="due")).length,pok=P.filter(p=>F.every(x=>["ok","na"].includes(trnState(p,x.d).st))).length;
+  $("#kpis").innerHTML=k("Documents in force",F.length,`${drafts} draft${drafts===1?"":"s"} in preparation`,F.length?"":"bad")
+    +k("Periodic review",ro,`overdue · ${rs} due within ${S().soonDays} days`,ro?"caution":"ok")
+    +k("Points of use",L.length,`${lb} with a copy missing or out of date · ${lw} to check`,lb?"bad":lw?"caution":"ok")
+    +k("Employees trained",`${pok}<small> / ${P.length}</small>`,`on every document of their roles · ${pl} late · ${pd} due`,pl?"bad":pd?"caution":P.length?"ok":"");
+}
+function drawCover(){
+  const fs=furnaces();
+  $("#covNote").textContent=`Documents in force per topic and furnace (a document with no furnace ticked applies to every furnace). The topics named in HTSA 1.15 are required; the others are shown when a document covers them.`;
+  const T=Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length);
+  const cell=(t,f)=>{const L=docsFor(t,f),lv=TOPICS[t][1];
+    if(L.length) return L.map(x=>`<button class="mc good btnl" data-open-doc="${esc(x.d.id)}" title="${esc(docName(x.E))} rev ${x.E.rev}">${esc(dnoOf(x.d))}</button>`).join(" ");
+    const site=lv==="S"||lv==="s";
+    if(site&&docsFor(t).length) return `<span class="mc na">—</span>`;
+    return lv==="F"||lv==="S"?`<span class="mc crit">missing</span>`:lv?`<span class="mc warn">none</span>`:`<span class="mc na">—</span>`;};
+  $("#cover").innerHTML=`<table class="mx"><thead><tr><th>Topic</th><th class="l">Requirement</th>${fs.map(f=>`<th>${esc(f)}</th>`).join("")}</tr></thead><tbody>${T.map(t=>`<tr><td><b>${esc(TOPICS[t][0])}</b></td><td class="l sub2">${REQTXT[TOPICS[t][1]]}</td>${fs.map(f=>`<td>${cell(t,f)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function drawDocF(){$("#docf").innerHTML=[["force","In force"],["draft","Drafts"],["obs","Obsolete"],["","All"]].map(([k,t])=>`<button class="${VIEW.df===k?"on":""}" data-df="${k}">${t}</button>`).join("");}
+function drawDocs(){
+  const L=DB.docs.filter(d=>VIEW.df==="force"?!!eff(d):VIEW.df==="draft"?d.status==="draft":VIEW.df==="obs"?d.status==="obsolete":true).sort((a,b)=>dnoOf(a).localeCompare(dnoOf(b)));
+  if(!L.length){$("#docs").innerHTML=`<div class="empty">${DB.docs.length?"No documents for this selection.":"No documents yet. Use “New document”, or add the typical procedures and work instructions of this line under Settings."}</div>`;return;}
+  $("#docs").innerHTML=`<table class="log cards"><thead><tr><th>Document</th><th>Title</th><th>Covers</th><th>Applies to</th><th>Used by</th><th>Kept at</th><th>Status</th><th>Review</th><th class="noprint"></th></tr></thead><tbody>${L.map(d=>{const E=eff(d)||d,r=review(d);
+    return `<tr><td data-label="Document"><b class="nw">${esc(dnoOf(d))}</b><br><span class="kind">rev ${E.rev} · ${esc(KINDS[E.kind]||"")}</span></td><td data-label="Title">${esc(E.title)}</td>
+      <td data-label="Covers">${E.topics.map(t=>esc(TOPICS[t]?TOPICS[t][0]:t)).join("<br>")||"—"}</td>
+      <td data-label="Applies to">${esc(E.furnaces.length?E.furnaces.join(", "):"All furnaces")}<br><span class="muted">${E.procs.length?E.procs.map(p=>PROC[p]).join(", "):"All processes"}</span></td>
+      <td data-label="Used by">${esc(E.roles.join(", ")||"—")}</td><td data-label="Kept at">${esc(E.locs.map(l=>locById(l)?locById(l).name:l).join(", ")||"—")}</td>
+      <td data-label="Status">${docChip(d)}</td><td data-label="Review" class="nw">${r.st==="none"?"—":r.st==="overdue"?`<span class="bad">overdue ${fdate(r.due)}</span>`:r.st==="soon"?`<span class="caution">${fdate(r.due)}</span>`:fdate(r.due)}</td>
+      <td class="act noprint"><button class="btn ghost small" data-open-doc="${esc(d.id)}">Open</button> <button class="btn ghost small" data-doc-pdf="${esc(d.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawLocs(){
+  $("#avNote").textContent=`Each document in force names the places where it is kept. Check each place at least every ${S().auditDays} days and after every new revision: the current revision present and legible, no earlier revision and no uncontrolled copy.`;
+  const L=DB.locs.slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
+  if(!L.length){$("#locs").innerHTML=`<div class="empty">No locations yet. Use “Add location” (furnace control panel, loading station, laboratory, quarantine area, …).</div>`;return;}
+  $("#locs").innerHTML=`<table class="log cards"><thead><tr><th>Location</th><th>Documents kept here</th><th>Last check</th><th>Next check</th><th>State</th><th class="noprint"></th></tr></thead><tbody>${L.map(l=>{const s=locState(l);
+    return `<tr class="${l.active?"":"muted"}"><td data-label="Location"><b>${esc(l.name)}</b><br><span class="kind">${esc(LOCK[l.kind]||"")}${l.furnace?" · "+esc(l.furnace):""}${l.active?"":" · not in use"}</span></td>
+      <td data-label="Documents">${s.X.length?s.X.map(x=>{const a=avState(x.d,l.id);return `<span class="nw">${esc(dnoOf(x.d))} r${x.E.rev} <span class="mc ${AVST[a.st][0]}" title="${esc(AVST[a.st][2])}">${AVST[a.st][1]}</span></span>`;}).join(" ") :`<span class="muted">none</span>`}</td>
+      <td data-label="Last check" class="nw">${s.C?`${fdate(s.C.date)}<br><span class="kind">${esc(s.C.id)} · ${esc(s.C.by)}</span>`:"never"}</td>
+      <td data-label="Next check" class="nw">${s.due?(s.due<today()?`<span class="bad">${fdate(s.due)}</span>`:fdate(s.due)):s.X.length?`<span class="caution">now</span>`:"—"}</td>
+      <td data-label="State">${s.lvl==="crit"?chip("crit","✕","Copy not available"):s.lvl==="warn"?chip("warn","!","To check"):s.lvl==="good"?chip("good","✓","Current"):chip("info","–","No documents")}</td>
+      <td class="act noprint">${l.active&&s.X.length?`<button class="btn ghost small" data-av-loc="${esc(l.id)}">Check</button> `:""}<button class="btn ghost small" data-open-loc="${esc(l.id)}">Edit</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawAvs(){
+  const L=DB.avs.slice().sort(byDT).reverse();
+  if(!L.length){$("#avs").innerHTML=`<div class="empty">No availability checks recorded.</div>`;return;}
+  $("#avs").innerHTML=`<table class="log cards"><thead><tr><th>Check</th><th>Date</th><th>Location</th><th>Findings</th><th>Result</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,30).map(a=>{const k=avCalc(a),l=locById(a.loc);
+    return `<tr><td data-label="Check"><b>${esc(a.id)}</b><br><span class="kind">${esc(a.by)}</span></td><td data-label="Date" class="nw">${fdate(a.date)} ${esc(a.time||"")}</td><td data-label="Location">${esc(l?l.name:a.loc)}</td>
+      <td data-label="Findings">${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.t)}</li>`).join("")}</ul>`:`<span class="muted">${plural(Object.keys(a.lines).length,"document")} present, current revision</span>`}</td>
+      <td data-label="Result">${chip(...AVCHK[k.lvl])}</td><td class="act noprint"><button class="btn ghost small" data-open-av="${esc(a.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>${L.length>30?`<p class="muted" style="font-size:12.5px">The 30 latest of ${L.length} checks are shown; the Excel register has all.</p>`:""}`;
+}
+function drawMatrix(){
+  const F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),P=DB.people.slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
+  $("#trnNote").textContent=`Every employee involved in heat treating and inspection, with the roles they work in. A document names the roles that use it; the employee must have read and understood its revision in force within ${S().retrainDays} days of its approval (or of starting in the role). ✓ trained on the revision in force · due · ✕ late · – not needed.`;
+  if(!P.length){$("#matrix").innerHTML=`<div class="empty">No employees listed yet. Use “Add employee”${api("org")?" or add the people of the HT organization page":""}.</div>`;return;}
+  $("#matrix").innerHTML=`<table class="mx"><thead><tr><th>Employee</th>${F.map(x=>`<th title="${esc(docName(x.E))}">${esc(dnoOf(x.d))}<br><span class="sub2">rev ${x.E.rev}</span></th>`).join("")}<th>Status</th></tr></thead><tbody>${P.map(p=>{
+    const S2=F.map(x=>trnState(p,x.d)),late=S2.filter(s=>s.st==="late").length,due=S2.filter(s=>s.st==="due").length,need=S2.filter(s=>s.st!=="na").length;
+    return `<tr class="${p.active?"":"muted"}"><td><button class="lnk" data-open-p="${esc(p.id)}">${esc(p.name)}</button><br><span class="sub2">${esc(p.roles.join(", ")||"no role")}${p.active?"":" · not active"}</span></td>
+      ${S2.map((s,i)=>{const x=F[i],tt=s.st==="ok"?`Trained ${fdate(s.t.date)} (${s.t.method})`:s.st==="due"?`Due by ${fdate(s.due)}${s.old?" · trained on rev "+s.old.rev:""}`:s.st==="late"?`Late since ${fdate(s.due)}${s.old?" · trained on rev "+s.old.rev:""}`:"Not needed for this role";
+        return `<td><span class="mc ${TRST[s.st][0]}" title="${esc(dnoOf(x.d)+": "+tt)}">${s.st==="late"&&s.old?"r"+s.old.rev:TRST[s.st][1]}</span></td>`;}).join("")}
+      <td>${!p.active?chip("info","–","Not active"):!p.roles.length?chip("warn","!","No role"):late?chip("crit","✕",plural(late,"late")):due?chip("warn","!",plural(due,"due")):need?chip("good","✓","Trained"):chip("warn","!","No documents")}</td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawTrns(){
+  const L=DB.trn.slice().sort((a,b)=>a.date<b.date?1:-1);
+  if(!L.length){$("#trns").innerHTML=`<div class="empty">No training records.</div>`;return;}
+  $("#trns").innerHTML=`<table class="log cards"><thead><tr><th>Record</th><th>Date</th><th>Employee</th><th>Document</th><th>Method</th><th>Trainer</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,60).map(t=>{const p=perById(t.person),d=docById(t.doc);
+    return `<tr><td data-label="Record">${esc(t.id)}</td><td data-label="Date" class="nw">${fdate(t.date)}</td><td data-label="Employee">${esc(p?p.name:t.person)}</td><td data-label="Document">${esc(d?dnoOf(d):t.doc)} rev ${esc(t.rev)}</td><td data-label="Method">${esc(t.method)}</td><td data-label="Trainer">${esc(t.by)}</td>
+      <td class="act noprint"><button class="btn ghost small" data-del-trn="${esc(t.id)}">Delete</button></td></tr>`;}).join("")}</tbody></table>${L.length>60?`<p class="muted" style="font-size:12.5px">The 60 latest of ${L.length} records are shown; the Excel register has all.</p>`:""}`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("reviewDays","Review every document every (days)","number")+f("soonDays","Review due soon within (days)","number")+f("auditDays","Check each point of use every (days)","number")+f("retrainDays","Train on a new revision within (days)","number")
+    +`<div class="field wide"><label for="s-roles">Roles in heat treating and inspection (one per line)</label><textarea id="s-roles" data-set="roles" rows="5">${esc(s.roles.join("\n"))}</textarea></div>`;
+}
+
+/* ---------- dialogs ---------- */
+const dlg=$("#dlg");
+let ED=null,MODE="",MSG="",MSGOK=false;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+const ro=()=>MODE==="doc"&&ED.status!=="draft";
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=ro()?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${path}" ${o.rows?`rows="${o.rows}"`:""} ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${path}" ${dis}>${o.blank!==false?`<option value=""></option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any"':""} ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+/* a group of checkboxes that edits an array */
+const cks=(path,label,opts,o={})=>{const cur=val(path)||[],dis=ro()?"disabled":"";
+  return `<div class="field span ${o.req?"req":""}"><span class="cklbl">${label}</span><div class="cks">${opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<label class="ck"><input type="checkbox" data-ck="${path}|${esc(k)}" ${cur.includes(k)?"checked":""} ${dis}>${esc(t)}</label>`;}).join("")}</div>${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+const names=()=>{const o=api("org");let L=[];try{L=o?o.people().map(p=>p.name):[];}catch(e){}
+  return uniq(L.concat(DB.people.map(p=>p.name),DB.docs.flatMap(d=>[d.prep,d.appr]),DB.trn.map(t=>t.by)).map(txt).filter(Boolean)).sort();};
+const namesList=()=>`<datalist id="dl-names">${names().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist>`;
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
+function drawDlg(){dlg.innerHTML=({doc:dlgDoc,loc:dlgLoc,per:dlgPer,trn:dlgTrn,av:dlgAv})[MODE]();}
+const foot=(btns)=>`<div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>${btns}</div>`;
+const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:"";
+
+/* document */
+const newDoc=()=>fixDoc({id:""});
+function dlgDoc(){
+  const E=ED,m=missingDoc(E),e=E.id?eff(docById(E.id)||E):null,dis=ro()?"disabled":"",tp=Object.entries(TOPICS).map(([k,v])=>[k,v[0]+(v[1]==="F"||v[1]==="S"?" *":"")]);
+  const L=DB.locs.filter(l=>l.active||E.locs.includes(l.id)).map(l=>[l.id,l.name]);
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(dnoOf(E))+" rev "+E.rev:"New document"}</h2>${E.id?docChip(docById(E.id)||E):""}<span class="muted">${esc(E.title)}</span></div></div>
+  <div class="dlg-b">${namesList()}
+    <section class="stage" style="--k:var(--p)"><h3>Document <small>what it is and what it covers</small></h3><div class="fgrid">
+      ${fld("no","Document no.",{req:true,hint:"As printed on the document, e.g. WI-HT-02."})}${fld("title","Title",{req:true})}${fld("kind","Kind",{opts:Object.entries(KINDS),req:true,blank:false})}${fld("lang","Language(s)",{hint:"e.g. English, Hindi"})}
+      ${cks("topics","What it covers (* named in HTSA 1.15)",tp,{req:true})}
+      ${cks("furnaces","Furnaces (none ticked = every furnace)",furnaces())}
+      ${cks("procs","Processes (none ticked = every process)",Object.entries(PROC))}
+      ${fld("file","Master file (where the signed original is kept)",{span:true})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Content <small>the instruction as it is used at the line</small></h3><div class="fgrid">
+      ${fld("purpose","Purpose",{type:"textarea",req:true,span:true,rows:2})}${fld("scope","Scope (equipment, processes, when it applies)",{type:"textarea",span:true,rows:2})}
+      ${fld("safety","Safety and protective equipment",{type:"textarea",span:true,rows:2})}</div>
+      <h3 style="margin:12px 0 4px;font-size:14px">Steps <small class="sub2">${E.steps.length} step${E.steps.length===1?"":"s"}</small></h3>
+      <table class="steps"><tbody>${E.steps.map((s,i)=>`<tr><td class="no">${i+1}</td><td><input aria-label="Step ${i+1}" data-st="${i}" value="${esc(s.t)}" ${dis}></td>
+        <td class="k"><select aria-label="Key point of step ${i+1}" data-sk="${i}" ${dis}>${Object.entries(STEPK).map(([k,t])=>`<option value="${k}" ${s.k===k?"selected":""}>${t}</option>`).join("")}</select></td>
+        <td class="b">${ro()?"":`<button class="btn ghost small" type="button" data-d="sup:${i}" aria-label="Move step ${i+1} up" ${i?"":"disabled"}>↑</button><button class="btn ghost small" type="button" data-d="sdel:${i}" aria-label="Remove step ${i+1}">✕</button>`}</td></tr>`).join("")}</tbody></table>
+      ${ro()?"":`<div class="fgrid" style="margin-top:8px"><div class="field span"><label for="f-paste">Add steps (one per line; pasted lists are fine)</label><textarea id="f-paste" rows="2"></textarea></div></div>
+      <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="paste">Add the steps</button><button class="btn ghost small" type="button" data-d="addstep">Add an empty step</button></div>`}
+      <div class="fgrid" style="margin-top:10px">${fld("react","When something goes wrong (reaction, who to call)",{type:"textarea",req:true,span:true,rows:2})}${fld("refs","Related documents and records",{type:"textarea",span:true,rows:2})}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Available to <small>who uses it and where it is kept</small></h3><div class="fgrid">
+      ${cks("roles","Used by (roles)",roles(),{req:true,hint:"The employees in these roles must read and understand it."})}
+      ${L.length?cks("locs","Kept at (points of use)",L,{req:true}):`<p class="caution" style="margin:0">No locations yet: add the points of use (“Add location”) first.</p>`}</div></section>
+    <section class="stage" style="--k:var(--a)"><h3>Approval <small>${E.rev>0?"Revision "+E.rev+": the reason for the change is required":"Controlled document"}</small></h3><div class="fgrid">
+      ${fld("prep","Prepared by",{req:true,list:"dl-names"})}${fld("appr","Approved by",{req:true,list:"dl-names"})}${E.rev>0?fld("change","Reason for the change",{type:"textarea",req:true,span:true}):""}</div>
+      <p class="muted" id="doc-miss" style="margin:10px 0 0;font-size:12.5px">${E.status==="draft"?(m.length?"To approve: "+esc(m.join(", "))+".":"Ready to approve."):E.status==="approved"?`Approved by ${esc(E.appr)} on ${fdate(E.apprDate)}${E.lastRev?` · last reviewed ${fdate(E.lastRev.date)} by ${esc(E.lastRev.by)}`:""}. Locked: start a new revision to change it.`:"Obsolete."}</p></section>
+    ${(E.revs||[]).length?`<section><h3 style="margin-bottom:4px">Earlier revisions</h3><ul class="loglist">${E.revs.map(r=>`<li>Rev ${r.rev}: ${r.status==="approved"?`approved ${fdate(r.apprDate)} by ${esc(r.appr)}`:esc(r.status)}${r.change?" · "+esc(r.change):""}</li>`).join("")}</ul></section>`:""}
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn ghost small" data-d="pdf">PDF</button><button class="btn ghost small" data-d="sign">Training sign sheet</button>`:""}
+    ${E.id&&E.status==="draft"&&E.rev===0&&!(E.revs||[]).length?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
+    ${E.status==="draft"&&E.rev>0&&e?`<button class="btn ghost small" data-d="discard">Discard revision</button>`:""}
+    ${E.status==="approved"?`<button class="btn ghost small" data-d="obsolete">Make obsolete…</button><button class="btn ghost small" data-d="review">Record review…</button><button class="btn ghost" data-d="revise">New revision</button>`:""}
+    <button class="btn ghost" data-d="cancel">Close</button>${E.status==="draft"?`<button class="btn ghost" data-d="save">Save draft</button><button class="btn" data-d="approve">Approve</button>`:""}`)}`;
+}
+function commitDoc(text){
+  const E=ED;
+  E.steps=E.steps.filter(s=>txt(s.t));
+  if(!txt(E.no)&&!txt(E.title)) return "Enter the document no. and the title.";
+  const dup=txt(E.no)&&!isNA(E.no)?DB.docs.find(x=>x.id!==E.id&&x.status!=="obsolete"&&up(x.no)===up(E.no)):null;
+  if(dup) return `Document no. ${E.no} is already used by ${dup.title||dup.id}.`;
+  if(!E.id){E.id=newId("D","d");logIt(E,text||"Document created");DB.docs.push(E);}
+  else{logIt(E,text||"Draft updated");DB.docs[DB.docs.findIndex(d=>d.id===E.id)]=E;}
+  ED=clone(E);save();render();return "";
+}
+/* location */
+const newLoc=()=>({id:"",name:"",furnace:"",kind:"paper",active:true,note:""});
+function dlgLoc(){
+  const E=ED,used=E.id?DB.docs.filter(d=>d.locs.includes(E.id)||(d.revs||[]).some(r=>r.locs.includes(E.id))).length+DB.avs.filter(a=>a.loc===E.id).length:0;
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.name):"New location"}</h2><span class="muted">point of use</span></div></div>
+  <div class="dlg-b"><section class="stage" style="--k:var(--p)"><h3>Location <small>where documents are kept for the people who use them</small></h3><div class="fgrid">
+    ${fld("name","Name",{req:true,hint:"e.g. F-04 control panel, Loading station, Hardness laboratory, Quarantine area"})}${fld("furnace","Furnace (if it belongs to one)",{opts:furnaces()})}${fld("kind","Kind of copy",{opts:Object.entries(LOCK),blank:false})}
+    <div class="field"><span class="cklbl">In use</span><label class="ck"><input type="checkbox" data-f="active" ${E.active?"checked":""}>Location in use</label></div>
+    ${fld("note","Note",{type:"textarea",span:true,rows:2})}</div></section></div>
+  ${foot(`${E.id&&!used?`<button class="btn danger small" data-d="delete">Delete</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+/* employee */
+const newPer=()=>({id:"",name:"",empNo:"",roles:[],since:"",lang:"",active:true,notes:"",log:[]});
+function dlgPer(){
+  const E=ED,F=inForce().filter(x=>needs({...E,active:true},x.E));
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.name):"New employee"}</h2>${E.id&&!E.active?chip("info","–","Not active"):""}<span class="muted">${esc(E.empNo)}</span></div></div>
+  <div class="dlg-b"><section class="stage" style="--k:var(--p)"><h3>Employee <small>involved in heat treating or inspection</small></h3><div class="fgrid">
+    ${fld("name","Name",{req:true})}${fld("empNo","Employee no.")}${fld("since","In this role since",{type:"date",hint:"Training on the documents of the role is due within "+S().retrainDays+" days from this date."})}${fld("lang","Reads (languages)",{hint:"e.g. Hindi; empty = not checked"})}
+    ${cks("roles","Roles",roles(),{req:true})}
+    <div class="field"><span class="cklbl">Active</span><label class="ck"><input type="checkbox" data-f="active" ${E.active?"checked":""}>Works in heat treating / inspection now</label></div>
+    ${fld("notes","Notes",{type:"textarea",span:true,rows:2})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Documents of the roles <small>read and understood</small></h3>
+      ${F.length?`<table class="vals"><thead><tr><th>Document</th><th>Revision in force</th><th>Training</th></tr></thead><tbody>${F.map(x=>{const s=E.id?trnState({...E,active:true},x.d):{st:"due"};
+        return `<tr><td><b>${esc(dnoOf(x.d))}</b> ${esc(x.E.title)}</td><td>rev ${x.E.rev}</td><td>${s.st==="ok"?chip("good","✓",`Trained ${fdate(s.t.date)}`):s.st==="late"?chip("crit","✕",`Late since ${fdate(s.due)}`):chip("warn","!",s.due?`Due by ${fdate(s.due)}`:"Due")}</td></tr>`;}).join("")}</tbody></table>`:`<p class="muted" style="margin:0">No document in force for these roles.</p>`}</section>
+    ${hist(E)}</div>
+  ${foot(`${E.id&&!DB.trn.some(t=>t.person===E.id)?`<button class="btn danger small" data-d="delete">Delete</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+/* training record: one document, many employees */
+const newTrn=doc=>({doc:doc||"",date:today(),by:"",method:METHODS[0],note:"",people:[],all:false});
+function dlgTrn(){
+  const E=ED,F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),x=F.find(y=>y.d.id===E.doc);
+  const P=x?DB.people.filter(p=>p.active&&(E.all||needs(p,x.E))):[];
+  return `<div class="dlg-h"><div class="row"><h2>Record training</h2><span class="muted">read and understood</span></div></div>
+  <div class="dlg-b">${namesList()}<section class="stage" style="--k:var(--p)"><h3>Training <small>on the revision in force</small></h3><div class="fgrid">
+    ${fld("doc","Document",{opts:F.map(y=>[y.d.id,`${dnoOf(y.d)} rev ${y.E.rev} · ${y.E.title}`]),req:true})}${fld("date","Date",{type:"date",req:true})}${fld("method","Method",{opts:METHODS,req:true,blank:false})}${fld("by","Trainer",{req:true,list:"dl-names"})}
+    ${fld("note","Note (how understanding was confirmed)",{type:"textarea",span:true,rows:2})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Employees <small>${x?`${x.E.roles.join(", ")}`:"choose the document"}</small></h3>
+      ${x?(P.length?`<div class="cks">${P.map(p=>{const s=trnState(p,x.d);return `<label class="ck"><input type="checkbox" data-tp="${esc(p.id)}" ${E.people.includes(p.id)?"checked":""}>${esc(p.name)} <span class="sub2">${s.st==="ok"?"trained":s.st==="na"?"not needed":s.st}</span></label>`;}).join("")}</div>
+        <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="tpall">Tick every employee due</button><label class="ck"><input type="checkbox" data-f="all" ${E.all?"checked":""}>Show employees of other roles</label></div>`:`<p class="muted" style="margin:0">No active employee in the roles of this document.</p>`):""}</section></div>
+  ${foot(`${x?`<button class="btn ghost small" data-d="sign">Sign sheet</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+/* availability check of one location */
+const newAv=loc=>{const a={id:"",loc:loc||"",date:today(),time:nowHM(),by:"",lines:{},unc:"",uncNote:"",note:"",log:[]};fillLines(a);return a;};
+function fillLines(a){const keep=a.lines||{};a.lines={};expectedAt(a.loc).forEach(x=>{a.lines[x.d.id]=keep[x.d.id]||{res:"",cur:x.E.rev,fixed:false,note:""};});}
+function dlgAv(){
+  const E=ED,k=avCalc(E),L=DB.locs.filter(l=>l.active||l.id===E.loc);
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id):"New availability check"}</h2>${E.id?chip(...AVCHK[k.lvl]):""}<span class="muted">${esc(locById(E.loc)?locById(E.loc).name:"")}</span></div></div>
+  <div class="dlg-b">${namesList()}<section class="stage" style="--k:var(--p)"><h3>Check <small>at the point of use</small></h3><div class="fgrid">
+    ${fld("loc","Location",{opts:L.map(l=>[l.id,l.name]),req:true})}${fld("date","Date",{type:"date",req:true})}${fld("time","Time",{type:"time"})}${fld("by","Checked by",{req:true,list:"dl-names"})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Documents <small>the revision in force must be here, complete and legible</small></h3>
+      ${Object.keys(E.lines).length?`<table class="vals"><thead><tr><th>Document</th><th>Found</th><th>Replaced on the spot</th><th>Note</th></tr></thead><tbody>${Object.entries(E.lines).map(([id,l])=>{const d=docById(id);
+        return `<tr><td><b>${esc(d?dnoOf(d):id)}</b> rev ${esc(l.cur)}<br><span class="muted small">${esc(d?(eff(d)||d).title:"")}</span></td>
+        <td><select aria-label="Found" data-avr="${esc(id)}"><option value=""></option>${Object.entries(AVRES).map(([kk,v])=>`<option value="${kk}" ${l.res===kk?"selected":""}>${v[2]}</option>`).join("")}</select></td>
+        <td><label class="ck"><input type="checkbox" data-avf="${esc(id)}" ${l.fixed?"checked":""} ${l.res&&l.res!=="ok"?"":"disabled"}>current revision put in place</label></td>
+        <td><input aria-label="Note" data-avn="${esc(id)}" value="${esc(l.note)}"></td></tr>`;}).join("")}</tbody></table>
+        <p class="muted" style="margin:6px 0 0;font-size:12.5px"><button class="btn ghost small" type="button" data-d="allok">Mark all unanswered: present, current revision</button></p>`:`<p class="muted" style="margin:0">No document in force is kept at this location.</p>`}
+      <div class="fgrid" style="margin-top:10px">${fld("unc","Uncontrolled or obsolete copies (old revisions, handwritten notes, photocopies)",{opts:Object.entries(UNC),blank:false})}${fld("uncNote","What was found")}${fld("note","Remarks",{type:"textarea",span:true,rows:2})}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>Result <small>findings</small></h3><div id="avres">${avResBox(k)}</div></section>
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn danger small" data-d="delete">Delete</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+const avResBox=k=>`${k.miss.length?`<p class="caution" style="margin:0 0 6px;font-size:13px">To complete the check: ${esc(k.miss.join(", "))}.</p>`:""}${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.t)}</li>`).join("")}</ul>`:`<p class="muted" style="margin:0">No findings.</p>`}`;
+
+let RT=0;
+function refresh(){clearTimeout(RT);RT=setTimeout(()=>{if(!ED) return;
+  if(MODE==="doc"&&ED.status==="draft"){const p=$("#doc-miss");if(p){const m=missingDoc(ED);p.textContent=m.length?"To approve: "+m.join(", ")+".":"Ready to approve.";}}
+  if(MODE==="av"){const b=$("#avres");if(b)b.innerHTML=avResBox(avCalc(ED));}},120);}
+function onDlgInput(ev){
+  const el=ev.target;if(!ED) return;
+  if(el.id==="f-paste") return;
+  if(MODE==="doc"&&ro()) return;
+  if(el.dataset.ck){const [path,k]=el.dataset.ck.split("|"),a=val(path)||[];setPath(ED,path,el.checked?uniq([...a,k]):a.filter(x=>x!==k));refresh();return;}
+  if(el.dataset.st!=null){ED.steps[+el.dataset.st].t=el.value;refresh();return;}
+  if(el.dataset.sk!=null){ED.steps[+el.dataset.sk].k=el.value;return;}
+  if(el.dataset.tp){ED.people=el.checked?uniq([...ED.people,el.dataset.tp]):ED.people.filter(x=>x!==el.dataset.tp);return;}
+  if(el.dataset.avr){const l=ED.lines[el.dataset.avr];l.res=el.value;if(el.value==="ok"||!el.value)l.fixed=false;if(ev.type==="change"){drawDlg();return;}refresh();return;}
+  if(el.dataset.avf){ED.lines[el.dataset.avf].fixed=el.checked;refresh();return;}
+  if(el.dataset.avn){ED.lines[el.dataset.avn].note=el.value;return;}
+  if(!el.dataset.f) return;
+  setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
+  if(ev.type==="change"&&MODE==="trn"&&(el.dataset.f==="doc"||el.dataset.f==="all")){if(el.dataset.f==="doc")ED.people=[];drawDlg();return;}
+  if(ev.type==="change"&&MODE==="av"&&el.dataset.f==="loc"){fillLines(ED);drawDlg();return;}
+  refresh();
+}
+dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
+dlg.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(MODE==="doc"){
+    if(a==="addstep"){ED.steps.push({t:"",k:""});drawDlg();const i=$(`[data-st="${ED.steps.length-1}"]`);if(i)i.focus();return;}
+    if(a==="paste"){const t=$("#f-paste").value.split(/\r?\n/).map(s=>s.replace(/^\s*(\d+[.)]|[-•*·])\s*/,"").trim()).filter(Boolean);if(!t.length) return;ED.steps.push(...t.map(s=>({t:s,k:""})));drawDlg();return;}
+    if(a.startsWith("sdel:")){ED.steps.splice(+a.slice(5),1);drawDlg();return;}
+    if(a.startsWith("sup:")){const i=+a.slice(4);if(i>0)[ED.steps[i-1],ED.steps[i]]=[ED.steps[i],ED.steps[i-1]];drawDlg();return;}
+    if(a==="save"){done(commitDoc(),"Draft saved.");return;}
+    if(a==="approve"){ED.steps=ED.steps.filter(s=>txt(s.t));const m=missingDoc(ED);if(m.length){done("To approve: "+m.join(", ")+".");return;}
+      ED.status="approved";ED.apprDate=today();ED.lastRev=null;const err=commitDoc(`Revision ${ED.rev} approved by ${txt(ED.appr)}`);if(err){ED.status="draft";ED.apprDate="";}done(err,`Revision ${ED.rev} approved. Train the users and check the points of use.`);return;}
+    if(a==="revise"){const snap=clone(ED);delete snap.revs;delete snap.log;ED.revs=[...(ED.revs||[]),snap];ED.rev+=1;ED.status="draft";ED.prep="";ED.appr="";ED.apprDate="";ED.change="";done(commitDoc(`Revision ${ED.rev} started (rev ${ED.rev-1} stays in force until it is approved)`),`Revision ${ED.rev} started.`);return;}
+    if(a==="discard"){if(!confirm(`Discard the draft of revision ${ED.rev}?`)) return;const prev=ED.revs.pop(),keep={revs:ED.revs,log:ED.log,id:ED.id,lastRev:ED.lastRev};ED={...prev,...keep};done(commitDoc(`Draft of revision ${ED.rev+1} discarded`),"Draft discarded.");return;}
+    if(a==="obsolete"){const why=prompt("Reason for making this document obsolete (remove its copies from the points of use):");if(!why||!why.trim()) return;ED.status="obsolete";done(commitDoc("Made obsolete: "+why.trim()),"Made obsolete. Remove its copies from the points of use.");return;}
+    if(a==="review"){const who=prompt(`Periodic review of ${dnoOf(ED)} rev ${ED.rev}: still right and in use, no change needed. Reviewed by:`);if(!who||!who.trim()) return;ED.lastRev={date:today(),by:who.trim()};done(commitDoc(`Reviewed by ${who.trim()}: no change`),"Review recorded.");return;}
+    if(a==="delete"){if(confirm(`Delete draft ${dnoOf(ED)}? This cannot be undone.`)){DB.docs=DB.docs.filter(d=>d.id!==ED.id);DB.trn=DB.trn.filter(t=>t.doc!==ED.id);save();render();dlg.close();}return;}
+    if(a==="pdf"){const m=docPdf(ED.id?docById(ED.id)||ED:ED,true);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+    if(a==="sign"){const m=signPdf(docById(ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+  }
+  if(MODE==="loc"){
+    if(a==="save"){const E=ED;if(!txt(E.name)){done("Enter the name.");return;}
+      if(DB.locs.some(l=>l.id!==E.id&&up(l.name)===up(E.name))){done("A location of this name exists.");return;}
+      if(!E.id){E.id=newId("L","l",2);DB.locs.push(E);}else DB.locs[DB.locs.findIndex(l=>l.id===E.id)]=E;ED=clone(E);save();render();done("","Saved.");return;}
+    if(a==="delete"){if(confirm(`Delete ${ED.name}?`)){DB.locs=DB.locs.filter(l=>l.id!==ED.id);save();render();dlg.close();}return;}
+  }
+  if(MODE==="per"){
+    if(a==="save"){const E=ED;if(!txt(E.name)){done("Enter the name.");return;}
+      if(DB.people.some(p=>p.id!==E.id&&up(p.name)===up(E.name)&&(!txt(E.empNo)||up(p.empNo)===up(E.empNo)))){done("This employee is already listed.");return;}
+      if(isDate(E.since)&&E.since>today()){done("“In this role since” cannot be in the future.");return;}
+      if(!E.id){E.id=newId("E","e",3);logIt(E,"Added");DB.people.push(E);}else{logIt(E,"Updated");DB.people[DB.people.findIndex(p=>p.id===E.id)]=E;}ED=clone(E);save();render();done("","Saved.");return;}
+    if(a==="delete"){if(confirm(`Delete ${ED.name}?`)){DB.people=DB.people.filter(p=>p.id!==ED.id);save();render();dlg.close();}return;}
+  }
+  if(MODE==="trn"){
+    const x=inForce().find(y=>y.d.id===ED.doc);
+    if(a==="tpall"){if(x)ED.people=uniq([...ED.people,...DB.people.filter(p=>p.active&&needs(p,x.E)&&trnState(p,x.d).st!=="ok").map(p=>p.id)]);drawDlg();return;}
+    if(a==="sign"){if(x){const m=signPdf(x.d);if(m)done(m);}return;}
+    if(a==="save"){const E=ED;
+      if(!x){done("Choose the document.");return;} if(!isDate(E.date)){done("Enter the date.");return;} if(E.date>today()){done("The date cannot be in the future.");return;}
+      if(E.date<x.E.apprDate&&!confirm(`The date is before rev ${x.E.rev} was approved (${fdate(x.E.apprDate)}). Record it for rev ${x.E.rev} anyway?`)) return;
+      if(!txt(E.by)){done("Enter the trainer.");return;} if(!E.people.length){done("Tick the employees trained.");return;}
+      E.people.forEach(pid=>DB.trn.push({id:newId("TR","tr"),person:pid,doc:x.d.id,rev:x.E.rev,date:E.date,method:E.method,by:txt(E.by),note:txt(E.note)}));
+      const n=E.people.length;save();render();ED=newTrn(E.doc);done("",`${plural(n,"training record")} saved for ${dnoOf(x.d)} rev ${x.E.rev}.`);return;}
+  }
+  if(MODE==="av"){
+    if(a==="allok"){Object.values(ED.lines).forEach(l=>{if(!l.res)l.res="ok";});drawDlg();return;}
+    if(a==="save"){const E=ED;if(!E.loc){done("Choose the location.");return;}if(!isDate(E.date)){done("Enter the date.");return;}if(E.date>today()){done("The date cannot be in the future.");return;}
+      if(!E.id){E.id=newId("AV","av");logIt(E,"Availability check recorded");DB.avs.push(E);}else{logIt(E,"Check updated");DB.avs[DB.avs.findIndex(x=>x.id===E.id)]=E;}
+      ED=clone(E);save();render();const k=avCalc(E);done("",k.miss.length?"Saved. To complete: "+k.miss.join(", ")+".":"Saved.");return;}
+    if(a==="delete"){if(confirm(`Delete check ${ED.id}?`)){DB.avs=DB.avs.filter(x=>x.id!==ED.id);save();render();dlg.close();}return;}
+  }
+});
+
+/* ---------- typical documents of a direct-fired gas pusher line (drafts to adapt) ---------- */
+const OPS_SU=["Maintenance work closed, permits returned, guards and covers fitted","Gas supply pressure and combustion air blower checked; burner safety interlocks and flame detectors tested","Furnace purged before ignition, by the burner management sequence","Control thermocouples connected, both walls of every zone read plausibly; SAT in date","Over-temperature protection set and active","SCADA recording running and its clock correct","Quench oil level, temperature, agitation and cooler ready","Pusher, doors, quench elevator and transfer tested empty","Heat-up rate of the furnace manual followed (refractory)","Set values entered from the process specification in force for the first part","All zones within tolerance and soaked before the first tray","Exhaust / flue draught and door curtains working"];
+const OPS_SD=["Production stop agreed; last batch identified in the production report","Loading stopped and the line emptied of product (or the product left inside recorded)","Burners shut down by the burner management sequence","Gas isolation valves closed (and locked where required)","Combustion air / exhaust left running as the furnace manual requires","Quench oil circulation and cooling left as the procedure requires; tank covered","Doors closed; pusher and elevator in a safe position","SCADA recording kept running until the burners were off","Handover note to maintenance / the next shift"];
+const OPR=["Furnace operator","Loading operator","Unloading / quench operator","Shift supervisor"];
+const DEF_DOCS=[
+  {no:"WI-HT-01",title:"Operation of the pusher furnace line",kind:"wi",topics:["general"],at:["panel"],roles:OPR.concat(["HT Engineer"]),
+    purpose:"Run the pusher line so that every tray gets the thermal cycle of its process specification.",scope:"Hardening & tempering, isothermal annealing and normalizing on the pusher lines; shift operation from loading to unloading.",
+    safety:"Heat-resistant gloves, face shield and apron at the doors and the quench; no loose clothing near the pusher and the elevator; keep the quench area free of combustibles.",
+    steps:[["Shift handover: read the handover note, the alarms still active (Alarms page), the production report of the shift before and any pause of the push cycle.",""],["Check the job card / process specification in force for the part being loaded: set value of every zone, push time, quench or cooling settings.","quality"],["Before the first tray of a new part compare the SCADA set values and the push timer with the job card; correct and record any difference as a parameter change.","crit"],["Push only when every zone reads within tolerance on both wall thermocouples.","crit"],["Load the trays only to the loading standard of the part, on trays / fixtures in use with the inspection in date.","quality"],["Enter every tray on the Daily production page in the order it enters the hardening chamber (part, batch, heat, pieces).","quality"],["At a lot changeover load the empty separator tray and do the trap point check (Trap points page).","quality"],["Watch the quench / controlled cooling: delay, oil temperature, agitation and level within the job card.","quality"],["Unload the trays in order; keep the identification (route card, tag) with the parts.","quality"],["React to every alarm by the alarm response matrix and record it on the Alarms page.","safety"],["Hand over: open alarms, pauses of the push cycle, suspect product on hold.",""]],
+    react:"A temperature, push time or quench value outside the job card: stop loading, inform the shift supervisor, tag the affected trays as suspect (segregation procedure SOP-HT-08) and record it.",refs:"Process specification / job card · Loading standards · Alarm response matrix · Daily production report · SOP-HT-08"},
+  {no:"WI-HT-02",title:"Furnace start-up",kind:"wi",topics:["startup"],at:["panel"],roles:["Furnace operator","Shift supervisor","Maintenance technician"],ops:"startup",
+    purpose:"Start the furnace safely and bring it to the process condition before the first tray.",scope:"Start-up from cold (after a rebuild or a long stop) and restart after a planned stop, a power failure or a gas / flame failure.",
+    safety:"Only trained and authorised persons light the burners. Follow the burner management sequence; never bypass a flame safeguard or a gas safety interlock.",
+    tail:[["Record the start-up on the Alarms page: checklist, all zones within tolerance, soak, first tray, first-off hardness.","quality"]],
+    react:"A check not OK: do not light / do not load; inform the shift supervisor and maintenance. First-off hardness not OK: hold the first trays (SOP-HT-08) and inform the HT Manager.",refs:"Furnace manual · Burner management instruction · Start-up record (Alarms page) · Hardness test record"},
+  {no:"WI-HT-03",title:"Furnace shut-down",kind:"wi",topics:["shutdown"],at:["panel"],roles:["Furnace operator","Shift supervisor","Maintenance technician"],ops:"shutdown",
+    purpose:"Stop the furnace safely, with every tray accounted for.",scope:"Planned stops (maintenance, holidays, no load) and the stop after an emergency once the line is safe.",
+    safety:"Gas isolation by the burner management sequence; lock out where maintenance follows. Hot surfaces and the quench stay dangerous after the stop.",
+    tail:[["Record the shut-down on the Alarms page (product left inside, time the burners were off).","quality"]],
+    react:"Product left in the furnace: record the trays and their positions; they are suspect until the HT Manager has reviewed them (SOP-HT-08).",refs:"Furnace manual · Shut-down record (Alarms page) · Daily production report"},
+  {no:"EI-HT-04",title:"Emergency: power failure",kind:"emer",topics:["e_power"],at:["panel","quench"],roles:OPR.concat(["Maintenance technician"]),
+    purpose:"Keep people safe and protect the product when the electric supply fails.",scope:"Every furnace line, the quench and the controlled cooling chamber.",
+    safety:"The gas safety shut-off valves must close on power loss: never open a gas valve by hand. Keep away from the quench if the elevator stopped with a hot tray above the oil (fire risk).",
+    steps:[["Raise the alarm to the shift supervisor and maintenance; note the time of the failure.","safety"],["Check that the burners are off and the gas safety shut-off valves are closed.","safety"],["Start the standby generator for the critical loads (quench agitation / oil circulation, control power, exhaust) if the site has one, by its instruction.","safety"],["Tray in the quench or on the elevator: lower it fully into the oil by the manual drive if the elevator allows it; otherwise keep the area clear; note the tray and the time.","safety"],["Close the furnace doors to keep the heat in; keep combustion air / exhaust as the furnace manual requires.",""],["Record the trays and their positions in the line at the failure; tag all of them and the tray in the quench as suspect (SOP-HT-08).","quality"],["Record the power failure on the Alarms page (alarm “Power failure”).","quality"],["When the power returns restart only by the start-up instruction WI-HT-02 with a start-up record; no push before every zone is within tolerance and soaked.","crit"],["The HT Manager decides the disposition of the suspect trays per tray position and time at temperature (hardness / microstructure before release).","quality"]],
+    react:"Gas smell or a valve that did not close: evacuate the area, no ignition sources, isolate the gas at the main valve from a safe place, call the site emergency number.",refs:"Alarm response matrix · WI-HT-02 · SOP-HT-08 · Site emergency plan"},
+  {no:"EI-HT-05",title:"Emergency: gas supply or flame failure",kind:"emer",topics:["e_gas"],at:["panel"],roles:["Furnace operator","Shift supervisor","Maintenance technician"],
+    purpose:"React safely to a burner lockout or a gas pressure fault and protect the product in the line.",scope:"Every direct-fired furnace line.",
+    safety:"Never reset a flame safeguard lockout or a gas pressure trip before the cause is known; relight only after the purge.",
+    steps:[["Note the time of the alarm; inform the shift supervisor and maintenance.","safety"],["Check that the safety shut-off valves closed; do not reset the lockout before the cause is known.","safety"],["Stop pushing; keep the doors closed.","quality"],["Maintenance checks the gas supply pressure, the regulator and the burner.",""],["Relight only after the purge, by the burner management sequence (WI-HT-02).","safety"],["Zones that left their tolerance: tag the trays in those zones as suspect (SOP-HT-08); record the alarm on the Alarms page.","quality"]],
+    react:"Gas smell: evacuate, no ignition sources, isolate the gas at the main valve from a safe place, call the site emergency number.",refs:"Alarm response matrix · WI-HT-02 · SOP-HT-08"},
+  {no:"EI-HT-06",title:"Emergency: fire at the quench or a door",kind:"emer",topics:["e_fire"],at:["panel","quench"],roles:OPR.concat(["Maintenance technician","HT Manager"]),
+    purpose:"Protect people first, then the plant and the product, in a fire at the quench or a furnace door.",scope:"The heat treat bay: furnaces, quench tanks, oil storage.",
+    safety:"Never use water on an oil fire. Know the escape routes, the extinguishers and the assembly point.",
+    steps:[["Raise the fire alarm and call the site emergency team / fire brigade.","safety"],["Stop pushing and the quench elevator; isolate the gas at the main valve from a safe place.","safety"],["Quench oil fire: close the quench hood / lid; use the CO₂ / foam system or extinguishers — never water.","safety"],["Evacuate as the site emergency plan requires; account for everybody at the assembly point.","safety"],["No restart before the safety review by the Maintenance Head and the HT Manager.","safety"],["Tag every tray in the line and in the quench as suspect (SOP-HT-08); record the event on the Alarms page.","quality"]],
+    react:"Follow the site emergency plan; the emergency team leader takes charge.",refs:"Site emergency plan · Alarm response matrix · SOP-HT-08"},
+  {no:"EI-HT-07",title:"Emergency: quench or cooling water failure",kind:"emer",topics:["e_other","quench"],at:["panel","quench"],roles:["Furnace operator","Unloading / quench operator","Shift supervisor","Maintenance technician"],
+    purpose:"Never quench product in a quench out of its limits.",scope:"Quench agitation, oil temperature, oil level, oil cooler and cooling water; controlled cooling blower (isothermal annealing).",
+    safety:"Oil above its limit temperature is a fire risk; never add water to the oil.",
+    steps:[["Stop pushing: no tray into a quench or cooling chamber out of its limits.","crit"],["Check agitation, oil temperature, level and the cooler / cooling water; inform maintenance.",""],["Oil temperature above the limit: wait until it is back within the limits of the job card.","safety"],["Tag the trays quenched or cooled since the last good reading as suspect (SOP-HT-08); record the alarm on the Alarms page.","quality"],["Restart pushing only when the quench / cooling is within the limits of the job card.","quality"]],
+    react:"Inform the HT Manager for the disposition of the suspect trays.",refs:"Alarm response matrix · Quench media test plan · SOP-HT-08"},
+  {no:"SOP-HT-08",title:"Segregation of suspect and nonconforming product",kind:"proc",topics:["segregation"],at:["panel","quar","insp","lab"],roles:OPR.concat(["Hardness tester / lab technician","Final inspector","HT Manager","Quality Manager"]),
+    purpose:"Keep suspect and nonconforming product apart from conforming product until its disposition (see HTSA 2.8).",scope:"Any product suspected or found not to conform: process deviation, alarm, failed test, trap point find, unidentified parts.",
+    safety:"Hot parts: cool before handling; use the marked bins.",
+    steps:[["Identify suspect product at once: tag every tray / bin with a red HOLD tag (part, batch, heat, reason, date, name).","crit"],["Move it to the marked quarantine area; never leave it on the line or in the dispatch area.","crit"],["Record it in the reaction plan of the record that found it (Alarms, Hardness, SCADA review, Trap points, Load build).","quality"],["Only the HT Manager or the Quality Manager decides the disposition: release after test, re-heat-treat, sort or scrap.","quality"],["Re-heat-treated product goes back with a rework reference (Daily production page).","quality"],["Scrap: mark it, move it to the scrap bin and record the quantity.",""],["Remove the HOLD tag only with the disposition signed.","quality"]],
+    react:"Product found without identification: treat it as nonconforming; never return it to a lot.",refs:"HTSA 2.8 · Nonconforming product procedure (QMS) · Reaction plans on the CALOR pages"},
+  {no:"SOP-HT-09",title:"Product inspection and testing",kind:"proc",topics:["inspection"],at:["lab","insp"],roles:["Hardness tester / lab technician","Final inspector","Shift supervisor","Quality Manager"],
+    purpose:"Test and inspect heat treated product to its specification before release.",scope:"First-off and in-process hardness, final inspection, metallurgical tests where the specification asks for them.",
+    safety:"Let samples cool before testing; eye protection at the cut-off and the polishing machines.",
+    steps:[["Verify the hardness tester on a certified test block at the start of each shift and scale (Hardness page verification).","crit"],["Take the samples the control plan asks for (first-off after a start-up or changeover, frequency per batch).","quality"],["Test surface (and core where specified) hardness to the specification; record every reading on the Hardness page.","quality"],["Microstructure, decarburization and grain size where the specification asks for them; record the results.","quality"],["A result out of the limits, or a test not valid (tester out of calibration): hold the batch (SOP-HT-08) and inform the HT Manager.","crit"],["Release the batch only with conforming results; sign the route card.","quality"],["Visual check for cracks, distortion and scale before dispatch.","quality"]],
+    react:"Doubt about a result: re-test on a verified tester; never release on a doubtful result.",refs:"Control plan · Process specification · Hardness and metallurgical test records · SOP-HT-08"},
+  {no:"WI-HT-10",title:"Loading and unloading of trays",kind:"wi",topics:["loading"],at:["load"],roles:["Loading operator","Unloading / quench operator","Shift supervisor"],
+    purpose:"Load every part to its loading standard and keep lots apart.",scope:"Tray loading before the pusher and unloading after the tempering chamber.",
+    safety:"Safety shoes and gloves; lift heavy trays with the hoist.",
+    steps:[["Load each part to its loading standard (Load build page): pieces, pattern, orientation, height.","quality"],["Use only trays / fixtures in use with the inspection in date; note the tags in the load check.","quality"],["Parts clean and dry: no oil, coolant, chips or paint.","quality"],["One lot per tray unless a mixed tray is planned; identify every tray with its route card.","quality"],["Record the load check of the first tray of every batch.","quality"],["At unloading empty every tray completely and check the grids for trapped parts.","quality"]],
+    react:"A part that does not fit the standard, or a damaged tray: stop, inform the shift supervisor.",refs:"Loading standards · Load checks · Trap points register"}];
+/* the typical points of use, keyed as the documents above name them */
+const DEF_LOCS=fs=>[...fs.map(f=>["panel:"+f,f+" control panel",f,"paper"]),["load","Loading station","","paper"],["quench","Quench / unloading area","","paper"],["lab","Hardness laboratory","","paper"],["insp","Final inspection","","paper"],["quar","Quarantine area","","paper"],["office","HT office (master copies)","","both"]];
+function addDefaults(){
+  const fs=furnaces(),map={};
+  DEF_LOCS(fs).forEach(([k,name,f,kind])=>{let l=DB.locs.find(x=>up(x.name)===up(name));if(!l){l={id:newId("L","l",2),name,furnace:f,kind,active:true,note:""};DB.locs.push(l);}map[k]=l.id;});
+  const ol=(()=>{try{const o=api("ops");return o&&o.lists?o.lists():null;}catch(e){return null;}})();
+  let n=0;
+  DEF_DOCS.forEach(t=>{if(DB.docs.some(d=>up(d.no)===up(t.no))) return;
+    const steps=t.ops?(ol&&ol[t.ops]&&ol[t.ops].length?ol[t.ops].map(x=>[x.t,x.crit?"crit":""]):(t.ops==="startup"?OPS_SU:OPS_SD).map(s=>[s,""])).concat(t.tail||[]):t.steps;
+    const locs=uniq(t.at.flatMap(k=>k==="panel"?fs.map(f=>map["panel:"+f]):[map[k]]).concat([map.office]).filter(Boolean));
+    const d=fixDoc({id:newId("D","d"),no:t.no,title:t.title,kind:t.kind,topics:t.topics,purpose:t.purpose,scope:t.scope,safety:t.safety,steps:steps.map(([s,k])=>({t:s,k})),react:t.react,refs:t.refs,roles:t.roles,locs,log:[{d:today(),t:"Typical document added (draft to adapt)"}]});
+    DB.docs.push(d);n++;});
+  return n;
+}
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",ev=>{
+  if(dlg.contains(ev.target)) return;
+  const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.df!=null){setView({df:b.dataset.df});drawDocF();drawDocs();return;}
+  if(b.dataset.openDoc){const d=docById(b.dataset.openDoc);if(d)openDlg("doc",clone(d));return;}
+  if(b.dataset.docPdf){const d=docById(b.dataset.docPdf);const m=d?docPdf(d,false):"";if(m)alert(m);return;}
+  if(b.dataset.openLoc){const l=locById(b.dataset.openLoc);if(l)openDlg("loc",clone(l));return;}
+  if(b.dataset.avLoc){openDlg("av",newAv(b.dataset.avLoc));return;}
+  if(b.dataset.openAv){const a=avById(b.dataset.openAv);if(a)openDlg("av",clone(a));return;}
+  if(b.dataset.openP){const p=perById(b.dataset.openP);if(p)openDlg("per",clone(p));return;}
+  if(b.dataset.delTrn){const t=DB.trn.find(x=>x.id===b.dataset.delTrn);if(t&&confirm(`Delete training record ${t.id}?`)){DB.trn=DB.trn.filter(x=>x.id!==t.id);save();render();}return;}
+  const id=b.id;
+  if(id==="b-doc") openDlg("doc",newDoc());
+  else if(id==="b-trn") openDlg("trn",newTrn((inForce()[0]||{d:{}}).d.id));
+  else if(id==="b-av"){const l=DB.locs.find(x=>x.active&&expectedAt(x.id).length);openDlg("av",newAv(l?l.id:""));}
+  else if(id==="b-loc") openDlg("loc",newLoc());
+  else if(id==="b-person") openDlg("per",newPer());
+  else if(id==="b-orgpeople"){const n=addOrgPeople();alert(n?`${plural(n,"person","people")} added from the HT organization page: check their roles.`:"Everybody on the HT organization page is already listed.");}
+  else if(id==="b-h115"){const m=h115Pdf();if(m)alert(m);}
+  else if(id==="b-defaults"){const n=addDefaults();save();render();alert(n?`${plural(n,"typical document")} added as drafts: adapt them to the line, then approve them.`:"The typical documents are already in the register.");}
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("wi-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-export") download(`procedures-work-instructions-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!(DB.docs.length||DB.people.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete every document, location, check, employee and training record, and the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+/* the people of the HT organization page, with the roles their positions match */
+function addOrgPeople(){
+  const o=api("org");if(!o) return 0;let L=[];try{L=o.people();}catch(e){}
+  let n=0;L.forEach(p=>{if(!txt(p.name)||DB.people.some(x=>up(x.name)===up(p.name))) return;
+    const r=roles().filter(x=>(p.positions||[]).some(t=>up(t)===up(x)));
+    DB.people.push({id:newId("E","e",3),name:p.name,empNo:"",roles:r,since:"",lang:"",active:true,notes:"From the HT organization page"+(p.positions&&p.positions.length?" ("+p.positions.join(", ")+")":""),log:[{d:today(),t:"Added from the HT organization page"}]});n++;});
+  if(n){save();render();}return n;
+}
+$("#setup").addEventListener("change",ev=>{
+  const el=ev.target;if(!el.dataset.set) return;const k=el.dataset.set;
+  if(k==="roles"){const L=uniq(el.value.split(/\r?\n/).map(txt).filter(Boolean));S().roles=L.length?L:clone(DEF_ROLES);}
+  else if(el.type==="number"){const v=num(el.value);S()[k]=v==null||v<0?DEF[k]:v;}else S()[k]=el.value;
+  save();render();
+});
+$("#imp").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a procedures and work instructions backup");
+    if(confirm(`Import ${plural(o.docs.length,"document")}, ${plural(o.people.length,"employee")} and ${plural(o.trn.length,"training record")}? This replaces the records now in this browser.`)){DB=o;save();render();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+/* plain ASCII file name: Chrome ignores a download name with characters such as "·" */
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells});
+const locNames=E=>E.locs.map(l=>locById(l)?locById(l).name:l).join(", ");
+function regXlsx(){
+  const A=assess115(),F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),fs=furnaces();
+  const sheets=[
+    {name:"HTSA 1.15",widths:[44,90,12,50],rows:[B(["HTSA 1.15 Are there procedures or work instructions available to the heat treat personnel that define the heat treating process?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
+    {name:"Coverage",widths:[36,26,...fs.map(()=>16)],rows:[B(["Topic","Requirement",...fs]),...Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>N([TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>docsFor(t,f).map(x=>dnoOf(x.d)+" r"+x.E.rev).join(", ")||(["F","S"].includes(TOPICS[t][1])&&!(TOPICS[t][1]==="S"&&docsFor(t).length)?"MISSING":""))]))]},
+    {name:"Documents",widths:[13,5,12,36,20,40,22,22,40,40,16,13,16,13],rows:[B(["Document","Rev","Status","Title","Kind","Covers","Furnaces","Processes","Used by","Kept at","Approved by","Approved","Language","Review due"]),
+      ...DB.docs.slice().sort((a,b)=>dnoOf(a).localeCompare(dnoOf(b))).map(d=>{const E=eff(d)||d,r=review(d);return N([dnoOf(d),E.rev,d.status==="draft"&&eff(d)?`rev ${E.rev} in force, rev ${d.rev} draft`:DOC_ST[d.status][2],E.title,KINDS[E.kind],E.topics.map(t=>TOPICS[t]?TOPICS[t][0]:t).join(", "),E.furnaces.join(", ")||"All",E.procs.map(p=>PROC[p]).join(", ")||"All",E.roles.join(", "),locNames(E),E.appr,fdate(E.apprDate),E.lang,r.due?fdate(r.due):""]);})]},
+    {name:"Steps",widths:[13,5,5,90,14],rows:[B(["Document","Rev","No.","Step","Key point"]),...F.flatMap(x=>x.E.steps.map((s,i)=>N([dnoOf(x.d),x.E.rev,i+1,s.t,STEPK[s.k]==="—"?"":STEPK[s.k]])))]},
+    {name:"Points of use",widths:[30,10,18,13,13,40],rows:[B(["Location","Furnace","Kind","Last check","Next check","Documents (state)"]),...DB.locs.map(l=>{const s=locState(l);return N([l.name+(l.active?"":" (not in use)"),l.furnace,LOCK[l.kind],s.C?fdate(s.C.date):"never",s.due?fdate(s.due):"",s.X.map(x=>dnoOf(x.d)+" r"+x.E.rev+": "+AVST[avState(x.d,l.id).st][2]).join(" | ")]);})]},
+    {name:"Availability checks",widths:[10,12,7,26,18,70,16],rows:[B(["Check","Date","Time","Location","Checked by","Findings","Result"]),...DB.avs.slice().sort(byDT).map(a=>{const k=avCalc(a),l=locById(a.loc);return N([a.id,fdate(a.date),a.time,l?l.name:a.loc,a.by,k.F.map(f=>f.t).join(" | ")||"all present, current revision",AVCHK[k.lvl][2]]);})]},
+    {name:"Training matrix",widths:[24,30,...F.map(()=>12)],rows:[B(["Employee","Roles",...F.map(x=>dnoOf(x.d)+" r"+x.E.rev)]),...DB.people.filter(p=>p.active).map(p=>N([p.name,p.roles.join(", "),...F.map(x=>{const s=trnState(p,x.d);return s.st==="ok"?"trained "+fdate(s.t.date):s.st==="na"?"":s.st==="due"?"due "+fdate(s.due):"LATE since "+fdate(s.due);})]))]},
+    {name:"Training records",widths:[10,12,24,13,5,22,22,40],rows:[B(["Record","Date","Employee","Document","Rev","Method","Trainer","Note"]),...DB.trn.slice().sort((a,b)=>a.date<b.date?-1:1).map(t=>{const p=perById(t.person),d=docById(t.doc);return N([t.id,fdate(t.date),p?p.name:t.person,d?dnoOf(d):t.doc,t.rev,t.method,t.by,t.note]);})]},
+    {name:"Employees",widths:[24,12,40,13,14,10],rows:[B(["Employee","Emp. no.","Roles","In role since","Reads","Active"]),...DB.people.map(p=>N([p.name,p.empNo,p.roles.join(", "),fdate(p.since),p.lang,p.active?"yes":"no"]))]}];
+  try{download(ascii(`Procedures and work instructions ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}p{margin:0 0 6px;white-space:pre-wrap}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top;white-space:pre-wrap}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}table.kv th{background:#f2f4f5;font-weight:500;width:28%}
+    td.n{width:22px;text-align:right}td.k{width:76px;white-space:nowrap;font-weight:600}td.sig{height:22px}
+    .tb{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;border:1px solid #cfd5d9;margin:0 0 10px}.tb div{padding:5px 8px;border-left:1px solid #cfd5d9}.tb div:first-child{border-left:0}.tb span{display:block;color:#76838c;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em}
+    .draft{border:2px solid #b02a2a;color:#b02a2a;font-weight:600;padding:4px 8px;margin:0 0 8px;text-align:center}
+    .res-s{color:#0a6b0a;font-weight:600}.res-ns{color:#8a5a00;font-weight:600}.res-nia{color:#b02a2a;font-weight:600}
+    .sign{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.sign div{border:1px solid #cfd5d9;border-radius:3px;padding:8px;min-height:60px;display:flex;flex-direction:column;justify-content:space-between}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}`;
+function popup(title,body){
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PDF_CSS}</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>${body}</body></html>`);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);
+  return "";
+}
+const kvH=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${esc(k)}</th><td>${esc(v??"")}</td></tr>`).join("")}</tbody></table>`;
+const tblH=(head,rows)=>rows.length?`<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+/* the controlled document as it is posted: the revision in force (or, from an open draft, the draft marked as such) */
+function docPdf(d,asOpen){
+  if(!d||!d.id) return "Save the document first.";
+  const E=asOpen?d:(eff(d)||d),draft=E.status==="draft";
+  /* the approved revisions up to the one printed */
+  const revs=(d.revs||[]).filter(r=>isDate(r.apprDate)).concat(isDate(d.apprDate)?[d]:[]).filter(r=>r.rev<=E.rev);
+  return popup(ascii(`${dnoOf(d)} rev ${E.rev} ${E.title}`),`${draft?`<div class="draft">DRAFT of revision ${E.rev}: not approved, not for use at the line</div>`:d.status==="obsolete"?`<div class="draft">OBSOLETE: remove from the points of use</div>`:""}
+  <div class="tb"><div><span>${esc(S().plant)}</span><b>${esc(KINDS[E.kind]||"")} · ${esc(E.title)}</b></div><div><span>Document</span>${esc(dnoOf(d))}</div><div><span>Revision</span>${E.rev}</div><div><span>Approved</span>${fdate(E.apprDate)}</div></div>
+  ${kvH([["Covers",E.topics.map(t=>TOPICS[t]?TOPICS[t][0]:t).join(", ")],["Applies to",(E.furnaces.length?E.furnaces.join(", "):"Every furnace")+" · "+(E.procs.length?E.procs.map(p=>PROC[p]).join(", "):"every process")],["Used by",E.roles.join(", ")],["Kept at",locNames(E)],["Language",E.lang],["Master file",E.file]])}
+  <h2>Purpose</h2><p>${esc(E.purpose)}</p>${txt(E.scope)?`<h2>Scope</h2><p>${esc(E.scope)}</p>`:""}${txt(E.safety)?`<h2>Safety and protective equipment</h2><p>${esc(E.safety)}</p>`:""}
+  <h2>Steps</h2><table><thead><tr><th>No.</th><th>Step</th><th>Key point</th></tr></thead><tbody>${E.steps.filter(s=>txt(s.t)).map((s,i)=>`<tr><td class="n">${i+1}</td><td>${esc(s.t)}</td><td class="k">${esc(STEPKP[s.k]||"")}</td></tr>`).join("")}</tbody></table>
+  <h2>When something goes wrong</h2><p>${esc(E.react)}</p>${txt(E.refs)?`<h2>Related documents and records</h2><p>${esc(E.refs)}</p>`:""}
+  <h2>Revisions</h2>${tblH(["Rev","Approved","Approved by","Reason for the change"],revs.map(r=>[r.rev,fdate(r.apprDate),r.appr,r.change||(r.rev?"":"First issue")]))}
+  <div class="sign"><div><span class="muted">Prepared by</span><b>${esc(E.prep||"")}</b><span class="muted">Sign · Date</span></div><div><span class="muted">Approved by</span><b>${esc(E.appr||"")}</b><span class="muted">Sign · Date ${fdate(E.apprDate)}</span></div><div><span class="muted">Controlled copy</span><b>&nbsp;</b><span class="muted">Issued to · Date</span></div></div>`);
+}
+/* sheet for the employees to sign that they have read and understood the revision in force */
+function signPdf(d){
+  const E=eff(d);if(!E) return "Approve the document first: training is on the revision in force.";
+  const P=DB.people.filter(p=>needs(p,E));
+  return popup(ascii(`Training sign sheet ${dnoOf(d)} rev ${E.rev}`),`<h1>Training record · read and understood</h1><p class="sub">${esc(S().plant)} · ${esc(dnoOf(d))} rev ${E.rev} · ${esc(E.title)} · approved ${fdate(E.apprDate)}</p>
+  ${kvH([["Used by",E.roles.join(", ")],["Trainer",""],["Method",METHODS.join(" / ")],["Date",""]])}
+  <table><thead><tr><th>No.</th><th>Employee</th><th>Emp. no.</th><th>Role</th><th>Date</th><th>Signature: I have read and understood this document</th></tr></thead><tbody>${P.map((p,i)=>`<tr><td class="n">${i+1}</td><td>${esc(p.name)}</td><td>${esc(p.empNo)}</td><td>${esc(p.roles.filter(r=>E.roles.includes(r)).join(", "))}</td><td class="sig"></td><td></td></tr>`).join("")}${Array.from({length:5},(x,i)=>`<tr><td class="n">${P.length+i+1}</td><td class="sig"></td><td></td><td></td><td></td><td></td></tr>`).join("")}</tbody></table>
+  <div class="sign"><div><span class="muted">Trainer</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Shift supervisor</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Entered in CALOR</span><b>&nbsp;</b><span class="muted">By · Date</span></div></div>`);
+}
+function h115Pdf(){
+  const A=assess115(),sc=SCORE[A.score],F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),fs=furnaces();
+  return popup(ascii(`HTSA 1-15 evidence ${today()}`),`<h1>HTSA 1.15 · Procedures and work instructions</h1><p class="sub">${esc(S().plant)} · evidence · ${fdate(today())}</p>
+  <p>Assessment: <span class="res-${A.score}">${esc(sc[1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
+  <h2>What the documents cover</h2>${tblH(["Topic","Requirement",...fs],Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>[TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>docsFor(t,f).map(x=>dnoOf(x.d)).join(", ")||(["F","S"].includes(TOPICS[t][1])&&!(TOPICS[t][1]==="S"&&docsFor(t).length)?"MISSING":"—"))]))}
+  <h2>Documents in force</h2>${tblH(["Document","Rev","Title","Approved","Used by","Kept at","Review due"],F.map(x=>[dnoOf(x.d),x.E.rev,x.E.title,fdate(x.E.apprDate)+" "+x.E.appr,x.E.roles.join(", "),locNames(x.E),fdate(review(x.d).due)]))}
+  <h2>Points of use</h2>${tblH(["Location","Last check","Documents"],DB.locs.filter(l=>l.active).map(l=>{const s=locState(l);return [l.name,s.C?fdate(s.C.date)+" "+s.C.by:"never",s.X.map(x=>dnoOf(x.d)+" r"+x.E.rev+": "+AVST[avState(x.d,l.id).st][2]).join("; ")];}))}
+  <h2>Employees: read and understood</h2>${tblH(["Employee","Roles",...F.map(x=>dnoOf(x.d))],people().map(p=>[p.name,p.roles.join(", "),...F.map(x=>{const s=trnState(p,x.d);return s.st==="ok"?"✓ "+fdate(s.t.date):s.st==="na"?"–":s.st==="due"?"due":"LATE";})]))}`);
+}
+
+/* ---------- example data ---------- */
+function example(){
+  const o=blank(),td=today(),d=n=>addDays(td,-n);DB=o;
+  addDefaults();
+  const appr=(doc,days,by)=>{doc.prep="HT Engineer (example)";doc.appr=by||"HT Manager (example)";doc.apprDate=d(days);doc.status="approved";doc.log=[{d:d(days+20),t:"Typical document added (draft to adapt)"},{d:d(days),t:`Revision ${doc.rev} approved by ${doc.appr}`}];};
+  o.docs.forEach(x=>{x.lang=x.no==="SOP-HT-09"?"English":"English, Hindi";appr(x,200);});
+  o.docs.find(x=>x.no==="SOP-HT-08").appr="Quality Manager (example)";
+  /* WI-HT-01: revision 1 approved 40 days ago (the trap point check at a lot changeover added) */
+  const w1=o.docs.find(x=>x.no==="WI-HT-01"),snap=clone(w1);delete snap.revs;delete snap.log;snap.steps=snap.steps.filter(s=>!/trap point/.test(s.t));
+  w1.revs=[snap];w1.rev=1;w1.change="Trap point check and separator tray at every lot changeover added (HTSA 2.5).";appr(w1,40);w1.log.unshift({d:d(220),t:"Typical document added (draft to adapt)"});
+  /* WI-HT-10: rev 0 still a draft */
+  const w10=o.docs.find(x=>x.no==="WI-HT-10");w10.status="draft";w10.appr="";w10.apprDate="";w10.log=[{d:d(10),t:"Typical document added (draft to adapt)"}];
+  /* employees */
+  const E=(name,empNo,r,since,lang)=>{const p={id:"E-"+String(o.seq.e++).padStart(3,"0"),name,empNo,roles:r,since:since?d(since):"",lang:lang||"",active:true,notes:"",log:[{d:d(300),t:"Added"}]};o.people.push(p);return p;};
+  const P=[E("Ramesh Kumar (example)","1021",["Furnace operator"],400,"Hindi"),E("Suresh Yadav (example)","1034",["Furnace operator"],380,"Hindi"),E("Anil Sharma (example)","1040",["Loading operator"],500,"Hindi"),
+    E("Vikram Singh (example)","1052",["Unloading / quench operator"],300,"Hindi"),E("Manoj Gupta (example)","1007",["Shift supervisor"],900,"Hindi, English"),E("Deepak Verma (example)","1066",["Hardness tester / lab technician"],250,"English"),
+    E("Priya Nair (example)","1071",["Final inspector"],240,"English"),E("Rajesh Meena (example)","1080",["Maintenance technician"],600,"Hindi"),E("Sunil Jat (example)","1093",["Furnace operator"],12,"Hindi")];
+  /* training: everybody on the revisions in force, except Suresh (still on rev 0 of WI-HT-01) and Sunil (new, 12 days in the role) */
+  inForce().forEach(x=>P.forEach(p=>{if(!needs(p,x.E)||p.name.startsWith("Sunil")) return;
+    const late=p.name.startsWith("Suresh")&&x.d.no==="WI-HT-01",rev=late?0:x.E.rev,date=late?d(190):x.d.no==="WI-HT-01"?d(34):d(185);
+    o.trn.push({id:"TR-"+String(o.seq.tr++).padStart(4,"0"),person:p.id,doc:x.d.id,rev,date,method:/^EI/.test(x.d.no)?"Briefing at the line":"Read and signed",by:"HT Engineer (example)",note:""});}));
+  /* availability checks: every location 25–70 days ago; F-02 control panel had rev 0 of WI-HT-01, replaced on the spot; the quarantine area never checked */
+  o.locs.forEach((l,i)=>{if(/Quarantine/.test(l.name)) return;
+    const X=inForce().filter(x=>x.E.locs.includes(l.id));if(!X.length) return;
+    const a={id:"AV-"+String(o.seq.av++).padStart(4,"0"),loc:l.id,date:d(/F-02/.test(l.name)?30:20+i*2),time:"10:"+pad(10+i),by:"Manoj Gupta (example)",lines:{},unc:"",uncNote:"",note:"",log:[{d:d(25),t:"Availability check recorded"}]};
+    X.forEach(x=>{a.lines[x.d.id]={res:"ok",cur:x.E.rev,fixed:false,note:""};});
+    if(/F-02/.test(l.name)){const w=X.find(x=>x.d.no==="WI-HT-01");if(w){a.lines[w.d.id]={res:"old",cur:w.E.rev,fixed:true,note:"Rev 0 on the panel; rev 1 put in place"};}a.unc="removed";a.uncNote="Handwritten set value list taped to the panel";}
+    o.avs.push(a);});
+  return o;
+}
+
+/* ---------- CALOR: status for the home page ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true; /* the navigation bar switches the theme of every page */
+  HTQ.provide("wi",{
+    htsa115:()=>{const A=assess115();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),crit:A.I.filter(i=>i.lvl==="crit").length};},
+    overview:()=>{const F=inForce(),P=people();return {inForce:F.length,drafts:DB.docs.filter(d=>d.status==="draft").length,reviewOver:F.filter(x=>review(x.d).st==="overdue").length,
+      locBad:DB.locs.filter(l=>l.active&&locState(l).lvl==="crit").length,locCheck:DB.locs.filter(l=>l.active&&locState(l).lvl==="warn").length,
+      people:P.length,late:P.filter(p=>F.some(x=>trnState(p,x.d).st==="late")).length,due:P.filter(p=>F.some(x=>trnState(p,x.d).st==="due")).length};},
+    counts:()=>{const A=assess115();return {crit:A.I.filter(i=>i.lvl==="crit").length,warn:A.I.filter(i=>i.lvl==="warn").length,score:A.score};},
+    /* the documents in force for a topic (and furnace), e.g. the start-up instruction for the Alarms page */
+    docsFor:(topic,f)=>docsFor(topic,f).map(x=>({id:x.d.id,no:dnoOf(x.d),rev:x.E.rev,title:x.E.title}))
+  });
+  HTQ.on("nav:wi",o=>{if(!o) return;if(o.doc){const d=docById(o.doc);if(d)openDlg("doc",clone(d));}if(o.person){const p=perById(o.person);if(p)openDlg("per",clone(p));}});
+  ["sat:ready","org:ready","org:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)render();}));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("wi-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.docs.length&&!DB.people.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__WI={get DB(){return DB;},assess115,eff,review,missingDoc,docsFor,topicGaps,avState,avCalc,locState,trnState,needs,inForce,addDefaults,openDlg,newDoc,newAv,newTrn,newPer};
+</script>
+</body></html>

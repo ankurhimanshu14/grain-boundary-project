@@ -429,6 +429,8 @@ let VIEW={f:"",k:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)|
 const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
 const inView=e=>(!VIEW.f||e.furnace===VIEW.f);
 const alarmOf=e=>DB.alarms.find(a=>a.k===e.alarm)||null;
+/* alarms with an emergency instruction topic on the Procedures & WIs page */
+const WI_ALARM={PWR:"e_power",GAS:"e_gas",FLAME:"e_gas",AIR:"e_gas",FIRE:"e_fire",QTEMP:"e_other",QAGIT:"e_other",QLEVEL:"e_other",WATER:"e_other",CCAIR:"e_other"};
 const evName=e=>e.kind==="alarm"?(alarmOf(e)||{}).name||"Alarm":`${KINDS[e.kind]}: ${e.type||""}`;
 const where=e=>`${e.furnace}${e.kind==="alarm"?" · "+e.area+(e.zone?" · zone "+e.zone:""):""}`;
 
@@ -501,6 +503,10 @@ function calc(e){
     if(e.affected==="yes"||e.affected==="unknown") risk={from:e.start,to:e.end||"",txt:e.affected==="yes"?"product in the affected area":"product possibly in the affected area"};
     if(a&&a.stop) add("info","Line-stopping alarm: the furnace counts as stopped until the next start-up record.");
   }
+  /* the instruction in force for this record (Procedures & WIs page, HTSA 1.15) */
+  const wt=e.kind==="startup"?"startup":e.kind==="shutdown"?"shutdown":WI_ALARM[e.alarm]||"",wa=wt&&e.furnace?api("wi"):null;
+  if(wa&&wa.docsFor){let L=[];try{L=wa.docsFor(wt,e.furnace);}catch(x){}
+    add("info",L.length?`Instruction in force: ${L.map(d=>`${d.no} rev ${d.rev} ${d.title}`).join("; ")}.`:`No approved ${e.kind==="alarm"?"emergency":e.kind==="startup"?"start-up":"shut-down"} instruction for ${e.furnace} on the Procedures & WIs page.`);}
   const need=e.kind==="alarm"?(e.affected==="yes"||e.affected==="unknown"||late||repeat>=(+S().repeatN||3)):F.some(f=>f.j==="crit");
   const res=F.some(f=>f.j==="crit")?"crit":F.some(f=>f.j==="warn")?"warn":"ok";
   return {F,res,respMin,late,durMin,repeat,risk,need};
@@ -961,12 +967,14 @@ if(HTQ){
     alarmsIn:(f,ch,t0,t1)=>DB.events.filter(e=>e.kind==="alarm"&&e.furnace===f&&isDT(e.start)&&(!AREA_CH[e.area]||AREA_CH[e.area]===ch)&&ms(e.start)<=t1&&(isDT(e.end)?ms(e.end):ms(nowStr()))>=t0)
       .map(e=>({...brief(e),from:ms(e.start),to:isDT(e.end)?ms(e.end):null})),
     used:f=>DB.events.some(e=>e.furnace===f),
+    /* the start-up and shut-down checklists, for the instructions of the Procedures & WIs page */
+    lists:()=>({startup:DB.lists.startup.map(i=>({t:i.t,crit:!!i.crit})),shutdown:DB.lists.shutdown.map(i=>({t:i.t,crit:!!i.crit}))}),
     overview:()=>({furnaces:furnaces().map(f=>({id:f,...stateOf(f),e:undefined})),
       items:DB.events.filter(e=>["active","react","review","incomplete"].includes(status(e))).sort(byTime).reverse().map(brief)}),
     counts:()=>{const st=DB.events.map(status);return {active:st.filter(s=>s==="active").length,react:st.filter(s=>s==="react").length,review:st.filter(s=>s==="review").length,incomplete:st.filter(s=>s==="incomplete").length};}
   });
   HTQ.on("nav:ops",o=>{if(o&&o.view){setView({f:o.view.f||""});render();}if(o&&o.rec)openRec(o.rec);});
-  ["sat:ready","prod:changed","metal:changed","tus:changed"].forEach(ev=>HTQ.on(ev,()=>render()));
+  ["sat:ready","prod:changed","metal:changed","tus:changed","wi:ready","wi:changed"].forEach(ev=>HTQ.on(ev,()=>render()));
 }
 
 /* ---------- start ---------- */
