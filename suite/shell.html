@@ -577,7 +577,7 @@ function badgeOps(){
 HTQ.on("ops:ready",badgeOps); HTQ.on("ops:changed",badgeOps);
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */
-const KEYS={"prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","sr2-pdca":"SCADA review: PDCA reviews","sr2-8d":"SCADA review: 8D problem solving","sr2-hist":"SCADA review: day summaries (history)","sr2-repl":"SCADA review: replacement register","sr2-last":"SCADA review: latest record per furnace / chamber","sr2-link":"SCADA review: links to furnaces / chambers","sr2-settings":"SCADA review: settings","sr2-mig":"SCADA review: earlier data imported (date)","sr2-store-info":"SCADA review: index of the record store (the readings themselves are in the browser database, backed up from the SCADA review page)","pfsr-last":"Earlier SCADA review: latest record per furnace / chamber","pfsr-pdca":"Earlier SCADA review: review PDCA (reaction plans)","pfsr-repl":"Earlier SCADA review: replacement register","pfsr-hist":"Earlier SCADA review: day summaries (history)","pfsr-settings":"Earlier SCADA review: settings","pfsr-link":"Earlier SCADA review: links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","htq-theme":"Theme"};
+const KEYS={"prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","sr2-pdca":"SCADA review: PDCA reviews","sr2-8d":"SCADA review: 8D problem solving","sr2-hist":"SCADA review: day summaries (history)","sr2-repl":"SCADA review: replacement register","sr2-last":"SCADA review: latest record per furnace / chamber","sr2-link":"SCADA review: links to furnaces / chambers","sr2-settings":"SCADA review: settings","sr2-mig":"SCADA review: earlier data imported (date)","pfsr-last":"Earlier SCADA review: latest record per furnace / chamber","pfsr-pdca":"Earlier SCADA review: review PDCA (reaction plans)","pfsr-repl":"Earlier SCADA review: replacement register","pfsr-hist":"Earlier SCADA review: day summaries (history)","pfsr-settings":"Earlier SCADA review: settings","pfsr-link":"Earlier SCADA review: links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","htq-theme":"Theme"};
 const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const jget=k=>{ try{ return JSON.parse(get(k)||"null"); }catch(e){ return null; } };
 const cnt=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
@@ -589,8 +589,8 @@ const MODS=[
   {page:"spec",name:"Process specifications",keys:["psr-reg","psr-view"],reset:{key:"psr-reg",fields:["settings"]},
     what:()=>{const v=jget("psr-reg");return v?cnt((v.specs||[]).length,"specification"):"";}},
   /* the SCADA review is SCADA Review 2 (sr2-*); the earlier page's keys (pfsr-*) go with it, or a delete would import them again */
-  {page:"scada",name:"SCADA temperature review (PDCA + 8D)",idb:["sr2-store"],keys:["sr2-pdca","sr2-8d","sr2-hist","sr2-repl","sr2-last","sr2-link","sr2-settings","sr2-mig","sr2-store-info","pfsr-pdca","pfsr-hist","pfsr-repl","pfsr-last","pfsr-link","pfsr-settings"],reset:{remove:["sr2-settings"]},
-    what:()=>[jget("sr2-pdca")&&cnt((jget("sr2-pdca").reviews||[]).length,"review"),jget("sr2-8d")&&cnt((jget("sr2-8d").list||[]).length,"8D"),jget("sr2-hist")&&cnt(Object.keys(jget("sr2-hist")).length,"day")+" analysed",jget("sr2-repl")&&cnt(jget("sr2-repl").length,"replacement entry","replacement entries"),jget("sr2-store-info")&&cnt(Object.values(jget("sr2-store-info").fk||{}).reduce((a,o)=>a+Object.keys(o.days||{}).length,0),"day")+" of readings stored (back them up from the SCADA review page)",get("sr2-settings")!=null&&"own settings"].filter(Boolean).join(" · ")},
+  {page:"scada",name:"SCADA temperature review (PDCA + 8D)",keys:["sr2-pdca","sr2-8d","sr2-hist","sr2-repl","sr2-last","sr2-link","sr2-settings","sr2-mig","pfsr-pdca","pfsr-hist","pfsr-repl","pfsr-last","pfsr-link","pfsr-settings"],reset:{remove:["sr2-settings"]},
+    what:()=>[jget("sr2-pdca")&&cnt((jget("sr2-pdca").reviews||[]).length,"review"),jget("sr2-8d")&&cnt((jget("sr2-8d").list||[]).length,"8D"),jget("sr2-hist")&&cnt(Object.keys(jget("sr2-hist")).length,"day")+" analysed",jget("sr2-repl")&&cnt(jget("sr2-repl").length,"replacement entry","replacement entries"),get("sr2-settings")!=null&&"own settings"].filter(Boolean).join(" · ")},
   {page:"quench",name:"Quench media testing",keys:["qmt-reg","qmt-view"],reset:{key:"qmt-reg",fields:["settings","plan"],note:"settings and test plan"},
     what:()=>{const v=jget("qmt-reg");return v?`${cnt((v.tanks||[]).length,"tank")} · ${cnt((v.tests||[]).length,"test record")}`:"";}},
   {page:"metal",name:"Hardness & metallurgy",keys:["hmt-reg","hmt-view"],reset:{key:"hmt-reg",fields:["settings"]},
@@ -613,8 +613,6 @@ function summary(){
 }
 /* after a change the pages reload their data from storage: reload CALOR on the same tab */
 const reloadOn=page=>{ location.hash=page; location.reload(); };
-/* browser databases of a tab (the SCADA review's record store): the pages close their connection when asked */
-const dropDbs=names=>Promise.all(names.map(n=>new Promise(res=>{ try{ const q=indexedDB.deleteDatabase(n); q.onsuccess=q.onerror=()=>res(); q.onblocked=()=>setTimeout(res,1500); }catch(e){ res(); } })));
 $("#dsum").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   const m=MODS.find(x=>x.page===(b.dataset.del||b.dataset.reset)); if(!m) return;
@@ -628,7 +626,7 @@ $("#dsum").addEventListener("click",e=>{
   if(v==null) return;
   if(v.trim().toUpperCase()!=="DELETE"){ $("#dmsg").textContent=`Nothing was deleted from ${m.name} (DELETE was not typed).`; return; }
   m.keys.forEach(k=>{ try{ localStorage.removeItem(k); }catch(err){} });
-  dropDbs(m.idb||[]).then(()=>reloadOn(m.page));
+  reloadOn(m.page);
 });
 $("#data").addEventListener("click",()=>{ $("#dmsg").textContent=""; summary(); $("#dataDlg").showModal(); });
 $("#dClose").addEventListener("click",()=>$("#dataDlg").close());
@@ -648,7 +646,7 @@ $("#dClear").addEventListener("click",()=>{
   if(v==null) return;
   if(v.trim().toUpperCase()!=="DELETE"){ $("#dmsg").textContent="Nothing was deleted (DELETE was not typed)."; return; }
   keys.forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
-  dropDbs(MODS.flatMap(m=>m.idb||[])).then(()=>{ location.hash="home"; location.reload(); });
+  location.hash="home"; location.reload();
 });
 $("#dFile").addEventListener("change",async e=>{
   const f=e.target.files[0]; e.target.value=""; if(!f) return;
