@@ -60,6 +60,11 @@
 :root .chip.crit{background:var(--bad-bg);color:var(--crit-ink)}
 :root .chip.info{background:var(--surface2);color:var(--muted)}
 
+/* ---------- full width (the user's request: CALOR uses the whole screen) ----------
+   The pages cap their content at 1240 px for the standalone files; inside CALOR it runs the full width of the window
+   (screen only: the printed / PDF layouts keep their own widths). */
+@media screen{ :root .wrap{max-width:none} }
+
 /* ---------- tables ---------- */
 :root table.log th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface2);padding:7px 9px;border-bottom:1px solid var(--line)}
 :root table.log td{padding:7px 9px;border-bottom:1px solid var(--line)}
