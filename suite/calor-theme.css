@@ -64,6 +64,13 @@
    The pages cap their content at 1240 px for the standalone files; inside CALOR it runs the full width of the window
    (screen only: the printed / PDF layouts keep their own widths). */
 @media screen{ :root .wrap{max-width:none} }
+/* notes and descriptions use the width there is (the pages cap them at 60–100 characters for the standalone files):
+   a section's description sits beside its heading and fills the rest of the line */
+@media screen{
+  :root .sec-head p{max-width:none;flex:1 1 420px}
+  :root .verdict p,:root .ob p,:root footer ul,:root .landing p,:root .pd-foot .msg,:root .dlg-f .msg,:root .d8-form .hint,:root .mg-bottom,:root .mg-dec{max-width:none}
+  :root [style*="max-width:"][style*="ch"]{max-width:none!important}
+}
 
 /* ---------- tables ---------- */
 :root table.log th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface2);padding:7px 9px;border-bottom:1px solid var(--line)}
