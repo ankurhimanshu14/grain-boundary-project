@@ -184,6 +184,15 @@ footer li{margin:2px 0}
 .st-sum{margin-top:10px}.st-sum summary{cursor:pointer}.st-sum ul{max-height:220px;overflow:auto}
 .st-log{margin:10px 0 0;padding-left:18px}.st-log li.err{color:var(--crit-ink)}.st-log li.warn{color:var(--warn-ink)}.st-log li.dup{color:var(--muted)}
 #stMsg.ok{color:var(--good-ink,var(--ink))}
+/* collapsible cards (the review and the 8D panel): the heading is the button, a folded card shows a one-line status */
+.fold-h{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;display:inline-flex;align-items:baseline;gap:8px;text-align:left}
+.fold-h::before{content:"▾";display:inline-block;font-size:.8em;color:var(--muted);transition:transform .15s}
+.fold-h[aria-expanded="false"]::before{transform:rotate(-90deg)}
+.fold-sum{font-size:13px;color:var(--muted);flex-basis:100%}
+.panel.folded>:not(.sec-head){display:none}
+.panel.folded .sec-head{margin-bottom:0}.panel.folded .sec-head p{display:none}
+.panel:not(.folded) .fold-sum{display:none}
+@media (prefers-reduced-motion:reduce){.fold-h::before{transition:none}}
 .method{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:0 0 12px}
 .method div{border:1px solid var(--line);border-radius:6px;padding:8px 11px;background:var(--surface2);font-size:13px}
 .method b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
@@ -2175,7 +2184,7 @@ function renderPdca(){
       <td>${chip(x.stage==="closed"?"good":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<span class="bad">${pdOverdue(x).length}</span>`:"0"}</td>
       <td>${R&&R.id===x.id?'<span class="muted small">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="open:${esc(x.id)}">Open</button>`}</td>
       <td style="white-space:nowrap"><button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="xlsx:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as an Excel workbook">Excel</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-pdact="pdf:${esc(x.id)}" title="Plan, Do, Check and Act of ${esc(x.id)} as a document to save as PDF">PDF</button> <button class="btn ghost" type="button" style="padding:2px 10px;border-color:var(--crit);color:var(--crit-ink)" data-pdact="del:${esc(x.id)}" title="Delete review ${esc(x.id)} permanently">Delete</button></td></tr>`).join("")}</tbody></table></div><p class="muted small">Choose a review in the register and download it with all Plan, Do, Check and Act details, or open it first to see it here.</p>`;
-  body.innerHTML=h;
+  body.innerHTML=h; if(typeof foldSync==="function") foldSync();
 }
 /* ---------- download of a review: Excel workbook and printable document (PDF) ---------- */
 const PD_DEC={"8d":"Solve with an 8D",adopt:"Adopted the suggested action",modify:"Changed the action",none:"No action needed"};
@@ -2303,7 +2312,7 @@ function pdPrint(D){
     if(a.startsWith("xlsx:")||a.startsWith("pdf:")){ const X=pdGet(a.slice(a.indexOf(":")+1)); if(X){ PD_MSG=a.startsWith("xlsx:")?pdXlsx(X):pdPdf(X); renderPdca(); } return; }
     if(!R) return;
     if(a==="advance"){ PD_MSG=pdAdvance(R); pdSave(); renderPdca(); renderE8(); if(!PD_MSG&&DATA) run(); }
-    else if(a.startsWith("open8:")){ E8_CUR=a.slice(6); E8_VIEW=null; E8_MSG=""; renderE8(); $("#e8Panel").scrollIntoView({behavior:"smooth"}); }
+    else if(a.startsWith("open8:")){ E8_CUR=a.slice(6); E8_VIEW=null; E8_MSG=""; renderE8(); unfold("e8Panel"); $("#e8Panel").scrollIntoView({behavior:"smooth"}); }
     else if(a.startsWith("ev8:")){ const i=R.items.find(x=>x.id===a.slice(4)), d=i&&e8Get(i.d8); if(d){ i.res="effective"; i.evid=`${d.id} closed ${dIso(d.d8.date)}: ${d.d6.valid}`; pdSave(); renderPdca(); } }
     else if(a==="replan"){ pdReplan(R); PD_MSG=""; pdSave(); renderPdca(); }
     else if(a==="delete"){ if(!confirm(`Delete review ${R.id}?`)) return; PD.reviews=PD.reviews.filter(x=>x!==R); PD_MEM=PD_MEM.filter(x=>x!==R); PD_CUR=null; pdSave(); renderPdca(); if(DATA) run(); }
@@ -2476,7 +2485,7 @@ function renderE8(){
       <td>${d&&d.id===x.id?'<span class="muted small" style="white-space:nowrap">open</span>':`<button class="btn ghost" type="button" style="padding:2px 10px" data-e8act="open:${esc(x.id)}">Open</button>`}</td>
       <td style="white-space:nowrap"><button class="btn ghost" type="button" style="padding:2px 10px" data-e8act="xlsx:${esc(x.id)}">Excel</button> <button class="btn ghost" type="button" style="padding:2px 10px" data-e8act="pdf:${esc(x.id)}">PDF</button></td></tr>`).join("")}</tbody></table></div>`
     :`<div class="empty">No 8D yet. An 8D is opened from the review when the plan is confirmed, or by hand with “New 8D”.</div>`);
-  body.innerHTML=h.join("");
+  body.innerHTML=h.join(""); if(typeof foldSync==="function") foldSync();
 }
 /* ---------- download of an 8D: Excel workbook and printable 8D report (PDF) ---------- */
 const e8File=d=>`8D report ${d.id} ${d.src.fkey||""} ${d.src.day0||""}`.trim().replace(/[\\/:*?"<>|]+/g,"-");
@@ -2552,7 +2561,7 @@ function e8Pdf(d){
     else if(a==="back"){ e8Back(d); E8_MSG=""; e8Save(); renderE8(); }
     else if(a==="ev"){ d.d6.valid=e8Evidence(d); e8Save(); renderE8(); }
     else if(a==="close"){ E8_CUR=null; E8_MSG=""; renderE8(); }
-    else if(a==="review"){ PD_CUR=d.src.rv; PD_MSG=""; renderPdca(); $("#pdcaPanel").scrollIntoView({behavior:"smooth"}); }
+    else if(a==="review"){ PD_CUR=d.src.rv; PD_MSG=""; renderPdca(); unfold("pdcaPanel"); $("#pdcaPanel").scrollIntoView({behavior:"smooth"}); }
     else if(a==="delete"){ if(!confirm(`Delete ${d.id}?`)) return; E8.list=E8.list.filter(x=>x!==d); E8_MEM=E8_MEM.filter(x=>x!==d); E8_CUR=null; e8Save(); renderE8(); }
     else if(a==="xlsx"){ E8_MSG=e8Xlsx(d); renderE8(); }
     else if(a==="pdf"){ E8_MSG=e8Pdf(d); renderE8(); }
@@ -2790,6 +2799,32 @@ function renderStore(){
 })();
 
 
+/* ---------- collapsible cards: the review (PDCA) and the 8D panel; folded or not is remembered in this browser ---------- */
+const FOLD_KEY="sr2m1-fold";
+let FOLDS={}; try{ FOLDS=JSON.parse(localStorage.getItem(FOLD_KEY)||"{}")||{}; }catch(e){}
+const FOLDP={
+  pdcaPanel:()=>{ const all=pdAll().filter(r=>!r.example), open=all.filter(r=>r.stage!=="closed"), od=all.reduce((a,r)=>a+pdOverdue(r).length,0), cur=pdForRecord();
+    return [cur?`this record: ${cur.id} in ${PD_NM[cur.stage]}`:DATA?"no review started for this record":"",`${open.length} review${open.length===1?"":"s"} open`,od?`${od} overdue action${od>1?"s":""}`:""].filter(Boolean).join(" · "); },
+  e8Panel:()=>{ const all=e8All().filter(d=>!d.src.example), open=all.filter(d=>d.stage!=="closed"), late=open.filter(d=>e8Late(d)||e8ContainLate(d)).length;
+    return [`${open.length} 8D${open.length===1?"":"s"} open`,late?`${late} past target or containment late`:"",`${all.length-open.length} closed`].filter(Boolean).join(" · "); }};
+function foldSet(id,folded,save){
+  const p=document.getElementById(id), b=p&&p.querySelector(".fold-h"); if(!b) return;
+  p.classList.toggle("folded",folded); b.setAttribute("aria-expanded",String(!folded));
+  if(save!==false){ FOLDS[id]=folded; try{ localStorage.setItem(FOLD_KEY,JSON.stringify(FOLDS)); }catch(e){} }
+  foldSync();
+}
+/* open a card that something points to (a review or an 8D chosen elsewhere) */
+const unfold=id=>{ if(FOLDS[id]) foldSet(id,false); };
+function foldSync(){ Object.keys(FOLDP).forEach(id=>{ const el=document.querySelector("#"+id+" .fold-sum"); if(el) try{ el.textContent=FOLDP[id](); }catch(e){} }); }
+Object.keys(FOLDP).forEach(id=>{
+  const p=document.getElementById(id), h=p&&p.querySelector(".sec-head h2"); if(!h) return;
+  const body=p.querySelector("#pdBody,#e8Body"), b=document.createElement("button");
+  b.type="button"; b.className="fold-h"; b.setAttribute("aria-controls",body?body.id:""); b.textContent=h.textContent; h.textContent=""; h.appendChild(b);
+  const sum=document.createElement("span"); sum.className="fold-sum"; sum.setAttribute("aria-live","polite"); p.querySelector(".sec-head").appendChild(sum);
+  b.addEventListener("click",()=>foldSet(id,!p.classList.contains("folded")));
+  foldSet(id,!!FOLDS[id],false);
+});
+
 /* ---------- file loading ---------- */
 function loadBuffer(buf,name){
   try{
@@ -2836,8 +2871,8 @@ window.__SR2={get PD(){return PD;},get E8(){return E8;},pdAll,e8All,e8Get,e8Miss
 /* offered to the suite once everything above is defined */
 if(HTQ){
   /* home page → open a review */
-  HTQ.on("nav:scada",o=>{ if(o&&o.review&&pdGet(o.review)){ PD_CUR=o.review; PD_MSG=""; renderPdca(); $("#pdcaPanel").scrollIntoView(); }
-    if(o&&o.e8&&e8Get(o.e8)){ E8_CUR=o.e8; E8_VIEW=null; E8_MSG=""; renderE8(); $("#e8Panel").scrollIntoView(); } });
+  HTQ.on("nav:scada",o=>{ if(o&&o.review&&pdGet(o.review)){ PD_CUR=o.review; PD_MSG=""; renderPdca(); unfold("pdcaPanel"); $("#pdcaPanel").scrollIntoView(); }
+    if(o&&o.e8&&e8Get(o.e8)){ E8_CUR=o.e8; E8_VIEW=null; E8_MSG=""; renderE8(); unfold("e8Panel"); $("#e8Panel").scrollIntoView(); } });
 }
 if(HTQ)HTQ.provide("scada",{overview:()=>({last:LAST,reviews:pdAll().filter(r=>!r.example).map(r=>({id:r.id,fkey:r.fkey,link:r.link,day0:r.day0,day1:r.day1,stage:r.stage,cycle:r.cycle,actions:pdAct(r).length,overdue:pdOverdue(r).length}))}),pdca:()=>({open:pdAll().filter(r=>r.stage!=="closed"&&!r.example).length,overdue:pdAll().filter(r=>!r.example).reduce((a,r)=>a+pdOverdue(r).length,0),
     e8open:E8.list.filter(d=>d.stage!=="closed").length,e8late:E8.list.filter(d=>e8Late(d)||e8ContainLate(d)).length}),
