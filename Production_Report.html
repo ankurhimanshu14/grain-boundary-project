@@ -290,7 +290,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const KEY="prod-reg";
 const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing",P_FA="Full annealing";
 const PROCS=[P_HT,P_IA,P_NO,P_FA];
-const DEF={plant:"Heat treatment shop",dayStart:"08:00",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5};
+const DEF={plant:"Heat treatment shop",dayStart:"08:00",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5};
 const DEFF=["F-01","F-02","F-03","F-04"];
 const HOLD_REASONS=["Alarm / line stop","Pusher or tray jam","Extractor or door fault","Power failure","Burner / temperature not in tolerance","Quench or controlled cooling problem","Waiting for material / trays","Planned (shift change, inspection, maintenance)","Other"];
 const PARAMS={push:["Push time","min"],hset:["Hardening chamber set value","°C"],tset:["Tempering chamber set value","°C"],cc:["Controlled cooling time","min"],quench:["Quench oil temperature","°C"],dip:["Dip time","min"],other:["Other",""]};
@@ -366,21 +366,19 @@ const locked=R=>R&&R.status==="approved";
 const typing=el=>{const a=document.activeElement;return !!a&&el.contains(a)&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName);};
 
 /* ---------- line timing ---------- */
-/* between the chambers: minutes from leaving the hardening chamber to entering the tempering chamber, within the same push cycle
-   (hardening & tempering: quench delay + dip + transfer; isothermal annealing: controlled cooling time + transfers; normalizing / full annealing: settings) */
+/* between the chambers: minutes from leaving the hardening chamber to entering the tempering chamber
+   (measured on the line: 18 min — quench delay, dip and transfer for hardening & tempering, the transfer for normalizing / full annealing;
+   isothermal annealing: controlled cooling time + transfers, within the push cycle) */
 function gapOf(sp){
   const s=S();
   if(!sp) return null;
   const cc=sp.proc===P_IA?num(sp.cc):null;
   if(sp.gapMin!=null) return {pos:num(sp.gapPos)||0,min:num(sp.gapMin)||0,cc}; /* from the process specification register */
-  if(sp.proc===P_HT) return {pos:0,min:(num(s.qDelay)||0)+(num(s.dip)||0)+(num(s.toTemp)||0),cc};
   if(sp.proc===P_IA) return {pos:0,min:(cc||0)+(num(s.ccXfer)||0),cc};
-  if(sp.proc===P_NO) return {pos:0,min:num(s.gapNorm)||0,cc};
-  if(sp.proc===P_FA) return {pos:0,min:num(s.gapFA)||0,cc};
-  return null;
+  return {pos:0,min:num(s.xfer)??DEF.xfer,cc};
 }
-/* push cycles a tray stays in the tempering chamber after it left the hardening chamber: measured 11 (01:06 in, 05:00 out of hardening, 08:18 out of tempering at 18 min) */
-const tPushes=()=>{const n=sum(pos("posT"));return Math.max(1,Math.min(n||12,Math.round(num(S().tPush)??(n-1))));};
+/* a tray moves through every position of each chamber, one position per push: 13 pushes in the hardening chamber, then the transfer,
+   then 12 pushes in the tempering chamber (measured: push 9 min, in 04:06, out of the tempering chamber 08:09 = 13 × 9 + 18 + 12 × 9 min) */
 const itemSpec=(R,it)=>specOf(it.part,R.furnace);
 const firstSpec=R=>{for(const t of R.tl.trays)for(const it of t.items||[]){const sp=itemSpec(R,it);if(sp)return sp;}return null;};
 function tlPush0(R){const v=num(R.tl.push);if(v>0)return v;const sp=firstSpec(R);return sp&&num(sp.push)>0?num(sp.push):null;}
@@ -411,13 +409,13 @@ function timeline(f){
   const idx=new Map();G.forEach((g,j)=>idx.set(g.tr,j));
   return TLC[f]={G,at,idx};
 }
-const trayGap=(R,tr)=>{const it=(tr.items||[]).find(x=>itemSpec(R,x));if(it)return gapOf(itemSpec(R,it))||{pos:0,min:0};const sp=firstSpec(R);return (sp&&gapOf(sp))||{pos:0,min:0};};
+const trayGap=(R,tr)=>{const it=(tr.items||[]).find(x=>itemSpec(R,x));if(it)return gapOf(itemSpec(R,it))||{pos:0,min:0};const sp=firstSpec(R);return (sp&&gapOf(sp))||{pos:0,min:num(S().xfer)??DEF.xfer};};
 /* times of one tray: enters hardening, leaves hardening, enters / leaves tempering */
 function trayTimes(R,tr){
   if(!hasLog(R)) return null;
   const L=timeline(R.furnace),j=L.idx.get(tr);if(j==null)return null;
   const nH=sum(pos("posH")),g=trayGap(R,tr),gm=g.min*60000;
-  return {t:L.at(j),p:L.G[j].p,hOut:L.at(j+nH),tIn:L.at(j+nH+g.pos)+gm,tOut:L.at(j+nH+g.pos+tPushes())};
+  return {t:L.at(j),p:L.G[j].p,hOut:L.at(j+nH),tIn:L.at(j+nH+g.pos)+gm,tOut:L.at(j+nH+g.pos+sum(pos("posT")))+gm};
 }
 /* share of a full tray: pieces ÷ pieces per tray of each part */
 const trayLoad=(R,tr)=>sum((tr.items||[]).map(it=>{const sp=itemSpec(R,it),per=sp?num(sp.perTray):null;return per>0&&num(it.qty)>0?num(it.qty)/per:0;}));
@@ -488,11 +486,11 @@ function calcBatch(R,b){
   if(b.trays.some(t=>timeline(R.furnace).idx.has(t))){
     const L=timeline(R.furnace),j0=L.idx.get(b.trays[0]),j1=L.idx.get(b.trays.at(-1));
     if(j0!=null&&j1!=null){
-      const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(sp)||{pos:0,min:0},o=nH+g.pos,gm=g.min*60000,tP=tPushes(),zones=[];let acc=0;
+      const PH=pos("posH"),PT=pos("posT"),nH=sum(PH),g=gapOf(sp)||{pos:0,min:num(S().xfer)??DEF.xfer},o=nH+g.pos,gm=g.min*60000,zones=[];let acc=0;
       PH.forEach((n,z)=>{zones.push({ch:"Hardening",z:z+1,from:L.at(j0+acc),to:L.at(j1+acc+n)});acc+=n;});acc=0;
       if(g.cc!=null) zones.push({ch:"Controlled cooling",z:1,from:L.at(j0+nH),to:L.at(j1+nH)+gm});
-      /* in the tempering chamber a tray moves on when the next tray is put in (push + gap) and is taken out at a push, tP pushes after it left the hardening chamber */
-      PT.forEach((n,z)=>{if(acc<tP){const end=acc+n>=tP;zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:end?L.at(j1+o+tP):L.at(j1+o+acc+n)+gm});}acc+=n;});
+      /* in the tempering chamber the trays move one position per push, shifted by the transfer time: every position, then out */
+      PT.forEach((n,z)=>{zones.push({ch:"Tempering",z:z+1,from:L.at(j0+o+acc)+gm,to:L.at(j1+o+acc+n)+gm});acc+=n;});
       out.zones=zones;out.e=L.at(j0);out.x=zones.at(-1).to;out.mins=(out.x-out.e)/60000;out.gap=g;
       const pushes=[...new Set(b.trays.map(t=>L.G[L.idx.get(t)].p))];out.pushTxt=pushes.join(" / ");out.between=g.pos*Math.min(...pushes)+g.min;
       if(sp&&num(sp.push)!=null&&pushes.some(v=>v!==num(sp.push))) I("warn",`Push time ${out.pushTxt} min (specification ${sp.push} min)`);
@@ -788,8 +786,8 @@ function drawSearch(){
 function drawSettings(){
   if($("#settings").contains(document.activeElement)) return;
   const s=S(),f=(k,l,t="number",w=110)=>`<div class="field"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="any" value="${esc(s[k])}" style="width:${w}px"></div>`;
-  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("dayStart","Production day starts at (trays out of the furnace)","time",120)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("tPush","Tempering chamber: pushes until a tray is taken out (measured)")+
-    f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+f("qDelay","Quench delay, min")+f("dip","Dip time, min")+f("toTemp","Quench → tempering chamber, min")+f("gapNorm","Between chambers, normalizing, min")+f("gapFA","Between chambers, full annealing, min")+
+  $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("dayStart","Production day starts at (trays out of the furnace)","time",120)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("xfer","Transfer hardening → tempering chamber, min (measured)")+
+    f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+
     f("wtTol","Flag weighed vs calculated beyond, %")+(HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
 }
 
@@ -1018,8 +1016,7 @@ function prodTables(R){
   const specs={head:["Part no.","Part name","Steel grade","Process","Hard. Z1","Hard. Z2","Hard. Z3","Temp. Z1","Temp. Z2","Temp. Z3","Push min","Contr. cooling min","Fan cooling min","Pcs / tray","Part wt kg"],
     rows:usedParts.map(x=>[x.part,x.name,x.grade,x.proc,...x.h.map(v=>num(v)??""),...x.t.map(v=>num(v)??""),num(x.push)??"",num(x.cc)??"",num(x.fan)??"",num(x.perTray)??"",num(x.wt)??""])};
   const tot=l=>l.map(o=>[o.label,o.n,o.trays,o.qty,Math.round(o.kg*10)/10]);
-  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Production day starts at (trays out of the furnace)",dsTxt()],["Tempering chamber: pushes until a tray is taken out",s.tPush],["Isothermal annealing: transfers into and out of the controlled cooling chamber",s.ccXfer+" min"],
-    ["Quench delay",s.qDelay+" min"],["Dip time",s.dip+" min"],["Quench → tempering chamber",s.toTemp+" min"],["Between chambers, normalizing",s.gapNorm+" min"],["Between chambers, full annealing",s.gapFA+" min"]];
+  const settings=[["Tray positions, hardening chamber (Z1,Z2,Z3)",s.posH],["Tray positions, tempering chamber (Z1,Z2,Z3)",s.posT],["Production day starts at (trays out of the furnace)",dsTxt()],["Transfer hardening → tempering chamber (measured)",s.xfer+" min"],["Isothermal annealing: transfers into and out of the controlled cooling chamber",s.ccXfer+" min"],];
   const Tr=R.tl.trays;
   const To=DT.map(g=>g.tr);
   const summary=[["Report",R.id||"not created yet"],["Furnace",R.furnace],["Production day",winTxt(R.date)+" (trays out of the furnace)"],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],

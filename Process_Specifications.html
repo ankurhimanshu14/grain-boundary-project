@@ -330,7 +330,7 @@ const ROLE={
 const MEDIA={oil:"Quench oil",polymer:"Polymer quenchant",water:"Water / brine"};
 const SCALES=["HRC","HRB","HB","HV"];
 const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
-const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"4,4,4",tPush:11,ccXfer:2,tol:10,pushTol:0.5,qDelay:30,dip:8,transfer:5,reviewDays:365,reviewSoon:30,
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,tol:10,pushTol:0.5,qDelay:30,dip:8,transfer:5,reviewDays:365,reviewSoon:30,
   dipTol:1,ccTol:1,fanTol:5,auth:"",activeDays:90,implDays:7};
 const FORMS={wi:"Work instruction",job:"Job card",recipe:"Computer-based recipe (SCADA / PLC)",other:"Other similar document"};
 const NOTIFY={none:"Not required: customer requirements not affected",notified:"Customer notified",approved:"Customer approval obtained (e.g. PPAP)"};
@@ -389,13 +389,11 @@ function calc(s){
      blown for the cooling time and the tray is pushed into the tempering chamber, which has had its 26th tray taken out meanwhile; the cycle
      (transfers + cooling) must end before the next push because the controlled cooling chamber holds one tray. NORM: transfer. */
   const cool=s.proc==="IA"?num(s.cc.time):null,xfer=s.proc==="IA"?(num(S().ccXfer)||0):null;
-  const gapPos=0,gapMin=s.proc==="HT"?(num(s.q.delay)||0)/60+(num(s.q.dip)||0)+(num(s.q.transfer)||0):s.proc==="IA"?(cool||0)+xfer:(num(s.nm.transfer)||0);
+  /* the line's measured transfer (S.xfer, 18 min: quench delay, dip and transfer / the transfer for normalizing); isothermal annealing: the cooling cycle */
+  const gapPos=0,gapMin=s.proc==="IA"?(cool||0)+xfer:(num(S().xfer)??DEF.xfer);
   const between=gapMin;
   const pcs=num(s.pcs),wt=num(s.wt),trayKg=pcs!=null&&wt!=null?pcs*wt:null;
-  /* the tray enters the tempering chamber the gap after the push and is taken out at a push, S.tPush pushes after it left the hardening
-     chamber (measured 11 of the 12 positions): the zone it leaves from is shorter, and the time through the line is (13 + 11) × push */
-  {const nT=PT.reduce((a,b)=>a+b,0),tP=Math.max(1,Math.min(nT||12,Math.round(num(S().tPush)??(nT-1))));let acc=0;
-    PT.forEach((n,i)=>{zt[i]=acc>=tP?0:acc+n>=tP?Math.max(0,(tP-acc)*p-between):n*p;acc+=n;});}
+  /* every position of both chambers, one per push: time through the line = 13 × push + transfer + 12 × push (measured: push 9, 04:06 → 08:09) */
   return {zh,zt,ch:sum(zh),ct:sum(zt),between,gapPos,gapMin,cool,xfer,idle:cool!=null?p-gapMin:null,total:sum(zh)+sum(zt)+between,trays:60/p,pcsH:pcs!=null?60/p*pcs:null,trayKg,kgH:trayKg!=null?60/p*trayKg:null,PH,PT};
 }
 /* ---------- HTSA 1.6: authorization, steps and parameters with tolerances, change review ---------- */
@@ -608,13 +606,13 @@ function drawRoutes(){
   $("#routes").innerHTML=Object.keys(PROC).map(p=>{const R=ROLE[p];
     return `<div><h3>${esc(PROC[p])} <small>CQI-9 Process Table ${TABLE[p]}</small></h3><div class="flow">
       <span class="ch"><b>Hardening chamber</b>${esc(R.h)}${R.hz1?`<small class="muted">${esc(R.hz1)}</small>`:""}<small class="muted">${PH.join("+")} positions</small></span><i>→</i>
-      <span><b>Between</b>${esc(R.mid)}<small class="muted">${p==="HT"?`delay ${S().qDelay} s · dip ${S().dip} min · transfer ${S().transfer} min`:p==="IA"?`controlled cooling chamber, one tray: transfer in + cooling time per specification + transfer out (${S().ccXfer} min), within the push cycle`:"transfer"}</small></span><i>→</i>
+      <span><b>Between</b>${esc(R.mid)}<small class="muted">${p==="HT"?`quench delay, dip and transfer: ${S().xfer} min (measured)`:p==="IA"?`controlled cooling chamber, one tray: transfer in + cooling time per specification + transfer out (${S().ccXfer} min), within the push cycle`:`transfer ${S().xfer} min (measured)`}</small></span><i>→</i>
       <span class="ch"><b>Tempering chamber</b>${esc(R.t)}<small class="muted">${PT.join("+")} positions</small></span><i>→</i>
       <span><b>After exit</b>${esc(R.after)}</span></div></div>`;}).join("");
 }
 function drawSettings(){
   const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
-  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("posH","Tray positions per zone, hardening chamber","text")+f("posT","Tray positions per zone, tempering chamber","text")+f("tPush","Tempering chamber: pushes until a tray is taken out (measured)","number")+f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber (min)","number")
+  $("#settings").innerHTML=f("plant","Plant","text","wide")+f("posH","Tray positions per zone, hardening chamber","text")+f("posT","Tray positions per zone, tempering chamber","text")+f("xfer","Transfer hardening → tempering chamber, min (measured)","number")+f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber (min)","number")
     +f("tol","Default set value tolerance ± °C","number")+f("pushTol","Default push time tolerance ± min","number")
     +f("qDelay","Default quench delay (s)","number")+f("dip","Default dip time (min)","number")+f("transfer","Default transfer to tempering (min)","number")
     +f("reviewDays","Periodic review every (days)","number")+f("reviewSoon","Show review due this many days before","number")
