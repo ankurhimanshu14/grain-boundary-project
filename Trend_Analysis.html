@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trend Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+@media screen{.signoff.print-only{display:none}}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+@media screen{.signoff.print-only{display:none}}
+/* trend analysis */
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.crit{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.info{color:var(--ink2)}
+.nw{white-space:nowrap}
+.kind{font-size:12px;color:var(--ink2)}
+.req-q{border-left:4px solid var(--accent);background:var(--surface2);border-radius:5px;padding:10px 14px;font-size:13.5px}
+.req-q b{display:block;font-size:14.5px;margin-bottom:4px}
+.req-q ul{margin:4px 0 0;padding-left:18px}
+.score{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.score .big{font-size:22px;font-weight:600}
+.score .big.good{color:var(--good-ink)}.score .big.warn{color:var(--warn-ink)}.score .big.crit{color:var(--crit-ink)}
+.tabs-k{display:flex;gap:6px;flex-wrap:wrap}
+.tabs-k button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:2px 11px;cursor:pointer}
+.tabs-k button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+table.log td{overflow-wrap:break-word}
+.spark{display:block;width:120px;height:30px}
+.sub2{font-size:12px;color:var(--ink2)}
+/* chart: one series (validated slot 1 of the TUS page), status colours only for signals */
+.viz{--series-1:#2a78d6;position:relative}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .viz{--series-1:#3987e5}}
+:root[data-theme="dark"] .viz{--series-1:#3987e5}
+.viz svg{display:block;width:100%;height:auto}
+.viz svg text{font-size:11px;fill:var(--ink2);font-family:inherit}
+.viz .tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:12px;line-height:1.4;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap;display:none;z-index:2}
+.vlegend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin:6px 0}
+.vlegend span{display:inline-flex;align-items:center;gap:6px}
+.vlegend i{display:inline-block;width:16px;height:0;border-top:2px solid}
+.vlegend i.mean{border-top:1px solid var(--ink2)}.vlegend i.cl{border-top:1.5px dotted var(--ink2)}.vlegend i.sl{border-top:1.5px dashed var(--ink)}
+.vlegend i.dot{width:9px;height:9px;border:0;border-radius:50%}
+.stat{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;margin:6px 0}
+.stat b{font-weight:600}
+@media (max-width:760px){table.log.cards td.act{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · HTSA 1.8 · Management responsibility</div>
+      <h1>Trend analysis of product and process data</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-param">Add parameter</button>
+      <button class="btn ghost" id="b-h18">HTSA 1.8 evidence (PDF)</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>HTSA 1.8 · Data collected, analysed and reacted to over time</h2><p>The requirement, the evidence this page holds for it and the resulting assessment. Confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
+    <div class="req-q"><b>1.8 Does the heat treater collect and analyze data over time, and react to this data?</b>The analysis of product characteristics (e.g. tensile strength) and process parameters (e.g. temperature) over time can yield vital information for defect prevention efforts. Examples include but are not limited to product property trend charts, scrap trends, and variation in process parameter recordings.
+      <ul><li>The organization shall have a system to collect, analyze, and react to product or process data over time.</li><li>Methods of analysis shall include ongoing trend or historical data analysis of product characteristics or process parameters.</li><li>The organization shall determine which parameters are included in such analysis.</li></ul></div>
+    <div class="score" id="h18score"></div>
+    <div class="scroll" id="h18"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Analysis plan: the parameters analysed</h2><p id="planNote"></p>
+      <div class="actions noprint"><div class="tabs-k" id="pf"></div><button class="btn ghost small" id="b-approve">Approve the plan…</button><button class="btn ghost small" id="b-xlsx">Download (Excel)</button></div></div>
+    <div class="scroll" id="params"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Signals and reactions</h2><p>Every signal on a chart since the parameter's last review, and the actions decided in the reviews that are not closed yet. A signal is answered by a review of the parameter: an action with owner and date, “watch” with a reason, or no action with a reason.</p></div>
+    <div class="scroll" id="signals"></div>
+    <h3 style="margin:16px 0 6px">Actions from the reviews</h3>
+    <div class="scroll" id="actions"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Reviews</h2><p>The dated reviews of the charts: who looked at the data, what the data showed and how the organization reacted.</p></div>
+    <div class="scroll" id="reviews"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (HT Engineer)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The control limits are worked out from the first points of each parameter (the baseline) as an individuals chart: mean ± 3 × the average moving range ÷ 1.128. Signals follow the usual run rules (a point beyond the control limits, 8 points in a row on one side of the mean, 6 points in a row rising or falling, 2 of 3 points beyond 2 sigma on one side) and any point outside the specification. The window, the baseline size and the review interval are site rules, not CQI-9 figures.</p>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The plan, the reviews and the data entered here are kept in this browser only. The other data is read from the CALOR pages that record it (hardness, SCADA review, quench media, SAT, alarms, daily production) in the same browser. Export a backup regularly.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li><b>Determine the parameters:</b> the analysis plan lists the product characteristics and process parameters the organization analyses, where their data comes from, how often the chart is reviewed and who owns it. It is approved; a parameter added, changed or removed afterwards asks for a new approval.</li>
+      <li><b>Collect:</b> the data is taken from the records already kept in CALOR — hardness tests (surface, core, decarburization, nonconforming rate), the SCADA review's day summaries (share of readings in tolerance, mean deviation of a thermocouple, difference between the two walls of a zone), quench media tests, SAT differences, alarms and rework — or entered here for data from other systems (tensile strength, scrap, customer returns).</li>
+      <li><b>Analyse:</b> each parameter is shown as an individuals chart over the last window of days, with the mean and control limits of its baseline and the specification limits. A point outside the specification, beyond the control limits, a shift or a trend is a signal.</li>
+      <li><b>React:</b> each parameter is reviewed at its interval and whenever it signals. The review records what the data shows and the decision: an action (owner, due date, done, verified), watch, or no action with the reason.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>{const d=new Date(n*864e5);return isFinite(d)?d.toISOString().slice(0,10):"";};
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+MON[+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+const up=v=>txt(v).toUpperCase();
+const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
+const uniq=a=>[...new Set(a)];
+const arr=v=>Array.isArray(v)?v:[],str=v=>v==null?"":String(v),isObj=v=>!!v&&typeof v==="object"&&!Array.isArray(v);
+const lim=(L,n=6)=>L.slice(0,n).join("; ")+(L.length>n?` … (${L.length} in all)`:"");
+const r2=v=>v==null||!isFinite(v)?null:Math.round(v*100)/100;
+const fv=v=>v==null||!isFinite(v)?"—":String(Math.round(v*100)/100);
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const sdev=a=>{if(a.length<2)return null;const m=mean(a);return Math.sqrt(a.reduce((x,y)=>x+(y-m)**2,0)/(a.length-1));};
+/* Monday of the week of a date (weekly counts) */
+const weekOf=s=>{const n=dnum(s),wd=(new Date(n*864e5).getUTCDay()+6)%7;return dstr(n-wd);};
+
+/* ---------- data model ---------- */
+const KEY="tra-reg", VKEY="tra-view";
+const ROLES=["HT Manager","Quality Manager","Production Manager","Maintenance Head","HT Engineer","Director"];
+/* where the data comes from: the CALOR pages' own records (read from this browser's storage), or entered here */
+const SRC={
+  hard:{t:"Surface hardness (mean of each test)",kind:"product",page:"Hardness",f:["part","furnace"]},
+  core:{t:"Core hardness (mean of each test)",kind:"product",page:"Hardness",f:["part","furnace"]},
+  decarb:{t:"Decarburization depth",kind:"product",page:"Hardness",f:["part","furnace"]},
+  ncr:{t:"Tests not conforming per month (%)",kind:"product",page:"Hardness",f:["furnace"]},
+  rework:{t:"Rework (re-heat-treated) items per week",kind:"product",page:"Daily production",f:["furnace"]},
+  scada:{t:"Zone temperature: SCADA day summaries",kind:"process",page:"SCADA review",f:["furnace","chamber","metric"]},
+  quench:{t:"Quench media test result",kind:"process",page:"Quench media",f:["tank","param"]},
+  sat:{t:"SAT difference of a thermocouple",kind:"process",page:"SAT",f:["sensor"]},
+  alarms:{t:"Alarms per week",kind:"process",page:"Alarms",f:["furnace"]},
+  manual:{t:"Data entered here (other systems)",kind:"",page:"this page",f:[]}};
+const KIND={product:"Product characteristic",process:"Process parameter"};
+const DEC={act:"Action",watch:"Watch (no action yet)",none:"No action needed"};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",winDays:365,baseN:20,minPts:5,freq:30,planDays:365};
+const LIMITS={winDays:[30,3650],baseN:[5,100],minPts:3,freq:[1,365],planDays:[30,3650]};
+LIMITS.minPts=[3,50];
+const fixSet=(k,v)=>{const n=num(v),[lo,hi]=LIMITS[k];return n==null||Math.round(n)<lo||Math.round(n)>hi?DEF[k]:Math.round(n);};
+const blank=()=>({v:1,settings:clone(DEF),params:[],reviews:[],plan:{rev:0,apprDate:"",appr:"",dirty:false,log:[]},seq:{p:1,r:1}});
+const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
+const PARF={name:"",kind:"product",src:"manual",part:"",furnace:"",chamber:"",metric:"intol",tank:"",param:"",sensor:"",unit:"",lsl:"",usl:"",freq:"",owner:"",react:"",active:true,created:"",data:[],log:[]};
+const fixPar=p=>{const x={...clone(PARF),...(isObj(p)?p:{})};["name","part","furnace","chamber","metric","tank","param","sensor","unit","lsl","usl","freq","owner","react","created"].forEach(k=>{x[k]=str(x[k]);});
+  if(!SRC[x.src]) x.src="manual";if(x.src!=="manual") x.kind=SRC[x.src].kind;if(!KIND[x.kind]) x.kind="product";x.active=x.active!==false;
+  x.data=arr(x.data).filter(isObj).map(d=>({d:str(d.d),v:num(d.v),note:str(d.note)})).filter(d=>isDate(d.d)&&d.v!=null);x.log=arr(x.log).filter(isObj);return x;};
+function normalize(o){
+  if(!isObj(o)||!Array.isArray(o.params)) return null;
+  o.settings={...clone(DEF),...(isObj(o.settings)?o.settings:{})};Object.keys(LIMITS).forEach(k=>{o.settings[k]=fixSet(k,o.settings[k]);});o.settings.plant=str(o.settings.plant)||DEF.plant;
+  o.params=o.params.filter(p=>isObj(p)&&p.id).map(fixPar);
+  o.reviews=arr(o.reviews).filter(r=>isObj(r)&&r.id&&r.param).map(r=>({date:"",by:"",findings:"",dec:"",reason:"",action:"",owner:"",due:"",done:"",verify:"",snap:{},log:[],...r,log:arr(r.log)}));
+  o.plan={rev:0,apprDate:"",appr:"",dirty:false,log:[],...(isObj(o.plan)?o.plan:{})};o.plan.log=arr(o.plan.log);
+  const s=isObj(o.seq)?o.seq:{};o.seq={p:Math.max(+s.p||1,seqOf(o.params)),r:Math.max(+s.r||1,seqOf(o.reviews))};
+  o.v=1;return o;
+}
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n)||null;}catch(e){return null;}};
+let DB=null;try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}SC={};
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("trend:changed"),300);}};
+const S=()=>DB.settings;
+const newId=(p,k)=>p+"-"+String(DB.seq[k]++).padStart(4,"0");
+const logIt=(x,t)=>x.log.push({d:today(),t});
+const parById=id=>DB.params.find(p=>p.id===id)||null;
+const revById=id=>DB.reviews.find(r=>r.id===id)||null;
+const markPlan=t=>{if(DB.plan.apprDate&&!DB.plan.dirty){DB.plan.dirty=true;DB.plan.log.push({d:today(),t:"Changed after approval: "+t});}};
+let VIEW={pf:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const freqOf=p=>num(p.freq)>0?Math.round(num(p.freq)):S().freq;
+
+/* ---------- reading the other pages' records (same browser storage) ---------- */
+const LS=k=>{try{return JSON.parse(localStorage.getItem(k)||"null");}catch(e){return null;}};
+const fNo=s=>{const m=String(s||"").match(/(\d+)/);return m?"F-"+pad(+m[1]):"";};
+const tests=()=>arr((LS("hmt-reg")||{}).tests);
+const nums=a=>arr(a).map(num).filter(v=>v!=null);
+const surf=t=>arr(t.samples).flatMap(s=>nums(s.r));
+const testNc=t=>{const r=t.req||{},lo=num(r.hMin),hi=num(r.hMax),cl=num(r.cMin),ch=num(r.cMax),dm=num(r.decarbMax);
+  return surf(t).some(v=>(lo!=null&&v<lo)||(hi!=null&&v>hi))||nums(t.core).some(v=>(cl!=null&&v<cl)||(ch!=null&&v>ch))||(dm!=null&&num(t.decarb)!=null&&num(t.decarb)>dm)||t.micro==="nok";};
+const histAll=()=>({...(LS("pfsr-hist")||{}),...(LS("sr2-hist")||{})});
+const quench=()=>LS("qmt-reg")||{};
+const satDb=()=>LS("tsat-pdca")||{};
+const satName=s=>s?`${s.furnace||""} ${s.chamber||""} ${s.tag||s.id}`.trim():"";
+/* the choices the data offers, for the parameter dialog */
+function choices(){
+  const T=tests(),H=Object.values(histAll()),Q=quench(),SA=satDb();
+  return {parts:uniq(T.map(t=>txt(t.part)).filter(v=>v&&!isNA(v))).sort(),
+    furnaces:uniq([...(()=>{try{const a=api("sat");return a?a.furnaces():[];}catch(e){return [];}})(),...T.map(t=>t.furnace),...H.map(h=>fNo(h.f)),...arr(Q.tanks).map(t=>t.furnace),...arr(SA.sensors).map(s=>s.furnace),...arr((LS("fop-reg")||{}).events).map(e=>e.furnace)].filter(Boolean)).sort(),
+    tanks:arr(Q.tanks).map(t=>[t.id,`${t.id} · ${t.furnace||""} ${t.name||""} (${t.media||""})`]),
+    qparams:t=>{const tk=arr(Q.tanks).find(x=>x.id===t),pl=arr(Q.plan).length?Q.plan:[];return pl.filter(p=>(!tk||p.m===tk.media)&&p.kind!=="ok").map(p=>[p.k,`${p.n}${p.u?" ("+p.u+")":""}`]);},
+    sensors:arr(SA.sensors).map(s=>[s.id,satName(s)])};
+}
+const METRICS=()=>[["intol","Readings in tolerance, all thermocouples (%)"],...[1,2,3,4,5,6].map(k=>["dev:"+k,`Mean deviation from the set value, TC-0${k} (°C)`]),...[1,2,3,4,5,6].map(k=>["sd:"+k,`Scatter (standard deviation), TC-0${k} (°C)`]),...[1,2,3].map(z=>["wall:"+z,`Wall difference zone ${z}: left − right (°C)`])];
+
+/* ---------- the series of a parameter: points {d, v, note} and the limits the source gives ---------- */
+let SC={};
+function series(p){
+  if(SC[p.id]) return SC[p.id];
+  let pts=[],lsl=null,usl=null,unit=p.unit,src="";
+  const okF=f=>!p.furnace||f===p.furnace,okP=x=>!p.part||up(x)===up(p.part);
+  if(p.src==="manual"){pts=p.data.map(d=>({d:d.d,v:d.v,note:d.note}));src="entered here";}
+  else if(["hard","core","decarb"].includes(p.src)){
+    const T=tests().filter(t=>isDate(t.date)&&okF(t.furnace)&&okP(t.part)).sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1);
+    T.forEach(t=>{const v=p.src==="hard"?mean(surf(t)):p.src==="core"?mean(nums(t.core)):num(t.decarb);if(v!=null&&isFinite(v)) pts.push({d:t.date,v:r2(v),note:`${t.id} · ${t.part||""} ${t.batch||""}`.trim()});});
+    const r=(T.at(-1)||{}).req||{};
+    if(p.src==="hard"){lsl=num(r.hMin);usl=num(r.hMax);unit=unit||r.scale||"";}
+    else if(p.src==="core"){lsl=num(r.cMin);usl=num(r.cMax);unit=unit||r.scale||"";}
+    else{usl=num(r.decarbMax);unit=unit||"mm";}
+    src="Hardness page";
+  }
+  else if(p.src==="ncr"){
+    const M={};tests().filter(t=>isDate(t.date)&&okF(t.furnace)).forEach(t=>{const m=t.date.slice(0,7)+"-01";(M[m]=M[m]||{n:0,nc:0});M[m].n++;if(testNc(t))M[m].nc++;});
+    pts=Object.keys(M).sort().map(m=>({d:m,v:r2(100*M[m].nc/M[m].n),note:`${M[m].nc} of ${M[m].n} tests`}));unit=unit||"%";src="Hardness page";
+  }
+  else if(p.src==="rework"){
+    const W={};arr((LS("prod-reg")||{}).reports).filter(r=>isDate(r.date)&&okF(r.furnace)).forEach(r=>{const w=weekOf(r.date);W[w]=W[w]||0;arr(r.tl&&r.tl.trays).forEach(t=>arr(t.items).forEach(it=>{if(it&&it.rw)W[w]++;}));});
+    pts=fillWeeks(W);unit=unit||"items";src="Daily production page";
+  }
+  else if(p.src==="alarms"){
+    const W={};arr((LS("fop-reg")||{}).events).filter(e=>e.kind==="alarm"&&okF(e.furnace)&&isDate(String(e.start||"").slice(0,10))).forEach(e=>{const w=weekOf(e.start.slice(0,10));W[w]=(W[w]||0)+1;});
+    pts=fillWeeks(W);unit=unit||"alarms";src="Alarms page";
+  }
+  else if(p.src==="scada"){
+    const H=Object.values(histAll()).filter(h=>h&&isObj(h)&&fNo(h.f)===p.furnace&&(!p.chamber||!/HARDENING|TEMPERING/.test(h.f)||h.f.includes(up(p.chamber))));
+    const [m,k]=String(p.metric||"intol").split(":");
+    H.sort((a,b)=>a.day-b.day).forEach(h=>{const tc=arr(h.tc);let v=null;
+      if(m==="intol"){const L=tc.filter(Boolean);const n=L.reduce((a,t)=>a+(t.n||0),0);v=n?L.reduce((a,t)=>a+(t.inTol||0)*(t.n||0),0)/n:null;}
+      else if(m==="dev"){const t=tc[+k-1];v=t?t.mean:null;}
+      else if(m==="sd"){const t=tc[+k-1];v=t?t.sd:null;}
+      else if(m==="wall"){const z=+k-1,L=tc[z*2+1],R=tc[z*2];v=L&&R&&L.mean!=null&&R.mean!=null?L.mean-R.mean:null;}
+      if(v!=null&&isFinite(v)) pts.push({d:dstr(h.day),v:r2(v),note:h.f});
+      if(m==="dev"&&h.tol){lsl=-h.tol;usl=+h.tol;}});
+    unit=unit||(m==="intol"?"%":"°C");src="SCADA review (day summaries of analysed records)";
+  }
+  else if(p.src==="quench"){
+    const Q=quench(),tk=arr(Q.tanks).find(t=>t.id===p.tank),pl=arr(Q.plan).find(x=>x.k===p.param&&(!tk||x.m===tk.media));
+    arr(Q.tests).filter(t=>t.tank===p.tank&&isDate(t.date)).sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1).forEach(t=>{const v=num((t.vals||{})[p.param]);if(v!=null) pts.push({d:t.date,v,note:t.id});});
+    if(pl){lsl=num(pl.lo);usl=num(pl.hi);unit=unit||pl.u||"";}src="Quench media page";
+  }
+  else if(p.src==="sat"){
+    const D=satDb(),tol=num((D.settings||{}).tol)??5.5;
+    arr(D.cycles).filter(c=>c.sensor===p.sensor&&c.do&&isDate(c.do.date)&&["check","act","closed"].includes(c.stage)).sort((a,b)=>a.do.date<b.do.date?-1:1).forEach(c=>{const d=c.do,k0=(num(d.instrCorr)||0)+(num(d.tcCorr)||0);
+      const R=Array.isArray(d.readings)?d.readings.map(r=>({f:num(r&&r.f),t:num(r&&r.t)})).filter(r=>r.f!=null&&r.t!=null):num(d.furnace)!=null&&num(d.test)!=null?[{f:num(d.furnace),t:num(d.test)}]:[];
+      if(R.length) pts.push({d:d.date,v:r2(mean(R.map(r=>r.f-(r.t+k0)))),note:c.id});});
+    lsl=-tol;usl=tol;unit=unit||"°C";src="SAT page";
+  }
+  /* the plan's own limits replace the source's */
+  if(num(p.lsl)!=null) lsl=num(p.lsl);if(num(p.usl)!=null) usl=num(p.usl);
+  return SC[p.id]={pts,lsl,usl,unit,src};
+}
+/* weekly counts with the empty weeks as 0, up to this week */
+function fillWeeks(W){const ks=Object.keys(W).sort();if(!ks.length) return [];const out=[];for(let w=ks[0];w<=weekOf(today());w=addDays(w,7)) out.push({d:w,v:W[w]||0,note:"week of "+fdate(w)});return out;}
+
+/* ---------- analysis: individuals chart, run rules, capability ---------- */
+const lastRev=p=>DB.reviews.filter(r=>r.param===p.id&&isDate(r.date)).sort((a,b)=>a.date<b.date?-1:1).at(-1)||null;
+function anal(p){
+  const s=series(p),from=addDays(today(),-S().winDays),P=s.pts.filter(x=>x.d>=from&&x.d<=today()),v=P.map(x=>x.v);
+  const base=v.slice(0,S().baseN),m=mean(base),mr=base.slice(1).map((x,i)=>Math.abs(x-base[i])),sig=base.length>=S().minPts&&mr.length?mean(mr)/1.128:null;
+  const ucl=sig!=null?m+3*sig:null,lcl=sig!=null?m-3*sig:null,sdA=sdev(v),mA=mean(v);
+  const {lsl,usl}=s;let cpk=null;
+  if(sdA>0&&(lsl!=null||usl!=null)) cpk=Math.min(...[usl!=null?(usl-mA)/(3*sdA):Infinity,lsl!=null?(mA-lsl)/(3*sdA):Infinity]);
+  /* signals per point, the worst level kept */
+  const sg=P.map(()=>({lvl:"",rules:[]})),add=(i,lvl,t)=>{const g=sg[i];if(!g.rules.includes(t))g.rules.push(t);if(lvl==="crit"||!g.lvl)g.lvl=lvl;};
+  v.forEach((x,i)=>{
+    if((usl!=null&&x>usl)||(lsl!=null&&x<lsl)) add(i,"crit","outside the specification");
+    if(sig!=null&&sig>0){
+      if(x>ucl||x<lcl) add(i,"warn","beyond the control limits");
+      if(i>=7){const w=v.slice(i-7,i+1);if(w.every(y=>y>m)||w.every(y=>y<m)) add(i,"warn","8 points on one side of the mean (shift)");}
+      if(i>=5){const w=v.slice(i-5,i+1);let inc=true,dec=true;for(let j=1;j<w.length;j++){if(!(w[j]>w[j-1]))inc=false;if(!(w[j]<w[j-1]))dec=false;}if(inc||dec) add(i,"warn",`6 points ${inc?"rising":"falling"} (trend)`);}
+      if(i>=2){const w=v.slice(i-2,i+1);if(w.filter(y=>y>m+2*sig).length>=2&&x>m+2*sig||w.filter(y=>y<m-2*sig).length>=2&&x<m-2*sig) add(i,"warn","2 of 3 points beyond 2 sigma");}
+    }});
+  const sigs=P.map((x,i)=>({...x,i,...sg[i]})).filter(x=>x.lvl);
+  const lr=lastRev(p),open=sigs.filter(x=>!lr||x.d>lr.date);
+  const last=P.at(-1)||null,fr=freqOf(p);
+  /* review due: the last review (else the parameter's start) + its interval */
+  const start=lr?lr.date:(isDate(p.created)?p.created:(P[0]||{}).d);
+  const due=isDate(start)?addDays(start,fr):null;
+  const revSt=!due?"none":due>=today()?"ok":addDays(due,fr)<today()?"late":"overdue";
+  const stale=last&&addDays(last.d,Math.max(fr,7))<today();
+  const lvl=!P.length||open.some(x=>x.lvl==="crit")||revSt==="late"?"crit":open.length||revSt==="overdue"||stale||(sig==null)?"warn":"good";
+  return {s,P,m,sig,ucl,lcl,lsl,usl,cpk,sigs,open,lr,last,due,revSt,stale,lvl,n:P.length,baseN:base.length,mA,sdA};
+}
+const actLate=r=>r.dec==="act"&&!isDate(r.done)&&isDate(r.due)&&r.due<today();
+const actOpen=r=>r.dec==="act"&&(!isDate(r.done)||!txt(r.verify));
+
+/* ---------- HTSA 1.8 assessment ---------- */
+function assess18(){
+  const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),P=DB.params.filter(p=>p.active),A=P.map(p=>({p,a:anal(p)}));
+  /* the system: an approved plan, reviewed */
+  const pd=isDate(DB.plan.apprDate)?addDays(DB.plan.apprDate,S().planDays):null;
+  if(!P.length) add("crit","System to collect, analyse and react to data over time","No parameter in the analysis plan.","Determine the parameters and approve the plan.");
+  else if(!isDate(DB.plan.apprDate)) add("crit","System to collect, analyse and react to data over time",`${plural(P.length,"parameter")} listed, but the analysis plan is not approved.`,"Approve the analysis plan.");
+  else add(DB.plan.dirty||pd<today()?"warn":"ok","System to collect, analyse and react to data over time",`Analysis plan rev ${DB.plan.rev}, approved ${fdate(DB.plan.apprDate)} by ${DB.plan.appr}: ${plural(P.length,"parameter")}, each charted and reviewed at its interval.${DB.plan.dirty?" Changed since the approval.":pd<today()?` Plan review overdue since ${fdate(pd)}.`:""}`,DB.plan.dirty?"Approve the changed plan.":pd<today()?"Review and re-approve the plan.":"");
+  /* the parameters determined: product and process */
+  const np=P.filter(p=>p.kind==="product"),nq=P.filter(p=>p.kind==="process");
+  let fs=[];try{const a=api("sat");fs=a?a.furnaces():[];}catch(e){}
+  const noF=fs.filter(f=>!nq.some(p=>p.furnace===f||(p.src==="sat"&&(arr(satDb().sensors).find(s=>s.id===p.sensor)||{}).furnace===f)||(p.src==="quench"&&(arr(quench().tanks).find(t=>t.id===p.tank)||{}).furnace===f)));
+  add(!np.length||!nq.length?"crit":noF.length?"warn":"ok","Parameters included in the analysis determined",`${plural(np.length,"product characteristic")}: ${lim(np.map(p=>p.name))||"none"}. ${plural(nq.length,"process parameter")}: ${lim(nq.map(p=>p.name))||"none"}.${noF.length?` No process parameter for ${noF.join(", ")}.`:""}`,
+    !np.length||!nq.length?`Add ${!np.length?"product characteristics (e.g. hardness, tensile strength, scrap)":"process parameters (e.g. zone temperatures, quench media)"} to the plan.`:noF.length?"Add a process parameter for each furnace in use.":"");
+  /* data collected */
+  const none=A.filter(x=>!x.a.n),few=A.filter(x=>x.a.n&&x.a.sig==null),stale=A.filter(x=>x.a.n&&x.a.stale);
+  add(!P.length||none.length?"crit":few.length||stale.length?"warn":"ok","Data collected over time",!P.length?"No parameter.":[none.length?`No data in the last ${S().winDays} days: ${lim(none.map(x=>x.p.name))}.`:"",few.length?`Fewer than ${S().minPts} points (no control limits yet): ${lim(few.map(x=>x.p.name))}.`:"",stale.length?`No new data within the review interval: ${lim(stale.map(x=>x.p.name+" (last "+fdate(x.a.last.d)+")"))}.`:"",!none.length&&!few.length&&!stale.length?`${plural(A.reduce((a,x)=>a+x.a.n,0),"data point")} over the last ${S().winDays} days across ${plural(P.length,"parameter")}.`:""].filter(Boolean).join(" "),
+    none.length?"Collect the data of these parameters (or correct their source / filter).":few.length||stale.length?"Keep collecting the data.":"");
+  /* ongoing analysis */
+  const late=A.filter(x=>x.a.revSt==="late"),over=A.filter(x=>x.a.revSt==="overdue");
+  add(late.length?"crit":over.length?"warn":P.length?"ok":"crit","Ongoing trend / historical analysis",!P.length?"No parameter.":late.length||over.length?`Chart review overdue: ${lim(late.concat(over).map(x=>x.p.name+" (due "+fdate(x.a.due)+")"))}.`:`Every chart reviewed within its interval; the last reviews: ${lim(A.filter(x=>x.a.lr).map(x=>x.p.name+" "+fdate(x.a.lr.date)))||"—"}.`,
+    late.length||over.length?"Review these charts (“Review” per parameter).":"");
+  /* reaction */
+  const oc=A.filter(x=>x.a.open.some(s=>s.lvl==="crit")),ow=A.filter(x=>x.a.open.length&&!oc.includes(x)),lateA=DB.reviews.filter(actLate),noVer=DB.reviews.filter(r=>r.dec==="act"&&isDate(r.done)&&!txt(r.verify));
+  add(oc.length||lateA.length?"crit":ow.length||noVer.length?"warn":"ok","Reaction to the data",[oc.length?`Points outside the specification not yet reviewed: ${lim(oc.map(x=>x.p.name))}.`:"",ow.length?`Signals not yet reviewed: ${lim(ow.map(x=>x.p.name+" ("+x.a.open.length+")"))}.`:"",lateA.length?`Actions past their due date: ${lim(lateA.map(r=>r.id+" "+(parById(r.param)||{}).name))}.`:"",noVer.length?`Actions done but not verified: ${lim(noVer.map(r=>r.id))}.`:"",!oc.length&&!ow.length&&!lateA.length&&!noVer.length?`Every signal reviewed; ${plural(DB.reviews.filter(r=>r.dec==="act").length,"action")} decided from the data, ${DB.reviews.filter(r=>r.dec==="act"&&txt(r.verify)).length} verified.`:""].filter(Boolean).join(" "),
+    oc.length||ow.length?"Review the signals and decide the reaction.":lateA.length||noVer.length?"Complete and verify the actions.":"");
+  const crit=I.filter(i=>i.lvl==="crit"),anyData=A.some(x=>x.a.n);
+  return {I,A,score:!P.length||!anyData?"nia":crit.length?"ns":"s"};
+}
+const SCORE={s:["good","Satisfactory"],ns:["warn","Not satisfactory"],nia:["crit","Needs immediate action"]};
+const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","✕","Not met"],info:["info","i","Note"]};
+const PLV={good:["good","✓","In control"],warn:["warn","!","Attention"],crit:["crit","✕","Act"]};
+
+/* ---------- chart: individuals chart with mean, control and specification limits ---------- */
+function ichart(a,o={}){
+  const P=a.P;if(!P.length) return `<div class="empty">No data in the last ${S().winDays} days.</div>`;
+  const W=760,H=o.h||240,L=52,R=56,T=12,B=28;
+  const t0=dnum(P[0].d),t1=dnum(P.at(-1).d),X=d=>L+(t1>t0?(dnum(d)-t0)/(t1-t0):.5)*(W-L-R);
+  const ys=P.map(x=>x.v).concat([a.ucl,a.lcl,a.lsl,a.usl,a.m].filter(v=>v!=null&&isFinite(v)));let y0=Math.min(...ys),y1=Math.max(...ys);const pyd=(y1-y0)*.08||1;y0-=pyd;y1+=pyd;
+  const Y=v=>T+(y1-v)/(y1-y0)*(H-T-B);
+  const span=y1-y0,raw=span/5,mag=10**Math.floor(Math.log10(raw)),stp=[1,2,5,10].map(f=>f*mag).find(s=>s>=raw)||mag*10,ticks=[];for(let v=Math.ceil(y0/stp)*stp;v<=y1+1e-9;v+=stp)ticks.push(r2(v));
+  const hl=(v,cls,lab,dash,w,col)=>v==null||!isFinite(v)?"":`<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${col||"var(--ink2)"}" stroke-width="${w||1}" ${dash?`stroke-dasharray="${dash}"`:""}/><text x="${W-R+5}" y="${(Y(v)+3.5).toFixed(1)}">${esc(lab)}</text>`;
+  const path=P.map((x,i)=>(i?"L":"M")+X(x.d).toFixed(1)+" "+Y(x.v).toFixed(1)).join(" ");
+  const bi=Math.min(a.baseN,P.length)-1;
+  const xl=[P[0].d,P[Math.floor((P.length-1)/2)].d,P.at(-1).d].filter((v,i,ar)=>ar.indexOf(v)===i);
+  const sg=new Map(a.sigs.map(s=>[s.i,s]));
+  return `<div class="viz" data-pid="${esc(o.pid||"")}">
+  <div class="vlegend"><span><i style="border-color:var(--series-1)"></i>${esc(o.name||"value")}${a.s.unit?" ("+esc(a.s.unit)+")":""}</span><span><i class="mean"></i>mean</span>${a.sig!=null?`<span><i class="cl"></i>control limits (± 3σ, first ${a.baseN} points)</span>`:""}${a.lsl!=null||a.usl!=null?`<span><i class="sl"></i>specification</span>`:""}${a.sigs.length?`<span><i class="dot" style="background:var(--warn)"></i>signal</span>`:""}${a.sigs.some(s=>s.lvl==="crit")?`<span><i class="dot" style="background:var(--crit)"></i>outside the specification</span>`:""}</div>
+  <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc((o.name||"")+": individuals chart of "+P.length+" points")}">
+    ${ticks.map(v=>`<line x1="${L}" x2="${W-R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--grid)"/><text x="${L-6}" y="${(Y(v)+3.5).toFixed(1)}" text-anchor="end">${v}</text>`).join("")}
+    ${bi>0&&bi<P.length-1?`<line x1="${X(P[bi].d).toFixed(1)}" x2="${X(P[bi].d).toFixed(1)}" y1="${T}" y2="${H-B}" stroke="var(--ink2)" stroke-dasharray="2 3" opacity=".6"/>`:""}
+    ${hl(a.usl,"sl","USL","6 4",1.5,"var(--ink)")}${hl(a.lsl,"sl","LSL","6 4",1.5,"var(--ink)")}
+    ${hl(a.ucl,"cl","UCL","2 3",1.5)}${hl(a.lcl,"cl","LCL","2 3",1.5)}${hl(a.m,"m","mean","",1)}
+    <path d="${path}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+    ${P.map((x,i)=>{const g=sg.get(i);return `<circle cx="${X(x.d).toFixed(1)}" cy="${Y(x.v).toFixed(1)}" r="${g?5:3.5}" fill="${g?(g.lvl==="crit"?"var(--crit)":"var(--warn)"):"var(--series-1)"}" stroke="var(--surface)" stroke-width="2"/>`;}).join("")}
+    ${xl.map((d,i)=>`<text x="${X(d).toFixed(1)}" y="${H-9}" text-anchor="${i===0?"start":i===xl.length-1?"end":"middle"}">${fdate(d)}</text>`).join("")}
+    <line class="xh" x1="0" x2="0" y1="${T}" y2="${H-B}" stroke="var(--ink)" opacity="0"/>
+    <rect class="hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent"/>
+  </svg><div class="tip"></div></div>`;
+}
+/* crosshair + tooltip: the nearest point in time */
+function wireCharts(root){
+  root.querySelectorAll(".viz[data-pid]").forEach(v=>{const p=parById(v.dataset.pid)||(ED&&ED.id===v.dataset.pid?ED:null)||(MODE==="par"?ED:null);if(!p) return;const a=anal(p);if(!a.P.length) return;
+    const svg=v.querySelector("svg"),hit=svg.querySelector(".hit"),xh=svg.querySelector(".xh"),tip=v.querySelector(".tip"),W=760,L=52,R=56,P=a.P,t0=dnum(P[0].d),t1=dnum(P.at(-1).d),sg=new Map(a.sigs.map(s=>[s.i,s]));
+    const show=ev=>{const b=svg.getBoundingClientRect(),x=(ev.clientX-b.left)/b.width*W,t=t0+(t1>t0?(x-L)/(W-L-R)*(t1-t0):0);
+      let k=0;P.forEach((q,i)=>{if(Math.abs(dnum(q.d)-t)<Math.abs(dnum(P[k].d)-t))k=i;});const q=P[k],xx=L+(t1>t0?(dnum(q.d)-t0)/(t1-t0):.5)*(W-L-R),g=sg.get(k);
+      xh.setAttribute("x1",xx);xh.setAttribute("x2",xx);xh.setAttribute("opacity",".35");
+      tip.innerHTML=`<b>${fdate(q.d)}</b> · ${fv(q.v)} ${esc(a.s.unit||"")}${q.note?`<br><span class="muted">${esc(q.note)}</span>`:""}${g?`<br>${g.lvl==="crit"?"✕":"!"} ${esc(g.rules.join("; "))}`:""}`;
+      tip.style.display="block";const px=xx/W*b.width;tip.style.left=Math.min(b.width-tip.offsetWidth-4,Math.max(0,px+12))+"px";tip.style.top="26px";};
+    hit.addEventListener("pointermove",show);hit.addEventListener("pointerdown",show);hit.addEventListener("pointerleave",()=>{tip.style.display="none";xh.setAttribute("opacity","0");});});
+}
+/* a small trend line for the plan table */
+function spark(a){const P=a.P;if(P.length<2) return "";const W=120,H=30,t0=dnum(P[0].d),t1=dnum(P.at(-1).d),vs=P.map(x=>x.v),y0=Math.min(...vs),y1=Math.max(...vs),X=d=>2+(t1>t0?(dnum(d)-t0)/(t1-t0):.5)*(W-4),Y=v=>2+(y1>y0?(y1-v)/(y1-y0):.5)*(H-4);
+  return `<svg class="spark viz" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${P.map((x,i)=>(i?"L":"M")+X(x.d).toFixed(1)+" "+Y(x.v).toFixed(1)).join(" ")}" fill="none" stroke="var(--series-1)" stroke-width="1.5"/>${a.sigs.slice(-12).map(s=>`<circle cx="${X(s.d).toFixed(1)}" cy="${Y(s.v).toFixed(1)}" r="2.5" fill="${s.lvl==="crit"?"var(--crit)":"var(--warn)"}"/>`).join("")}</svg>`;}
+
+/* ---------- render ---------- */
+function render(){
+  SC={};
+  const P=DB.params.filter(p=>p.active);
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(P.length,"parameter")} · ${plural(DB.reviews.length,"review")}</span><span>Today ${fdate(today())}</span>`;
+  drawH18();drawKpis();drawPF();drawParams();drawSignals();drawActions();drawReviews();drawSettings();
+}
+function drawH18(){
+  const A=assess18(),sc=SCORE[A.score];
+  $("#h18score").innerHTML=`<span class="big ${sc[0]}">${sc[1]}</span><span class="muted">${plural(A.I.filter(i=>i.lvl==="ok").length,"item")} met · ${plural(A.I.filter(i=>i.lvl==="crit").length,"item")} not met · ${plural(A.I.filter(i=>i.lvl==="warn").length,"item")} needing attention</span>`;
+  $("#h18").innerHTML=`<table class="log cards"><thead><tr><th>Requirement</th><th>Evidence in this register</th><th>Result</th><th>Action</th></tr></thead><tbody>${A.I.map(i=>`<tr><td data-label="Requirement"><b>${esc(i.req)}</b></td><td data-label="Evidence">${esc(i.ev)}</td><td data-label="Result">${chip(...LV[i.lvl])}</td><td data-label="Action">${esc(i.act||"—")}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawKpis(){
+  const P=DB.params.filter(p=>p.active),A=P.map(p=>anal(p)),k=(l,v,s,c)=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${s}</span></div>`;
+  const op=A.reduce((x,a)=>x+a.open.length,0),oc=A.filter(a=>a.open.some(s=>s.lvl==="crit")).length,rd=A.filter(a=>a.revSt==="overdue"||a.revSt==="late").length,ao=DB.reviews.filter(actOpen).length,al=DB.reviews.filter(actLate).length;
+  $("#kpis").innerHTML=k("Parameters",P.length,`${P.filter(p=>p.kind==="product").length} product · ${P.filter(p=>p.kind==="process").length} process`,P.length?"":"bad")
+    +k("Signals to review",op,`${oc} parameter${oc===1?"":"s"} outside the specification`,oc?"bad":op?"caution":"ok")
+    +k("Reviews due",rd,`charts past their review interval`,rd?"caution":"ok")
+    +k("Actions open",ao,`${al} past the due date`,al?"bad":ao?"caution":"ok");
+}
+function drawPF(){$("#pf").innerHTML=[["","All"],["product","Product"],["process","Process"],["att","Needing attention"]].map(([k,t])=>`<button class="${VIEW.pf===k?"on":""}" aria-pressed="${VIEW.pf===k}" data-pf="${k}">${t}</button>`).join("");}
+function drawParams(){
+  const pl=DB.plan,pd=isDate(pl.apprDate)?addDays(pl.apprDate,S().planDays):null;
+  $("#planNote").innerHTML=`The parameters the organization analyses over time, where the data comes from, the review interval and the owner. ${isDate(pl.apprDate)?`Revision ${pl.rev}, approved ${fdate(pl.apprDate)} by ${esc(pl.appr)}${pl.dirty?` · <span class="caution">changed since the approval</span>`:pd<today()?` · <span class="caution">plan review overdue since ${fdate(pd)}</span>`:` · next plan review ${fdate(pd)}`}.`:`<span class="caution">Not approved yet.</span>`}`;
+  const L=DB.params.filter(p=>VIEW.pf==="product"||VIEW.pf==="process"?p.kind===VIEW.pf:true).map(p=>({p,a:anal(p)})).filter(x=>VIEW.pf!=="att"||x.a.lvl!=="good").sort((a,b)=>(b.p.active-a.p.active)||a.p.kind.localeCompare(b.p.kind)||a.p.name.localeCompare(b.p.name));
+  if(!L.length){$("#params").innerHTML=`<div class="empty">${DB.params.length?"No parameter for this selection.":"No parameters yet. Use “Add parameter”, or load the example under Settings."}</div>`;return;}
+  $("#params").innerHTML=`<table class="log cards"><thead><tr><th>Parameter</th><th>Data from</th><th>Trend</th><th class="n">Last</th><th class="n">Mean · Cpk</th><th>Signals</th><th>Review</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(({p,a})=>`<tr class="${p.active?"":"muted"}">
+    <td data-label="Parameter"><div><b>${esc(p.name)}</b><br><span class="kind">${esc(KIND[p.kind])} · ${esc(p.owner||"no owner")}${p.active?"":" · not active"}</span></div></td>
+    <td data-label="Data from"><div>${esc(SRC[p.src].page)}<br><span class="sub2">${plural(a.n,"point")}</span></div></td>
+    <td data-label="Trend">${spark(a)}</td>
+    <td data-label="Last" class="n nw">${a.last?`${fv(a.last.v)} ${esc(a.s.unit||"")}<br><span class="sub2">${fdate(a.last.d)}</span>`:"—"}</td>
+    <td data-label="Mean · Cpk" class="n nw">${fv(a.mA)}<br><span class="sub2">${a.cpk!=null?"Cpk "+fv(a.cpk):"no specification"}</span></td>
+    <td data-label="Signals"><div>${a.open.length?`<span class="${a.open.some(s=>s.lvl==="crit")?"bad":"caution"}">${plural(a.open.length,"signal")} to review</span>`:a.sigs.length?`<span class="muted">${plural(a.sigs.length,"signal")} reviewed</span>`:`<span class="muted">none</span>`}</div></td>
+    <td data-label="Review" class="nw"><div>${a.lr?fdate(a.lr.date):"never"}<br><span class="sub2 ${a.revSt==="late"?"bad":a.revSt==="overdue"?"caution":""}">next ${fdate(a.due)}</span></div></td>
+    <td data-label="Status">${chip(...PLV[a.lvl])}</td>
+    <td class="act noprint"><button class="btn ghost small" data-open-par="${esc(p.id)}">Chart</button> <button class="btn small" data-rev="${esc(p.id)}">Review</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawSignals(){
+  const L=DB.params.filter(p=>p.active).flatMap(p=>anal(p).open.map(s=>({p,s}))).sort((a,b)=>a.s.d<b.s.d?1:-1);
+  if(!L.length){$("#signals").innerHTML=`<div class="empty">No signal waiting for a review.</div>`;return;}
+  $("#signals").innerHTML=`<table class="log cards"><thead><tr><th>Date</th><th>Parameter</th><th class="n">Value</th><th>Signal</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,40).map(({p,s})=>`<tr><td data-label="Date" class="nw">${fdate(s.d)}</td><td data-label="Parameter"><b>${esc(p.name)}</b></td><td data-label="Value" class="n">${fv(s.v)} ${esc(series(p).unit||"")}</td>
+    <td data-label="Signal">${chip(s.lvl==="crit"?"crit":"warn",s.lvl==="crit"?"✕":"!",s.rules.join("; "))}</td><td class="act noprint"><button class="btn small" data-rev="${esc(p.id)}">Review</button></td></tr>`).join("")}</tbody></table>${L.length>40?`<p class="muted" style="font-size:12.5px">The 40 latest of ${L.length} signals are shown.</p>`:""}`;
+}
+function drawActions(){
+  const L=DB.reviews.filter(actOpen).sort((a,b)=>(a.due||"9")<(b.due||"9")?-1:1);
+  if(!L.length){$("#actions").innerHTML=`<div class="empty">No open action.</div>`;return;}
+  $("#actions").innerHTML=`<table class="log cards"><thead><tr><th>Review</th><th>Parameter</th><th>Action</th><th>Owner</th><th>Due</th><th>State</th><th class="noprint"></th></tr></thead><tbody>${L.map(r=>`<tr><td data-label="Review" class="nw">${esc(r.id)}<br><span class="sub2">${fdate(r.date)}</span></td><td data-label="Parameter">${esc((parById(r.param)||{}).name||r.param)}</td><td data-label="Action">${esc(r.action)}</td><td data-label="Owner">${esc(r.owner)}</td><td data-label="Due" class="nw">${fdate(r.due)}</td>
+    <td data-label="State">${isDate(r.done)?chip("warn","!","Done, to verify"):actLate(r)?chip("crit","✕","Past due"):chip("info","…","Open")}</td><td class="act noprint"><button class="btn ghost small" data-open-rev="${esc(r.id)}">Open</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawReviews(){
+  const L=DB.reviews.slice().sort((a,b)=>a.date<b.date?1:-1);
+  if(!L.length){$("#reviews").innerHTML=`<div class="empty">No reviews recorded.</div>`;return;}
+  $("#reviews").innerHTML=`<table class="log cards"><thead><tr><th>Review</th><th>Parameter</th><th>What the data showed</th><th>Decision</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,40).map(r=>`<tr><td data-label="Review" class="nw"><b>${esc(r.id)}</b><br><span class="sub2">${fdate(r.date)} · ${esc(r.by)}</span></td><td data-label="Parameter">${esc((parById(r.param)||{}).name||r.param)}</td>
+    <td data-label="Findings">${esc(r.findings)}</td><td data-label="Decision"><div><b>${esc(DEC[r.dec]||"—")}</b>${r.dec==="act"?`<br><span class="sub2">${esc(r.action)} · ${esc(r.owner)} · due ${fdate(r.due)}${isDate(r.done)?" · done "+fdate(r.done):""}</span>`:r.reason?`<br><span class="sub2">${esc(r.reason)}</span>`:""}</div></td>
+    <td class="act noprint"><button class="btn ghost small" data-open-rev="${esc(r.id)}">Open</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t)=>`<div class="field"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" ${LIMITS[k]?`min="${LIMITS[k][0]}" max="${LIMITS[k][1]}" step="1"`:""} value="${esc(s[k])}"></div>`;
+  $("#settings").innerHTML=`<div class="field wide"><label for="s-plant">Plant</label><input id="s-plant" data-set="plant" value="${esc(s.plant)}"></div>`+f("winDays","Charts show the last (days)","number")+f("baseN","Baseline: first points for the control limits","number")+f("minPts","Fewest points for control limits","number")+f("freq","Review each chart every (days, default)","number")+f("planDays","Review the analysis plan every (days)","number");
+}
+
+/* ---------- dialogs ---------- */
+const dlg=$("#dlg");
+let ED=null,MODE="",MSG="",MSGOK=false;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=o.dis?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${path}" rows="${o.rows||2}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${path}" ${dis}>${o.blank!==false?`<option value="">${esc(o.blankTxt||"")}</option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${path}" type="${o.type||"text"}" ${o.type==="number"?'step="any"':""} ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
+function drawDlg(){dlg.innerHTML=MODE==="par"?dlgPar():dlgRev();wireCharts(dlg);}
+const foot=b=>`<div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>${b}</div>`;
+const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:"";
+const statBox=a=>`<div class="stat"><span><b>${plural(a.n,"point")}</b> in ${S().winDays} days</span><span>Mean <b>${fv(a.mA)}</b></span><span>σ (moving range) <b>${fv(a.sig)}</b></span><span>Control limits <b>${a.sig!=null?fv(a.lcl)+" – "+fv(a.ucl):"not yet ("+a.n+" of "+S().minPts+" points)"}</b></span><span>Specification <b>${a.lsl!=null||a.usl!=null?(a.lsl!=null?fv(a.lsl):"—")+" – "+(a.usl!=null?fv(a.usl):"—"):"none"}</b></span><span>Cpk <b>${fv(a.cpk)}</b></span></div>`;
+
+/* parameter */
+const newPar=()=>fixPar({id:"",created:today(),owner:"HT Manager"});
+function dlgPar(){
+  const E=ED,C=choices(),sr=SRC[E.src],a=anal(E),dl=id=>`<datalist id="${id}">${(id==="dl-parts"?C.parts:C.furnaces).map(x=>`<option value="${esc(x)}"></option>`).join("")}</datalist>`;
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.name||E.id):"New parameter"}</h2>${E.id?chip(...PLV[a.lvl]):""}<span class="muted">${esc(KIND[E.kind])}</span></div></div>
+  <div class="dlg-b">${dl("dl-parts")}${dl("dl-furn")}
+    <section class="stage" style="--k:var(--p)"><h3>Parameter <small>what is analysed and where the data comes from</small></h3><div class="fgrid">
+      ${fld("name","Name",{req:true,hint:"e.g. Surface hardness MW-4512, F-04 zone 2 temperature"})}${fld("src","Data from",{opts:Object.entries(SRC).map(([k,v])=>[k,v.t]),blank:false,req:true})}
+      ${E.src==="manual"?fld("kind","Kind",{opts:Object.entries(KIND),blank:false}):`<div class="field"><label>Kind</label><input value="${esc(KIND[E.kind])}" disabled></div>`}
+      ${sr.f.includes("part")?fld("part","Part no. (empty = every part)",{list:"dl-parts"}):""}
+      ${sr.f.includes("furnace")?fld("furnace",E.src==="scada"?"Furnace":"Furnace (empty = every furnace)",{list:"dl-furn",req:E.src==="scada"}):""}
+      ${sr.f.includes("chamber")?fld("chamber","Chamber",{opts:["Hardening","Tempering"],blankTxt:"either"}):""}
+      ${sr.f.includes("metric")?fld("metric","What is charted",{opts:METRICS(),blank:false,span:true}):""}
+      ${sr.f.includes("tank")?fld("tank","Quench tank",{opts:C.tanks,req:true}):""}
+      ${sr.f.includes("param")?fld("param","Test parameter",{opts:C.qparams(E.tank),req:true}):""}
+      ${sr.f.includes("sensor")?fld("sensor","Thermocouple",{opts:C.sensors,req:true,span:true}):""}
+      ${fld("unit","Unit",{hint:E.src==="manual"?"":"empty = from the source"})}${fld("lsl","Lower specification limit",{type:"number",hint:E.src==="manual"?"":"empty = from the source"})}${fld("usl","Upper specification limit",{type:"number",hint:E.src==="manual"?"":"empty = from the source"})}
+      ${fld("freq","Review the chart every (days)",{type:"number",hint:`empty = ${S().freq} days`})}${fld("owner","Owner",{opts:ROLES,req:true})}
+      ${fld("react","Reaction rule (what a signal triggers)",{type:"textarea",span:true,hint:"e.g. a point outside the specification: hold the batch and inform the HT Manager; a trend: review at the next weekly meeting."})}
+      <div class="field"><span class="cklbl" style="display:block;font-size:12px;color:var(--ink2)">In use</span><label class="ck" style="display:inline-flex;gap:7px;align-items:center"><input type="checkbox" data-f="active" ${E.active?"checked":""} style="width:auto">Analysed (in the plan)</label></div></div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Chart <small>${esc(a.s.src||sr.t)}</small></h3>${ichart(a,{name:E.name,pid:E.id||"__new"})}${statBox(a)}
+      ${a.sigs.length?`<ul class="findings">${a.sigs.slice(-8).reverse().map(s=>`<li class="${s.lvl}">${fdate(s.d)}: ${fv(s.v)} ${esc(a.s.unit||"")} · ${esc(s.rules.join("; "))}${a.lr&&s.d<=a.lr.date?" (reviewed)":""}</li>`).join("")}</ul>`:""}</section>
+    ${E.src==="manual"?`<section class="stage" style="--k:var(--c)"><h3>Data <small>${plural(E.data.length,"point")} entered</small></h3>
+      <div class="fgrid"><div class="field span"><label for="f-paste">Add data: one point per line, date and value (and a note), e.g. 2026-10-14 52.3 batch B-102 — pasted Excel columns work</label><textarea id="f-paste" rows="3"></textarea></div></div>
+      <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="paste">Add the data</button></div>
+      ${E.data.length?`<details style="margin-top:8px"><summary class="sub2" style="cursor:pointer">The points entered</summary><table class="log" style="margin-top:6px"><thead><tr><th>Date</th><th class="n">Value</th><th>Note</th><th></th></tr></thead><tbody>${E.data.map((d,i)=>`<tr><td>${fdate(d.d)}</td><td class="n">${fv(d.v)}</td><td>${esc(d.note)}</td><td class="act"><button class="btn ghost small" type="button" data-d="ddel:${i}" aria-label="Remove the point of ${fdate(d.d)}">✕</button></td></tr>`).join("")}</tbody></table></details>`:""}</section>`:""}
+    ${E.id?`<section><h3 style="margin-bottom:4px">Reviews</h3>${DB.reviews.filter(r=>r.param===E.id).length?`<ul class="loglist">${DB.reviews.filter(r=>r.param===E.id).sort((x,y)=>x.date<y.date?1:-1).map(r=>`<li>${fdate(r.date)} ${esc(r.by)}: ${esc(DEC[r.dec]||"")} — ${esc(r.findings)}</li>`).join("")}</ul>`:`<p class="muted" style="margin:0">Not reviewed yet.</p>`}</section>`:""}
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn ghost small" data-d="pdf">PDF</button>${DB.reviews.some(r=>r.param===E.id)?"":`<button class="btn danger small" data-d="delete">Delete</button>`}<button class="btn ghost" data-d="review">Review…</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+function savePar(){
+  const E=ED;
+  if(!txt(E.name)) return "Enter the name.";
+  if(E.src==="scada"&&!E.furnace) return "Choose the furnace.";
+  if(E.src==="quench"&&(!E.tank||!E.param)) return "Choose the tank and the test parameter.";
+  if(E.src==="sat"&&!E.sensor) return "Choose the thermocouple.";
+  if(!E.owner) return "Choose the owner.";
+  if(num(E.lsl)!=null&&num(E.usl)!=null&&num(E.lsl)>=num(E.usl)) return "The lower specification limit must be below the upper.";
+  if(DB.params.some(p=>p.id!==E.id&&up(p.name)===up(E.name))) return "A parameter of this name exists.";
+  if(!E.id){E.id=newId("TP","p");logIt(E,"Added to the analysis plan");DB.params.push(E);markPlan(`parameter ${E.name} added`);}
+  else{const old=parById(E.id),ch=["name","src","part","furnace","chamber","metric","tank","param","sensor","lsl","usl","freq","owner","active","kind"].filter(k=>String(old[k])!==String(E[k]));
+    logIt(E,ch.length?"Changed: "+ch.join(", "):"Updated");DB.params[DB.params.findIndex(p=>p.id===E.id)]=E;if(ch.filter(k=>k!=="data").length) markPlan(`parameter ${E.name} changed`);}
+  ED=clone(E);save();render();return "";
+}
+
+/* review of one parameter */
+function newRev(p){const a=anal(p);return {id:"",param:p.id,date:today(),by:"",findings:"",dec:a.open.length?"":"none",reason:"",action:"",owner:p.owner||"",due:"",done:"",verify:"",
+  snap:{n:a.n,mean:r2(a.mA),cpk:r2(a.cpk),last:a.last?a.last.v:null,open:a.open.map(s=>`${s.d} ${s.v}: ${s.rules.join("; ")}`)},log:[]};}
+function missRev(r){
+  const m=[];if(!isDate(r.date)) m.push("date");if(!txt(r.by)) m.push("reviewed by");if(!txt(r.findings)) m.push("what the data shows");if(!DEC[r.dec]) m.push("the decision");
+  if(r.dec==="act"){if(!txt(r.action)) m.push("the action");if(!r.owner) m.push("owner");if(!isDate(r.due)) m.push("due date");}
+  if((r.dec==="none"||r.dec==="watch")&&!txt(r.reason)) m.push("the reason");
+  if(isDate(r.done)&&r.done>today()) m.push("a done date not in the future");
+  return m;
+}
+function dlgRev(){
+  const E=ED,p=parById(E.param),a=p?anal(p):null,m=missRev(E);
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id):"Review"} · ${esc(p?p.name:E.param)}</h2><span class="muted">${esc(p?KIND[p.kind]:"")}</span></div></div>
+  <div class="dlg-b">
+    ${a?`<section class="stage" style="--k:var(--d)"><h3>The data <small>${esc(a.s.src)}</small></h3>${ichart(a,{name:p.name,pid:p.id})}${statBox(a)}
+      ${E.id?(E.snap&&arr(E.snap.open).length?`<p class="sub2" style="margin:6px 0 0">Signals when reviewed: ${esc(E.snap.open.join(" · "))}</p>`:""):a.open.length?`<ul class="findings">${a.open.map(s=>`<li class="${s.lvl}">${fdate(s.d)}: ${fv(s.v)} ${esc(a.s.unit||"")} · ${esc(s.rules.join("; "))}</li>`).join("")}</ul>`:`<p class="muted" style="margin:6px 0 0">No new signal since the last review: a periodic review.</p>`}
+      ${p.react?`<p class="sub2" style="margin:6px 0 0">Reaction rule: ${esc(p.react)}</p>`:""}</section>`:""}
+    <section class="stage" style="--k:var(--c)"><h3>Review <small>what the data shows and the reaction</small></h3><div class="fgrid">
+      ${fld("date","Date",{type:"date",req:true})}${fld("by","Reviewed by",{req:true})}
+      ${fld("findings","What the data shows (trend, shift, capability, cause found)",{type:"textarea",req:true,span:true,rows:3})}
+      ${fld("dec","Decision",{opts:Object.entries(DEC),req:true})}
+      ${E.dec==="act"?fld("action","Action",{type:"textarea",req:true,span:true})+fld("owner","Owner",{opts:ROLES,req:true})+fld("due","Due",{type:"date",req:true})+fld("done","Done on",{type:"date"})+fld("verify","Verified (effect seen in the data)",{type:"textarea",span:true}):fld("reason","Reason",{type:"textarea",req:true,span:true})}</div>
+      <p class="muted" id="rev-miss" style="margin:10px 0 0;font-size:12.5px">${m.length?"To save: "+esc(m.join(", "))+".":"Complete."}</p></section>
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn danger small" data-d="delete">Delete</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+function saveRev(){
+  const E=ED,m=missRev(E);if(m.length) return "To save: "+m.join(", ")+".";
+  if(E.date>today()) return "The date of the review cannot be in the future.";
+  if(!E.id){E.id=newId("RV","r");logIt(E,"Review recorded");DB.reviews.push(E);}
+  else{logIt(E,isDate(E.done)&&txt(E.verify)?"Action done and verified":"Updated");DB.reviews[DB.reviews.findIndex(r=>r.id===E.id)]=E;}
+  ED=clone(E);save();render();return "";
+}
+
+let RT=0;
+dlg.addEventListener("input",ev=>{const el=ev.target;if(!ED||!el.dataset.f) return;setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
+  if(MODE==="rev"){clearTimeout(RT);RT=setTimeout(()=>{const p=$("#rev-miss");if(p){const m=missRev(ED);p.textContent=m.length?"To save: "+m.join(", ")+".":"Complete.";}},120);}});
+dlg.addEventListener("change",ev=>{const el=ev.target;if(!ED||!el.dataset.f) return;setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
+  if(MODE==="par"&&["src","tank","furnace","chamber","metric","part","param","sensor","lsl","usl"].includes(el.dataset.f)){if(el.dataset.f==="src"){ED.kind=SRC[ED.src].kind||ED.kind||"product";}if(el.dataset.f==="tank")ED.param="";SC={};drawDlg();return;}
+  if(MODE==="rev"&&el.dataset.f==="dec"){drawDlg();return;}});
+dlg.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(MODE==="par"){
+    if(a==="save"){done(savePar(),"Saved.");return;}
+    if(a==="paste"){const lines=$("#f-paste").value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);let n=0,bad=0;
+      lines.forEach(l=>{const m=l.match(/^(\d{4}-\d{2}-\d{2}|\d{1,2}[./-]\d{1,2}[./-]\d{4})[\s,;\t]+(-?[\d.,]+)\s*(.*)$/);if(!m){bad++;return;}
+        let d=m[1];if(!isDate(d)){const q=d.split(/[./-]/);d=`${q[2]}-${pad(+q[1])}-${pad(+q[0])}`;}const v=num(m[2].replace(",","."));if(!isDate(d)||v==null||d>today()){bad++;return;}ED.data.push({d,v,note:m[3]||""});n++;});
+      ED.data.sort((x,y)=>x.d<y.d?-1:1);SC={};done(bad?`${n} added, ${bad} line${bad>1?"s":""} not read (date and value needed, no future date).`:"",`${plural(n,"point")} added: save to keep them.`);return;}
+    if(a.startsWith("ddel:")){ED.data.splice(+a.slice(5),1);SC={};drawDlg();return;}
+    if(a==="review"){const p=parById(ED.id);if(p)openDlg("rev",newRev(p));return;}
+    if(a==="pdf"){const m=parPdf(parById(ED.id));if(m)done(m);return;}
+    if(a==="delete"){if(confirm(`Remove ${ED.name} from the analysis plan?`)){DB.params=DB.params.filter(p=>p.id!==ED.id);markPlan(`parameter ${ED.name} removed`);save();render();dlg.close();}return;}
+  }
+  if(MODE==="rev"){
+    if(a==="save"){done(saveRev(),"Saved.");return;}
+    if(a==="delete"){if(confirm(`Delete review ${ED.id}?`)){DB.reviews=DB.reviews.filter(r=>r.id!==ED.id);save();render();dlg.close();}return;}
+  }
+});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",ev=>{
+  if(dlg.contains(ev.target)) return;
+  const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.pf!=null){setView({pf:b.dataset.pf});drawPF();drawParams();return;}
+  if(b.dataset.openPar){const p=parById(b.dataset.openPar);if(p)openDlg("par",clone(p));return;}
+  if(b.dataset.rev){const p=parById(b.dataset.rev);if(p)openDlg("rev",newRev(p));return;}
+  if(b.dataset.openRev){const r=revById(b.dataset.openRev);if(r)openDlg("rev",clone(r));return;}
+  const id=b.id;
+  if(id==="b-param") openDlg("par",newPar());
+  else if(id==="b-h18"){const m=h18Pdf();if(m)alert(m);}
+  else if(id==="b-approve"){
+    if(!DB.params.some(p=>p.active)){alert("Add the parameters first.");return;}
+    const noOwn=DB.params.filter(p=>p.active&&!p.owner);if(noOwn.length){alert("Give these parameters an owner first: "+noOwn.map(p=>p.name).join(", "));return;}
+    const who=prompt(`Approve the analysis plan as revision ${DB.plan.apprDate?DB.plan.rev+1:1}. Approved by:`);if(!who||!who.trim()) return;
+    DB.plan.rev=DB.plan.apprDate?DB.plan.rev+1:1;DB.plan.appr=who.trim();DB.plan.apprDate=today();DB.plan.dirty=false;DB.plan.log.push({d:today(),t:`Revision ${DB.plan.rev} approved by ${who.trim()}`});save();render();}
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("tra-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-export") download(`trend-analysis-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!(DB.params.length||DB.reviews.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete the analysis plan, the data entered here, the reviews and the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#setup").addEventListener("change",ev=>{
+  const el=ev.target;if(!el.dataset.set) return;const k=el.dataset.set;
+  if(LIMITS[k]){const v=fixSet(k,el.value);if(String(v)!==String(Math.round(num(el.value))))alert(`Enter a whole number from ${LIMITS[k][0]} to ${LIMITS[k][1]}; ${v} is used.`);S()[k]=v;}else S()[k]=el.value;
+  save();render();
+});
+$("#imp").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a trend analysis backup");
+    if(confirm(`Import ${plural(o.params.length,"parameter")} and ${plural(o.reviews.length,"review")}? This replaces the records now in this browser.`)){const old=DB;DB=o;
+      try{render();}catch(err){DB=old;render();throw new Error("the data could not be shown ("+err.message+"); nothing was changed");}save();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells});
+function regXlsx(){
+  const A=assess18(),P=DB.params;
+  const sheets=[
+    {name:"HTSA 1.8",widths:[44,90,12,50],rows:[B(["HTSA 1.8 Does the heat treater collect and analyze data over time, and react to this data?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
+    {name:"Analysis plan",widths:[9,34,22,26,28,10,10,10,10,18,40,12],rows:[B([`Analysis plan rev ${DB.plan.rev} · ${isDate(DB.plan.apprDate)?"approved "+fdate(DB.plan.apprDate)+" by "+DB.plan.appr:"not approved"}`]),N([]),
+      B(["ID","Parameter","Kind","Data from","Filter","Unit","LSL","USL","Review (days)","Owner","Reaction rule","In use"]),...P.map(p=>{const s=series(p);return N([p.id,p.name,KIND[p.kind],SRC[p.src].t,[p.part,p.furnace,p.chamber,p.src==="scada"?(METRICS().find(m=>m[0]===p.metric)||[])[1]:"",p.tank,p.param,p.sensor].filter(Boolean).join(" · "),s.unit,s.lsl??"",s.usl??"",freqOf(p),p.owner,p.react,p.active?"yes":"no"]);})]},
+    {name:"Summary",widths:[34,8,12,12,10,10,10,10,14,14,12],rows:[B(["Parameter","Points","Last","Mean","σ","LCL","UCL","Cpk","Open signals","Last review","Status"]),...P.filter(p=>p.active).map(p=>{const a=anal(p);return N([p.name,a.n,a.last?a.last.v:"",r2(a.mA)??"",r2(a.sig)??"",r2(a.lcl)??"",r2(a.ucl)??"",r2(a.cpk)??"",a.open.length,a.lr?fdate(a.lr.date):"never",PLV[a.lvl][2]]);})]},
+    {name:"Data",widths:[34,12,12,40,40],rows:[B(["Parameter","Date","Value","Note","Signal"]),...P.filter(p=>p.active).flatMap(p=>{const a=anal(p),g=new Map(a.sigs.map(s=>[s.i,s]));return a.P.map((x,i)=>N([p.name,fdate(x.d),x.v,x.note||"",g.get(i)?g.get(i).rules.join("; "):""]));})]},
+    {name:"Reviews",widths:[9,12,30,18,50,18,40,16,12,12,40],rows:[B(["Review","Date","Parameter","Reviewed by","What the data showed","Decision","Action / reason","Owner","Due","Done","Verified"]),...DB.reviews.slice().sort((a,b)=>a.date<b.date?-1:1).map(r=>N([r.id,fdate(r.date),(parById(r.param)||{}).name||r.param,r.by,r.findings,DEC[r.dec]||"",r.dec==="act"?r.action:r.reason,r.owner,fdate(r.due),fdate(r.done),r.verify]))]}];
+  try{download(ascii(`Trend analysis ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+      --series-1:#2a78d6;--ink:#131d24;--ink2:#4a5761;--grid:#e3e7ea;--surface:#fff;--line:#cfd5d9;--warn:#e0a400;--crit:#c8382e}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    .res-s{color:#0a6b0a;font-weight:600}.res-ns{color:#8a5a00;font-weight:600}.res-nia{color:#b02a2a;font-weight:600}
+    .viz svg{width:100%;max-width:760px;height:auto}.viz svg text{font-size:10px;fill:#4a5761}.viz .tip,.viz .hit{display:none}.blk{break-inside:avoid}
+    .vlegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10px;color:#4a5761;margin:4px 0}.vlegend span{display:inline-flex;align-items:center;gap:5px}.vlegend i{display:inline-block;width:16px;border-top:2px solid}
+    .vlegend i.mean{border-top:1px solid #4a5761}.vlegend i.cl{border-top:1.5px dotted #4a5761}.vlegend i.sl{border-top:1.5px dashed #131d24}.vlegend i.dot{width:8px;height:8px;border:0;border-radius:50%}
+    .stat{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10.5px}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}`;
+function popup(title,body){
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PDF_CSS}</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>${body}</body></html>`);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);return "";
+}
+const tblH=(head,rows)=>rows.length?`<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+const parBlock=p=>{const a=anal(p),R=DB.reviews.filter(r=>r.param===p.id).sort((x,y)=>x.date<y.date?1:-1);
+  return `<div class="blk"><h2>${esc(p.name)} <span class="muted" style="font-weight:400">· ${esc(KIND[p.kind])} · ${esc(a.s.src)} · owner ${esc(p.owner)}</span></h2>${ichart(a,{name:p.name,h:200})}${statBox(a)}
+  ${tblH(["Review","Date","By","What the data showed","Decision"],R.slice(0,4).map(r=>[r.id,fdate(r.date),r.by,r.findings,(DEC[r.dec]||"")+(r.dec==="act"?": "+r.action+" ("+r.owner+", due "+fdate(r.due)+(isDate(r.done)?", done "+fdate(r.done):"")+")":r.reason?": "+r.reason:"")]))}</div>`;};
+function parPdf(p){if(!p) return "Save the parameter first.";return popup(ascii(`Trend ${p.name} ${today()}`),`<h1>Trend analysis · ${esc(p.name)}</h1><p class="sub">${esc(S().plant)} · ${fdate(today())}</p>${parBlock(p)}`);}
+function h18Pdf(){
+  const A=assess18(),sc=SCORE[A.score],P=DB.params.filter(p=>p.active);
+  return popup(ascii(`HTSA 1-8 evidence ${today()}`),`<h1>HTSA 1.8 · Data collected, analysed and reacted to over time</h1><p class="sub">${esc(S().plant)} · evidence · ${fdate(today())}</p>
+  <p>Assessment: <span class="res-${A.score}">${esc(sc[1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
+  <h2>Analysis plan${isDate(DB.plan.apprDate)?` · rev ${DB.plan.rev}, approved ${fdate(DB.plan.apprDate)} by ${esc(DB.plan.appr)}`:" · not approved"}</h2>
+  ${tblH(["Parameter","Kind","Data from","Review (days)","Owner","Points","Cpk","Status"],P.map(p=>{const a=anal(p);return [p.name,KIND[p.kind],SRC[p.src].page,freqOf(p),p.owner,a.n,a.cpk!=null?fv(a.cpk):"",PLV[a.lvl][2]];}))}
+  ${P.map(parBlock).join("")}`);
+}
+
+/* ---------- example data ---------- */
+function example(){
+  const o=blank(),td=today(),d=n=>addDays(td,-n);DB=o;
+  /* a repeatable pseudo-random series */
+  let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646;},nrm=()=>{let s=0;for(let i=0;i<6;i++)s+=rnd();return s-3;};
+  const mk=(p,data)=>{const x=fixPar({id:"TP-"+String(o.seq.p++).padStart(4,"0"),created:d(240),freq:"30",log:[{d:d(240),t:"Added to the analysis plan"}],...p});x.data=data||[];o.params.push(x);return x;};
+  const ser=(n,step,f)=>Array.from({length:n},(_,i)=>{const day=d((n-1-i)*step);return {d:day,v:r2(f(i,n)),note:""};});
+  /* product: surface hardness of a part, drifting up in the last weeks */
+  const h=mk({name:"Surface hardness MW-4512 (example)",kind:"product",src:"manual",unit:"HRC",lsl:"45",usl:"52",owner:"Quality Manager",react:"A point outside the specification: hold the batch (SOP-HT-08) and inform the HT Manager. A trend: check the tempering zone temperatures and the quench at the next review."},ser(40,5,(i,n)=>48.4+0.55*nrm()+(i>n-8?0.45*(i-(n-8)):0)));
+  const ts=mk({name:"Tensile strength MW-4512 (customer data, example)",kind:"product",src:"manual",unit:"MPa",lsl:"1100",usl:"1300",owner:"Quality Manager",freq:"60",react:"Below 1150 MPa: compare with the hardness of the same batches."},ser(16,14,()=>1205+18*nrm()));
+  const sc=mk({name:"Scrap after heat treatment, F-04 (example)",kind:"product",src:"manual",unit:"kg / week",usl:"60",owner:"Production Manager",react:"Above 60 kg in a week: Pareto of the scrap causes at the weekly meeting."},ser(30,7,(i)=>Math.max(0,28+9*nrm()+(i===22?42:0))));
+  /* process: zone temperature deviation and quench oil temperature */
+  const z=mk({name:"F-04 hardening zone 2: mean deviation TC-03 (example)",kind:"process",src:"manual",unit:"°C",lsl:"-10",usl:"10",owner:"Maintenance Head",freq:"14",react:"A shift of the mean: compare the two wall thermocouples and plan a SAT."},ser(45,4,(i,n)=>0.4+0.9*nrm()+(i>n-10?1.6:0)));
+  const q=mk({name:"F-04 quench oil temperature (example)",kind:"process",src:"manual",unit:"°C",lsl:"50",usl:"80",owner:"Maintenance Head",react:"Above 75 °C: check the cooler and the cooling water."},ser(60,3,()=>66+2.2*nrm()));
+  /* the other pages' records, when they hold data (CALOR with their examples loaded): added to the plan today */
+  const now={created:td,log:[{d:td,t:"Added to the analysis plan"}]};
+  const T=tests();if(T.length){const part=Object.entries(T.reduce((a,t)=>{if(t.part)a[t.part]=(a[t.part]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1])[0];if(part) mk({...now,name:`Surface hardness ${part[0]} (Hardness page)`,src:"hard",part:part[0],owner:"Quality Manager"});}
+  const Q=quench();if(arr(Q.tests).length){const tk=arr(Q.tests)[0].tank,t=arr(Q.tanks).find(x=>x.id===tk),pl=arr(Q.plan).find(p=>t&&p.m===t.media&&p.kind!=="ok");if(pl) mk({...now,name:`${pl.n}, tank ${tk} (Quench media page)`,src:"quench",tank:tk,param:pl.k,owner:"Maintenance Head"});}
+  const E=arr((LS("fop-reg")||{}).events).filter(e=>e.kind==="alarm");if(E.length){const f=E[0].furnace;mk({...now,name:`Alarms per week, ${f} (Alarms page)`,src:"alarms",furnace:f,owner:"Production Manager",usl:"5",freq:"30"});}
+  o.plan={rev:1,apprDate:d(200),appr:"HT Manager (example)",dirty:false,log:[{d:d(200),t:"Revision 1 approved by HT Manager (example)"}]};
+  if(o.params.length>5){o.plan.dirty=true;o.plan.log.push({d:td,t:"Changed after approval: parameters from the other CALOR pages added"});}
+  /* reviews: monthly, the last one before the latest signals */
+  const R=(p,days,f,dec,x)=>{const r={id:"RV-"+String(o.seq.r++).padStart(4,"0"),param:p.id,date:d(days),by:"HT Manager (example)",findings:f,dec,reason:"",action:"",owner:p.owner,due:"",done:"",verify:"",snap:{},log:[{d:d(days),t:"Review recorded"}],...(x||{})};o.reviews.push(r);return r;};
+  R(h,62,"Stable around 48.4 HRC, Cpk above 1.33; no signal.","none",{reason:"In control and capable."});
+  R(h,32,"Stable; two batches near 49.5 HRC within the normal scatter.","watch",{reason:"Watch the next batches."});
+  R(z,40,"Mean deviation within ±1 °C, walls agree.","none",{reason:"In control."});
+  R(z,12,"Mean deviation of TC-03 moved up by about 1.5 °C in the last week; the left wall did not move.","act",{action:"SAT of TC-03 brought forward; compare with TC-04 at the next export.",owner:"Maintenance Head",due:d(-5)});
+  R(sc,30,"One week with 70 kg: a batch of MW-3307 cracked in the quench (8D opened).","act",{action:"Quench delay checked and the loading standard of MW-3307 revised.",owner:"Production Manager",due:d(20),done:d(18),verify:"Scrap back below 35 kg a week since."});
+  R(q,25,"Oil temperature 60–72 °C, stable.","none",{reason:"In control."});
+  R(ts,70,"All batches 1160–1250 MPa.","none",{reason:"Capable."});
+  return o;
+}
+
+/* ---------- CALOR ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true;
+  HTQ.provide("trend",{
+    htsa18:()=>{const A=assess18();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),crit:A.I.filter(i=>i.lvl==="crit").length};},
+    overview:()=>{const P=DB.params.filter(p=>p.active),A=P.map(p=>({p,a:anal(p)}));return {params:P.length,signals:A.reduce((x,y)=>x+y.a.open.length,0),outSpec:A.filter(x=>x.a.open.some(s=>s.lvl==="crit")).map(x=>({id:x.p.id,name:x.p.name})),
+      reviewsDue:A.filter(x=>x.a.revSt==="overdue"||x.a.revSt==="late").length,actionsLate:DB.reviews.filter(actLate).length,actionsOpen:DB.reviews.filter(actOpen).length};},
+    counts:()=>{const A=DB.params.filter(p=>p.active).map(anal);return {outSpec:A.filter(a=>a.open.some(s=>s.lvl==="crit")).length,late:DB.reviews.filter(actLate).length,crit:assess18().I.filter(i=>i.lvl==="crit").length};}
+  });
+  HTQ.on("nav:trend",o=>{if(!o) return;if(o.param){const p=parById(o.param);if(p)openDlg("par",clone(p));}if(o.review){const p=parById(o.review);if(p)openDlg("rev",newRev(p));}});
+  ["sat:ready","sat:changed","metal:changed","quench:changed","ops:changed","prod:changed","scada:changed"].forEach(ev=>HTQ.on(ev,()=>{SC={};if(!dlg.open)render();clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("trend:changed"),300);}));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("tra-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+wireCharts(document);
+if(!DB.params.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__TRA={get DB(){return DB;},assess18,anal,series,choices,missRev,newRev,newPar,openDlg,example};
+</script>
+</body></html>
