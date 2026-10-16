@@ -149,6 +149,7 @@ table.vals td.j{width:110px}
 footer{font-size:12.5px;color:var(--ink2)}
 footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
 .signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+@media screen{.signoff.print-only{display:none}}
 .signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
 .signoff b{color:var(--ink)}
 @media screen and (max-width:760px){
@@ -505,8 +506,8 @@ function calc(e){
   }
   /* the instruction in force for this record (Procedures & WIs page, HTSA 1.15) */
   const wt=e.kind==="startup"?"startup":e.kind==="shutdown"?"shutdown":WI_ALARM[e.alarm]||"",wa=wt&&e.furnace?api("wi"):null;
-  if(wa&&wa.docsFor){let L=[];try{L=wa.docsFor(wt,e.furnace);}catch(x){}
-    add("info",L.length?`Instruction in force: ${L.map(d=>`${d.no} rev ${d.rev} ${d.title}`).join("; ")}.`:`No approved ${e.kind==="alarm"?"emergency":e.kind==="startup"?"start-up":"shut-down"} instruction for ${e.furnace} on the Procedures & WIs page.`);}
+  if(wa&&wa.docsFor){const day=String(e.start||e.ack||e.end||"").slice(0,10)||today();let L=[];try{L=wa.docsFor(wt,e.furnace,day);}catch(x){}
+    add("info",L.length?`Instruction in force on ${fdate(day)}: ${L.map(d=>`${d.no} rev ${d.rev} ${d.title}`).join("; ")}.`:`No approved ${e.kind==="alarm"?"emergency":e.kind==="startup"?"start-up":"shut-down"} instruction for ${e.furnace} in force on ${fdate(day)} (Procedures & WIs page).`);}
   const need=e.kind==="alarm"?(e.affected==="yes"||e.affected==="unknown"||late||repeat>=(+S().repeatN||3)):F.some(f=>f.j==="crit");
   const res=F.some(f=>f.j==="crit")?"crit":F.some(f=>f.j==="warn")?"warn":"ok";
   return {F,res,respMin,late,durMin,repeat,risk,need};

@@ -194,11 +194,11 @@ footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
 .ck{display:inline-flex;gap:7px;align-items:center;font-size:13.5px;margin:2px 14px 2px 0}.ck input{width:auto}
 .cks{display:flex;flex-wrap:wrap;align-items:center}
 .cklbl{display:block;font-size:12px;color:var(--ink2);margin-bottom:2px}
-table.mx{border-collapse:collapse;font-size:12.5px;width:100%}
-table.mx th,table.mx td{border-bottom:1px solid var(--grid);padding:5px 7px;text-align:center;vertical-align:middle}
-table.mx th:first-child,table.mx td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1}
-table.mx thead th{font-weight:500;color:var(--ink2);font-size:11.5px;vertical-align:bottom;white-space:nowrap}
-table.mx td.l{text-align:left}
+table.wmx{border-collapse:collapse;font-size:12.5px;width:100%}
+table.wmx th,table.wmx td{border-bottom:1px solid var(--grid);padding:5px 7px;text-align:center;vertical-align:middle}
+table.wmx th:first-child,table.wmx td:first-child{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1}
+table.wmx thead th{font-weight:500;color:var(--ink2);font-size:11.5px;vertical-align:bottom;white-space:nowrap}
+table.wmx td.l{text-align:left}
 .mc{display:inline-block;min-width:24px;border-radius:4px;padding:0 5px;font-weight:600;font-size:12px;border:1px solid currentColor;line-height:18px;white-space:nowrap}
 .mc.good{color:var(--good-ink)}.mc.warn{color:var(--warn-ink)}.mc.crit{color:var(--crit-ink)}.mc.na{color:var(--muted);border-color:transparent;font-weight:400}
 .mc.btnl{cursor:pointer;background:none;font:inherit;font-size:12px;font-weight:600}
@@ -210,6 +210,22 @@ table.steps td.k{width:150px}
 table.steps td.b{width:70px;white-space:nowrap;text-align:right}
 table.steps input,table.steps select{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
 table.vals input[data-avn]{font-family:inherit}
+/* required mark on the group label only, not on every option */
+.field.req label.ck::after{content:none}
+.field.req>.cklbl::after{content:" *";color:var(--crit-ink)}
+table.log td{overflow-wrap:break-word}
+table.steps textarea{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0;resize:vertical;field-sizing:content;min-height:2.3em}
+ol.stepro{margin:0;padding-left:22px;font-size:13.5px}ol.stepro li{margin:3px 0}
+.kp{display:inline-block;font-size:11px;font-weight:600;border:1px solid currentColor;border-radius:999px;padding:0 6px;margin-left:6px;color:var(--ink2)}
+.kp.safety{color:var(--crit-ink)}.kp.crit{color:var(--warn-ink)}.kp.quality{color:var(--accent)}
+#b-defaults{white-space:normal;text-align:left}
+@media screen{.signoff.print-only{display:none}}
+@media (max-width:760px){
+  table.steps tr{display:grid;grid-template-columns:28px 1fr;gap:4px;padding:4px 0;border-bottom:1px solid var(--grid)}
+  table.steps td{border:0}
+  table.steps td.k,table.steps td.b{grid-column:2;width:auto;text-align:left}
+  table.log.cards td.act{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+}
 .sub2{font-size:12px;color:var(--ink2)}
 </style></head>
 <body>
@@ -276,7 +292,7 @@ table.vals input[data-avn]{font-family:inherit}
     <summary>Settings and data</summary>
     <p class="muted" style="margin:0 0 8px;font-size:13px">The review interval, the availability check interval and the time allowed to train after a new revision are site rules, not CQI-9 figures. The typical documents are drafts for a direct-fired gas pusher line with an oil quench, a controlled cooling chamber and a tempering chamber: adapt them to the furnace manuals, the site's emergency plan and the way the line is really run before approving them.</p>
     <div class="controls" id="settings"></div>
-    <div class="actions" style="margin-top:10px"><button class="btn ghost small" id="b-defaults">Add the typical procedures and work instructions of this line</button></div>
+    <div class="actions" style="margin-top:10px"><button class="btn ghost small" id="b-defaults" type="button">Add the typical procedures and work instructions of this line</button></div>
     <h3 style="margin:18px 0 6px">Data</h3>
     <p class="muted" style="margin:0 0 8px;font-size:13px">Records are kept in this browser only. Export a backup regularly and import it on another computer.</p>
     <div class="actions">
@@ -311,7 +327,7 @@ const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+
 const nowHM=()=>{const d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());};
 const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
 const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
-const dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+const dstr=n=>{const d=new Date(n*864e5);return isFinite(d)?d.toISOString().slice(0,10):"";};
 const addDays=(s,n)=>dstr(dnum(s)+n);
 const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -353,25 +369,35 @@ const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizi
 const STEPK={"":"—",safety:"Safety",quality:"Quality",crit:"Critical (check)"};
 const STEPKP={safety:"⚠ Safety",quality:"◆ Quality",crit:"● Critical"};
 const LOCK={paper:"Paper copy",screen:"Screen",both:"Paper and screen"};
-const AVRES={ok:["good","✓","Present, current revision"],old:["crit","✕","Earlier revision found"],missing:["crit","✕","Missing"],illeg:["warn","!","Damaged / not legible"]};
+const AVRES={ok:["good","✓","Present, current revision"],old:["crit","✕","Earlier revision found"],missing:["crit","✕","Missing"],illeg:["crit","✕","Damaged / not legible"]};
 const UNC={"":"None found",removed:"Found and removed",left:"Found, still in place"};
 const METHODS=["Read and signed","Briefing at the line","On-the-job training","Classroom training"];
 const DEF_ROLES=["Furnace operator","Loading operator","Unloading / quench operator","Shift supervisor","Hardness tester / lab technician","Final inspector","Maintenance technician","HT Engineer","HT Manager","Quality Manager","Production Manager","Maintenance Head"];
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",reviewDays:365,soonDays:30,auditDays:90,retrainDays:30,roles:DEF_ROLES};
+/* day settings: whole numbers within these limits, else the default */
+const LIMITS={reviewDays:[1,3650],soonDays:[0,365],auditDays:[1,3650],retrainDays:[1,3650]};
+const fixSet=(k,v)=>{const n=num(v),[lo,hi]=LIMITS[k];return n==null||Math.round(n)<lo||Math.round(n)>hi?DEF[k]:Math.round(n);};
 const blank=()=>({v:1,settings:clone(DEF),docs:[],locs:[],avs:[],people:[],trn:[],seq:{d:1,l:1,e:1,tr:1,av:1}});
 const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
 const DOCF={no:"",title:"",kind:"wi",topics:[],furnaces:[],procs:[],purpose:"",scope:"",safety:"",steps:[],react:"",refs:"",lang:"English",file:"",roles:[],locs:[],rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",lastRev:null,revs:[],log:[]};
-const fixDoc=d=>{const x={...clone(DOCF),...d};["topics","furnaces","procs","roles","locs"].forEach(k=>{if(!Array.isArray(x[k]))x[k]=[];});
-  x.steps=(Array.isArray(x.steps)?x.steps:[]).map(s=>typeof s==="string"?{t:s,k:""}:{t:"",k:"",...s});x.rev=+x.rev||0;return x;};
+const arr=v=>Array.isArray(v)?v:[],str=v=>v==null?"":String(v),isObj=v=>!!v&&typeof v==="object"&&!Array.isArray(v);
+const fixDoc=d=>{const x={...clone(DOCF),...(isObj(d)?d:{})};["topics","furnaces","procs","roles","locs"].forEach(k=>{x[k]=arr(x[k]).filter(v=>typeof v==="string"&&v);});
+  ["no","title","purpose","scope","safety","react","refs","lang","file","prep","appr","apprDate","change"].forEach(k=>{x[k]=str(x[k]);});
+  x.status=String(x.status||"").toLowerCase();if(!["draft","approved","obsolete"].includes(x.status)) x.status="draft";if(!KINDS[x.kind]) x.kind="wi";
+  x.steps=arr(x.steps).map(s=>typeof s==="string"?{t:s,k:""}:isObj(s)?{t:str(s.t),k:STEPK[s.k]?s.k:""}:null).filter(Boolean);
+  x.log=arr(x.log).filter(isObj);x.revs=arr(x.revs);x.lastRev=isObj(x.lastRev)?x.lastRev:null;x.rev=+x.rev||0;return x;};
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.docs)) return null;
-  o.settings={...clone(DEF),...(o.settings&&typeof o.settings==="object"?o.settings:{})};
-  if(!Array.isArray(o.settings.roles)||!o.settings.roles.length) o.settings.roles=clone(DEF_ROLES);
-  o.docs=o.docs.filter(d=>d&&d.id).map(d=>{const x=fixDoc(d);x.revs=(Array.isArray(d.revs)?d.revs:[]).map(fixDoc);x.revs.forEach(r=>{delete r.revs;delete r.log;});return x;});
-  o.locs=(Array.isArray(o.locs)?o.locs:[]).filter(l=>l&&l.id).map(l=>({name:"",furnace:"",kind:"paper",active:true,note:"",...l}));
-  o.avs=(Array.isArray(o.avs)?o.avs:[]).filter(a=>a&&a.id).map(a=>({date:"",time:"",by:"",loc:"",lines:{},unc:"",uncNote:"",note:"",log:[],...a}));
-  o.people=(Array.isArray(o.people)?o.people:[]).filter(p=>p&&p.id).map(p=>({name:"",empNo:"",roles:[],since:"",lang:"",active:true,notes:"",log:[],...p}));
-  o.trn=(Array.isArray(o.trn)?o.trn:[]).filter(t=>t&&t.id&&t.person&&t.doc);
+  o.settings={...clone(DEF),...(isObj(o.settings)?o.settings:{})};
+  Object.keys(LIMITS).forEach(k=>{o.settings[k]=fixSet(k,o.settings[k]);});o.settings.plant=str(o.settings.plant)||DEF.plant;
+  o.settings.roles=arr(o.settings.roles).filter(r=>typeof r==="string"&&r.trim());if(!o.settings.roles.length) o.settings.roles=clone(DEF_ROLES);
+  /* a revision snapshot is only taken of an approved revision */
+  o.docs=o.docs.filter(d=>isObj(d)&&d.id).map(d=>{const x=fixDoc(d);x.revs=x.revs.filter(isObj).map(r=>fixDoc({...r,status:r.status||"approved"}));x.revs.forEach(r=>{delete r.revs;delete r.log;});return x;});
+  o.locs=arr(o.locs).filter(l=>isObj(l)&&l.id).map(l=>({...l,name:str(l.name),furnace:str(l.furnace),kind:LOCK[l.kind]?l.kind:"paper",active:l.active!==false,note:str(l.note)}));
+  o.avs=arr(o.avs).filter(a=>isObj(a)&&a.id).map(a=>({...a,date:str(a.date),time:str(a.time),by:str(a.by),loc:str(a.loc),unc:UNC[a.unc]!=null?a.unc:"",uncNote:str(a.uncNote),note:str(a.note),log:arr(a.log).filter(isObj),
+    lines:Object.fromEntries(Object.entries(isObj(a.lines)?a.lines:{}).filter(([k,l])=>isObj(l)).map(([k,l])=>[k,{res:AVRES[l.res]?l.res:"",cur:+l.cur||0,fixed:!!l.fixed,note:str(l.note)}]))}));
+  o.people=arr(o.people).filter(p=>isObj(p)&&p.id).map(p=>({...p,name:str(p.name),empNo:str(p.empNo),roles:arr(p.roles).filter(r=>typeof r==="string"&&r),since:str(p.since),lang:str(p.lang),active:p.active!==false,notes:str(p.notes),log:arr(p.log).filter(isObj)}));
+  o.trn=arr(o.trn).filter(t=>isObj(t)&&t.id&&t.person&&t.doc).map(t=>({...t,rev:+t.rev||0,date:str(t.date),method:str(t.method),by:str(t.by),note:str(t.note)}));
   const s=o.seq&&typeof o.seq==="object"?o.seq:{};
   o.seq={d:Math.max(+s.d||1,seqOf(o.docs)),l:Math.max(+s.l||1,seqOf(o.locs)),e:Math.max(+s.e||1,seqOf(o.people)),tr:Math.max(+s.tr||1,seqOf(o.trn)),av:Math.max(+s.av||1,seqOf(o.avs))};
   o.v=1;return o;
@@ -386,7 +412,8 @@ const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}
   if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("wi:changed"),300);}};
 const S=()=>DB.settings;
 const furnaces=()=>{let L=null;try{const a=api("sat");L=a?a.furnaces():null;}catch(e){}
-  return uniq((L&&L.length?L:["F-01","F-02","F-03","F-04"]).concat(DB.docs.flatMap(d=>d.furnaces),DB.locs.map(l=>l.furnace))).filter(Boolean).sort();};
+  if(L&&L.length) return uniq(L).sort();
+  return uniq(["F-01","F-02","F-03","F-04"].concat(DB.docs.map(eff).filter(Boolean).flatMap(E=>E.furnaces),DB.locs.filter(l=>l.active).map(l=>l.furnace))).filter(Boolean).sort();};
 const roles=()=>uniq(S().roles.concat(DB.docs.flatMap(d=>d.roles),DB.people.flatMap(p=>p.roles))).filter(Boolean);
 const newId=(p,k,w)=>p+"-"+String(DB.seq[k]++).padStart(w||4,"0");
 const logIt=(x,t)=>x.log.push({d:today(),t});
@@ -403,12 +430,20 @@ const docName=d=>`${dnoOf(d)} ${txt(d.title)}`.trim();
 /* the revision in force: the approved document, or the last approved revision while a new one is drafted */
 const eff=d=>d.status==="approved"?d:d.status==="draft"?(d.revs||[]).filter(r=>r.status==="approved").at(-1)||null:null;
 const inForce=()=>DB.docs.map(d=>({d,E:eff(d)})).filter(x=>x.E);
+/* the revision in force on a day (for records of that day): approved on or before it, not yet obsolete */
+const obsDate=d=>d.status!=="obsolete"?"":isDate(d.obsDate)?d.obsDate:((d.log||[]).filter(x=>/^Made obsolete/.test(x.t)).at(-1)||{}).d||"";
+const effAt=(d,day)=>{if(!isDate(day)) return eff(d);const od=obsDate(d);if(od&&od<=day) return null;
+  return (d.revs||[]).concat(d.status==="draft"?[]:[d]).filter(r=>isDate(r.apprDate)&&r.apprDate<=day).at(-1)||null;};
+/* the points of use of a revision that are in use */
+const actLocs=E=>E.locs.filter(id=>{const l=locById(id);return l&&l.active;});
+/* another document (not obsolete) using the number, as drafted or in force */
+const clash=d=>{const n=up(d.no);if(!n||isNA(d.no)) return null;return DB.docs.find(x=>x.id!==d.id&&x.status!=="obsolete"&&[x.no,eff(x)&&eff(x).no].some(v=>txt(v)&&up(v)===n))||null;};
 function review(d){
   const E=eff(d);if(!E) return {st:"none"};
   const base=[E.apprDate,d.lastRev&&d.lastRev.date].filter(isDate).sort().at(-1);
   if(!base) return {st:"none"};
-  const due=addDays(base,+S().reviewDays||365);
-  return {due,st:due<today()?"overdue":due<=addDays(today(),+S().soonDays||30)?"soon":"ok"};
+  const due=addDays(base,S().reviewDays);
+  return {due,st:due<today()?"overdue":due<=addDays(today(),S().soonDays)?"soon":"ok"};
 }
 function missingDoc(d){
   const m=[];
@@ -416,43 +451,48 @@ function missingDoc(d){
   if(!d.topics.length) m.push("what it covers (topics)"); if(!txt(d.purpose)) m.push("purpose");
   const st=d.steps.filter(s=>txt(s.t));if(st.length<2) m.push("the steps (at least 2)");
   if(!txt(d.react)) m.push("what to do when something goes wrong");
-  if(!d.roles.length) m.push("who uses it (roles)"); if(!d.locs.length) m.push("where it is available (locations)");
+  if(!d.roles.length) m.push("who uses it (roles)"); if(!actLocs(d).length) m.push("where it is available (a point of use in use)");
   if(!txt(d.prep)) m.push("prepared by"); if(!txt(d.appr)) m.push("approved by");
   if(d.rev>0&&!txt(d.change)) m.push("reason for the change");
-  const dup=txt(d.no)&&!isNA(d.no)?DB.docs.find(x=>x.id!==d.id&&x.status!=="obsolete"&&up(x.no)===up(d.no)):null;
-  if(dup) m.push(`a document no. of its own (${dup.no} is ${dup.id})`);
+  const dup=clash(d);
+  if(dup) m.push(`a document no. of its own (${d.no} is used by ${dnoOf(dup)} ${dup.title})`);
   return m;
 }
 const DOC_ST={approved:["good","✓","Approved"],draft:["warn","…","Draft"],obsolete:["info","✕","Obsolete"]};
 const docChip=d=>{const E=eff(d);return d.status==="draft"&&E?chip("good","✓",`Rev ${E.rev} in force`)+" "+chip("warn","…",`Rev ${d.rev} draft`):chip(...DOC_ST[d.status]);};
 
 /* ---------- coverage: the documents in force for a topic (and furnace) ---------- */
-const docsFor=(topic,f)=>inForce().filter(x=>x.E.topics.includes(topic)&&(!f||!x.E.furnaces.length||x.E.furnaces.includes(f)));
+/* forms / records are not instructions: they never cover a topic; with a day, the revisions in force on that day */
+const docsFor=(topic,f,day)=>DB.docs.map(d=>({d,E:day?effAt(d,day):eff(d)})).filter(x=>x.E&&x.E.kind!=="form"&&x.E.topics.includes(topic)&&(!f||!x.E.furnaces.length||x.E.furnaces.includes(f)));
+/* a furnace's instruction must be kept at a point of use of that furnace (or a shared one, with no furnace) */
+const atLine=(x,f)=>actLocs(x.E).some(id=>{const l=locById(id);return !l.furnace||l.furnace===f;});
+/* the furnaces a topic is not covered for: why "none" (no document) or "noloc" (no copy at the furnace's point of use) */
 function topicGaps(topic){
-  const lv=TOPICS[topic][1];
-  if(lv==="F"||lv==="f") return furnaces().filter(f=>!docsFor(topic,f).length);
-  if(lv==="S"||lv==="s") return docsFor(topic).length?[]:["site"];
-  return [];
+  const lv=TOPICS[topic][1];if(!lv) return [];
+  return furnaces().map(f=>{const L=docsFor(topic,f);return !L.length?{f,why:"none"}:(lv==="F"||lv==="f")&&!L.some(x=>atLine(x,f))?{f,why:"noloc"}:null;}).filter(Boolean);
 }
 
 /* ---------- availability at the point of use ---------- */
 const byDT=(a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:(a.date+(a.time||""))>(b.date+(b.time||""))?1:0;
-const lastAv=loc=>DB.avs.filter(a=>a.loc===loc).sort(byDT).at(-1)||null;
+/* only a complete check (date and checker) is evidence */
+const avDone=a=>isDate(a.date)&&!!txt(a.by);
+const lastAv=loc=>DB.avs.filter(a=>a.loc===loc&&avDone(a)).sort(byDT).at(-1)||null;
 /* state of one document at one place: the latest check of the place that covered the document */
 function avState(d,loc){
   const E=eff(d);if(!E) return {st:"na"};
-  const C=DB.avs.filter(a=>a.loc===loc&&a.lines[d.id]&&a.lines[d.id].res).sort(byDT).at(-1);
+  const C=DB.avs.filter(a=>a.loc===loc&&avDone(a)&&a.lines[d.id]&&a.lines[d.id].res).sort(byDT).at(-1);
   if(!C) return {st:"none"};
   const l=C.lines[d.id],ok=l.res==="ok"||l.fixed;
   if(!ok) return {st:"bad",c:C,l};
-  if((+l.cur||0)<+E.rev) return {st:"notver",c:C,l};
-  const due=addDays(C.date,+S().auditDays||90);
+  /* checked before the revision in force existed */
+  if((+l.cur||0)<+E.rev||(isDate(E.apprDate)&&C.date<E.apprDate)) return {st:"notver",c:C,l};
+  const due=addDays(C.date,S().auditDays);
   return {st:due<today()?"overdue":"ok",due,c:C,l};
 }
 const AVST={ok:["good","✓","Current"],notver:["warn","!","New revision not verified"],overdue:["warn","!","Check overdue"],none:["warn","!","Never checked"],bad:["crit","✕","Not available"],na:["info","–","—"]};
-const expectedAt=loc=>inForce().filter(x=>x.E.locs.includes(loc));
+const expectedAt=loc=>{const l=locById(loc);return l&&l.active?inForce().filter(x=>x.E.locs.includes(loc)):[];};
 function locState(l){
-  const X=expectedAt(l.id),st=X.map(x=>avState(x.d,l.id).st),C=lastAv(l.id),due=C?addDays(C.date,+S().auditDays||90):null;
+  const X=expectedAt(l.id),st=X.map(x=>avState(x.d,l.id).st),C=lastAv(l.id),due=C?addDays(C.date,S().auditDays):null;
   const lvl=st.includes("bad")||(C&&C.unc==="left")?"crit":st.some(s=>s!=="ok")||(due&&due<today())?"warn":X.length?"good":"info";
   return {X,st,C,due,lvl};
 }
@@ -481,7 +521,7 @@ function trnState(p,d){
   const cur=T.filter(t=>+t.rev===+E.rev).at(-1);
   if(cur) return {st:"ok",t:cur};
   const from=[E.apprDate,p.since].filter(isDate).sort().at(-1);
-  const due=from?addDays(from,+S().retrainDays||30):today();
+  const due=from?addDays(from,S().retrainDays):today();
   return {st:due<today()?"late":"due",due,old:T.at(-1)||null};
 }
 const TRST={ok:["good","✓"],due:["warn","due"],late:["crit","✕"],na:["na","–"]};
@@ -492,33 +532,48 @@ function assess115(){
   const dl=L=>L.map(x=>`${dnoOf(x.d)} rev ${x.E.rev}${x.E.furnaces.length?" ("+x.E.furnaces.join(", ")+")":""}`);
   /* procedures and work instructions for every topic the requirement names */
   GROUPS.forEach(([req,T])=>{
-    const crit=[],warn=[],have=uniq(T.flatMap(t=>dl(docsFor(t))));
-    /* several topics: name each one; one topic: only the furnaces it is missing for */
-    T.forEach(t=>{const g=topicGaps(t),lv=TOPICS[t][1];if(!g.length) return;
-      const s=(T.length>1?TOPICS[t][0].replace(/^Emergency: /,"").toLowerCase()+" ":"")+(g[0]==="site"?(T.length>1?"(site)":""):"for "+g.join(", "));(lv==="F"||lv==="S"?crit:warn).push(s.trim());});
-    add(crit.length?"crit":warn.length?"warn":"ok",req,[have.length?`In force: ${lim(have)}.`:"No document in force.",crit.filter(Boolean).length?`Missing ${T.length>1?": ":""}${crit.join("; ")}.`:"",warn.length?`Recommended, not found: ${warn.join("; ")}.`:""].filter(Boolean).join(" "),
-      crit.length||warn.length?`Write and approve ${crit.length?"the missing":"the recommended"} instruction${crit.length+warn.length>1?"s":""} (Settings: add the typical procedures and work instructions of this line).`:"");
+    const crit=[],warn=[],ncrit=[],nwarn=[],have=uniq(T.flatMap(t=>dl(docsFor(t))));let none=false,part=false;
+    /* several topics: name each one; one topic: only the furnaces */
+    T.forEach(t=>{const G=topicGaps(t),lv=TOPICS[t][1];if(!G.length) return;const req=lv==="F"||lv==="S",nm=T.length>1?TOPICS[t][0].replace(/^Emergency: /,"").toLowerCase()+" ":"";
+      const no=G.filter(g=>g.why==="none").map(g=>g.f),nl=G.filter(g=>g.why==="noloc").map(g=>g.f);
+      if(no.length){(req?crit:warn).push(`${nm}for ${no.join(", ")}`);if(docsFor(t).length) part=true;else none=true;}
+      if(nl.length) (req?ncrit:nwarn).push(`${nm}${nl.join(", ")}`);});
+    const lv=crit.length||ncrit.length?"crit":warn.length||nwarn.length?"warn":"ok";
+    add(lv,req,[have.length?`In force: ${lim(have)}.`:"No document in force.",crit.length?`Missing${T.length>1?": ":" "}${crit.join("; ")}.`:"",ncrit.length?`No copy at a point of use of the furnace${T.length>1?": ":" "}${ncrit.join("; ")}.`:"",warn.length?`Recommended, not found: ${warn.join("; ")}.`:"",nwarn.length?`Recommended, no copy at a point of use of the furnace: ${nwarn.join("; ")}.`:""].filter(Boolean).join(" "),
+      lv==="ok"?"":[none?"Write and approve the instruction (Settings: add the typical procedures and work instructions of this line).":"",part?"Extend the document to those furnaces by a new revision, or write one for them.":"",ncrit.length||nwarn.length?"Keep a copy at a point of use of each furnace (a new revision naming the location).":""].filter(Boolean).join(" "));
   });
   /* controlled: approved, reviewed */
   const drafts=DB.docs.filter(d=>d.status==="draft"&&!eff(d)),revOver=F.filter(x=>review(x.d).st==="overdue"),pend=DB.docs.filter(d=>d.status==="draft"&&eff(d));
   add(!F.length?"crit":revOver.length?"warn":"ok","Documents approved and kept up to date",F.length?`${plural(F.length,"document")} in force, approved by name and locked.${revOver.length?` Periodic review overdue: ${lim(revOver.map(x=>dnoOf(x.d)+" (due "+fdate(review(x.d).due)+")"))}.`:` Each reviewed within ${S().reviewDays} days.`}${pend.length?` New revision in preparation: ${lim(pend.map(d=>dnoOf(d)+" rev "+d.rev))}.`:""}${drafts.length?` Drafts not yet approved: ${lim(drafts.map(dnoOf))}.`:""}`:"No document approved yet.",
     !F.length?"Approve the documents.":revOver.length?"Review the documents (“Record review” when they are still right, else a new revision).":"");
   /* available at the point of use */
-  const noLoc=F.filter(x=>!x.E.locs.length),bad=[],weak=[];
-  F.forEach(x=>x.E.locs.forEach(lid=>{const l=locById(lid),n=`${dnoOf(x.d)} at ${l?l.name:lid}`,s=avState(x.d,lid).st;
-    if(s==="bad") bad.push(n);else if(s==="none") weak.push(n+" never checked");else if(s==="notver") weak.push(n+": rev "+x.E.rev+" not verified");else if(s==="overdue") weak.push(n+": check overdue");}));
-  const left=DB.locs.filter(l=>{const C=lastAv(l.id);return C&&C.unc==="left";}).map(l=>l.name);
-  const nAt=F.reduce((a,x)=>a+x.E.locs.length,0);
-  add(noLoc.length||bad.length||left.length?"crit":weak.length?"warn":F.length?"ok":"crit","Available at the point of use",!F.length?"No document in force.":[noLoc.length?`Not kept anywhere: ${lim(noLoc.map(x=>dnoOf(x.d)))}.`:"",bad.length?`Copy missing, an earlier revision or not legible: ${lim(bad)}.`:"",left.length?`Uncontrolled / obsolete copies left at: ${left.join(", ")}.`:"",weak.length?`To verify: ${lim(weak)}.`:"",!noLoc.length&&!bad.length&&!left.length&&!weak.length?`${plural(F.length,"document")} kept at ${plural(nAt,"point of use","points of use")}; the current revision verified at each within the last ${S().auditDays} days.`:""].filter(Boolean).join(" "),
-    noLoc.length?"Name where each document is kept and put the copies there.":bad.length||left.length?"Put the current revision in place, remove the old copies and check the place again.":weak.length?"Do the availability checks (the button per location).":"");
+  /* a copy never checked (after a grace of one check interval from the approval), a check overdue or a new revision not verified in time is not evidence */
+  const noLoc=F.filter(x=>!actLocs(x.E).length),bad=[],avLate=[],weak=[],off=[],grace=E=>!isDate(E.apprDate)||addDays(E.apprDate,S().auditDays)>=today();
+  F.forEach(x=>{x.E.locs.filter(id=>!actLocs(x.E).includes(id)).forEach(id=>{const l=locById(id);off.push(`${dnoOf(x.d)} at ${l?l.name:id}`);});
+    actLocs(x.E).forEach(lid=>{const l=locById(lid),n=`${dnoOf(x.d)} at ${l.name}`,s=avState(x.d,lid).st;
+      if(s==="bad") bad.push(n);
+      else if(s==="none") (grace(x.E)?weak:avLate).push(n+" never checked");
+      else if(s==="notver") (grace(x.E)?weak:avLate).push(n+": rev "+x.E.rev+" not verified");
+      else if(s==="overdue") avLate.push(n+": check overdue");});});
+  const left=DB.locs.filter(l=>{if(!l.active) return false;const C=lastAv(l.id);return C&&C.unc==="left";}).map(l=>l.name);
+  const nCopies=F.reduce((a,x)=>a+actLocs(x.E).length,0),nLoc=uniq(F.flatMap(x=>actLocs(x.E))).length;
+  const avl=!F.length||noLoc.length||bad.length||left.length||avLate.length?"crit":weak.length||off.length?"warn":"ok";
+  add(avl,"Available at the point of use",!F.length?"No document in force.":[noLoc.length?`Not kept at any point of use in use: ${lim(noLoc.map(x=>dnoOf(x.d)))}.`:"",bad.length?`Copy missing, an earlier revision or not legible: ${lim(bad)}.`:"",left.length?`Uncontrolled / obsolete copies left at: ${left.join(", ")}.`:"",avLate.length?`Not verified: ${lim(avLate)}.`:"",weak.length?`To verify (new): ${lim(weak)}.`:"",off.length?`Kept at a location not in use: ${lim(off)}.`:"",avl==="ok"?`${plural(F.length,"document")} in ${plural(nCopies,"controlled copy","controlled copies")} at ${plural(nLoc,"point of use","points of use")}; the revision in force verified at each within the last ${S().auditDays} days.`:""].filter(Boolean).join(" "),
+    !F.length?"Approve the documents, name their points of use and check them.":noLoc.length?"Name where each document is kept and put the copies there.":bad.length||left.length?"Put the current revision in place, remove the old copies and check the place again.":avLate.length||weak.length?"Do the availability checks (the button per location).":off.length?"Remove the location from the documents by a new revision, or put it back in use.":"");
   /* available to all employees involved: listed, with roles, trained on the current revision */
-  const late=[],due=[],noRole=P.filter(p=>!p.roles.length),noDoc=[],lang=[];
+  const late=[],due=[],noDoc=[],lang=[],held=new Set(P.flatMap(p=>p.roles));
+  /* an employee without a role has no document available: allowed only while new in the role */
+  const noRole=P.filter(p=>!p.roles.length),noRoleLate=noRole.filter(p=>!isDate(p.since)||addDays(p.since,S().retrainDays)<today());
   P.forEach(p=>{const mine=F.filter(x=>needs(p,x.E));if(p.roles.length&&!mine.length) noDoc.push(p.name);
     mine.forEach(x=>{const s=trnState(p,x.d);if(s.st==="late") late.push(`${p.name}: ${dnoOf(x.d)} rev ${x.E.rev}`);else if(s.st==="due") due.push(`${p.name}: ${dnoOf(x.d)} by ${fdate(s.due)}`);if(!langOk(p,x.E)) lang.push(`${p.name} (${p.lang}): ${dnoOf(x.d)} in ${x.E.lang}`);});});
-  const noUser=F.filter(x=>!x.E.roles.length);
-  const lv=!P.length||late.length?"crit":due.length||noRole.length||noDoc.length||noUser.length||lang.length?"warn":"ok";
-  add(lv,"Available to all employees involved in heat treating and inspection",!P.length?"No employee listed.":[late.length?`Not trained on the revision in force (time allowed passed): ${lim(late)}.`:"",due.length?`Training due: ${lim(due)}.`:"",noRole.length?`Without a role: ${lim(noRole.map(p=>p.name))}.`:"",noDoc.length?`No document for their roles: ${lim(noDoc)}.`:"",noUser.length?`Documents with no user role: ${lim(noUser.map(x=>dnoOf(x.d)))}.`:"",lang.length?`Not in a language the employee reads: ${lim(lang)}.`:"",lv==="ok"?`${plural(P.length,"employee")} listed with their roles; each has read and understood the revision in force of every document of their roles.`:""].filter(Boolean).join(" "),
-    !P.length?"List every employee in heat treating and inspection with their roles.":late.length||due.length?"Train the employees on the revision in force (“Record training”; the sign sheet from the document).":lv==="warn"?"Give every employee a role and every role its documents.":"");
+  /* documents nobody in their roles works with; the named topics need users */
+  const gt=new Set(GROUPS.flatMap(g=>g[1])),noHold=F.filter(x=>!x.E.roles.some(r=>held.has(r))),noHoldC=noHold.filter(x=>x.E.topics.some(t=>gt.has(t))),noHoldW=noHold.filter(x=>!noHoldC.includes(x));
+  const noStaff=["inspection","segregation"].filter(t=>{const D=docsFor(t);return D.length&&!P.some(p=>D.some(x=>needs(p,x.E)));}).map(t=>TOPICS[t][0].replace(/ \(see.*\)/,"").toLowerCase());
+  /* CALOR: people of the HT organization page not on this list */
+  const orgOut=(()=>{const o=api("org");if(!o) return [];let L=[];try{L=o.people();}catch(e){}return L.filter(x=>txt(x.name)&&!DB.people.some(p=>up(p.name)===up(x.name))).map(x=>x.name+(x.positions&&x.positions.length?" ("+x.positions.join(", ")+")":""));})();
+  const lv=!P.length||late.length||noDoc.length||lang.length||noRoleLate.length||noHoldC.length||noStaff.length?"crit":due.length||noRole.length||noHoldW.length||orgOut.length?"warn":"ok";
+  add(lv,"Available to all employees involved in heat treating and inspection",!P.length?"No employee listed.":[late.length?`Not trained on the revision in force (time allowed passed): ${lim(late)}.`:"",due.length?`Training due: ${lim(due)}.`:"",noRole.length?`Without a role${noRoleLate.length?"":" (new)"}: ${lim(noRole.map(p=>p.name))}.`:"",noDoc.length?`No document for their roles: ${lim(noDoc)}.`:"",noHold.length?`No active employee in the roles of: ${lim(noHold.map(x=>`${dnoOf(x.d)} (${x.E.roles.join(", ")})`))}.`:"",noStaff.length?`No employee works with the ${noStaff.join(" or the ")} documents.`:"",lang.length?`Not in a language the employee reads: ${lim(lang)}.`:"",orgOut.length?`On the HT organization page but not listed here: ${lim(orgOut)}.`:"",lv==="ok"?`${plural(P.length,"employee")} listed with their roles; every role of the documents in force is held and each employee has read and understood the revision in force of every document of their roles.`:""].filter(Boolean).join(" "),
+    !P.length?"List every employee in heat treating and inspection with their roles.":lv==="ok"?"":[late.length||due.length?"Train the employees on the revision in force (“Record training”; the sign sheet from the document).":"",noRole.length||noDoc.length||noHold.length||noStaff.length?"Give every employee a role and every role its documents.":"",lang.length?"Issue the documents in a language the employees read.":"",orgOut.length?"List the people of the HT organization page (button below) or make them inactive.":""].filter(Boolean).join(" "));
   const crit=I.filter(i=>i.lvl==="crit");
   const core=["e_power","startup","shutdown"].some(t=>!docsFor(t).length);
   return {I,score:!F.length||core?"nia":crit.length?"ns":"s"};
@@ -542,33 +597,32 @@ function drawKpis(){
   const F=inForce(),k=(lbl,val,sub,cls)=>`<div class="kpi"><span class="eyebrow">${lbl}</span><span class="v ${cls||""}">${val}</span><span class="s">${sub}</span></div>`;
   const drafts=DB.docs.filter(d=>d.status==="draft").length,ro=F.filter(x=>review(x.d).st==="overdue").length,rs=F.filter(x=>review(x.d).st==="soon").length;
   const L=DB.locs.filter(l=>l.active).map(l=>({l,s:locState(l)})),lb=L.filter(x=>x.s.lvl==="crit").length,lw=L.filter(x=>x.s.lvl==="warn").length;
-  const P=people(),pl=P.filter(p=>F.some(x=>trnState(p,x.d).st==="late")).length,pd=P.filter(p=>F.some(x=>trnState(p,x.d).st==="due")).length,pok=P.filter(p=>F.every(x=>["ok","na"].includes(trnState(p,x.d).st))).length;
+  const P=people(),pl=P.filter(p=>F.some(x=>trnState(p,x.d).st==="late")).length,pd=P.filter(p=>F.some(x=>trnState(p,x.d).st==="due")).length,pok=P.filter(p=>{const m=F.filter(x=>needs(p,x.E));return m.length&&m.every(x=>trnState(p,x.d).st==="ok");}).length,pno=P.filter(p=>!F.some(x=>needs(p,x.E))).length;
   $("#kpis").innerHTML=k("Documents in force",F.length,`${drafts} draft${drafts===1?"":"s"} in preparation`,F.length?"":"bad")
     +k("Periodic review",ro,`overdue · ${rs} due within ${S().soonDays} days`,ro?"caution":"ok")
     +k("Points of use",L.length,`${lb} with a copy missing or out of date · ${lw} to check`,lb?"bad":lw?"caution":"ok")
-    +k("Employees trained",`${pok}<small> / ${P.length}</small>`,`on every document of their roles · ${pl} late · ${pd} due`,pl?"bad":pd?"caution":P.length?"ok":"");
+    +k("Employees trained",`${pok}<small> / ${P.length}</small>`,`on every document of their roles · ${pl} late · ${pd} due${pno?` · ${pno} without documents`:""}`,pl||pno?"bad":pd?"caution":P.length?"ok":"");
 }
 function drawCover(){
   const fs=furnaces();
-  $("#covNote").textContent=`Documents in force per topic and furnace (a document with no furnace ticked applies to every furnace). The topics named in HTSA 1.15 are required; the others are shown when a document covers them.`;
+  $("#covNote").textContent=`Documents in force per topic and furnace (a document with no furnace ticked applies to every furnace; a form / record never counts as an instruction). The topics named in HTSA 1.15 are required; the others are shown when a document covers them. A furnace's instruction must also be kept at a point of use of that furnace (or a shared one).`;
   const T=Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length);
-  const cell=(t,f)=>{const L=docsFor(t,f),lv=TOPICS[t][1];
-    if(L.length) return L.map(x=>`<button class="mc good btnl" data-open-doc="${esc(x.d.id)}" title="${esc(docName(x.E))} rev ${x.E.rev}">${esc(dnoOf(x.d))}</button>`).join(" ");
-    const site=lv==="S"||lv==="s";
-    if(site&&docsFor(t).length) return `<span class="mc na">—</span>`;
+  const cell=(t,f)=>{const L=docsFor(t,f),lv=TOPICS[t][1],fl=lv==="F"||lv==="f";
+    if(L.length) return L.map(x=>{const at=!fl||atLine(x,f);return `<button class="mc ${at?"good":lv==="F"?"crit":"warn"} btnl" data-open-doc="${esc(x.d.id)}" title="${esc(docName(x.E))} rev ${x.E.rev}${at?"":": no copy at a point of use of "+esc(f)}">${esc(dnoOf(x.d))}${at?"":" · not at the line"}</button>`;}).join(" ");
     return lv==="F"||lv==="S"?`<span class="mc crit">missing</span>`:lv?`<span class="mc warn">none</span>`:`<span class="mc na">—</span>`;};
-  $("#cover").innerHTML=`<table class="mx"><thead><tr><th>Topic</th><th class="l">Requirement</th>${fs.map(f=>`<th>${esc(f)}</th>`).join("")}</tr></thead><tbody>${T.map(t=>`<tr><td><b>${esc(TOPICS[t][0])}</b></td><td class="l sub2">${REQTXT[TOPICS[t][1]]}</td>${fs.map(f=>`<td>${cell(t,f)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  $("#cover").innerHTML=`<table class="wmx"><thead><tr><th>Topic</th><th class="l">Requirement</th>${fs.map(f=>`<th>${esc(f)}</th>`).join("")}</tr></thead><tbody>${T.map(t=>`<tr><td><b>${esc(TOPICS[t][0])}</b></td><td class="l sub2">${REQTXT[TOPICS[t][1]]}</td>${fs.map(f=>`<td>${cell(t,f)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
-function drawDocF(){$("#docf").innerHTML=[["force","In force"],["draft","Drafts"],["obs","Obsolete"],["","All"]].map(([k,t])=>`<button class="${VIEW.df===k?"on":""}" data-df="${k}">${t}</button>`).join("");}
+function drawDocF(){$("#docf").innerHTML=[["force","In force"],["draft","Drafts"],["obs","Obsolete"],["","All"]].map(([k,t])=>`<button class="${VIEW.df===k?"on":""}" aria-pressed="${VIEW.df===k}" data-df="${k}">${t}</button>`).join("");}
 function drawDocs(){
   const L=DB.docs.filter(d=>VIEW.df==="force"?!!eff(d):VIEW.df==="draft"?d.status==="draft":VIEW.df==="obs"?d.status==="obsolete":true).sort((a,b)=>dnoOf(a).localeCompare(dnoOf(b)));
-  if(!L.length){$("#docs").innerHTML=`<div class="empty">${DB.docs.length?"No documents for this selection.":"No documents yet. Use “New document”, or add the typical procedures and work instructions of this line under Settings."}</div>`;return;}
+  const nd=DB.docs.filter(d=>d.status==="draft").length;
+  if(!L.length){$("#docs").innerHTML=`<div class="empty">${DB.docs.length?(VIEW.df==="force"&&nd?`No document in force yet; ${plural(nd,"draft")} (see Drafts).`:"No documents for this selection."):"No documents yet. Use “New document”, or add the typical procedures and work instructions of this line under Settings."}</div>`;return;}
   $("#docs").innerHTML=`<table class="log cards"><thead><tr><th>Document</th><th>Title</th><th>Covers</th><th>Applies to</th><th>Used by</th><th>Kept at</th><th>Status</th><th>Review</th><th class="noprint"></th></tr></thead><tbody>${L.map(d=>{const E=eff(d)||d,r=review(d);
-    return `<tr><td data-label="Document"><b class="nw">${esc(dnoOf(d))}</b><br><span class="kind">rev ${E.rev} · ${esc(KINDS[E.kind]||"")}</span></td><td data-label="Title">${esc(E.title)}</td>
-      <td data-label="Covers">${E.topics.map(t=>esc(TOPICS[t]?TOPICS[t][0]:t)).join("<br>")||"—"}</td>
-      <td data-label="Applies to">${esc(E.furnaces.length?E.furnaces.join(", "):"All furnaces")}<br><span class="muted">${E.procs.length?E.procs.map(p=>PROC[p]).join(", "):"All processes"}</span></td>
+    return `<tr><td data-label="Document"><div><b class="nw">${esc(dnoOf(d))}</b><br><span class="kind">rev ${E.rev} · ${esc(KINDS[E.kind]||"")}</span></div></td><td data-label="Title">${esc(E.title)}</td>
+      <td data-label="Covers"><div>${E.topics.map(t=>esc(TOPICS[t]?TOPICS[t][0]:t)).join("<br>")||"—"}</div></td>
+      <td data-label="Applies to"><div><span class="nw">${esc(E.furnaces.length?E.furnaces.join(", "):"All furnaces")}</span><br><span class="muted nw">${E.procs.length?E.procs.map(p=>PROC[p]).join(", "):"All processes"}</span></div></td>
       <td data-label="Used by">${esc(E.roles.join(", ")||"—")}</td><td data-label="Kept at">${esc(E.locs.map(l=>locById(l)?locById(l).name:l).join(", ")||"—")}</td>
-      <td data-label="Status">${docChip(d)}</td><td data-label="Review" class="nw">${r.st==="none"?"—":r.st==="overdue"?`<span class="bad">overdue ${fdate(r.due)}</span>`:r.st==="soon"?`<span class="caution">${fdate(r.due)}</span>`:fdate(r.due)}</td>
+      <td data-label="Status"><div>${docChip(d)}</div></td><td data-label="Review" class="nw">${r.st==="none"?"—":r.st==="overdue"?`<span class="bad">overdue ${fdate(r.due)}</span>`:r.st==="soon"?`<span class="caution">${fdate(r.due)}</span>`:fdate(r.due)}</td>
       <td class="act noprint"><button class="btn ghost small" data-open-doc="${esc(d.id)}">Open</button> <button class="btn ghost small" data-doc-pdf="${esc(d.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
 }
 function drawLocs(){
@@ -576,9 +630,9 @@ function drawLocs(){
   const L=DB.locs.slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
   if(!L.length){$("#locs").innerHTML=`<div class="empty">No locations yet. Use “Add location” (furnace control panel, loading station, laboratory, quarantine area, …).</div>`;return;}
   $("#locs").innerHTML=`<table class="log cards"><thead><tr><th>Location</th><th>Documents kept here</th><th>Last check</th><th>Next check</th><th>State</th><th class="noprint"></th></tr></thead><tbody>${L.map(l=>{const s=locState(l);
-    return `<tr class="${l.active?"":"muted"}"><td data-label="Location"><b>${esc(l.name)}</b><br><span class="kind">${esc(LOCK[l.kind]||"")}${l.furnace?" · "+esc(l.furnace):""}${l.active?"":" · not in use"}</span></td>
-      <td data-label="Documents">${s.X.length?s.X.map(x=>{const a=avState(x.d,l.id);return `<span class="nw">${esc(dnoOf(x.d))} r${x.E.rev} <span class="mc ${AVST[a.st][0]}" title="${esc(AVST[a.st][2])}">${AVST[a.st][1]}</span></span>`;}).join(" ") :`<span class="muted">none</span>`}</td>
-      <td data-label="Last check" class="nw">${s.C?`${fdate(s.C.date)}<br><span class="kind">${esc(s.C.id)} · ${esc(s.C.by)}</span>`:"never"}</td>
+    return `<tr class="${l.active?"":"muted"}"><td data-label="Location"><div><b>${esc(l.name)}</b><br><span class="kind">${esc(LOCK[l.kind]||"")}${l.furnace?" · "+esc(l.furnace):""}${l.active?"":" · not in use"}</span></div></td>
+      <td data-label="Documents"><div>${s.X.length?s.X.map(x=>{const a=avState(x.d,l.id);return `<span class="nw">${esc(dnoOf(x.d))} r${x.E.rev} <span class="mc ${AVST[a.st][0]}" title="${esc(AVST[a.st][2])}">${AVST[a.st][1]}</span></span>`;}).join(" ") :`<span class="muted">none</span>`}</div></td>
+      <td data-label="Last check" class="nw"><div>${s.C?`${fdate(s.C.date)}<br><span class="kind">${esc(s.C.id)} · ${esc(s.C.by)}</span>`:"never"}</div></td>
       <td data-label="Next check" class="nw">${s.due?(s.due<today()?`<span class="bad">${fdate(s.due)}</span>`:fdate(s.due)):s.X.length?`<span class="caution">now</span>`:"—"}</td>
       <td data-label="State">${s.lvl==="crit"?chip("crit","✕","Copy not available"):s.lvl==="warn"?chip("warn","!","To check"):s.lvl==="good"?chip("good","✓","Current"):chip("info","–","No documents")}</td>
       <td class="act noprint">${l.active&&s.X.length?`<button class="btn ghost small" data-av-loc="${esc(l.id)}">Check</button> `:""}<button class="btn ghost small" data-open-loc="${esc(l.id)}">Edit</button></td></tr>`;}).join("")}</tbody></table>`;
@@ -587,20 +641,21 @@ function drawAvs(){
   const L=DB.avs.slice().sort(byDT).reverse();
   if(!L.length){$("#avs").innerHTML=`<div class="empty">No availability checks recorded.</div>`;return;}
   $("#avs").innerHTML=`<table class="log cards"><thead><tr><th>Check</th><th>Date</th><th>Location</th><th>Findings</th><th>Result</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,30).map(a=>{const k=avCalc(a),l=locById(a.loc);
-    return `<tr><td data-label="Check"><b>${esc(a.id)}</b><br><span class="kind">${esc(a.by)}</span></td><td data-label="Date" class="nw">${fdate(a.date)} ${esc(a.time||"")}</td><td data-label="Location">${esc(l?l.name:a.loc)}</td>
-      <td data-label="Findings">${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.t)}</li>`).join("")}</ul>`:`<span class="muted">${plural(Object.keys(a.lines).length,"document")} present, current revision</span>`}</td>
+    const nOk=Object.values(a.lines).filter(x=>x.res==="ok").length,nOpen=Object.values(a.lines).filter(x=>!x.res).length;
+    return `<tr><td data-label="Check"><div><b>${esc(a.id)}</b><br><span class="kind">${esc(a.by||"checker not entered")}</span></div></td><td data-label="Date" class="nw">${fdate(a.date)} ${esc(a.time||"")}</td><td data-label="Location">${esc(l?l.name:a.loc)}</td>
+      <td data-label="Findings">${k.F.length?`<ul class="findings">${k.F.map(f=>`<li class="${f.j}">${esc(f.t)}</li>`).join("")}</ul>`:`<span class="muted">${plural(nOk,"document")} present, current revision${nOpen?` · ${nOpen} not answered`:""}</span>`}</td>
       <td data-label="Result">${chip(...AVCHK[k.lvl])}</td><td class="act noprint"><button class="btn ghost small" data-open-av="${esc(a.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>${L.length>30?`<p class="muted" style="font-size:12.5px">The 30 latest of ${L.length} checks are shown; the Excel register has all.</p>`:""}`;
 }
 function drawMatrix(){
   const F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),P=DB.people.slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
   $("#trnNote").textContent=`Every employee involved in heat treating and inspection, with the roles they work in. A document names the roles that use it; the employee must have read and understood its revision in force within ${S().retrainDays} days of its approval (or of starting in the role). ✓ trained on the revision in force · due · ✕ late · – not needed.`;
   if(!P.length){$("#matrix").innerHTML=`<div class="empty">No employees listed yet. Use “Add employee”${api("org")?" or add the people of the HT organization page":""}.</div>`;return;}
-  $("#matrix").innerHTML=`<table class="mx"><thead><tr><th>Employee</th>${F.map(x=>`<th title="${esc(docName(x.E))}">${esc(dnoOf(x.d))}<br><span class="sub2">rev ${x.E.rev}</span></th>`).join("")}<th>Status</th></tr></thead><tbody>${P.map(p=>{
+  $("#matrix").innerHTML=`<table class="wmx"><thead><tr><th>Employee</th>${F.map(x=>`<th title="${esc(docName(x.E))}">${esc(dnoOf(x.d))}<br><span class="sub2">rev ${x.E.rev}</span></th>`).join("")}<th>Status</th></tr></thead><tbody>${P.map(p=>{
     const S2=F.map(x=>trnState(p,x.d)),late=S2.filter(s=>s.st==="late").length,due=S2.filter(s=>s.st==="due").length,need=S2.filter(s=>s.st!=="na").length;
     return `<tr class="${p.active?"":"muted"}"><td><button class="lnk" data-open-p="${esc(p.id)}">${esc(p.name)}</button><br><span class="sub2">${esc(p.roles.join(", ")||"no role")}${p.active?"":" · not active"}</span></td>
       ${S2.map((s,i)=>{const x=F[i],tt=s.st==="ok"?`Trained ${fdate(s.t.date)} (${s.t.method})`:s.st==="due"?`Due by ${fdate(s.due)}${s.old?" · trained on rev "+s.old.rev:""}`:s.st==="late"?`Late since ${fdate(s.due)}${s.old?" · trained on rev "+s.old.rev:""}`:"Not needed for this role";
         return `<td><span class="mc ${TRST[s.st][0]}" title="${esc(dnoOf(x.d)+": "+tt)}">${s.st==="late"&&s.old?"r"+s.old.rev:TRST[s.st][1]}</span></td>`;}).join("")}
-      <td>${!p.active?chip("info","–","Not active"):!p.roles.length?chip("warn","!","No role"):late?chip("crit","✕",plural(late,"late")):due?chip("warn","!",plural(due,"due")):need?chip("good","✓","Trained"):chip("warn","!","No documents")}</td></tr>`;}).join("")}</tbody></table>`;
+      <td>${!p.active?chip("info","–","Not active"):!p.roles.length?chip("warn","!","No role"):late?chip("crit","✕",late+" late"):due?chip("warn","!",due+" due"):need?chip("good","✓","Trained"):chip("warn","!","No documents")}</td></tr>`;}).join("")}</tbody></table>`;
 }
 function drawTrns(){
   const L=DB.trn.slice().sort((a,b)=>a.date<b.date?1:-1);
@@ -610,7 +665,7 @@ function drawTrns(){
       <td class="act noprint"><button class="btn ghost small" data-del-trn="${esc(t.id)}">Delete</button></td></tr>`;}).join("")}</tbody></table>${L.length>60?`<p class="muted" style="font-size:12.5px">The 60 latest of ${L.length} records are shown; the Excel register has all.</p>`:""}`;
 }
 function drawSettings(){
-  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" value="${esc(s[k])}"></div>`;
+  const s=S(),f=(k,l,t,cls)=>`<div class="field ${cls||""}"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" ${LIMITS[k]?`min="${LIMITS[k][0]}" max="${LIMITS[k][1]}" step="1"`:""} value="${esc(s[k])}"></div>`;
   $("#settings").innerHTML=f("plant","Plant","text","wide")+f("reviewDays","Review every document every (days)","number")+f("soonDays","Review due soon within (days)","number")+f("auditDays","Check each point of use every (days)","number")+f("retrainDays","Train on a new revision within (days)","number")
     +`<div class="field wide"><label for="s-roles">Roles in heat treating and inspection (one per line)</label><textarea id="s-roles" data-set="roles" rows="5">${esc(s.roles.join("\n"))}</textarea></div>`;
 }
@@ -632,7 +687,8 @@ const cks=(path,label,opts,o={})=>{const cur=val(path)||[],dis=ro()?"disabled":"
 const names=()=>{const o=api("org");let L=[];try{L=o?o.people().map(p=>p.name):[];}catch(e){}
   return uniq(L.concat(DB.people.map(p=>p.name),DB.docs.flatMap(d=>[d.prep,d.appr]),DB.trn.map(t=>t.by)).map(txt).filter(Boolean)).sort();};
 const namesList=()=>`<datalist id="dl-names">${names().map(n=>`<option value="${esc(n)}"></option>`).join("")}</datalist>`;
-function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
+let PASTE="";
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;PASTE="";drawDlg();if(!dlg.open)dlg.showModal();}
 function drawDlg(){dlg.innerHTML=({doc:dlgDoc,loc:dlgLoc,per:dlgPer,trn:dlgTrn,av:dlgAv})[MODE]();}
 const foot=(btns)=>`<div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>${btns}</div>`;
 const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:"";
@@ -640,24 +696,25 @@ const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">Histor
 /* document */
 const newDoc=()=>fixDoc({id:""});
 function dlgDoc(){
-  const E=ED,m=missingDoc(E),e=E.id?eff(docById(E.id)||E):null,dis=ro()?"disabled":"",tp=Object.entries(TOPICS).map(([k,v])=>[k,v[0]+(v[1]==="F"||v[1]==="S"?" *":"")]);
+  const E=ED,m=missingDoc(E),e=E.id?eff(docById(E.id)||E):null,dis=ro()?"disabled":"",tp=Object.entries(TOPICS).map(([k,v])=>[k,v[0]+(v[1]==="F"||v[1]==="S"?" (1.15)":"")]);
   const L=DB.locs.filter(l=>l.active||E.locs.includes(l.id)).map(l=>[l.id,l.name]);
   return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(dnoOf(E))+" rev "+E.rev:"New document"}</h2>${E.id?docChip(docById(E.id)||E):""}<span class="muted">${esc(E.title)}</span></div></div>
   <div class="dlg-b">${namesList()}
     <section class="stage" style="--k:var(--p)"><h3>Document <small>what it is and what it covers</small></h3><div class="fgrid">
-      ${fld("no","Document no.",{req:true,hint:"As printed on the document, e.g. WI-HT-02."})}${fld("title","Title",{req:true})}${fld("kind","Kind",{opts:Object.entries(KINDS),req:true,blank:false})}${fld("lang","Language(s)",{hint:"e.g. English, Hindi"})}
-      ${cks("topics","What it covers (* named in HTSA 1.15)",tp,{req:true})}
-      ${cks("furnaces","Furnaces (none ticked = every furnace)",furnaces())}
+      ${fld("no","Document no.",{req:true,hint:"As printed on the document, e.g. WI-HT-02."})}${fld("title","Title",{req:true})}${fld("kind","Kind",{opts:Object.entries(KINDS),req:true,blank:false,hint:"A form / record does not count as an instruction for the topics."})}${fld("lang","Language(s)",{hint:"e.g. English, Hindi"})}
+      ${cks("topics","What it covers (1.15 = named in HTSA 1.15)",tp,{req:true})}
+      ${cks("furnaces","Furnaces (none ticked = every furnace)",uniq(furnaces().concat(E.furnaces)))}
       ${cks("procs","Processes (none ticked = every process)",Object.entries(PROC))}
       ${fld("file","Master file (where the signed original is kept)",{span:true})}</div></section>
     <section class="stage" style="--k:var(--d)"><h3>Content <small>the instruction as it is used at the line</small></h3><div class="fgrid">
       ${fld("purpose","Purpose",{type:"textarea",req:true,span:true,rows:2})}${fld("scope","Scope (equipment, processes, when it applies)",{type:"textarea",span:true,rows:2})}
       ${fld("safety","Safety and protective equipment",{type:"textarea",span:true,rows:2})}</div>
       <h3 style="margin:12px 0 4px;font-size:14px">Steps <small class="sub2">${E.steps.length} step${E.steps.length===1?"":"s"}</small></h3>
-      <table class="steps"><tbody>${E.steps.map((s,i)=>`<tr><td class="no">${i+1}</td><td><input aria-label="Step ${i+1}" data-st="${i}" value="${esc(s.t)}" ${dis}></td>
-        <td class="k"><select aria-label="Key point of step ${i+1}" data-sk="${i}" ${dis}>${Object.entries(STEPK).map(([k,t])=>`<option value="${k}" ${s.k===k?"selected":""}>${t}</option>`).join("")}</select></td>
-        <td class="b">${ro()?"":`<button class="btn ghost small" type="button" data-d="sup:${i}" aria-label="Move step ${i+1} up" ${i?"":"disabled"}>↑</button><button class="btn ghost small" type="button" data-d="sdel:${i}" aria-label="Remove step ${i+1}">✕</button>`}</td></tr>`).join("")}</tbody></table>
-      ${ro()?"":`<div class="fgrid" style="margin-top:8px"><div class="field span"><label for="f-paste">Add steps (one per line; pasted lists are fine)</label><textarea id="f-paste" rows="2"></textarea></div></div>
+      ${ro()?(E.steps.length?`<ol class="stepro">${E.steps.map(s=>`<li>${esc(s.t)}${s.k?`<span class="kp ${s.k}">${esc(STEPK[s.k])}</span>`:""}</li>`).join("")}</ol>`:`<p class="muted" style="margin:0">No steps.</p>`)
+      :`<table class="steps"><tbody>${E.steps.map((s,i)=>`<tr><td class="no">${i+1}</td><td><textarea aria-label="Step ${i+1}" data-st="${i}" rows="${Math.min(5,Math.max(1,Math.ceil(s.t.length/60)))}">${esc(s.t)}</textarea></td>
+        <td class="k"><select aria-label="Key point of step ${i+1}" data-sk="${i}">${Object.entries(STEPK).map(([k,t])=>`<option value="${k}" ${s.k===k?"selected":""}>${t}</option>`).join("")}</select></td>
+        <td class="b"><button class="btn ghost small" type="button" data-d="sup:${i}" aria-label="Move step ${i+1} up" ${i?"":"disabled"}>↑</button><button class="btn ghost small" type="button" data-d="sdel:${i}" aria-label="Remove step ${i+1}">✕</button></td></tr>`).join("")}</tbody></table>`}
+      ${ro()?"":`<div class="fgrid" style="margin-top:8px"><div class="field span"><label for="f-paste">Add steps (one per line; pasted lists are fine)</label><textarea id="f-paste" rows="2">${esc(PASTE)}</textarea></div></div>
       <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="paste">Add the steps</button><button class="btn ghost small" type="button" data-d="addstep">Add an empty step</button></div>`}
       <div class="fgrid" style="margin-top:10px">${fld("react","When something goes wrong (reaction, who to call)",{type:"textarea",req:true,span:true,rows:2})}${fld("refs","Related documents and records",{type:"textarea",span:true,rows:2})}</div></section>
     <section class="stage" style="--k:var(--c)"><h3>Available to <small>who uses it and where it is kept</small></h3><div class="fgrid">
@@ -668,7 +725,7 @@ function dlgDoc(){
       <p class="muted" id="doc-miss" style="margin:10px 0 0;font-size:12.5px">${E.status==="draft"?(m.length?"To approve: "+esc(m.join(", "))+".":"Ready to approve."):E.status==="approved"?`Approved by ${esc(E.appr)} on ${fdate(E.apprDate)}${E.lastRev?` · last reviewed ${fdate(E.lastRev.date)} by ${esc(E.lastRev.by)}`:""}. Locked: start a new revision to change it.`:"Obsolete."}</p></section>
     ${(E.revs||[]).length?`<section><h3 style="margin-bottom:4px">Earlier revisions</h3><ul class="loglist">${E.revs.map(r=>`<li>Rev ${r.rev}: ${r.status==="approved"?`approved ${fdate(r.apprDate)} by ${esc(r.appr)}`:esc(r.status)}${r.change?" · "+esc(r.change):""}</li>`).join("")}</ul></section>`:""}
     ${hist(E)}</div>
-  ${foot(`${E.id?`<button class="btn ghost small" data-d="pdf">PDF</button><button class="btn ghost small" data-d="sign">Training sign sheet</button>`:""}
+  ${foot(`${E.id?`<button class="btn ghost small" data-d="pdf">PDF</button>${e?`<button class="btn ghost small" data-d="sign">Training sign sheet</button>`:""}`:""}
     ${E.id&&E.status==="draft"&&E.rev===0&&!(E.revs||[]).length?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
     ${E.status==="draft"&&E.rev>0&&e?`<button class="btn ghost small" data-d="discard">Discard revision</button>`:""}
     ${E.status==="approved"?`<button class="btn ghost small" data-d="obsolete">Make obsolete…</button><button class="btn ghost small" data-d="review">Record review…</button><button class="btn ghost" data-d="revise">New revision</button>`:""}
@@ -678,8 +735,8 @@ function commitDoc(text){
   const E=ED;
   E.steps=E.steps.filter(s=>txt(s.t));
   if(!txt(E.no)&&!txt(E.title)) return "Enter the document no. and the title.";
-  const dup=txt(E.no)&&!isNA(E.no)?DB.docs.find(x=>x.id!==E.id&&x.status!=="obsolete"&&up(x.no)===up(E.no)):null;
-  if(dup) return `Document no. ${E.no} is already used by ${dup.title||dup.id}.`;
+  const dup=clash(E);
+  if(dup) return `Document no. ${E.no} is already used by ${dnoOf(dup)} ${dup.title}.`;
   if(!E.id){E.id=newId("D","d");logIt(E,text||"Document created");DB.docs.push(E);}
   else{logIt(E,text||"Draft updated");DB.docs[DB.docs.findIndex(d=>d.id===E.id)]=E;}
   ED=clone(E);save();render();return "";
@@ -721,8 +778,8 @@ function dlgTrn(){
     ${fld("doc","Document",{opts:F.map(y=>[y.d.id,`${dnoOf(y.d)} rev ${y.E.rev} · ${y.E.title}`]),req:true})}${fld("date","Date",{type:"date",req:true})}${fld("method","Method",{opts:METHODS,req:true,blank:false})}${fld("by","Trainer",{req:true,list:"dl-names"})}
     ${fld("note","Note (how understanding was confirmed)",{type:"textarea",span:true,rows:2})}</div></section>
     <section class="stage" style="--k:var(--d)"><h3>Employees <small>${x?`${x.E.roles.join(", ")}`:"choose the document"}</small></h3>
-      ${x?(P.length?`<div class="cks">${P.map(p=>{const s=trnState(p,x.d);return `<label class="ck"><input type="checkbox" data-tp="${esc(p.id)}" ${E.people.includes(p.id)?"checked":""}>${esc(p.name)} <span class="sub2">${s.st==="ok"?"trained":s.st==="na"?"not needed":s.st}</span></label>`;}).join("")}</div>
-        <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="tpall">Tick every employee due</button><label class="ck"><input type="checkbox" data-f="all" ${E.all?"checked":""}>Show employees of other roles</label></div>`:`<p class="muted" style="margin:0">No active employee in the roles of this document.</p>`):""}</section></div>
+      ${x?`${P.length?`<div class="cks">${P.map(p=>{const s=trnState(p,x.d);return `<label class="ck"><input type="checkbox" data-tp="${esc(p.id)}" ${E.people.includes(p.id)?"checked":""}>${esc(p.name)} <span class="sub2">${s.st==="ok"?"trained":s.st==="na"?"not needed":s.st}</span></label>`;}).join("")}</div>`:`<p class="muted" style="margin:0">No active employee in the roles of this document.</p>`}
+        <div class="actions" style="margin-top:6px">${P.length?`<button class="btn ghost small" type="button" data-d="tpall">Tick every employee due</button>`:""}<label class="ck"><input type="checkbox" data-f="all" ${E.all?"checked":""}>Show employees of other roles</label></div>`:""}</section></div>
   ${foot(`${x?`<button class="btn ghost small" data-d="sign">Sign sheet</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
 }
 /* availability check of one location */
@@ -753,9 +810,9 @@ function refresh(){clearTimeout(RT);RT=setTimeout(()=>{if(!ED) return;
   if(MODE==="av"){const b=$("#avres");if(b)b.innerHTML=avResBox(avCalc(ED));}},120);}
 function onDlgInput(ev){
   const el=ev.target;if(!ED) return;
-  if(el.id==="f-paste") return;
+  if(el.id==="f-paste"){PASTE=el.value;return;}
   if(MODE==="doc"&&ro()) return;
-  if(el.dataset.ck){const [path,k]=el.dataset.ck.split("|"),a=val(path)||[];setPath(ED,path,el.checked?uniq([...a,k]):a.filter(x=>x!==k));refresh();return;}
+  if(el.dataset.ck){const [path,k]=el.dataset.ck.split("|"),a=val(path)||[];setPath(ED,path,el.checked?uniq([...a,k]):a.filter(x=>x!==k));if(MODE==="per"&&ev.type==="change"){drawDlg();return;}refresh();return;}
   if(el.dataset.st!=null){ED.steps[+el.dataset.st].t=el.value;refresh();return;}
   if(el.dataset.sk!=null){ED.steps[+el.dataset.sk].k=el.value;return;}
   if(el.dataset.tp){ED.people=el.checked?uniq([...ED.people,el.dataset.tp]):ED.people.filter(x=>x!==el.dataset.tp);return;}
@@ -764,7 +821,9 @@ function onDlgInput(ev){
   if(el.dataset.avn){ED.lines[el.dataset.avn].note=el.value;return;}
   if(!el.dataset.f) return;
   setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
-  if(ev.type==="change"&&MODE==="trn"&&(el.dataset.f==="doc"||el.dataset.f==="all")){if(el.dataset.f==="doc")ED.people=[];drawDlg();return;}
+  if(ev.type==="change"&&MODE==="trn"&&(el.dataset.f==="doc"||el.dataset.f==="all")){const x=inForce().find(y=>y.d.id===ED.doc);
+    /* only the employees still shown stay ticked */
+    ED.people=el.dataset.f==="doc"||!x?[]:ED.people.filter(id=>{const p=perById(id);return p&&p.active&&(ED.all||needs(p,x.E));});drawDlg();return;}
   if(ev.type==="change"&&MODE==="av"&&el.dataset.f==="loc"){fillLines(ED);drawDlg();return;}
   refresh();
 }
@@ -775,7 +834,7 @@ dlg.addEventListener("click",ev=>{
   if(a==="cancel"){dlg.close();return;}
   if(MODE==="doc"){
     if(a==="addstep"){ED.steps.push({t:"",k:""});drawDlg();const i=$(`[data-st="${ED.steps.length-1}"]`);if(i)i.focus();return;}
-    if(a==="paste"){const t=$("#f-paste").value.split(/\r?\n/).map(s=>s.replace(/^\s*(\d+[.)]|[-•*·])\s*/,"").trim()).filter(Boolean);if(!t.length) return;ED.steps.push(...t.map(s=>({t:s,k:""})));drawDlg();return;}
+    if(a==="paste"){const t=PASTE.split(/\r?\n/).map(s=>s.replace(/^\s*(\(?\d+(?:\.\d+)*[.)]?|\(?[a-z][.)]|[-•*·–])\s+/i,"").trim()).filter(Boolean);if(!t.length) return;ED.steps.push(...t.map(s=>({t:s,k:""})));PASTE="";drawDlg();return;}
     if(a.startsWith("sdel:")){ED.steps.splice(+a.slice(5),1);drawDlg();return;}
     if(a.startsWith("sup:")){const i=+a.slice(4);if(i>0)[ED.steps[i-1],ED.steps[i]]=[ED.steps[i],ED.steps[i-1]];drawDlg();return;}
     if(a==="save"){done(commitDoc(),"Draft saved.");return;}
@@ -783,21 +842,24 @@ dlg.addEventListener("click",ev=>{
       ED.status="approved";ED.apprDate=today();ED.lastRev=null;const err=commitDoc(`Revision ${ED.rev} approved by ${txt(ED.appr)}`);if(err){ED.status="draft";ED.apprDate="";}done(err,`Revision ${ED.rev} approved. Train the users and check the points of use.`);return;}
     if(a==="revise"){const snap=clone(ED);delete snap.revs;delete snap.log;ED.revs=[...(ED.revs||[]),snap];ED.rev+=1;ED.status="draft";ED.prep="";ED.appr="";ED.apprDate="";ED.change="";done(commitDoc(`Revision ${ED.rev} started (rev ${ED.rev-1} stays in force until it is approved)`),`Revision ${ED.rev} started.`);return;}
     if(a==="discard"){if(!confirm(`Discard the draft of revision ${ED.rev}?`)) return;const prev=ED.revs.pop(),keep={revs:ED.revs,log:ED.log,id:ED.id,lastRev:ED.lastRev};ED={...prev,...keep};done(commitDoc(`Draft of revision ${ED.rev+1} discarded`),"Draft discarded.");return;}
-    if(a==="obsolete"){const why=prompt("Reason for making this document obsolete (remove its copies from the points of use):");if(!why||!why.trim()) return;ED.status="obsolete";done(commitDoc("Made obsolete: "+why.trim()),"Made obsolete. Remove its copies from the points of use.");return;}
+    if(a==="obsolete"){const why=prompt("Reason for making this document obsolete (remove its copies from the points of use):");if(!why||!why.trim()) return;ED.status="obsolete";ED.obsDate=today();done(commitDoc("Made obsolete: "+why.trim()),"Made obsolete. Remove its copies from the points of use.");return;}
     if(a==="review"){const who=prompt(`Periodic review of ${dnoOf(ED)} rev ${ED.rev}: still right and in use, no change needed. Reviewed by:`);if(!who||!who.trim()) return;ED.lastRev={date:today(),by:who.trim()};done(commitDoc(`Reviewed by ${who.trim()}: no change`),"Review recorded.");return;}
     if(a==="delete"){if(confirm(`Delete draft ${dnoOf(ED)}? This cannot be undone.`)){DB.docs=DB.docs.filter(d=>d.id!==ED.id);DB.trn=DB.trn.filter(t=>t.doc!==ED.id);save();render();dlg.close();}return;}
-    if(a==="pdf"){const m=docPdf(ED.id?docById(ED.id)||ED:ED,true);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
-    if(a==="sign"){const m=signPdf(docById(ED.id)||ED);if(m){MSG=m;$("#dmsg").textContent=m;}return;}
+    if(a==="pdf"){const m=docPdf(ED.id?docById(ED.id)||ED:ED,true);if(m)done(m);return;}
+    if(a==="sign"){const m=signPdf(docById(ED.id)||ED);if(m)done(m);return;}
   }
   if(MODE==="loc"){
     if(a==="save"){const E=ED;if(!txt(E.name)){done("Enter the name.");return;}
       if(DB.locs.some(l=>l.id!==E.id&&up(l.name)===up(E.name))){done("A location of this name exists.");return;}
+      const was=locById(E.id),X=was&&was.active&&!E.active?inForce().filter(x=>x.E.locs.includes(E.id)):[];
+      if(X.length&&!confirm(`${plural(X.length,"document")} in force ${X.length===1?"is":"are"} kept here (${X.map(x=>dnoOf(x.d)).join(", ")}). A location not in use is no point of use: give ${X.length===1?"it":"them"} another point of use by a new revision. Set it not in use anyway?`)) return;
       if(!E.id){E.id=newId("L","l",2);DB.locs.push(E);}else DB.locs[DB.locs.findIndex(l=>l.id===E.id)]=E;ED=clone(E);save();render();done("","Saved.");return;}
     if(a==="delete"){if(confirm(`Delete ${ED.name}?`)){DB.locs=DB.locs.filter(l=>l.id!==ED.id);save();render();dlg.close();}return;}
   }
   if(MODE==="per"){
     if(a==="save"){const E=ED;if(!txt(E.name)){done("Enter the name.");return;}
       if(DB.people.some(p=>p.id!==E.id&&up(p.name)===up(E.name)&&(!txt(E.empNo)||up(p.empNo)===up(E.empNo)))){done("This employee is already listed.");return;}
+      const en=txt(E.empNo)&&!isNA(E.empNo)?DB.people.find(p=>p.id!==E.id&&up(p.empNo)===up(E.empNo)):null;if(en){done(`Employee no. ${E.empNo} is already ${en.name}'s.`);return;}
       if(isDate(E.since)&&E.since>today()){done("“In this role since” cannot be in the future.");return;}
       if(!E.id){E.id=newId("E","e",3);logIt(E,"Added");DB.people.push(E);}else{logIt(E,"Updated");DB.people[DB.people.findIndex(p=>p.id===E.id)]=E;}ED=clone(E);save();render();done("","Saved.");return;}
     if(a==="delete"){if(confirm(`Delete ${ED.name}?`)){DB.people=DB.people.filter(p=>p.id!==ED.id);save();render();dlg.close();}return;}
@@ -816,6 +878,9 @@ dlg.addEventListener("click",ev=>{
   if(MODE==="av"){
     if(a==="allok"){Object.values(ED.lines).forEach(l=>{if(!l.res)l.res="ok";});drawDlg();return;}
     if(a==="save"){const E=ED;if(!E.loc){done("Choose the location.");return;}if(!isDate(E.date)){done("Enter the date.");return;}if(E.date>today()){done("The date cannot be in the future.");return;}
+      if(!txt(E.by)){done("Enter who checked.");return;}
+      const early=Object.entries(E.lines).filter(([id,l])=>{const d=docById(id),x=d&&eff(d);return l.res&&x&&isDate(x.apprDate)&&x.apprDate>E.date;}).map(([id])=>dnoOf(docById(id)));
+      if(early.length&&!confirm(`The check date is before the revision in force of ${early.join(", ")} was approved: the check does not verify that revision. Save anyway?`)) return;
       if(!E.id){E.id=newId("AV","av");logIt(E,"Availability check recorded");DB.avs.push(E);}else{logIt(E,"Check updated");DB.avs[DB.avs.findIndex(x=>x.id===E.id)]=E;}
       ED=clone(E);save();render();const k=avCalc(E);done("",k.miss.length?"Saved. To complete: "+k.miss.join(", ")+".":"Saved.");return;}
     if(a==="delete"){if(confirm(`Delete check ${ED.id}?`)){DB.avs=DB.avs.filter(x=>x.id!==ED.id);save();render();dlg.close();}return;}
@@ -823,8 +888,9 @@ dlg.addEventListener("click",ev=>{
 });
 
 /* ---------- typical documents of a direct-fired gas pusher line (drafts to adapt) ---------- */
-const OPS_SU=["Maintenance work closed, permits returned, guards and covers fitted","Gas supply pressure and combustion air blower checked; burner safety interlocks and flame detectors tested","Furnace purged before ignition, by the burner management sequence","Control thermocouples connected, both walls of every zone read plausibly; SAT in date","Over-temperature protection set and active","SCADA recording running and its clock correct","Quench oil level, temperature, agitation and cooler ready","Pusher, doors, quench elevator and transfer tested empty","Heat-up rate of the furnace manual followed (refractory)","Set values entered from the process specification in force for the first part","All zones within tolerance and soaked before the first tray","Exhaust / flue draught and door curtains working"];
-const OPS_SD=["Production stop agreed; last batch identified in the production report","Loading stopped and the line emptied of product (or the product left inside recorded)","Burners shut down by the burner management sequence","Gas isolation valves closed (and locked where required)","Combustion air / exhaust left running as the furnace manual requires","Quench oil circulation and cooling left as the procedure requires; tank covered","Doors closed; pusher and elevator in a safe position","SCADA recording kept running until the burners were off","Handover note to maintenance / the next shift"];
+/* the Alarms page's default checklists: [text, critical] */
+const OPS_SU=[["Maintenance work closed, permits returned, guards and covers fitted",1],["Gas supply pressure and combustion air blower checked; burner safety interlocks and flame detectors tested",1],["Furnace purged before ignition, by the burner management sequence",1],["Control thermocouples connected, both walls of every zone read plausibly; SAT in date",1],["Over-temperature protection set and active",1],["SCADA recording running and its clock correct",1],["Quench oil level, temperature, agitation and cooler ready",1],["Pusher, doors, quench elevator and transfer tested empty",0],["Heat-up rate of the furnace manual followed (refractory)",0],["Set values entered from the process specification in force for the first part",1],["All zones within tolerance and soaked before the first tray",1],["Exhaust / flue draught and door curtains working",0]];
+const OPS_SD=[["Production stop agreed; last batch identified in the production report",1],["Loading stopped and the line emptied of product (or the product left inside recorded)",1],["Burners shut down by the burner management sequence",1],["Gas isolation valves closed (and locked where required)",1],["Combustion air / exhaust left running as the furnace manual requires",0],["Quench oil circulation and cooling left as the procedure requires; tank covered",0],["Doors closed; pusher and elevator in a safe position",0],["SCADA recording kept running until the burners were off",1],["Handover note to maintenance / the next shift",0]];
 const OPR=["Furnace operator","Loading operator","Unloading / quench operator","Shift supervisor"];
 const DEF_DOCS=[
   {no:"WI-HT-01",title:"Operation of the pusher furnace line",kind:"wi",topics:["general"],at:["panel"],roles:OPR.concat(["HT Engineer"]),
@@ -878,16 +944,16 @@ const DEF_DOCS=[
     steps:[["Load each part to its loading standard (Load build page): pieces, pattern, orientation, height.","quality"],["Use only trays / fixtures in use with the inspection in date; note the tags in the load check.","quality"],["Parts clean and dry: no oil, coolant, chips or paint.","quality"],["One lot per tray unless a mixed tray is planned; identify every tray with its route card.","quality"],["Record the load check of the first tray of every batch.","quality"],["At unloading empty every tray completely and check the grids for trapped parts.","quality"]],
     react:"A part that does not fit the standard, or a damaged tray: stop, inform the shift supervisor.",refs:"Loading standards · Load checks · Trap points register"}];
 /* the typical points of use, keyed as the documents above name them */
-const DEF_LOCS=fs=>[...fs.map(f=>["panel:"+f,f+" control panel",f,"paper"]),["load","Loading station","","paper"],["quench","Quench / unloading area","","paper"],["lab","Hardness laboratory","","paper"],["insp","Final inspection","","paper"],["quar","Quarantine area","","paper"],["office","HT office (master copies)","","both"]];
+const DEF_LOCS=fs=>[...fs.map(f=>["panel:"+f,f+" control panel",f,"paper"]),["load","Loading station","","paper"],["quench","Quench / unloading area","","paper"],["lab","Hardness laboratory","","paper"],["insp","Final inspection","","paper"],["quar","Quarantine area","","paper"]];
 function addDefaults(){
   const fs=furnaces(),map={};
   DEF_LOCS(fs).forEach(([k,name,f,kind])=>{let l=DB.locs.find(x=>up(x.name)===up(name));if(!l){l={id:newId("L","l",2),name,furnace:f,kind,active:true,note:""};DB.locs.push(l);}map[k]=l.id;});
   const ol=(()=>{try{const o=api("ops");return o&&o.lists?o.lists():null;}catch(e){return null;}})();
   let n=0;
   DEF_DOCS.forEach(t=>{if(DB.docs.some(d=>up(d.no)===up(t.no))) return;
-    const steps=t.ops?(ol&&ol[t.ops]&&ol[t.ops].length?ol[t.ops].map(x=>[x.t,x.crit?"crit":""]):(t.ops==="startup"?OPS_SU:OPS_SD).map(s=>[s,""])).concat(t.tail||[]):t.steps;
-    const locs=uniq(t.at.flatMap(k=>k==="panel"?fs.map(f=>map["panel:"+f]):[map[k]]).concat([map.office]).filter(Boolean));
-    const d=fixDoc({id:newId("D","d"),no:t.no,title:t.title,kind:t.kind,topics:t.topics,purpose:t.purpose,scope:t.scope,safety:t.safety,steps:steps.map(([s,k])=>({t:s,k})),react:t.react,refs:t.refs,roles:t.roles,locs,log:[{d:today(),t:"Typical document added (draft to adapt)"}]});
+    const steps=t.ops?(ol&&ol[t.ops]&&ol[t.ops].length?ol[t.ops].map(x=>[x.t,x.crit?"crit":""]):(t.ops==="startup"?OPS_SU:OPS_SD).map(([s,c])=>[s,c?"crit":""])).concat(t.tail||[]):t.steps;
+    const locs=uniq(t.at.flatMap(k=>k==="panel"?fs.map(f=>map["panel:"+f]):[map[k]]).filter(Boolean));
+    const d=fixDoc({id:newId("D","d"),no:t.no,title:t.title,kind:t.kind,topics:t.topics,file:"HT office, controlled master file",purpose:t.purpose,scope:t.scope,safety:t.safety,steps:steps.map(([s,k])=>({t:s,k})),react:t.react,refs:t.refs,roles:t.roles,locs,log:[{d:today(),t:"Typical document added (draft to adapt)"}]});
     DB.docs.push(d);n++;});
   return n;
 }
@@ -912,13 +978,13 @@ document.addEventListener("click",ev=>{
   else if(id==="b-person") openDlg("per",newPer());
   else if(id==="b-orgpeople"){const n=addOrgPeople();alert(n?`${plural(n,"person","people")} added from the HT organization page: check their roles.`:"Everybody on the HT organization page is already listed.");}
   else if(id==="b-h115"){const m=h115Pdf();if(m)alert(m);}
-  else if(id==="b-defaults"){const n=addDefaults();save();render();alert(n?`${plural(n,"typical document")} added as drafts: adapt them to the line, then approve them.`:"The typical documents are already in the register.");}
+  else if(id==="b-defaults"){const n=addDefaults();if(n&&!inForce().length)setView({df:"draft"});save();render();alert(n?`${plural(n,"typical document")} added as drafts: adapt them to the line, then approve them.`:"The typical documents are already in the register.");}
   else if(id==="b-print") window.print();
   else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("wi-theme",r.dataset.theme);}catch(err){}}
   else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
   else if(id==="b-export") download(`procedures-work-instructions-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
   else if(id==="b-import") $("#imp").click();
-  else if(id==="b-example"){if(!(DB.docs.length||DB.people.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-example"){if(!(DB.docs.length||DB.people.length||DB.locs.length||DB.avs.length||DB.trn.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
   else if(id==="b-clear"){if(confirm("Delete every document, location, check, employee and training record, and the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
 });
 /* the people of the HT organization page, with the roles their positions match */
@@ -932,13 +998,14 @@ function addOrgPeople(){
 $("#setup").addEventListener("change",ev=>{
   const el=ev.target;if(!el.dataset.set) return;const k=el.dataset.set;
   if(k==="roles"){const L=uniq(el.value.split(/\r?\n/).map(txt).filter(Boolean));S().roles=L.length?L:clone(DEF_ROLES);}
-  else if(el.type==="number"){const v=num(el.value);S()[k]=v==null||v<0?DEF[k]:v;}else S()[k]=el.value;
+  else if(LIMITS[k]){const v=fixSet(k,el.value);if(String(v)!==String(Math.round(num(el.value))))alert(`Enter a whole number of days from ${LIMITS[k][0]} to ${LIMITS[k][1]}; ${v} is used.`);S()[k]=v;}else S()[k]=el.value;
   save();render();
 });
 $("#imp").addEventListener("change",async ev=>{
   const f=ev.target.files[0];ev.target.value="";if(!f) return;
   try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a procedures and work instructions backup");
-    if(confirm(`Import ${plural(o.docs.length,"document")}, ${plural(o.people.length,"employee")} and ${plural(o.trn.length,"training record")}? This replaces the records now in this browser.`)){DB=o;save();render();}}
+    if(confirm(`Import ${plural(o.docs.length,"document")}, ${plural(o.people.length,"employee")} and ${plural(o.trn.length,"training record")}? This replaces the records now in this browser.`)){const old=DB;DB=o;
+      try{render();}catch(err){DB=old;render();throw new Error("the data could not be shown ("+err.message+"); nothing was changed");}save();}}
   catch(err){alert("Import failed: "+err.message);}
 });
 
@@ -977,17 +1044,21 @@ function xlsxBlob(sheets){
   return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 const B=cells=>({b:true,cells}),N=cells=>({cells});
+/* coverage cell text for the downloads: the documents, "not at the line" or MISSING / none */
+const covTxt=(t,f,withRev)=>{const L=docsFor(t,f),lv=TOPICS[t][1],g=topicGaps(t).find(x=>x.f===f);
+  if(L.length) return L.map(x=>dnoOf(x.d)+(withRev?" r"+x.E.rev:"")).join(", ")+(g&&g.why==="noloc"?" (no copy at the line)":"");
+  return lv==="F"||lv==="S"?"MISSING":lv?"none":"";};
 const locNames=E=>E.locs.map(l=>locById(l)?locById(l).name:l).join(", ");
 function regXlsx(){
   const A=assess115(),F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),fs=furnaces();
   const sheets=[
     {name:"HTSA 1.15",widths:[44,90,12,50],rows:[B(["HTSA 1.15 Are there procedures or work instructions available to the heat treat personnel that define the heat treating process?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
-    {name:"Coverage",widths:[36,26,...fs.map(()=>16)],rows:[B(["Topic","Requirement",...fs]),...Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>N([TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>docsFor(t,f).map(x=>dnoOf(x.d)+" r"+x.E.rev).join(", ")||(["F","S"].includes(TOPICS[t][1])&&!(TOPICS[t][1]==="S"&&docsFor(t).length)?"MISSING":""))]))]},
+    {name:"Coverage",widths:[36,26,...fs.map(()=>16)],rows:[B(["Topic","Requirement",...fs]),...Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>N([TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>covTxt(t,f,true))]))]},
     {name:"Documents",widths:[13,5,12,36,20,40,22,22,40,40,16,13,16,13],rows:[B(["Document","Rev","Status","Title","Kind","Covers","Furnaces","Processes","Used by","Kept at","Approved by","Approved","Language","Review due"]),
       ...DB.docs.slice().sort((a,b)=>dnoOf(a).localeCompare(dnoOf(b))).map(d=>{const E=eff(d)||d,r=review(d);return N([dnoOf(d),E.rev,d.status==="draft"&&eff(d)?`rev ${E.rev} in force, rev ${d.rev} draft`:DOC_ST[d.status][2],E.title,KINDS[E.kind],E.topics.map(t=>TOPICS[t]?TOPICS[t][0]:t).join(", "),E.furnaces.join(", ")||"All",E.procs.map(p=>PROC[p]).join(", ")||"All",E.roles.join(", "),locNames(E),E.appr,fdate(E.apprDate),E.lang,r.due?fdate(r.due):""]);})]},
     {name:"Steps",widths:[13,5,5,90,14],rows:[B(["Document","Rev","No.","Step","Key point"]),...F.flatMap(x=>x.E.steps.map((s,i)=>N([dnoOf(x.d),x.E.rev,i+1,s.t,STEPK[s.k]==="—"?"":STEPK[s.k]])))]},
     {name:"Points of use",widths:[30,10,18,13,13,40],rows:[B(["Location","Furnace","Kind","Last check","Next check","Documents (state)"]),...DB.locs.map(l=>{const s=locState(l);return N([l.name+(l.active?"":" (not in use)"),l.furnace,LOCK[l.kind],s.C?fdate(s.C.date):"never",s.due?fdate(s.due):"",s.X.map(x=>dnoOf(x.d)+" r"+x.E.rev+": "+AVST[avState(x.d,l.id).st][2]).join(" | ")]);})]},
-    {name:"Availability checks",widths:[10,12,7,26,18,70,16],rows:[B(["Check","Date","Time","Location","Checked by","Findings","Result"]),...DB.avs.slice().sort(byDT).map(a=>{const k=avCalc(a),l=locById(a.loc);return N([a.id,fdate(a.date),a.time,l?l.name:a.loc,a.by,k.F.map(f=>f.t).join(" | ")||"all present, current revision",AVCHK[k.lvl][2]]);})]},
+    {name:"Availability checks",widths:[10,12,7,26,18,70,16],rows:[B(["Check","Date","Time","Location","Checked by","Findings","Result"]),...DB.avs.slice().sort(byDT).map(a=>{const k=avCalc(a),l=locById(a.loc);return N([a.id,fdate(a.date),a.time,l?l.name:a.loc,a.by,k.F.map(f=>f.t).join(" | ")||`${Object.values(a.lines).filter(x=>x.res==="ok").length} present, current revision${Object.values(a.lines).some(x=>!x.res)?"; "+Object.values(a.lines).filter(x=>!x.res).length+" not answered":""}`,AVCHK[k.lvl][2]]);})]},
     {name:"Training matrix",widths:[24,30,...F.map(()=>12)],rows:[B(["Employee","Roles",...F.map(x=>dnoOf(x.d)+" r"+x.E.rev)]),...DB.people.filter(p=>p.active).map(p=>N([p.name,p.roles.join(", "),...F.map(x=>{const s=trnState(p,x.d);return s.st==="ok"?"trained "+fdate(s.t.date):s.st==="na"?"":s.st==="due"?"due "+fdate(s.due):"LATE since "+fdate(s.due);})]))]},
     {name:"Training records",widths:[10,12,24,13,5,22,22,40],rows:[B(["Record","Date","Employee","Document","Rev","Method","Trainer","Note"]),...DB.trn.slice().sort((a,b)=>a.date<b.date?-1:1).map(t=>{const p=perById(t.person),d=docById(t.doc);return N([t.id,fdate(t.date),p?p.name:t.person,d?dnoOf(d):t.doc,t.rev,t.method,t.by,t.note]);})]},
     {name:"Employees",widths:[24,12,40,13,14,10],rows:[B(["Employee","Emp. no.","Roles","In role since","Reads","Active"]),...DB.people.map(p=>N([p.name,p.empNo,p.roles.join(", "),fdate(p.since),p.lang,p.active?"yes":"no"]))]}];
@@ -1043,7 +1114,7 @@ function h115Pdf(){
   const A=assess115(),sc=SCORE[A.score],F=inForce().sort((a,b)=>dnoOf(a.d).localeCompare(dnoOf(b.d))),fs=furnaces();
   return popup(ascii(`HTSA 1-15 evidence ${today()}`),`<h1>HTSA 1.15 · Procedures and work instructions</h1><p class="sub">${esc(S().plant)} · evidence · ${fdate(today())}</p>
   <p>Assessment: <span class="res-${A.score}">${esc(sc[1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
-  <h2>What the documents cover</h2>${tblH(["Topic","Requirement",...fs],Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>[TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>docsFor(t,f).map(x=>dnoOf(x.d)).join(", ")||(["F","S"].includes(TOPICS[t][1])&&!(TOPICS[t][1]==="S"&&docsFor(t).length)?"MISSING":"—"))]))}
+  <h2>What the documents cover</h2>${tblH(["Topic","Requirement",...fs],Object.keys(TOPICS).filter(t=>TOPICS[t][1]||docsFor(t).length).map(t=>[TOPICS[t][0],REQTXT[TOPICS[t][1]],...fs.map(f=>covTxt(t,f,false)||"—")]))}
   <h2>Documents in force</h2>${tblH(["Document","Rev","Title","Approved","Used by","Kept at","Review due"],F.map(x=>[dnoOf(x.d),x.E.rev,x.E.title,fdate(x.E.apprDate)+" "+x.E.appr,x.E.roles.join(", "),locNames(x.E),fdate(review(x.d).due)]))}
   <h2>Points of use</h2>${tblH(["Location","Last check","Documents"],DB.locs.filter(l=>l.active).map(l=>{const s=locState(l);return [l.name,s.C?fdate(s.C.date)+" "+s.C.by:"never",s.X.map(x=>dnoOf(x.d)+" r"+x.E.rev+": "+AVST[avState(x.d,l.id).st][2]).join("; ")];}))}
   <h2>Employees: read and understood</h2>${tblH(["Employee","Roles",...F.map(x=>dnoOf(x.d))],people().map(p=>[p.name,p.roles.join(", "),...F.map(x=>{const s=trnState(p,x.d);return s.st==="ok"?"✓ "+fdate(s.t.date):s.st==="na"?"–":s.st==="due"?"due":"LATE";})]))}`);
@@ -1090,16 +1161,16 @@ if(HTQ){
       people:P.length,late:P.filter(p=>F.some(x=>trnState(p,x.d).st==="late")).length,due:P.filter(p=>F.some(x=>trnState(p,x.d).st==="due")).length};},
     counts:()=>{const A=assess115();return {crit:A.I.filter(i=>i.lvl==="crit").length,warn:A.I.filter(i=>i.lvl==="warn").length,score:A.score};},
     /* the documents in force for a topic (and furnace), e.g. the start-up instruction for the Alarms page */
-    docsFor:(topic,f)=>docsFor(topic,f).map(x=>({id:x.d.id,no:dnoOf(x.d),rev:x.E.rev,title:x.E.title}))
+    docsFor:(topic,f,day)=>docsFor(topic,f,day).map(x=>({id:x.d.id,no:dnoOf(x.d),rev:x.E.rev,title:x.E.title}))
   });
   HTQ.on("nav:wi",o=>{if(!o) return;if(o.doc){const d=docById(o.doc);if(d)openDlg("doc",clone(d));}if(o.person){const p=perById(o.person);if(p)openDlg("per",clone(p));}});
-  ["sat:ready","org:ready","org:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)render();}));
+  ["sat:ready","sat:changed","org:ready","org:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)render();}));
 }
 
 /* ---------- start ---------- */
 try{const th=localStorage.getItem("wi-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
 render();
 if(!DB.docs.length&&!DB.people.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
-window.__WI={get DB(){return DB;},assess115,eff,review,missingDoc,docsFor,topicGaps,avState,avCalc,locState,trnState,needs,inForce,addDefaults,openDlg,newDoc,newAv,newTrn,newPer};
+window.__WI={get DB(){return DB;},assess115,eff,effAt,actLocs,clash,review,missingDoc,docsFor,topicGaps,avState,avCalc,locState,trnState,needs,inForce,addDefaults,openDlg,newDoc,newAv,newTrn,newPer};
 </script>
 </body></html>
