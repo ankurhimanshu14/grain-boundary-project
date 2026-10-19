@@ -389,7 +389,7 @@ function renderHome(){
   const cpa=HTQ.api("cpf"), CP=cpa?cpa.overview():null;
   const opa=HTQ.api("ops"), OP=opa?opa.overview():null;
   const lba=HTQ.api("load"), LB=lba?lba.overview():null;
-  const ora=HTQ.api("org"), OR=ora?ora.overview():null;
+  const ora=HTQ.api("org"), OR=ora?ora.overview():null, H117=ora&&ora.htsa117?ora.htsa117():null;
   const S16=spa&&spa.htsa16?spa.htsa16():null;
   const tpa=HTQ.api("trap"), TP=tpa?tpa.overview():null, H25=tpa?tpa.htsa25():null;
   const wia=HTQ.api("wi"), WI=wia?wia.overview():null, H115=wia?wia.htsa115():null;
@@ -486,6 +486,9 @@ function renderHome(){
     CP.late.forEach(x=>att.push({lvl:"crit",o:4,txt:`<b>${esc(x.doc)}</b> step ${esc(x.step)} “${esc(x.mode)}”: PFMEA action past its target date ${fd(x.due)}${x.owner?" ("+esc(x.owner)+")":""}`,btn:`<button class="nb" data-cpf="${esc(x.doc)}">Open</button>`}));
     CP.docs.forEach(d=>d.issues.filter(i=>!/actions? past the target date/.test(i[1])).forEach(i=>att.push({lvl:i[0]==="crit"?"crit":"warn",o:7,txt:`<b>${esc(d.id)}</b> ${d.kind==="pfmea"?"PFMEA":"control plan"}${d.part?" "+esc(d.part):""}: ${esc(i[1])}`,btn:`<button class="nb" data-cpf="${esc(d.id)}">Open</button>`})));
   }
+  if(H117){
+    H117.items.forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?2:7,txt:`<b>HTSA 1.17 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="org">HT organization</button>`}));
+  }
   if(OR){
     OR.items.forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?0:6,txt:`<b>HTSA 1.1 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="org">HT organization</button>`}));
   }
@@ -556,7 +559,7 @@ function renderHome(){
       ${PR?(()=>{const d=new Date(Date.now()-864e5),y=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),L=PR.filter(r=>r.date===y),kg=L.reduce((a,r)=>a+r.rows.reduce((b,x)=>b+(x.kg||0),0),0),nb=L.reduce((a,r)=>a+r.rows.length,0),dr=prodDrafts().length;
         return tile(L.length?Math.round(kg).toLocaleString("en-IN")+'<small style="font-size:16px"> kg</small>':"—","Production yesterday",`${nb} batch${nb===1?"":"es"} in ${L.length} report${L.length===1?"":"s"} · ${dr} report${dr===1?"":"s"} of earlier days not approved`,dr?"warn":"");})():""}
       ${CP?(()=>{const inF=CP.docs.filter(d=>d.status==="approved"||d.rev>0).length,dr=CP.docs.filter(d=>d.status==="draft").length;return tile(inF,"Control plans & PFMEA",`in force · ${dr} draft${dr===1?"":"s"} · ${CP.apH} AP-High row${CP.apH===1?"":"s"} open`,CP.late.length?"bad":CP.apH||dr?"warn":"");})():""}
-      ${OR||S16||H18||H19||H111||H115||H25?(()=>{const Q=[OR&&["1.1",OR],S16&&["1.6",S16],H18&&["1.8",H18],H19&&["1.9",H19],H111&&["1.11",H111],H115&&["1.15",H115],H25&&["2.5",H25]].filter(Boolean),rank={s:0,ns:1,nia:2},w=Q.reduce((a,[,x])=>rank[x.score]>rank[a.score]?x:a,Q[0][1]);
+      ${OR||S16||H18||H19||H111||H115||H117||H25?(()=>{const Q=[OR&&["1.1",OR],S16&&["1.6",S16],H18&&["1.8",H18],H19&&["1.9",H19],H111&&["1.11",H111],H115&&["1.15",H115],H117&&["1.17",H117],H25&&["2.5",H25]].filter(Boolean),rank={s:0,ns:1,nia:2},w=Q.reduce((a,[,x])=>rank[x.score]>rank[a.score]?x:a,Q[0][1]);
         return tile(`<span style="font-size:22px">${esc(w.label)}</span>`,"HTSA self-assessment",Q.map(([q,x])=>`${q} ${esc(x.label.toLowerCase())}`).join(" · ")+(OR&&OR.person?` · HT person ${esc(OR.person.name)}`:""),w.score==="s"?"ok":w.score==="ns"?"warn":"bad");})():""}
       ${WI?tile(WI.inForce,"Procedures & WIs",`in force · ${WI.reviewOver} review${WI.reviewOver===1?"":"s"} overdue · ${WI.locBad} point${WI.locBad===1?"":"s"} of use not current · ${WI.late} employee${WI.late===1?"":"s"} late on training`,WI.locBad||WI.late||!WI.inForce?"bad":WI.reviewOver||WI.locCheck||WI.due||WI.drafts?"warn":"ok"):""}
       ${LB?(()=>{const n=LB.overdue+LB.lifeOver+LB.open.length;return tile(n,"Load build & fixtures",`${LB.overdue} inspection${LB.overdue===1?"":"s"} overdue · ${LB.lifeOver} past life · ${LB.open.length} load check${LB.open.length===1?"":"s"} not OK · ${LB.unchecked.length} batch${LB.unchecked.length===1?"":"es"} unchecked`,n?"bad":LB.unchecked.length||LB.never||LB.noStd.length?"warn":"ok");})():""}
@@ -680,9 +683,9 @@ function badgeLoad(){
 }
 /* HT organization badge: HTSA 1.1 items not met */
 function badgeOrg(){
-  const b=$("#badge-org"), api=HTQ.api("org"), c=api?api.counts():{crit:0,warn:0}, sp=HTQ.api("spec"), c16=sp&&sp.htsa16?sp.htsa16().crit:0, n=c.crit+c16;
+  const b=$("#badge-org"), api=HTQ.api("org"), c=api?api.counts():{crit:0,warn:0}, sp=HTQ.api("spec"), c16=sp&&sp.htsa16?sp.htsa16().crit:0, c117=api&&api.htsa117?api.htsa117().crit:0, n=c.crit+c16+c117;
   b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":"");
-  b.title=[c.crit&&c.crit+" HTSA 1.1 item"+(c.crit>1?"s":"")+" not met",c16&&c16+" HTSA 1.6 item"+(c16>1?"s":"")+" not met"].filter(Boolean).join(", ");
+  b.title=[c.crit&&c.crit+" HTSA 1.1 item"+(c.crit>1?"s":"")+" not met",c16&&c16+" HTSA 1.6 item"+(c16>1?"s":"")+" not met",c117&&c117+" HTSA 1.17 item"+(c117>1?"s":"")+" not met"].filter(Boolean).join(", ");
 }
 ["org:ready","org:changed","spec:ready","spec:changed","prod:changed"].forEach(ev=>HTQ.on(ev,badgeOrg));
 HTQ.on("load:ready",badgeLoad); HTQ.on("load:changed",badgeLoad); HTQ.on("prod:changed",badgeLoad);

@@ -257,6 +257,18 @@ table.rows td{vertical-align:top}
   </section>
 
   <section class="panel">
+    <div class="sec-head"><h2>HTSA 1.17 · Key management and supervisory functions</h2><p>The key functions in regards to heat treatment, their primary and backup people and their qualification. Confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
+    <div class="req-q"><b>1.17 Are all key management and supervisory functions (in regards to heat treatment) performed by qualified personnel?</b>
+      <ul><li>The organization shall define and document key management and supervisory functions in regards to heat treatment.</li><li>This documentation shall clearly identify both primary and secondary (backup) personnel.</li><li>This information shall be readily available to appropriate personnel.</li></ul></div>
+    <div class="score" id="score117"></div>
+    <div class="scroll" id="assess117"></div>
+    <h3 style="margin:16px 0 6px">Key functions, primary and backup</h3>
+    <p class="muted" id="keyNote" style="margin:0 0 8px;font-size:13px"></p>
+    <div class="actions noprint" style="margin-bottom:8px"><button class="btn small" id="b-keylist">Issue the key function list…</button><button class="btn ghost small" id="b-keypdf">Key function list (PDF)</button></div>
+    <div class="scroll" id="keys"></div>
+  </section>
+
+  <section class="panel">
     <div class="sec-head"><h2>Organization chart</h2><p id="chartNote"></p>
       <div class="actions noprint"><button class="btn ghost small" id="b-chart">Approve organization chart…</button></div></div>
     <div class="tree" id="tree"></div>
@@ -338,12 +350,14 @@ const EMP={full:"Full-time",part:"Part-time",contract:"Contract / consultant"};
 const SITE={on:"On site",off:"Off site / other location"};
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",minYears:5,reviewDays:365};
 const blankJd=()=>({rev:0,status:"draft",purpose:"",resp:"",auth:"",edu:"",knowledge:"",minYears:"",other:"",prep:"",appr:"",apprDate:"",change:"",revs:[]});
-const blank=()=>({v:1,settings:{...DEF},positions:[],people:[],chart:{rev:0,apprDate:"",appr:"",dirty:false,log:[]},seq:{pos:1,p:1}});
+const blank=()=>({v:1,settings:{...DEF},positions:[],people:[],chart:{rev:0,apprDate:"",appr:"",dirty:false,log:[]},keyList:{rev:0,date:"",by:"",where:"",dirty:false,log:[],snap:[]},seq:{pos:1,p:1}});
 const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.positions)||!Array.isArray(o.people)) return null;
   o.settings={...DEF,...(o.settings&&typeof o.settings==="object"?o.settings:{})};
-  o.positions=o.positions.filter(p=>p&&p.id).map(p=>({title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,specAuth:false,log:[],...p,jd:{...blankJd(),...(p.jd||{})}}));
+  o.positions=o.positions.filter(p=>p&&p.id).map(p=>({title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,specAuth:false,key:false,qa:{},log:[],...p,jd:{...blankJd(),...(p.jd||{})}}));
+  o.positions.forEach(p=>{if(!p.qa||typeof p.qa!=="object"||Array.isArray(p.qa)) p.qa={};});
+  o.keyList={rev:0,date:"",by:"",where:"",dirty:false,log:[],snap:[],...(o.keyList&&typeof o.keyList==="object"?o.keyList:{})};if(!Array.isArray(o.keyList.log)) o.keyList.log=[];
   o.people=o.people.filter(p=>p&&p.id).map(p=>({name:"",empNo:"",employment:"full",site:"on",joined:"",htHere:true,edu:[],exp:[],trn:[],notes:"",log:[],...p}));
   o.chart={rev:0,apprDate:"",appr:"",dirty:false,log:[],...(o.chart||{})};
   const s=o.seq&&typeof o.seq==="object"?o.seq:{};
@@ -380,12 +394,12 @@ function mergedMonths(entries){
   return tot;
 }
 const hereEntry=p=>p.htHere!==false&&isDate(p.joined)&&p.joined<=today()?{org:"this organization",from:p.joined.slice(0,7),to:"",ht:true}:null;
-function qual(p){
+function qual(p,minY){
   /* every entry counts: a reference to a certificate or letter is optional (the user's request: no mandatory upload of certificates) */
   /* the service in this organization since "Joined" counts as heat treat experience when it is heat treat work (htHere), merged with the experience entries (an entry for this organization over the same months counts once) */
   const here=hereEntry(p),htE=[...p.exp.filter(e=>e.ht),...(here?[here]:[])],ht=mergedMonths(htE)/12,htClaim=ht,hereY=here?mergedMonths([here])/12:0;
   const metE=p.edu.filter(e=>e.met),edu=metE.reduce((a,e)=>a+(num(e.years)||0),0),eduClaim=edu;
-  const min=MIN(),p1=ht>=min,p2=ht>0&&edu>0&&ht+edu>=min;
+  const min=minY??MIN(),p1=ht>=min,p2=ht>0&&edu>0&&ht+edu>=min;
   const noEv=[];
   const bad=p.exp.filter(e=>isMonth(e.from)&&isMonth(e.to)&&e.to<e.from).length;
   return {ht,edu,htClaim,eduClaim,hereY,qualified:p1||p2,path:p1?`${yrs(ht)} heat treat experience (minimum ${min})`:p2?`${yrs(edu)} metallurgical education + ${yrs(ht)} heat treat experience = ${yrs(edu+ht)} (minimum ${min})`:"",
@@ -461,6 +475,43 @@ function assess(){
   const score=vacant||(per&&q&&!q.qualified)?"nia":crit.length?"ns":"s";
   return {I,score,p,per,q};
 }
+/* ---------- HTSA 1.17: key management and supervisory functions (in regards to heat treatment) ---------- */
+/* a key function: a position marked "key" (the heat treat position always is); primary = holder, secondary (backup) = deputy */
+const keyPos=()=>DB.positions.filter(p=>p.key||p.ht).sort((a,b)=>(b.ht-a.ht)||a.title.localeCompare(b.title));
+/* qualified for a function: the experience / education of the person meets the minimum years of the function's job description in force,
+   or the qualification for the function is confirmed (by whom, when) on the position — e.g. for functions where the years alone do not say it */
+function qualFor(pos,per){
+  if(!per) return {ok:false,why:"nobody named"};
+  const e=jdEff(pos),min=e?num(e.minYears):null,c=pos.qa&&pos.qa[per.id];
+  const conf=c&&txt(c.by)&&isDate(c.date)&&up(c.by)!==up(per.name);
+  if(min!=null){const q=qual(per,min);if(q.qualified) return {ok:true,why:`${q.path}`};if(conf) return {ok:true,why:`confirmed by ${c.by} on ${fdate(c.date)}${c.note?" ("+c.note+")":""}`};return {ok:false,why:q.short};}
+  if(conf) return {ok:true,why:`confirmed by ${c.by} on ${fdate(c.date)}${c.note?" ("+c.note+")":""}`};
+  return {ok:false,why:e?"the job description states no minimum years and the qualification is not confirmed":"no approved job description stating the qualification"};
+}
+const up=v=>txt(v).toUpperCase();
+/* the current content of the key function list, to compare with the issued one */
+const keySnap=()=>keyPos().map(p=>({title:p.title,primary:pname(p.holder),backup:pname(p.deputy)}));
+const keyChanged=()=>JSON.stringify(keySnap())!==JSON.stringify(DB.keyList.snap||[]);
+function assess117(){
+  const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),K=keyPos(),kl=DB.keyList;
+  add(K.length?"ok":"crit","Key management and supervisory functions defined",K.length?`${plural(K.length,"key function")}: ${K.map(p=>p.title).join(", ")}.`:"No position is marked as a key management or supervisory function in regards to heat treatment.",K.length?"":"Mark the key functions on the positions (e.g. HT Manager, Production Manager, Quality Manager, Maintenance Head, shift supervisors, laboratory in-charge).");
+  if(K.length){
+    const noJd=K.filter(p=>!jdEff(p));
+    add(noJd.length?"crit":"ok","Documented: job description of each key function",noJd.length?`No approved job description: ${noJd.map(p=>p.title).join(", ")}.`:`Each key function has an approved job description (purpose, responsibilities, authority, qualification).`,noJd.length?"Approve the job descriptions of these functions.":"");
+    const noP=K.filter(p=>!perById(p.holder)),noB=K.filter(p=>!perById(p.deputy)),same=K.filter(p=>p.holder&&p.holder===p.deputy);
+    add(noP.length||noB.length||same.length?"crit":"ok","Primary and secondary (backup) personnel identified",noP.length||noB.length||same.length?[noP.length?`No primary: ${noP.map(p=>p.title).join(", ")}.`:"",noB.length?`No backup: ${noB.map(p=>p.title).join(", ")}.`:"",same.length?`Backup is the primary: ${same.map(p=>p.title).join(", ")}.`:""].filter(Boolean).join(" "):K.map(p=>`${p.title}: ${pname(p.holder)} / ${pname(p.deputy)}`).join("; ")+".",
+      noP.length||noB.length||same.length?"Name the primary and the backup of every key function.":"");
+    const unq=[];K.forEach(p=>[["primary",p.holder],["backup",p.deputy]].forEach(([r,id])=>{const per=perById(id);if(per){const q=qualFor(p,per);if(!q.ok) unq.push(`${p.title} ${r} ${per.name} (${q.why})`);}}));
+    add(unq.length?"crit":"ok","Functions performed by qualified personnel",unq.length?`Not qualified for the function: ${unq.join("; ")}.`:"Every primary and backup meets the qualification of the function's job description (or the qualification is confirmed).",unq.length?"Qualify these people (training, experience), confirm the qualification with the reason, or name a qualified person.":"");
+    const chg=keyChanged();
+    add(!kl.date?"crit":chg?"warn":!txt(kl.where)?"crit":"ok","Readily available to appropriate personnel",!kl.date?"The key function list has not been issued.":`Key function list rev ${kl.rev}, issued ${fdate(kl.date)} by ${kl.by}${kl.where?`; available at: ${kl.where}`:"; where it is available is not recorded"}${HTQ?"; also on this CALOR page":""}.${chg?" Key functions or their people changed since: issue the list again.":""}`,
+      !kl.date?"Issue the key function list (“Issue the key function list…”) and post it where the people need it.":chg?"Issue the updated key function list.":!txt(kl.where)?"Record where the list is available.":"");
+  }
+  const crit=I.filter(i=>i.lvl==="crit");
+  return {I,score:!K.length||K.some(p=>!perById(p.holder))?"nia":crit.length?"ns":"s",K};
+}
+/* the people of the key functions (used by the Data review page: qualified personnel as per 1.17) */
+const keyPeople=()=>keyPos().flatMap(p=>[["primary",p.holder],["backup",p.deputy]].map(([role,id])=>{const per=perById(id);return per?{name:per.name,position:p.title,role,qualified:qualFor(p,per).ok}:null;}).filter(Boolean));
 const SCORE={s:["good","Satisfactory"],ns:["warn","Not satisfactory"],nia:["crit","Needs immediate action"]};
 const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","✕","Not met"],info:["info","i","Note"]};
 
@@ -468,7 +519,7 @@ const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","�
 function render(){
   $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(DB.positions.length,"position")} · ${plural(DB.people.length,"person","people")}</span><span>Today ${fdate(today())}</span>`;
   $("#q-min").textContent=$("#q-min2").textContent=MIN();
-  drawSec1();drawAssess();drawWho();drawTree();drawPositions();drawPeople();drawSettings();
+  drawSec1();drawAssess();drawWho();draw117();drawTree();drawPositions();drawPeople();drawSettings();
 }
 function drawSec1(){
   const A=assess(),sp=HTQ&&HTQ.api("spec"),s16=sp&&sp.htsa16?(()=>{try{return sp.htsa16();}catch(e){return null;}})():null,tp=HTQ&&HTQ.api("trap"),s25=tp&&tp.htsa25?(()=>{try{return tp.htsa25();}catch(e){return null;}})():null,wi=HTQ&&HTQ.api("wi"),s115=wi&&wi.htsa115?(()=>{try{return wi.htsa115();}catch(e){return null;}})():null,tr=HTQ&&HTQ.api("trend"),s18=tr&&tr.htsa18?(()=>{try{return tr.htsa18();}catch(e){return null;}})():null,mo=HTQ&&HTQ.api("mon"),s19=mo&&mo.htsa19?(()=>{try{return mo.htsa19();}catch(e){return null;}})():null,rk=HTQ&&HTQ.api("rwk"),s111=rk&&rk.htsa111?(()=>{try{return rk.htsa111();}catch(e){return null;}})():null;
@@ -480,7 +531,21 @@ function drawSec1(){
     ${row("1.9","Monitoring system reviewed by qualified personnel every 24 hours",s19?s19.score:null,HTQ?"Data review page":"Data review page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-mon="1">Data review</button>`:"")}
     ${row("1.11","Documented procedure for the rework / reprocessing of parts",s111?s111.score:null,HTQ?"Rework page":"Rework page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-rwk="1">Rework</button>`:"")}
     ${row("1.15","Procedures and work instructions available to the heat treat personnel",s115?s115.score:null,HTQ?"Procedures & WIs page":"Procedures & WIs page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-wi="1">Procedures &amp; WIs</button>`:"")}
+    ${row("1.17","Key management and supervisory functions performed by qualified personnel",assess117().score,"this page (below)","")}
     ${row("2.5","Trap points identified and monitored at every lot changeover",s25?s25.score:null,HTQ?"Trap points page":"Trap points page (open it inside CALOR to see the result here)",HTQ?`<button class="btn ghost small" data-go-trap="1">Trap points</button>`:"")}</tbody></table>`;
+}
+function draw117(){
+  const A=assess117(),sc=SCORE[A.score],kl=DB.keyList;
+  $("#score117").innerHTML=`<span class="big ${sc[0]}">${sc[1]}</span><span class="muted">${plural(A.I.filter(i=>i.lvl==="ok").length,"item")} met · ${plural(A.I.filter(i=>i.lvl==="crit").length,"item")} not met · ${plural(A.I.filter(i=>i.lvl==="warn").length,"item")} needing attention</span>`;
+  $("#assess117").innerHTML=`<table class="log cards"><thead><tr><th>Requirement</th><th>Evidence in this register</th><th>Result</th><th>Action</th></tr></thead><tbody>${A.I.map(i=>`<tr><td data-label="Requirement"><b>${esc(i.req)}</b></td><td data-label="Evidence">${esc(i.ev)}</td><td data-label="Result">${chip(...LV[i.lvl])}</td><td data-label="Action">${esc(i.act||"—")}</td></tr>`).join("")}</tbody></table>`;
+  $("#keyNote").innerHTML=`Mark a position as a key function on the position (“Key management / supervisory function”); the heat treat position always is one. The holder is the primary, the deputy the backup. ${kl.date?`Key function list rev ${kl.rev} issued ${fdate(kl.date)} by ${esc(kl.by)}${kl.where?" · available at "+esc(kl.where):""}${keyChanged()?' · <span class="caution">changed since: issue it again</span>':""}.`:'<span class="caution">The key function list has not been issued yet.</span>'}`;
+  if(!A.K.length){$("#keys").innerHTML=`<div class="empty">No key function marked yet.</div>`;return;}
+  const cell=(p,id,r)=>{const per=perById(id);if(!per) return `<span class="bad">no ${r}</span>`;const q=qualFor(p,per);return `<div><b>${esc(per.name)}</b><br>${q.ok?chip("good","✓","Qualified"):chip("crit","✕","Not qualified")}<br><span class="muted small">${esc(q.why)}</span></div>`;};
+  $("#keys").innerHTML=`<table class="log cards"><thead><tr><th>Key function</th><th>Primary</th><th>Secondary (backup)</th><th>Job description</th><th class="noprint"></th></tr></thead><tbody>${A.K.map(p=>`<tr>
+    <td data-label="Key function"><b>${esc(p.title)}</b>${p.ht?" "+chip("info","★","Heat treat position"):""}<br><span class="kind">${esc(p.dept||"")}</span></td>
+    <td data-label="Primary">${cell(p,p.holder,"primary")}</td><td data-label="Backup">${cell(p,p.deputy,"backup")}</td>
+    <td data-label="Job description">${jdChip(p)}${jdEff(p)&&num(jdEff(p).minYears)!=null?`<br><span class="muted small">minimum ${num(jdEff(p).minYears)} years</span>`:""}</td>
+    <td class="act noprint"><button class="btn ghost small" data-open-pos="${esc(p.id)}">Open</button></td></tr>`).join("")}</tbody></table>`;
 }
 function drawAssess(){
   const A=assess(),sc=SCORE[A.score];
@@ -555,7 +620,7 @@ const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),
   return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
 function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;drawDlg();if(!dlg.open)dlg.showModal();}
 function drawDlg(){dlg.innerHTML=MODE==="pos"?dlgPos():dlgPer();}
-function newPos(){return {id:"",title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,log:[],jd:blankJd()};}
+function newPos(){return {id:"",title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,key:false,qa:{},log:[],jd:blankJd()};}
 function dlgPos(){
   const E=ED,ro=jdLocked(),m=jdMissing(E),eff=E.id?jdEff(posById(E.id)||E):null;
   const others=DB.positions.filter(p=>p.id!==E.id).map(p=>[p.id,p.title]),people=DB.people.map(p=>[p.id,p.name]);
@@ -565,7 +630,8 @@ function dlgPos(){
       ${fld("title","Position title",{req:true})}${fld("dept","Department")}${fld("reportsTo","Reports to",{opts:others})}
       ${fld("holder","Holder",{opts:people,hint:people.length?"":"Add the person first (Add person)."})}${fld("deputy","Deputy (covers absences)",{opts:people})}
       ${fld("fte","Position is",{opts:[["full","Full-time"],["part","Part-time"]],blank:false})}${fld("site","Location",{opts:Object.entries(SITE),blank:false})}
-      <div class="field span">${fld("ht","",{type:"check",text:"This is the heat treat position (HTSA 1.1): the dedicated and qualified heat treat person on site"})}${fld("dedicated","",{type:"check",text:"Heat treatment is the main duty of this position (dedicated)"})}${fld("specAuth","",{type:"check",text:"Authorized to establish and approve process specifications (HTSA 1.6; the heat treat position always is; holder and deputy)"})}</div></div></section>
+      <div class="field span">${fld("ht","",{type:"check",text:"This is the heat treat position (HTSA 1.1): the dedicated and qualified heat treat person on site"})}${fld("key","",{type:"check",text:"Key management / supervisory function in regards to heat treatment (HTSA 1.17; the heat treat position always is one)"})}${fld("dedicated","",{type:"check",text:"Heat treatment is the main duty of this position (dedicated)"})}${fld("specAuth","",{type:"check",text:"Authorized to establish and approve process specifications (HTSA 1.6; the heat treat position always is; holder and deputy)"})}</div></div></section>
+    ${E.key||E.ht?qaBox(E):""}
     <section class="stage" style="--k:var(--d)"><h3>Job description <small>${E.jd.rev>0?"Revision "+E.jd.rev:"Controlled document"} · ${E.jd.status==="approved"?"approved, locked":"draft"}</small></h3><div class="fgrid">
       ${fld("jd.purpose","Purpose of the position",{type:"textarea",req:true,span:true,ro})}${fld("jd.resp","Responsibilities",{type:"textarea",req:true,span:true,ro})}${fld("jd.auth","Authority (e.g. stop the line, release product, approve recipes)",{type:"textarea",span:true,ro})}
       ${fld("jd.edu","Required education",{type:"textarea",req:true,span:true,ro,hint:"e.g. B.E. / B.Tech in Metallurgical Engineering, or diploma with experience"})}
@@ -610,6 +676,14 @@ function dlgPer(){
     ${E.id&&!DB.positions.some(p=>p.holder===E.id||p.deputy===E.id)?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
     <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button></div>`;
 }
+/* HTSA 1.17: qualification of the primary and the backup for this key function */
+function qaBox(E){
+  const L=[["Primary (holder)",E.holder],["Secondary (backup, deputy)",E.deputy]].filter(([,id])=>perById(id));
+  if(!L.length) return `<section class="stage" style="--k:var(--c)"><h3>Key function <small>HTSA 1.17</small></h3><p class="bad" style="margin:0">Name the holder (primary) and the deputy (backup).</p></section>`;
+  return `<section class="stage" style="--k:var(--c)"><h3>Key function: qualification of the primary and the backup <small>HTSA 1.17 · from the job description's minimum years, or confirmed here</small></h3>${L.map(([lab,id])=>{const per=perById(id),q=qualFor(E,per);
+    return `<div class="fgrid" style="margin-bottom:8px"><div class="field span"><label>${esc(lab)}: ${esc(per.name)}</label><span>${q.ok?chip("good","✓","Qualified"):chip("crit","✕","Not qualified")} <span class="muted small">${esc(q.why)}</span></span></div>
+      ${fld(`qa.${id}.by`,"Qualification confirmed by",{hint:"Only when the years alone do not show it; not the person themselves"})}${fld(`qa.${id}.date`,"On",{type:"date"})}${fld(`qa.${id}.note`,"Basis (training, assessment, experience)",{span:true})}</div>`;}).join("")}</section>`;
+}
 const qBox=q=>`<b>Heat treat experience</b><span>${yrs(q.ht)}${q.hereY?` <span class="muted">(incl. ${yrs(q.hereY)} in this organization)</span>`:""}</span><b>Metallurgical education</b><span>${yrs(q.edu)}</span>
   <b>HTSA 1.1 minimum (${MIN()} years)</b><span class="${q.qualified?"ok":"bad"}">${q.qualified?"Met: "+esc(q.path):esc(q.short)}</span>${q.bad?`<b>Dates</b><span class="bad">${plural(q.bad,"experience entry","experience entries")} ends before it starts</span>`:""}`;
 let RT=0;
@@ -621,7 +695,7 @@ function onDlgInput(ev){
   if(el.dataset.f.startsWith("jd.")&&jdLocked()) return;
   setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
   if(MODE==="per"&&(el.dataset.f==="joined"||el.dataset.f==="htHere")){clearTimeout(RT);RT=setTimeout(()=>{const b=$("#qbox");if(b)b.innerHTML=qBox(qual(ED));},120);return;}
-  if(MODE==="pos"){if(el.dataset.f==="ht"&&ev.type==="change"){drawDlg();return;}
+  if(MODE==="pos"){if(["ht","key","holder","deputy"].includes(el.dataset.f)&&ev.type==="change"){drawDlg();return;}
     clearTimeout(RT);RT=setTimeout(()=>{const p=$("#jd-miss");if(p&&ED.jd.status==="draft"){const m=jdMissing(ED);p.textContent=m.length?"To approve the job description: "+m.join(", ")+".":"Ready to approve.";}},150);}
 }
 dlg.addEventListener("input",onDlgInput);dlg.addEventListener("change",onDlgInput);
@@ -633,10 +707,16 @@ function commitPos(text){
   if(E.reportsTo&&E.id){let x=posById(E.reportsTo),n=0;while(x&&n<100){if(x.id===E.id) return "That reporting line would loop back to this position.";x=posById(x.reportsTo);n++;}}
   if(E.holder&&E.holder===E.deputy) return "The deputy must be another person.";
   if(E.ht){const o=DB.positions.find(p=>p.ht&&p.id!==E.id);if(o) return `${o.title} is already the heat treat position. Untick it there first.`;}
+  for(const [pid,c] of Object.entries(E.qa||{})){if(!c||(!txt(c.by)&&!txt(c.date)&&!txt(c.note))){delete E.qa[pid];continue;}const per=perById(pid);
+    if(!txt(c.by)||!isDate(c.date)) return `Qualification of ${per?per.name:pid}: enter who confirmed it and the date.`;
+    if(c.date>today()) return "The confirmation date cannot be in the future.";
+    if(per&&up(c.by)===up(per.name)) return `${per.name} cannot confirm their own qualification.`;}
   if(!E.id){E.id=newId("POS","pos",2);logIt(E,text||"Position created");DB.positions.push(E);markChart(`position ${E.title} added`);}
   else{const old=posById(E.id),ch=STRUCT.filter(k=>String(old[k]??"")!==String(E[k]??""));
     if(ch.length) markChart(`${E.title}: ${ch.map(k=>({title:"title",reportsTo:"reporting line",holder:"holder",deputy:"deputy",ht:"heat treat position",fte:"full-time",site:"location",dedicated:"dedicated"}[k])).join(", ")} changed`);
     if(old.holder!==E.holder) logIt(E,`Holder ${pname(old.holder)||"vacant"} → ${pname(E.holder)||"vacant"}`);
+    if(!!old.key!==!!E.key) logIt(E,E.key?"Marked as a key management / supervisory function (HTSA 1.17)":"No longer a key function");
+    if(JSON.stringify(old.qa||{})!==JSON.stringify(E.qa||{})) logIt(E,"Qualification confirmation for the key function updated");
     if(!!old.specAuth!==!!E.specAuth) logIt(E,E.specAuth?"Authorized to establish and approve process specifications (HTSA 1.6)":"Authorization for process specifications withdrawn");
     logIt(E,text||"Position updated");DB.positions[DB.positions.findIndex(p=>p.id===E.id)]=E;}
   ED=clone(E);save();render();return "";
@@ -692,6 +772,13 @@ document.addEventListener("click",ev=>{
   if(id==="b-pos") openDlg("pos",newPos());
   else if(id==="b-person") openDlg("per",newPer());
   else if(id==="b-pack"){const m=packPdf();if(m)alert(m);}
+  else if(id==="b-keypdf"){const m=keyPdf();if(m)alert(m);}
+  else if(id==="b-keylist"){
+    const K=keyPos();if(!K.length){alert("Mark the key functions on the positions first.");return;}
+    const miss=K.filter(p=>!perById(p.holder)||!perById(p.deputy));if(miss.length&&!confirm(`No primary or backup for: ${miss.map(p=>p.title).join(", ")}. Issue the list anyway?`)) return;
+    const kl=DB.keyList,who=prompt(`Issue the key function list as revision ${kl.date?kl.rev+1:1}. Issued by:`,kl.by||"");if(!who||!who.trim()) return;
+    const where=prompt("Where is it available to the people who need it? (e.g. HT office notice board, control panels, CALOR)",kl.where||"");if(where==null) return;
+    kl.rev=kl.date?kl.rev+1:1;kl.date=today();kl.by=who.trim();kl.where=where.trim();kl.snap=keySnap();kl.dirty=false;kl.log.push({d:today(),t:`Revision ${kl.rev} issued by ${kl.by}${kl.where?"; available at "+kl.where:""}`});save();render();}
   else if(id==="b-chart"){
     if(!DB.positions.length){alert("Add the positions first.");return;}
     if(loops().size){alert("A reporting line loops back on itself: correct it first.");return;}
@@ -757,6 +844,8 @@ function regXlsx(){
   const A=assess();
   const sheets=[
     {name:"HTSA 1.1",widths:[40,90,14,50],rows:[B(["HTSA 1.1 Is there a dedicated and qualified heat treat person on-site?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
+    {name:"HTSA 1.17",widths:[40,90,14,50],rows:(()=>{const K=assess117();return [B(["HTSA 1.17 Are all key management and supervisory functions (in regards to heat treatment) performed by qualified personnel?"]),N(["Assessment",SCORE[K.score][1]]),N(["Key function list",DB.keyList.date?`rev ${DB.keyList.rev}, ${fdate(DB.keyList.date)}, ${DB.keyList.by}; ${DB.keyList.where}`:"not issued"]),N([]),B(["Requirement","Evidence","Result","Action"]),...K.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""])),N([]),
+      B(["Key function","Primary","Primary qualified","Secondary (backup)","Backup qualified"]),...K.K.map(p=>{const h=perById(p.holder),dp=perById(p.deputy);return N([p.title,h?h.name:"",h?qualFor(p,h).why:"",dp?dp.name:"",dp?qualFor(p,dp).why:""]);})];})()},
     {name:"Positions",widths:[26,18,26,22,22,10,16,10,12,14,50,50,10],rows:[B(["Position","Department","Reports to","Holder","Deputy","Full-time","Location","Dedicated","HT position","JD (rev, status)","Required education","Metallurgical / HT knowledge","Min. years"]),
       ...DB.positions.map(p=>{const e=jdEff(p)||p.jd;return N([p.title,p.dept,(posById(p.reportsTo)||{}).title||"",pname(p.holder),pname(p.deputy),p.fte==="full"?"yes":"no",SITE[p.site],p.dedicated?"yes":"",p.ht?"yes":"",`rev ${p.jd.rev} ${p.jd.status}`,e.edu,e.knowledge,num(e.minYears)??""]);})]},
     {name:"People",widths:[24,12,20,16,26,12,12,12,40],rows:[B(["Name","Employee no.","Employment","Location","Position(s)","HT experience (yr)","Met. education (yr)","HTSA 1.1 minimum"]),
@@ -810,6 +899,14 @@ function jdPdf(p){if(!p||!p.id) return "Save the position first.";return popup(a
 function perPdf(p){if(!p||!p.id) return "Save the person first.";return popup(ascii(`Qualification record ${p.name}`),perHtml(p));}
 function orgListHtml(){const draw=(p,d)=>d>30?"":`<li>${p.ht?`<b class="ht">${esc(p.title)} ★</b>`:`<b>${esc(p.title)}</b>`} — ${esc(pname(p.holder)||"vacant")}${pname(p.deputy)?` (deputy ${esc(pname(p.deputy))})`:""}${kids(p.id).length?`<ul class="org">${kids(p.id).map(c=>draw(c,d+1)).join("")}</ul>`:""}</li>`;
   return `<ul class="org">${roots().map(p=>draw(p,0)).join("")}</ul>`;}
+function keyPdf(){
+  const A=assess117(),kl=DB.keyList;
+  return popup(ascii(`Key functions ${today()}`),`<h1>Key management and supervisory functions · heat treatment</h1><p class="sub">${esc(S().plant)} · HTSA 1.17 · ${kl.date?`rev ${kl.rev}, issued ${fdate(kl.date)} by ${esc(kl.by)}`:"not issued"}${kl.where?" · available at "+esc(kl.where):""}</p>
+  ${tblH(["Key function","Primary","Qualified","Secondary (backup)","Qualified","Job description"],A.K.map(p=>{const h=perById(p.holder),dp=perById(p.deputy),qh=h?qualFor(p,h):null,qd=dp?qualFor(p,dp):null;const e=jdEff(p);
+    return [p.title,h?h.name:"—",qh?(qh.ok?"yes":"no")+" · "+qh.why:"",dp?dp.name:"—",qd?(qd.ok?"yes":"no")+" · "+qd.why:"",e?`rev ${e.rev}, ${fdate(e.apprDate)}`:"not approved"];}))}
+  <h2>Assessment</h2><p>Assessment: <span class="res-${A.score}">${esc(SCORE[A.score][1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
+  <p class="muted" style="margin-top:18px">Issued by: ________________ &nbsp; Date: __________ &nbsp; Approved: ________________</p>`);
+}
 function packPdf(){
   const A=assess(),sc=SCORE[A.score];
   return popup(ascii(`HTSA 1-1 evidence ${today()}`),`<h1>HTSA 1.1 · Dedicated and qualified heat treat person on site</h1><p class="sub">${esc(S().plant)} · evidence pack · ${fdate(today())}</p>
@@ -847,7 +944,14 @@ function example(){
   pos({title:"Production Manager",dept:"Production",reportsTo:D.id,holder:pm.id,jd:{purpose:"Production of the heat treat lines.",resp:"Loading, shifts, production reports, alarm response.",edu:"Graduate engineer",minYears:"5",...appr}});
   pos({title:"Maintenance Head",dept:"Maintenance",reportsTo:D.id,holder:mh.id,jd:{purpose:"Maintenance of furnaces and utilities.",resp:"Preventive maintenance, burners, instruments, thermocouple replacement.",edu:"Diploma / degree in engineering",minYears:"5",...appr}});
   pos({title:"Shift supervisor",dept:"Production",reportsTo:o.positions.find(p=>p.title==="Production Manager").id,jd:{purpose:"Run the shift.",resp:"Loading to the loading standards, push cycle, alarms, records.",edu:"Diploma",minYears:"2",prep:"HR executive"}});
+  /* HTSA 1.17: key functions with primary and backup */
+  const byT=t=>o.positions.find(p=>p.title===t);
+  byT("Production Manager").key=true;byT("Production Manager").deputy=dep.id;byT("Quality Manager").key=true;byT("Quality Manager").deputy=ht.id;byT("Maintenance Head").key=true;
+  byT("Quality Manager").qa={[qm.id]:{by:"Director (example)",date:d(280),note:"IATF 16949 lead auditor training, 12 years in quality management"},[ht.id]:{by:"Director (example)",date:d(280),note:"Heat treat person; CQI-9 training"}};
+  byT("Maintenance Head").qa={[mh.id]:{by:"Director (example)",date:d(280),note:"Furnace and burner maintenance, 10 years"}};
+  o.keyList={rev:1,date:d(110),by:"Director (example)",where:"HT office notice board; control panels F-01 to F-04; CALOR",dirty:false,log:[{d:d(110),t:"Revision 1 issued by Director (example)"}],snap:[]};
   o.chart={rev:2,apprDate:d(120),appr:"Director (example)",dirty:false,log:[{d:d(400),t:"Revision 1 approved by Director (example)"},{d:d(120),t:"Revision 2 approved by Director (example)"}]};
+  DB=o;o.keyList.snap=keySnap();
   return o;
 }
 
@@ -859,6 +963,8 @@ if(HTQ){
       person:A.per?{name:A.per.name,position:A.p.title,qualified:A.q.qualified,ht:A.q.ht,edu:A.q.edu}:null,deputy:A.p&&perById(A.p.deputy)?pname(A.p.deputy):"",positions:DB.positions.length};},
     counts:()=>{const A=assess();return {crit:A.I.filter(i=>i.lvl==="crit").length,warn:A.I.filter(i=>i.lvl==="warn").length,score:A.score};},
     people:()=>DB.people.map(p=>({id:p.id,name:p.name,positions:heldBy(p.id).map(x=>x.title)})),
+    htsa117:()=>{const A=assess117();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),crit:A.I.filter(i=>i.lvl==="crit").length};},
+    keyPeople,
     authorized
   });
   ["spec:ready","spec:changed","prod:changed","trap:ready","trap:changed","wi:ready","wi:changed","trend:ready","trend:changed","mon:ready","mon:changed","rwk:ready","rwk:changed"].forEach(ev=>HTQ.on(ev,()=>{if(!dlg.open)drawSec1();}));
@@ -870,6 +976,6 @@ try{const th=localStorage.getItem("org-theme");if(th&&!HTQ)document.documentElem
 render();
 if(!DB.positions.length&&!DB.people.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
 setInterval(()=>{if(!dlg.open) render();},3600000);
-window.__ORG={get DB(){return DB;},qual,assess,jdMissing,jdEff,mergedMonths,loops,openDlg,authorized};
+window.__ORG={get DB(){return DB;},qual,assess,assess117,qualFor,keyPeople,keyPos,jdMissing,jdEff,mergedMonths,loops,openDlg,authorized};
 </script>
 </body></html>

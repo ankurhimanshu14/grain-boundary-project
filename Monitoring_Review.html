@@ -393,7 +393,11 @@ const sysShort=k=>sysName(k).split(":")[0];
 /* the furnaces: the SAT register's list in CALOR, else the settings */
 const furnaces=()=>{try{const a=api("sat");const L=a?a.furnaces():[];if(L.length) return L;}catch(e){}return uniq(S().furnaces.split(/[,;]+/).map(txt).filter(Boolean));};
 /* a reviewer is qualified on a day when the qualification evidence is recorded and dated on or before it */
-const qualOn=(q,d)=>!!q&&!!txt(q.qualRef)&&isDate(q.qualDate)&&(!isDate(d)||q.qualDate<=d);
+const up=v=>txt(v).toUpperCase();
+/* or, in CALOR, the person is a qualified primary / backup of a key function on the HT organization page (HTSA 1.17) */
+const keyQual=n=>{const o=api("org");try{return !!o&&!!o.keyPeople&&o.keyPeople().some(k=>k.qualified&&up(k.name)===up(n));}catch(e){return false;}};
+const keyOf=n=>{const o=api("org");try{return o&&o.keyPeople?o.keyPeople().filter(k=>k.qualified&&up(k.name)===up(n)):[];}catch(e){return [];}};
+const qualOn=(q,d)=>!!q&&((!!txt(q.qualRef)&&isDate(q.qualDate)&&(!isDate(d)||q.qualDate<=d))||keyQual(q.name));
 const qualNow=q=>q&&q.active&&qualOn(q,today());
 
 /* ---------- reading the other pages' records (same browser storage) ---------- */
@@ -476,7 +480,7 @@ function assess19(){
   const R=DB.reviews.filter(r=>isDT(r.at)&&ms(r.at)>=W0);
   /* qualified personnel */
   const Q=DB.reviewers.filter(q=>q.active),Qok=Q.filter(qualNow),Qno=Q.filter(q=>!qualNow(q));
-  add(!Qok.length?"crit":Qno.length?"warn":"ok","Second-level reviewers qualified (as per 1.17)",!Q.length?"No reviewer listed.":`${plural(Qok.length,"qualified reviewer")}: ${lim(Qok.map(q=>`${q.name} (${q.qualRef})`))}.${Qno.length?` Without qualification evidence: ${lim(Qno.map(q=>q.name))}.`:""}`,
+  add(!Qok.length?"crit":Qno.length?"warn":"ok","Second-level reviewers qualified (as per 1.17)",!Q.length?"No reviewer listed.":`${plural(Qok.length,"qualified reviewer")}: ${lim(Qok.map(q=>`${q.name} (${q.qualRef||"key function, HTSA 1.17: "+keyOf(q.name).map(k=>k.position).join(", ")})`))}.${Qno.length?` Without qualification evidence: ${lim(Qno.map(q=>q.name))}.`:""}`,
     !Qok.length?"List the qualified reviewers with the evidence of their qualification (HTSA 1.17).":Qno.length?"Record the qualification evidence of these people, or make them inactive.":"");
   /* documented process */
   const on=sysOn(),comp=on.filter(s=>s.comp);
@@ -567,7 +571,7 @@ function drawRevs(){
   if(!L.length){$("#revs").innerHTML=`<div class="empty">No reviewer listed. Add the qualified people who do the second-level review.</div>`;return;}
   $("#revs").innerHTML=`<table class="log cards"><thead><tr><th>Reviewer</th><th>Role</th><th>Qualification evidence (1.17)</th><th>Reviews</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(q=>{const n=DB.reviews.filter(r=>r.by===q.id).length;return `<tr class="${q.active?"":"muted"}">
     <td data-label="Reviewer"><b>${esc(q.name)}</b><br><span class="sub2">${esc(q.id)}</span></td><td data-label="Role">${esc(q.role||"—")}</td>
-    <td data-label="Qualification">${q.qualRef?`${esc(q.qualRef)}<br><span class="sub2">${isDate(q.qualDate)?"since "+fdate(q.qualDate):"no date"}${q.scope?" · "+esc(q.scope):""}</span>`:`<span class="bad">no evidence recorded</span>`}</td>
+    <td data-label="Qualification">${q.qualRef?`${esc(q.qualRef)}<br><span class="sub2">${isDate(q.qualDate)?"since "+fdate(q.qualDate):"no date"}${q.scope?" · "+esc(q.scope):""}</span>`:keyOf(q.name).length?`Key function (HTSA 1.17): ${esc(keyOf(q.name).map(k=>k.position+" "+(k.role==="primary"?"primary":"backup")).join(", "))}<br><span class="sub2">HT organization page</span>`:`<span class="bad">no evidence recorded</span>`}</td>
     <td data-label="Reviews" class="n">${n}</td><td data-label="Status">${!q.active?chip("info","i","Inactive"):qualNow(q)?chip("good","✓","Qualified"):chip("crit","✕","Not qualified")}</td>
     <td class="act noprint"><button class="btn ghost small" data-open-rq="${esc(q.id)}">Edit</button></td></tr>`;}).join("")}</tbody></table>`;
 }
