@@ -305,7 +305,7 @@ const CRIT={
   s:{10:"Health or safety risk for the worker; affects safe operation of the vehicle / end user",9:"In-plant regulatory noncompliance; noncompliance with regulations",8:"100 % of the run may have to be scrapped; loss of a primary function",7:"Run sorted and a portion scrapped; deviation from the primary process; degraded primary function",6:"100 % of the run reworked off line; loss of a secondary function",5:"A portion reworked off line; degraded secondary function",4:"100 % reworked in station; very objectionable appearance / sound",3:"A portion reworked in station; moderately objectionable",2:"Slight inconvenience to the process or operator; slightly objectionable",1:"No discernible effect"},
   o:{10:"Extremely high: no prevention controls",9:"Very high: prevention controls have little effect",8:"Very high: prevention controls have little effect",7:"High: prevention controls somewhat effective",6:"High: prevention controls somewhat effective",5:"Moderate: prevention controls effective",4:"Moderate: prevention controls effective",3:"Low: best-practice prevention controls, highly effective",2:"Low: best-practice prevention controls, highly effective",1:"Extremely low: failure cause eliminated by the prevention control"},
   d:{10:"No test or inspection method established or known",9:"Method unlikely to detect the failure mode or cause",8:"Method not proven to be effective and reliable",7:"Proven manual / visual inspection or gauging, downstream",6:"Proven manual inspection or gauging in station",5:"Proven machine-based detection downstream",4:"Proven machine-based detection in station, or detection of the cause",3:"Machine-based detection in station that stops further processing",2:"Detection of the cause that prevents the failure mode (error-proofing, proven)",1:"Failure mode cannot be produced, or is always detected (verified)"}};
-const RECS=["","Daily production","Load build","Specifications","SCADA review","Quench media","Hardness","Thermocouple SAT","TUS","Equipment","Other (paper record)"];
+const RECS=["","Daily production","Load build","Specifications","SCADA review","Quench media","Hardness","Rework","Thermocouple SAT","TUS","Equipment","Other (paper record)"];
 const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",reviewDays:365,team:"HT Manager, Quality Manager, Maintenance Head, Production Manager"};
 const STEPS={
@@ -358,6 +358,13 @@ function pfRows(proc){
   return rows.map((r,i)=>({id:"r"+(i+1),...r,filter:"",pa:"",da:"",resp:"",target:"",status:"",taken:"",doneDate:"",s2:"",o2:"",d2:"",cls2:"",remarks:""}));
 }
 /* ---------- control plan rows from a process specification (CALOR) ---------- */
+/* the rework / reprocessing procedure in force (Rework page, HTSA 1.11; same browser storage): the control plan rows name it */
+function rwkProc(){
+  let r=null;try{r=JSON.parse(localStorage.getItem("rwk-reg")||"null");}catch(e){}
+  const p=r&&r.proc;if(!p||!txt(p.no)) return null;
+  const e=p.status==="approved"?p:(Array.isArray(p.revs)?p.revs.filter(x=>x&&x.status==="approved").at(-1):null);
+  return e&&txt(e.no)?{no:txt(e.no),rev:+e.rev||0,ref:`${txt(e.no)} rev ${+e.rev||0}`}:null;
+}
 function cpRows(s){
   const R=(step,machine,prod,proc,cls,spec,tech,size,freq,ctrl,react,rec)=>({step,machine,prod,proc,cls,spec,tech,size,freq,ctrl,react,rec});
   const f=s.furnaces.join(", ")||"approved furnace",n=v=>v==null?"?":v,rq=s.req||{},q=s.q||{},rows=[];
@@ -387,6 +394,10 @@ function cpRows(s){
   rows.push(R(70,"Microscope","Decarburization","","SC",rq.decarb||"per specification","Metallographic section",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
   if(rq.micro) rows.push(R(70,"Microscope","Microstructure","","",rq.micro,"Metallographic section",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
   if(rq.grain) rows.push(R(70,"Microscope","Grain size","","",rq.grain,"Comparison chart",rq.sample||"per specification","Each batch","Test register","Hold the batch; reaction plan","Hardness"));
+  /* rework: every reaction that holds product leads to the rework procedure in force, and the rework itself is controlled */
+  const rw=rwkProc(),rwRef=rw?rw.ref:"the rework / reprocessing procedure";
+  rows.forEach(r=>{if(+r.step>=30&&+r.step<=70&&/hold|assess/i.test(r.react)) r.react+=`; rework / reprocessing only per ${rwRef}`;});
+  rows.push(R(70,"Rework (re-heat-treatment)","Reworked / reprocessed lots","","",`Only the characteristics and methods allowed by ${rwRef}; new process control sheet with the parameter modification; sampling plan; release by the Quality Manager or a designee`,"Rework log, process control sheet, sampling to the procedure","Per the sampling plan of the procedure","Each rework lot",`Rework procedure ${rwRef} (PPAP approved)`,"Not permissible characteristic: scrap or customer decision; method not approved: notify the OEM / customer and obtain the approval before the rework","Rework"));
   rows.push(R(80,"Dispatch","Identification, cracks, scale","","","Identified; no cracks; scale as agreed","Visual","Sample per batch","Each batch","Final inspection","Hold and segregate","Other (paper record)"));
   return rows.map((r,i)=>({id:"r"+(i+1),...r}));
 }
@@ -463,6 +474,9 @@ function issues(d){
   }else{
     const sp=specsInForce().find(s=>s.id===d.specId);
     if(d.specId&&HTQ){if(!sp) I.push(["crit",`Process specification ${d.specId} is no longer in force.`]);else if(`${sp.id} rev ${sp.rev}`!==d.specRef) I.push(["warn",`Made from ${d.specRef}; ${sp.id} rev ${sp.rev} is now in force. Review the control plan.`]);}
+    const rw=rwkProc(),txtRows=JSON.stringify(d.rows).toUpperCase();
+    if(rw&&d.status!=="obsolete"){if(!txtRows.includes(rw.no.toUpperCase())) I.push(["warn",`Does not name the rework procedure ${rw.ref} in force (HTSA 1.11): regenerate the rows in a new revision.`]);
+      else if(!txtRows.includes(rw.ref.toUpperCase())) I.push(["warn",`Names an earlier revision of the rework procedure; ${rw.ref} is in force.`]);}
     const pf=doc(d.pfmea);
     if(d.pfmea&&!pf) I.push(["crit",`Linked PFMEA ${d.pfmea} not found.`]);
     else if(pf){if(pf.status!=="approved"&&!eff(pf)) I.push(["warn",`PFMEA ${pf.id} is not approved.`]);
@@ -838,7 +852,7 @@ if(HTQ){
   });
   HTQ.on("nav:cpf",o=>{if(o&&o.doc)openDoc(o.doc);});
   let T=0;const again=()=>{clearTimeout(T);T=setTimeout(()=>{render();HTQ.emit("cpf:changed");},250);};
-  ["spec:ready","spec:changed","metal:changed","quench:changed","tus:changed","sat:changed"].forEach(ev=>HTQ.on(ev,again));
+  ["spec:ready","spec:changed","metal:changed","quench:changed","tus:changed","sat:changed","rwk:changed"].forEach(ev=>HTQ.on(ev,again));
 }
 
 /* ---------- start ---------- */
