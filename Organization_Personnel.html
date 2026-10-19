@@ -252,7 +252,7 @@ table.rows td{vertical-align:top}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>Designated heat treat person</h2><p>The holder of the position marked as the heat treat position, and the deputy who covers absences. Qualification counts only experience and education with evidence on file.</p></div>
+    <div class="sec-head"><h2>Designated heat treat person</h2><p>The holder of the position marked as the heat treat position, and the deputy who covers absences. Qualification counts the heat treat experience and metallurgical education entered for the person.</p></div>
     <div class="who" id="who"></div>
   </section>
 
@@ -269,7 +269,7 @@ table.rows td{vertical-align:top}
   </section>
 
   <section class="panel">
-    <div class="sec-head"><h2>People and qualification evidence</h2><p>Education, experience and training of each person with the evidence on file (certificate, experience letter, appointment letter). Heat treat experience is counted from dated entries marked as heat treat work; overlapping periods count once.</p></div>
+    <div class="sec-head"><h2>People and qualification</h2><p>Education, experience and training of each person; a reference to a certificate or letter can be noted but is not required. Heat treat experience is counted from dated entries marked as heat treat work; overlapping periods count once.</p></div>
     <div class="scroll" id="people"></div>
   </section>
 
@@ -301,7 +301,7 @@ table.rows td{vertical-align:top}
       <li><b>Organization chart:</b> built from the positions (“reports to”). It is approved with a revision and date; any change to a position, holder or reporting line after the approval asks for a new approval. A periodic re-approval is due after the review interval.</li>
       <li><b>Job description:</b> a controlled document per position (draft → approved, new revision with a reason). For the heat treat position it must state the education, the metallurgical and heat treat knowledge and a minimum experience of at least the HTSA minimum.</li>
       <li><b>Process specifications (HTSA 1.6):</b> the holder and the deputy of the heat treat position, and of every position marked “authorized to establish and approve process specifications”, are the people the Specifications page accepts as approvers.</li>
-      <li><b>Qualification:</b> heat treat experience = the dated experience entries marked as heat treat work with evidence (overlaps counted once, an open entry runs to today); formal metallurgical education = the duration of metallurgy / materials programmes with evidence. Qualified when the heat treat experience reaches the minimum, or when the heat treat experience plus the metallurgical education together reach it (both present).</li>
+      <li><b>Qualification:</b> heat treat experience = the dated experience entries marked as heat treat work (overlaps counted once, an open entry runs to today); formal metallurgical education = the duration of metallurgy / materials programmes. A certificate or letter reference is optional. Qualified when the heat treat experience reaches the minimum, or when the heat treat experience plus the metallurgical education together reach it (both present).</li>
     </ul>
   </footer>
 </div>
@@ -373,21 +373,21 @@ function authorized(){
 }
 const heldBy=pid=>DB.positions.filter(p=>p.holder===pid);
 
-/* ---------- qualification: years of heat treat experience and metallurgical education with evidence ---------- */
+/* ---------- qualification: years of heat treat experience and metallurgical education (as entered; a certificate / letter reference is optional) ---------- */
 function mergedMonths(entries){
   const iv=entries.map(e=>[mnum(e.from),isMonth(e.to)?mnum(e.to):mnum(thisMonth())]).filter(([a,b])=>isFinite(a)&&isFinite(b)&&b>=a).map(([a,b])=>[a,b+1]).sort((x,y)=>x[0]-y[0]);
   let tot=0,cur=null;iv.forEach(([a,b])=>{if(!cur){cur=[a,b];return;}if(a<=cur[1])cur[1]=Math.max(cur[1],b);else{tot+=cur[1]-cur[0];cur=[a,b];}});if(cur)tot+=cur[1]-cur[0];
   return tot;
 }
 function qual(p){
-  const ok=e=>!!txt(e.ref);
-  const htE=p.exp.filter(e=>e.ht),ht=mergedMonths(htE.filter(ok))/12,htClaim=mergedMonths(htE)/12;
-  const metE=p.edu.filter(e=>e.met),edu=metE.filter(ok).reduce((a,e)=>a+(num(e.years)||0),0),eduClaim=metE.reduce((a,e)=>a+(num(e.years)||0),0);
+  /* every entry counts: a reference to a certificate or letter is optional (the user's request: no mandatory upload of certificates) */
+  const htE=p.exp.filter(e=>e.ht),ht=mergedMonths(htE)/12,htClaim=ht;
+  const metE=p.edu.filter(e=>e.met),edu=metE.reduce((a,e)=>a+(num(e.years)||0),0),eduClaim=edu;
   const min=MIN(),p1=ht>=min,p2=ht>0&&edu>0&&ht+edu>=min;
-  const noEv=[...htE.filter(e=>!ok(e)).map(e=>`experience “${txt(e.role)||"?"}” at ${txt(e.org)||"?"}`),...metE.filter(e=>!ok(e)).map(e=>`education “${txt(e.qual)||"?"}”`)];
+  const noEv=[];
   const bad=p.exp.filter(e=>isMonth(e.from)&&isMonth(e.to)&&e.to<e.from).length;
   return {ht,edu,htClaim,eduClaim,qualified:p1||p2,path:p1?`${yrs(ht)} heat treat experience (minimum ${min})`:p2?`${yrs(edu)} metallurgical education + ${yrs(ht)} heat treat experience = ${yrs(edu+ht)} (minimum ${min})`:"",
-    short:p1||p2?"":`${yrs(ht)} heat treat experience${edu?` + ${yrs(edu)} metallurgical education`:""} with evidence: below the minimum of ${min} years`,noEv,bad};
+    short:p1||p2?"":`${yrs(ht)} heat treat experience${edu?` + ${yrs(edu)} metallurgical education`:""}: below the minimum of ${min} years`,noEv,bad};
 }
 
 /* ---------- job descriptions: document control ---------- */
@@ -446,8 +446,8 @@ function assess(){
       add(gaps.length?"crit":"ok","Job description with the qualifications",gaps.length?`Job description rev ${e.rev} does not state: ${gaps.join(", ")}.`:`Job description rev ${e.rev} (approved ${fdate(e.apprDate)}): education “${e.edu}”, knowledge stated, minimum ${e.minYears} years.`,gaps.length?"Revise the job description.":"");}
     /* qualification evidence */
     if(per){
-      if(q.qualified) add(q.noEv.length?"warn":"ok","Evidence of the qualification (≥ "+min+" years)",`${per.name}: ${q.path}.${q.noEv.length?" Not counted for lack of evidence: "+q.noEv.join("; ")+".":""}`,q.noEv.length?"File the missing evidence.":"");
-      else add("crit","Evidence of the qualification (≥ "+min+" years)",`${per.name}: ${q.short}.${q.htClaim>q.ht||q.eduClaim>q.edu?` Claimed without evidence: ${yrs(q.htClaim-q.ht)} experience, ${yrs(q.eduClaim-q.edu)} education.`:""}`,q.htClaim+q.eduClaim>=min?"File the evidence (certificates, experience letters).":"Appoint a person who meets the minimum.");
+      if(q.qualified) add("ok","Qualification of the heat treat person (≥ "+min+" years)",`${per.name}: ${q.path}.`,"");
+      else add("crit","Qualification of the heat treat person (≥ "+min+" years)",`${per.name}: ${q.short}.`,"Record the person's heat treat experience and metallurgical education, or appoint a person who meets the minimum.");
       if(q.bad) add("warn","Experience entries are consistent",`${plural(q.bad,"experience entry","experience entries")} ends before it starts.`,"Correct the dates.");
     }
     /* deputy: not asked by 1.1, but expertise must be readily available */
@@ -490,8 +490,8 @@ function personBox(p,label,empty,lvl){
   return `<div style="--k:${k}"><h3>${esc(label)}: ${esc(p.name)}</h3><dl>
     <dt>Position</dt><dd>${esc(heldBy(p.id).map(x=>x.title).join(", ")||"—")}</dd>
     <dt>Employment</dt><dd>${esc(EMP[p.employment]||"—")} · ${esc(SITE[p.site]||"—")}${isDate(p.joined)?" · since "+fdate(p.joined):""}</dd>
-    <dt>Heat treat experience</dt><dd>${yrs(q.ht)} with evidence${q.htClaim>q.ht?` <span class="caution">(+${yrs(q.htClaim-q.ht)} without)</span>`:""}</dd>
-    <dt>Metallurgical education</dt><dd>${yrs(q.edu)} with evidence${q.eduClaim>q.edu?` <span class="caution">(+${yrs(q.eduClaim-q.edu)} without)</span>`:""}</dd>
+    <dt>Heat treat experience</dt><dd>${yrs(q.ht)}</dd>
+    <dt>Metallurgical education</dt><dd>${yrs(q.edu)}</dd>
     <dt>HTSA 1.1 minimum</dt><dd>${q.qualified?`<span class="ok">met: ${esc(q.path)}</span>`:`<span class="bad">${esc(q.short)}</span>`}</dd>
   </dl><div class="actions noprint" style="margin-top:8px"><button class="btn ghost small" data-open-p="${esc(p.id)}">Open</button><button class="btn ghost small" data-p-pdf="${esc(p.id)}">Qualification record (PDF)</button></div></div>`;
 }
@@ -524,12 +524,12 @@ function drawPositions(){
 function drawPeople(){
   if(!DB.people.length){$("#people").innerHTML=`<div class="empty">No people yet. Use “Add person”.</div>`;return;}
   const L=DB.people.slice().sort((a,b)=>a.name.localeCompare(b.name));
-  $("#people").innerHTML=`<table class="log cards"><thead><tr><th>Person</th><th>Position(s)</th><th>Employment</th><th class="n">Heat treat experience</th><th class="n">Metallurgical education</th><th>HTSA 1.1 minimum</th><th>Evidence</th><th class="noprint"></th></tr></thead><tbody>${L.map(p=>{const q=qual(p);
+  $("#people").innerHTML=`<table class="log cards"><thead><tr><th>Person</th><th>Position(s)</th><th>Employment</th><th class="n">Heat treat experience</th><th class="n">Metallurgical education</th><th>HTSA 1.1 minimum</th><th>Entries</th><th class="noprint"></th></tr></thead><tbody>${L.map(p=>{const q=qual(p);
     return `<tr><td data-label="Person"><b>${esc(p.name)}</b><br><span class="kind">${esc(p.empNo||"")}</span></td><td data-label="Position(s)">${esc(heldBy(p.id).map(x=>x.title).join(", ")||"—")}${DB.positions.some(x=>x.deputy===p.id)?`<br><span class="muted">deputy: ${esc(DB.positions.filter(x=>x.deputy===p.id).map(x=>x.title).join(", "))}</span>`:""}</td>
-      <td data-label="Employment">${esc(EMP[p.employment]||"")} · ${esc(SITE[p.site]||"")}</td><td data-label="HT experience" class="n nw">${yrs(q.ht)}${q.htClaim>q.ht?`<br><span class="caution">+${yrs(q.htClaim-q.ht)} no evidence</span>`:""}</td>
-      <td data-label="Met. education" class="n nw">${yrs(q.edu)}${q.eduClaim>q.edu?`<br><span class="caution">+${yrs(q.eduClaim-q.edu)} no evidence</span>`:""}</td>
+      <td data-label="Employment">${esc(EMP[p.employment]||"")} · ${esc(SITE[p.site]||"")}</td><td data-label="HT experience" class="n nw">${yrs(q.ht)}</td>
+      <td data-label="Met. education" class="n nw">${yrs(q.edu)}</td>
       <td data-label="HTSA 1.1 minimum">${q.qualified?chip("good","✓","Met"):chip("info","–","Not met")}</td>
-      <td data-label="Evidence">${q.noEv.length?`<span class="caution">${plural(q.noEv.length,"entry","entries")} without evidence</span>`:`<span class="muted">${plural(p.edu.length+p.exp.length+p.trn.length,"entry","entries")}</span>`}</td>
+      <td data-label="Entries"><span class="muted">${plural(p.edu.length+p.exp.length+p.trn.length,"entry","entries")}</span></td>
       <td class="act noprint"><button class="btn ghost small" data-open-p="${esc(p.id)}">Open</button> <button class="btn ghost small" data-p-pdf="${esc(p.id)}">PDF</button></td></tr>`;}).join("")}</tbody></table>`;
 }
 function drawSettings(){
@@ -582,9 +582,9 @@ function dlgPos(){
 }
 function newPer(){return {id:"",name:"",empNo:"",employment:"full",site:"on",joined:"",edu:[],exp:[],trn:[],notes:"",log:[]};}
 const ROWS={
-  edu:{t:"Education",h:["Qualification","Field","Institute","Year passed","Duration (years)","Metallurgical","Evidence (certificate no. / file)"],f:["qual","field","inst","year","years","met","ref"],ty:{year:"number",years:"number",met:"check"},blank:{qual:"",field:"",inst:"",year:"",years:"",met:false,ref:""}},
-  exp:{t:"Experience",h:["Organization","Role","From (month)","To (empty = now)","Heat treat work","Evidence (experience / appointment letter)"],f:["org","role","from","to","ht","ref"],ty:{from:"month",to:"month",ht:"check"},blank:{org:"",role:"",from:"",to:"",ht:true,ref:""}},
-  trn:{t:"Training and certificates",h:["Course / certificate","Date","Provider","Evidence"],f:["course","date","provider","ref"],ty:{date:"date"},blank:{course:"",date:"",provider:"",ref:""}}};
+  edu:{t:"Education",h:["Qualification","Field","Institute","Year passed","Duration (years)","Metallurgical","Reference (optional: certificate / letter no.)"],f:["qual","field","inst","year","years","met","ref"],ty:{year:"number",years:"number",met:"check"},blank:{qual:"",field:"",inst:"",year:"",years:"",met:false,ref:""}},
+  exp:{t:"Experience",h:["Organization","Role","From (month)","To (empty = now)","Heat treat work","Reference (optional: letter no.)"],f:["org","role","from","to","ht","ref"],ty:{from:"month",to:"month",ht:"check"},blank:{org:"",role:"",from:"",to:"",ht:true,ref:""}},
+  trn:{t:"Training and certificates",h:["Course / certificate","Date","Provider","Reference (optional)"],f:["course","date","provider","ref"],ty:{date:"date"},blank:{course:"",date:"",provider:"",ref:""}}};
 function rowsTable(k){
   const R=ROWS[k];
   return `<h3 style="margin:14px 0 6px;font-size:14px">${R.t}</h3>${ED[k].length?`<div class="scroll"><table class="log rows"><thead><tr>${R.h.map(h=>`<th>${esc(h)}</th>`).join("")}<th></th></tr></thead><tbody>${ED[k].map((r,i)=>`<tr>${R.f.map(f=>{const ty=R.ty[f]||"text",id=`${k}.${i}.${f}`;
@@ -597,7 +597,7 @@ function dlgPer(){
   <div class="dlg-b">
     <section class="stage" style="--k:var(--p)"><h3>Person <small>Employment</small></h3><div class="fgrid">
       ${fld("name","Name",{req:true})}${fld("empNo","Employee no.")}${fld("employment","Employment",{opts:Object.entries(EMP),blank:false})}${fld("site","Works",{opts:Object.entries(SITE),blank:false})}${fld("joined","Joined",{type:"date"})}${fld("notes","Notes",{type:"textarea",span:true})}</div></section>
-    <section class="stage" style="--k:var(--d)"><h3>Qualification evidence <small>Only entries with evidence count</small></h3>
+    <section class="stage" style="--k:var(--d)"><h3>Qualification <small>Education and experience as entered; a certificate / letter reference is optional</small></h3>
       ${rowsTable("edu")}${rowsTable("exp")}${rowsTable("trn")}
       <div class="wi" id="qbox" style="margin-top:12px">${qBox(q)}</div></section>
     ${E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:""}
@@ -607,7 +607,7 @@ function dlgPer(){
     ${E.id&&!DB.positions.some(p=>p.holder===E.id||p.deputy===E.id)?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
     <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button></div>`;
 }
-const qBox=q=>`<b>Heat treat experience</b><span>${yrs(q.ht)} with evidence${q.htClaim>q.ht?` (+${yrs(q.htClaim-q.ht)} without)`:""}</span><b>Metallurgical education</b><span>${yrs(q.edu)} with evidence${q.eduClaim>q.edu?` (+${yrs(q.eduClaim-q.edu)} without)`:""}</span>
+const qBox=q=>`<b>Heat treat experience</b><span>${yrs(q.ht)}</span><b>Metallurgical education</b><span>${yrs(q.edu)}</span>
   <b>HTSA 1.1 minimum (${MIN()} years)</b><span class="${q.qualified?"ok":"bad"}">${q.qualified?"Met: "+esc(q.path):esc(q.short)}</span>${q.bad?`<b>Dates</b><span class="bad">${plural(q.bad,"experience entry","experience entries")} ends before it starts</span>`:""}`;
 let RT=0;
 function onDlgInput(ev){
@@ -754,11 +754,11 @@ function regXlsx(){
     {name:"HTSA 1.1",widths:[40,90,14,50],rows:[B(["HTSA 1.1 Is there a dedicated and qualified heat treat person on-site?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
     {name:"Positions",widths:[26,18,26,22,22,10,16,10,12,14,50,50,10],rows:[B(["Position","Department","Reports to","Holder","Deputy","Full-time","Location","Dedicated","HT position","JD (rev, status)","Required education","Metallurgical / HT knowledge","Min. years"]),
       ...DB.positions.map(p=>{const e=jdEff(p)||p.jd;return N([p.title,p.dept,(posById(p.reportsTo)||{}).title||"",pname(p.holder),pname(p.deputy),p.fte==="full"?"yes":"no",SITE[p.site],p.dedicated?"yes":"",p.ht?"yes":"",`rev ${p.jd.rev} ${p.jd.status}`,e.edu,e.knowledge,num(e.minYears)??""]);})]},
-    {name:"People",widths:[24,12,20,16,26,12,12,12,40],rows:[B(["Name","Employee no.","Employment","Location","Position(s)","HT experience (yr)","Met. education (yr)","HTSA 1.1 minimum","Entries without evidence"]),
-      ...DB.people.map(p=>{const q=qual(p);return N([p.name,p.empNo,EMP[p.employment],SITE[p.site],heldBy(p.id).map(x=>x.title).join(", "),Math.round(q.ht*10)/10,Math.round(q.edu*10)/10,q.qualified?"met":"not met",q.noEv.join("; ")]);})]},
-    {name:"Education",widths:[24,26,22,26,10,10,12,30],rows:[B(["Name","Qualification","Field","Institute","Year","Years","Metallurgical","Evidence"]),...DB.people.flatMap(p=>p.edu.map(e=>N([p.name,e.qual,e.field,e.inst,num(e.year)??"",num(e.years)??"",e.met?"yes":"",e.ref])))]},
-    {name:"Experience",widths:[24,26,26,10,10,10,30],rows:[B(["Name","Organization","Role","From","To","Heat treat","Evidence"]),...DB.people.flatMap(p=>p.exp.map(e=>N([p.name,e.org,e.role,e.from,e.to||"now",e.ht?"yes":"",e.ref])))]},
-    {name:"Training",widths:[24,40,13,24,30],rows:[B(["Name","Course / certificate","Date","Provider","Evidence"]),...DB.people.flatMap(p=>p.trn.map(e=>N([p.name,e.course,fdate(e.date),e.provider,e.ref])))]}];
+    {name:"People",widths:[24,12,20,16,26,12,12,12,40],rows:[B(["Name","Employee no.","Employment","Location","Position(s)","HT experience (yr)","Met. education (yr)","HTSA 1.1 minimum"]),
+      ...DB.people.map(p=>{const q=qual(p);return N([p.name,p.empNo,EMP[p.employment],SITE[p.site],heldBy(p.id).map(x=>x.title).join(", "),Math.round(q.ht*10)/10,Math.round(q.edu*10)/10,q.qualified?"met":"not met"]);})]},
+    {name:"Education",widths:[24,26,22,26,10,10,12,30],rows:[B(["Name","Qualification","Field","Institute","Year","Years","Metallurgical","Reference"]),...DB.people.flatMap(p=>p.edu.map(e=>N([p.name,e.qual,e.field,e.inst,num(e.year)??"",num(e.years)??"",e.met?"yes":"",e.ref])))]},
+    {name:"Experience",widths:[24,26,26,10,10,10,30],rows:[B(["Name","Organization","Role","From","To","Heat treat","Reference"]),...DB.people.flatMap(p=>p.exp.map(e=>N([p.name,e.org,e.role,e.from,e.to||"now",e.ht?"yes":"",e.ref])))]},
+    {name:"Training",widths:[24,40,13,24,30],rows:[B(["Name","Course / certificate","Date","Provider","Reference"]),...DB.people.flatMap(p=>p.trn.map(e=>N([p.name,e.course,fdate(e.date),e.provider,e.ref])))]}];
   try{download(ascii(`HT organization and personnel ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
 }
 const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
@@ -795,10 +795,10 @@ function jdHtml(p){
 function perHtml(p){
   const q=qual(p);
   return `<h1>Qualification record · ${esc(p.name)}</h1><p class="sub">${esc(S().plant)} · ${esc(heldBy(p.id).map(x=>x.title).join(", ")||"no position")} · ${fdate(today())}</p>
-  ${kvH([["Employee no.",p.empNo],["Employment",EMP[p.employment]+" · "+SITE[p.site]],["Joined",fdate(p.joined)],["Heat treat experience with evidence",yrs(q.ht)+(q.htClaim>q.ht?` (+${yrs(q.htClaim-q.ht)} without evidence)`:"")],["Metallurgical education with evidence",yrs(q.edu)+(q.eduClaim>q.edu?` (+${yrs(q.eduClaim-q.edu)} without evidence)`:"")],["HTSA 1.1 minimum ("+MIN()+" years)",q.qualified?"Met: "+q.path:"Not met: "+q.short]])}
-  <h2>Education</h2>${tblH(["Qualification","Field","Institute","Year","Years","Metallurgical","Evidence"],p.edu.map(e=>[e.qual,e.field,e.inst,num(e.year)??"",num(e.years)??"",e.met?"yes":"",e.ref||"MISSING"]))}
-  <h2>Experience</h2>${tblH(["Organization","Role","From","To","Heat treat","Evidence"],p.exp.map(e=>[e.org,e.role,fmon(e.from),e.to?fmon(e.to):"now",e.ht?"yes":"",e.ref||"MISSING"]))}
-  <h2>Training and certificates</h2>${tblH(["Course / certificate","Date","Provider","Evidence"],p.trn.map(e=>[e.course,fdate(e.date),e.provider,e.ref]))}
+  ${kvH([["Employee no.",p.empNo],["Employment",EMP[p.employment]+" · "+SITE[p.site]],["Joined",fdate(p.joined)],["Heat treat experience",yrs(q.ht)],["Metallurgical education",yrs(q.edu)],["HTSA 1.1 minimum ("+MIN()+" years)",q.qualified?"Met: "+q.path:"Not met: "+q.short]])}
+  <h2>Education</h2>${tblH(["Qualification","Field","Institute","Year","Years","Metallurgical","Reference"],p.edu.map(e=>[e.qual,e.field,e.inst,num(e.year)??"",num(e.years)??"",e.met?"yes":"",e.ref||"—"]))}
+  <h2>Experience</h2>${tblH(["Organization","Role","From","To","Heat treat","Reference"],p.exp.map(e=>[e.org,e.role,fmon(e.from),e.to?fmon(e.to):"now",e.ht?"yes":"",e.ref||"—"]))}
+  <h2>Training and certificates</h2>${tblH(["Course / certificate","Date","Provider","Reference"],p.trn.map(e=>[e.course,fdate(e.date),e.provider,e.ref]))}
   <div class="sign"><div><span class="muted">Verified by (HR)</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Reviewed by (Quality Manager)</span><b>&nbsp;</b><span class="muted">Sign · Date</span></div><div><span class="muted">Person</span><b>${esc(p.name)}</b><span class="muted">Sign · Date</span></div></div>`;
 }
 function jdPdf(p){if(!p||!p.id) return "Save the position first.";return popup(ascii(`Job description ${p.title} rev ${p.jd.rev}`),jdHtml(p));}
