@@ -1,0 +1,883 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monitoring Data Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+@media screen{.signoff.print-only{display:none}}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+@media screen{.signoff.print-only{display:none}}
+/* monitoring data review */
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.crit{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.info{color:var(--ink2)}
+.nw{white-space:nowrap}
+.kind{font-size:12px;color:var(--ink2)}
+.req-q{border-left:4px solid var(--accent);background:var(--surface2);border-radius:5px;padding:10px 14px;font-size:13.5px}
+.req-q b{display:block;font-size:14.5px;margin-bottom:4px}
+.req-q ul{margin:4px 0 0;padding-left:18px}
+.score{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.score .big{font-size:22px;font-weight:600}
+.score .big.good{color:var(--good-ink)}.score .big.warn{color:var(--warn-ink)}.score .big.crit{color:var(--crit-ink)}
+.tabs-k{display:flex;gap:6px;flex-wrap:wrap}
+.tabs-k button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:2px 11px;cursor:pointer}
+.tabs-k button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+table.log td{overflow-wrap:break-word}
+.sub2{font-size:12px;color:var(--ink2)}
+.sysl{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(170px,.7fr) minmax(0,1fr);gap:6px 10px;align-items:start;padding:8px 0;border-top:1px solid var(--grid)}
+.sysl:first-child{border-top:0}
+.sysl .nm{font-size:13px}
+.sysl select,.sysl input{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.sysl.ooc .nm{color:var(--crit-ink);font-weight:600}
+.rxc{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:8px 0;background:var(--surface)}
+.rxc h4{margin:0 0 6px;font-size:13px;display:flex;gap:8px;align-items:center}
+.rxc h4 .sp{margin-left:auto}
+.ckl{display:inline-flex;gap:7px;align-items:center;font-size:13px}
+.ckl input{width:auto}
+.syslist{display:grid;gap:4px;margin:6px 0}
+.syslist label{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.syslist input{width:auto;margin-top:3px}
+@media (max-width:760px){.sysl{grid-template-columns:1fr}table.log.cards td.act{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · HTSA 1.9 · Management responsibility</div>
+      <h1>Second-level review of the furnace monitoring data</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-rev">Record review</button>
+      <button class="btn ghost" id="b-h19">HTSA 1.9 evidence (PDF)</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>HTSA 1.9 · Monitoring system reviewed by qualified personnel</h2><p>The requirement, the evidence this page holds for it and the resulting assessment. Confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
+    <div class="req-q"><b>1.9 Is the heat treat monitoring system reviewed by Qualified Personnel?</b>This review is intended to be a second level review in addition to those performed by the heat treat operators. This review would be performed by qualified personnel as defined per question 1.17. The heat treat monitoring system includes but is not limited to temperature strip charts, atmosphere strip charts, computer data logs, furnace and operator logs, etc.
+      <ul><li>Qualified Personnel shall review the furnace monitoring systems at intervals not to exceed 24 hours.</li><li>The process of reviewing the furnace data shall be documented. This requirement also applies to computerized data.</li><li>This second level review shall include detection and reaction to out of control conditions or alarms. This reaction shall be documented.</li></ul></div>
+    <div class="score" id="h19score"></div>
+    <div class="scroll" id="h19"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Review status per furnace</h2><p id="furnNote"></p></div>
+    <div class="scroll" id="furn"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Out-of-control conditions and reactions</h2><p>Every reaction recorded in a review: what was found, what was done, what happened to the product, who owns it and when it was closed. Open reactions first.</p></div>
+    <div class="scroll" id="rx"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Intervals over 24 hours</h2><p id="gapNote"></p></div>
+    <div class="scroll" id="gaps"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Review log</h2><p>The documented second-level reviews: the period of furnace data covered, who reviewed it and when, the result per monitoring system.</p>
+      <div class="actions noprint"><div class="tabs-k" id="pf"></div><button class="btn ghost small" id="b-xlsx">Download (Excel)</button></div></div>
+    <div class="scroll" id="log"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Qualified reviewers</h2><p>Only the people listed here, with the evidence of their qualification (HTSA 1.17: training and qualification record), can sign a second-level review. The heat treat operators do the first-level checks; they are not listed here unless they are qualified for the second level.</p>
+      <div class="actions noprint"><button class="btn ghost small" id="b-reviewer">Add reviewer</button><button class="btn ghost small" id="b-orgpeople" hidden>Add from the HT organization</button></div></div>
+    <div class="scroll" id="revs"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (HT Engineer)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The 24-hour limit is the CQI-9 maximum; the warning window and the look-back period are site rules, not CQI-9 figures. The procedure number is the documented review process (the work instruction or procedure that says how the furnace data is reviewed).</p>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Monitoring systems reviewed</h3>
+    <p class="muted" style="margin:0 0 6px;font-size:13px">The records the reviewer looks at for every furnace. Each ticked system is answered in every review.</p>
+    <div class="syslist" id="syslist"></div>
+    <div class="actions" style="margin-top:6px"><input id="s-newsys" placeholder="Another monitoring system, e.g. Washer temperature log" style="min-width:280px;flex:1"><button class="btn ghost small" id="b-addsys">Add</button></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The reviewers and the reviews are kept in this browser only. Alarms, SCADA day summaries, quench tests and push-cycle holds are read from the CALOR pages that record them (Alarms, SCADA review, Quench media, Daily production) in the same browser. Export a backup regularly.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li><b>Who:</b> a second-level review, on top of the operators' own checks, by a reviewer qualified as per HTSA 1.17 (listed with the evidence of the qualification).</li>
+      <li><b>How often:</b> every furnace in operation is reviewed so that no more than 24 hours pass between two reviews, and the periods of data reviewed follow each other without a gap. A furnace stopped by a recorded shutdown (Alarms page) needs no review until it starts again.</li>
+      <li><b>What:</b> every monitoring system in the list — the computerized data log (SCADA) and temperature charts, alarm history, atmosphere / combustion, quench, push cycle and the operator and furnace logs — is answered: in control, out of control or not applicable with the reason.</li>
+      <li><b>Detect and react:</b> the conditions already recorded in CALOR for the period (alarms, thermocouples out of tolerance on a SCADA day, quench tests out of limits, push-cycle holds) are listed in the review and each is acknowledged. Every out-of-control condition gets a documented reaction: what was done, the product disposition, the owner, and its closure with the verification.</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const nowStr=()=>{const d=new Date();return today()+"T"+pad(d.getHours())+":"+pad(d.getMinutes());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const isDT=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s);
+const isTime=s=>typeof s==="string"&&/^\d{2}:\d{2}/.test(s);
+/* clock times without a time zone (like the SCADA, production and alarm pages) */
+const ms=s=>isDT(s)?Date.parse(s.slice(0,16)+":00Z"):NaN;
+const dtOf=t=>isFinite(t)?new Date(t).toISOString().slice(0,16):"";
+const nowMs=()=>ms(nowStr());
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>{const d=new Date(n*864e5);return isFinite(d)?d.toISOString().slice(0,10):"";};
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+MON[+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const fdt=s=>isDT(s)?fdate(s.slice(0,10))+" "+s.slice(11,16):"—";
+const fh=h=>h==null||!isFinite(h)?"—":h<48?(Math.round(h*10)/10)+" h":(Math.round(h/24*10)/10)+" days";
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+const uniq=a=>[...new Set(a)];
+const arr=v=>Array.isArray(v)?v:[],str=v=>v==null?"":String(v),isObj=v=>!!v&&typeof v==="object"&&!Array.isArray(v);
+const lim=(L,n=6)=>L.slice(0,n).join("; ")+(L.length>n?` … (${L.length} in all)`:"");
+const fv=v=>v==null||!isFinite(v)?"—":String(Math.round(v*10)/10);
+const H=3.6e6;
+
+/* ---------- data model ---------- */
+const KEY="mrv-reg", VKEY="mrv-view";
+const ROLES=["HT Manager","Quality Manager","Production Manager","Maintenance Head","HT Engineer","Shift Supervisor"];
+/* the monitoring systems a reviewer looks at (CQI-9: temperature strip charts, atmosphere charts, computer data logs, furnace and operator logs) */
+const DEF_SYS=[
+  {k:"temp",name:"Zone temperatures: computer data log (SCADA) and temperature charts, set value against actual, every zone of both chambers",on:true,comp:true},
+  {k:"alarm",name:"Alarm history: SCADA alarms, over-temperature protection, burner / flame failure",on:true,comp:true},
+  {k:"atm",name:"Furnace atmosphere / combustion: air–gas ratio, furnace pressure (direct-fired: no protective atmosphere)",on:true},
+  {k:"quench",name:"Quench: oil temperature, agitation and level records",on:true},
+  {k:"cc",name:"Controlled cooling chamber: cooling time and air flow (isothermal annealing)",on:false},
+  {k:"push",name:"Push cycle: push time, delays and holds (furnace log)",on:true},
+  {k:"oplog",name:"Operator log and shift handover: first-level checks done and signed, entries complete",on:true}];
+const RES={ok:"Reviewed, in control",ooc:"Out of control / alarm found",na:"Not available / not applicable"};
+const HOW={react:"Reaction recorded in this review",ref:"Handled in its own record"};
+const DISP={none:"No product affected",released:"Product checked and released",held:"Product held (segregated)",rework:"Re-heat-treated / reworked",scrap:"Scrapped",cust:"Customer informed / concession"};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",maxHrs:24,soonHrs:4,covDays:30,procRef:"",furnaces:"F-01, F-02, F-03, F-04",systems:DEF_SYS};
+const LIMITS={maxHrs:[1,24],soonHrs:[0,12],covDays:[7,365]};
+const fixSet=(k,v)=>{const n=num(v),[lo,hi]=LIMITS[k];return n==null||Math.round(n)<lo||Math.round(n)>hi?DEF[k]:Math.round(n);};
+const blank=()=>({v:1,settings:clone(DEF),reviewers:[],reviews:[],seq:{q:1,r:1}});
+const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
+const REVF={id:"",furnace:"",from:"",to:"",at:"",by:"",byName:"",idle:false,lines:{},det:{},rx:[],notes:"",log:[]};
+const RXF={sys:"",det:"",what:"",when:"",action:"",disp:"",ref:"",owner:"",closed:"",verify:""};
+const fixRev=r=>{const x={...clone(REVF),...(isObj(r)?r:{})};["furnace","from","to","at","by","byName","notes"].forEach(k=>{x[k]=str(x[k]);});x.idle=!!x.idle;
+  x.lines=isObj(x.lines)?x.lines:{};Object.keys(x.lines).forEach(k=>{const l=x.lines[k];x.lines[k]=isObj(l)?{res:RES[l.res]?l.res:"",note:str(l.note)}:{res:"",note:""};});
+  x.det=isObj(x.det)?x.det:{};Object.keys(x.det).forEach(k=>{const l=x.det[k];x.det[k]=isObj(l)?{how:HOW[l.how]?l.how:"",note:str(l.note)}:{how:"",note:""};});
+  x.rx=arr(x.rx).filter(isObj).map(a=>{const y={...RXF,...a};Object.keys(RXF).forEach(k=>{y[k]=str(y[k]);});return y;});x.log=arr(x.log).filter(isObj);return x;};
+const fixRq=q=>({id:str(q.id),name:str(q.name),role:str(q.role),qualRef:str(q.qualRef),qualDate:str(q.qualDate),scope:str(q.scope),active:q.active!==false,log:arr(q.log).filter(isObj)});
+function normalize(o){
+  if(!isObj(o)||!Array.isArray(o.reviews)) return null;
+  const s=isObj(o.settings)?o.settings:{};
+  o.settings={...clone(DEF),...s};Object.keys(LIMITS).forEach(k=>{o.settings[k]=fixSet(k,o.settings[k]);});
+  ["plant","procRef","furnaces"].forEach(k=>{o.settings[k]=str(o.settings[k]);});if(!o.settings.plant) o.settings.plant=DEF.plant;
+  o.settings.systems=arr(s.systems).filter(x=>isObj(x)&&x.k&&txt(x.name)).map(x=>({k:str(x.k),name:str(x.name),on:x.on!==false,comp:!!x.comp,own:!!x.own}));
+  if(!o.settings.systems.length) o.settings.systems=clone(DEF_SYS);
+  o.reviewers=arr(o.reviewers).filter(q=>isObj(q)&&q.id).map(fixRq);
+  o.reviews=o.reviews.filter(r=>isObj(r)&&r.id).map(fixRev);
+  const q=isObj(o.seq)?o.seq:{};o.seq={q:Math.max(+q.q||1,seqOf(o.reviewers)),r:Math.max(+q.r||1,seqOf(o.reviews))};
+  o.v=1;return o;
+}
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n)||null;}catch(e){return null;}};
+let DB=null;try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+let EMIT=0;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}LC={};
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("mon:changed"),300);}};
+const S=()=>DB.settings;
+const newId=(p,k,w)=>p+"-"+String(DB.seq[k]++).padStart(w||4,"0");
+const logIt=(x,t)=>x.log.push({d:today(),t});
+const revById=id=>DB.reviews.find(r=>r.id===id)||null;
+const rqById=id=>DB.reviewers.find(q=>q.id===id)||null;
+let VIEW={pf:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const sysOn=()=>S().systems.filter(s=>s.on);
+const sysName=k=>(S().systems.find(s=>s.k===k)||{name:k||"—"}).name;
+const sysShort=k=>sysName(k).split(":")[0];
+/* the furnaces: the SAT register's list in CALOR, else the settings */
+const furnaces=()=>{try{const a=api("sat");const L=a?a.furnaces():[];if(L.length) return L;}catch(e){}return uniq(S().furnaces.split(/[,;]+/).map(txt).filter(Boolean));};
+/* a reviewer is qualified on a day when the qualification evidence is recorded and dated on or before it */
+const qualOn=(q,d)=>!!q&&!!txt(q.qualRef)&&isDate(q.qualDate)&&(!isDate(d)||q.qualDate<=d);
+const qualNow=q=>q&&q.active&&qualOn(q,today());
+
+/* ---------- reading the other pages' records (same browser storage) ---------- */
+let LC={};
+const LS=k=>{if(k in LC) return LC[k];let v=null;try{v=JSON.parse(localStorage.getItem(k)||"null");}catch(e){}return LC[k]=v;};
+const fNo=s=>{const m=String(s||"").match(/(\d+)/);return m?"F-"+pad(+m[1]):"";};
+const histAll=()=>({...(LS("pfsr-hist")||{}),...(LS("sr2-hist")||{})});
+const quench=()=>LS("qmt-reg")||{};
+const opsDb=()=>LS("fop-reg")||{};
+/* start-ups, shutdowns and line-stopping alarms of a furnace (Alarms page) */
+const runEv=f=>{const o=opsDb(),M=new Map(arr(o.alarms).map(a=>[a.k,a]));
+  return arr(o.events).filter(e=>e.furnace===f&&isDT(e.start)&&(e.kind==="startup"||e.kind==="shutdown"||(e.kind==="alarm"&&(M.get(e.alarm)||{}).stop))).map(e=>({t:ms(e.start),run:e.kind==="startup"})).sort((a,b)=>a.t-b.t);};
+/* stopped during the whole window: the last event before it stopped the furnace and no start-up within it */
+function stopped(f,t0,t1){const E=runEv(f),b=E.filter(e=>e.t<=t0).at(-1);return !!b&&!b.run&&!E.some(e=>e.run&&e.t>t0&&e.t<t1);}
+const stoppedNow=f=>{const E=runEv(f),b=E.at(-1);return !!b&&!b.run;};
+/* the conditions CALOR already holds for a furnace and a period: each one must be acknowledged in the review covering it */
+function detect(f,from,to){
+  const t0=ms(from),t1=ms(to),out=[];if(!f||!isFinite(t0)||!isFinite(t1)||t1<=t0) return out;
+  const inP=t=>isFinite(t)&&t>=t0&&t<=t1;
+  const o=opsDb(),M=new Map(arr(o.alarms).map(a=>[a.k,a]));
+  arr(o.events).filter(e=>e.kind==="alarm"&&e.furnace===f&&inP(ms(e.start))).forEach(e=>{const a=M.get(e.alarm);
+    out.push({key:"op:"+e.id,sys:"alarm",when:e.start.slice(0,16),txt:`Alarm: ${a?a.name:e.alarm||"alarm"}${e.area&&e.area!=="Whole line"?" · "+e.area+(e.zone?" zone "+e.zone:""):""}`,ref:`alarm record ${e.id} (Alarms page)`});});
+  Object.values(histAll()).filter(h=>isObj(h)&&fNo(h.f)===f&&isFinite(+h.day)).forEach(h=>{const d0=+h.day*864e5;if(d0>=t1||d0+864e5<=t0) return;
+    const ch=/TEMP/i.test(h.f)?"Tempering":/HARD/i.test(h.f)?"Hardening":"";
+    arr(h.tc).forEach((c,i)=>{if(!isObj(c)||num(c.inTol)==null||num(c.inTol)>=100) return;const n=num(c.n)||i+1;
+      out.push({key:`sc:${h.f}|${h.day}|${n}`,sys:"temp",when:dstr(+h.day)+"T00:00",txt:`${ch?ch+" ":""}TC-${pad(n)}: ${fv(num(c.inTol))} % of the readings in tolerance on ${fdate(dstr(+h.day))}`,ref:`SCADA review of ${fdate(dstr(+h.day))}`});});});
+  const Q=quench(),tanks=arr(Q.tanks).filter(t=>t.furnace===f),plan=arr(Q.plan);
+  arr(Q.tests).filter(t=>isObj(t)&&tanks.some(k=>k.id===t.tank)&&isDate(t.date)).forEach(t=>{const when=t.date+"T"+(isTime(t.time)?t.time.slice(0,5):"12:00");if(!inP(ms(when))) return;
+    const tk=tanks.find(k=>k.id===t.tank),V=isObj(t.vals)?t.vals:{};
+    const bad=plan.filter(p=>p.m===tk.media&&(p.kind==="ok"?V[p.k]==="nok":num(V[p.k])!=null&&((num(p.lo)!=null&&num(V[p.k])<num(p.lo))||(num(p.hi)!=null&&num(V[p.k])>num(p.hi)))));
+    if(bad.length) out.push({key:"qt:"+t.id,sys:"quench",when,txt:`Quench tank ${tk.id}: ${bad.map(p=>p.n).join(", ")} outside the limits`,ref:`quench test ${t.id} (Quench media page)`});});
+  arr((LS("prod-reg")||{}).reports).filter(r=>isObj(r)&&r.furnace===f).forEach(r=>arr(r.holds).forEach(h=>{if(!isObj(h)||!inP(ms(h.from))) return;
+    out.push({key:`ph:${r.id}|${h.id}`,sys:"push",when:h.from.slice(0,16),txt:`Push cycle on hold from ${fdt(h.from)}${isDT(h.to)?" to "+fdt(h.to):" (not restarted)"}${h.reason?" · "+h.reason:""}`,ref:`production report ${r.id||"of "+fdate(r.date)}`});}));
+  return out.sort((a,b)=>a.when<b.when?-1:1);
+}
+
+/* ---------- a review: completeness ---------- */
+function missRev(r){
+  const m=[];
+  if(!r.furnace) m.push("furnace");
+  if(!isDT(r.from)||!isDT(r.to)) m.push("the period of data reviewed");else if(ms(r.from)>=ms(r.to)) m.push("a period that ends after it starts");
+  if(!isDT(r.at)) m.push("date and time of the review");else{if(isDT(r.to)&&ms(r.to)>ms(r.at)) m.push("a period that ends by the time of the review");if(ms(r.at)>nowMs()+60e3) m.push("a review time not in the future");}
+  const q=rqById(r.by);if(!q) m.push("reviewed by (a qualified reviewer)");else if(!qualOn(q,isDT(r.at)?r.at.slice(0,10):today())) m.push(`a reviewer qualified on the review day (${q.name} has no qualification evidence dated by then)`);
+  if(r.idle){if(!txt(r.notes)) m.push("the note why the furnace was not running");}
+  else sysOn().forEach(s=>{const l=r.lines[s.k];if(!l||!l.res) m.push(`result for “${sysShort(s.k)}”`);else if(l.res==="na"&&!txt(l.note)) m.push(`the reason “${sysShort(s.k)}” was not reviewed`);
+    else if(l.res==="ooc"&&!r.rx.some(a=>a.sys===s.k)) m.push(`a reaction for “${sysShort(s.k)}” (out of control)`);});
+  detect(r.furnace,r.from,r.to).forEach(d=>{const a=r.det[d.key];if(!a||!a.how) m.push(`acknowledge “${d.txt}”`);else if(a.how==="react"&&!r.rx.some(x=>x.det===d.key)) m.push(`a reaction for “${d.txt}”`);else if(a.how==="ref"&&!txt(a.note)) m.push(`the record handling “${d.txt}”`);});
+  r.rx.forEach((a,i)=>{const n=`reaction ${i+1}`;if(!a.sys) m.push(n+": system");if(!txt(a.what)) m.push(n+": what was found");if(!txt(a.action)) m.push(n+": what was done");if(!DISP[a.disp]) m.push(n+": product disposition");if(!a.owner) m.push(n+": owner");
+    if(isDate(a.closed)){if(!txt(a.verify)) m.push(n+": verification when closed");if(a.disp==="held") m.push(n+": the final disposition of the held product before closing");if(a.closed>today()) m.push(n+": a closing date not in the future");}});
+  return m;
+}
+const rxOpen=a=>!isDate(a.closed);
+const revOoc=r=>r.rx.length;
+
+/* ---------- status per furnace and intervals ---------- */
+const revsOf=f=>DB.reviews.filter(r=>r.furnace===f&&isDT(r.at)).sort((a,b)=>ms(a.at)-ms(b.at));
+function fstat(f){
+  const L=revsOf(f),last=L.at(-1)||null,now=nowMs(),mx=S().maxHrs;
+  const since=last?(now-ms(last.at))/H:null,due=last?dtOf(ms(last.at)+mx*H):"";
+  const stop=last?stopped(f,ms(last.at),now):stoppedNow(f);
+  const st=stop?"stopped":!last?"none":since>mx?"overdue":since>mx-S().soonHrs?"soon":"ok";
+  const from=last&&isDT(last.to)?last.to:dtOf(now-mx*H),pend=detect(f,from,nowStr());
+  return {f,L,last,since,due,st,pend,from};
+}
+const FST={ok:["good","✓","Reviewed"],soon:["warn","!","Due soon"],overdue:["crit","✕","Overdue"],none:["crit","✕","Never reviewed"],stopped:["info","i","Furnace stopped"]};
+/* intervals over the limit and periods of data not reviewed, within the look-back window */
+function gaps(f){
+  const L=revsOf(f),W0=nowMs()-S().covDays*864e5,mx=S().maxHrs,out=[];
+  for(let i=1;i<L.length;i++){const a=L[i-1],b=L[i];if(ms(b.at)<W0) continue;
+    const h=(ms(b.at)-ms(a.at))/H;if(h>mx&&!stopped(f,ms(a.at)+mx*H,ms(b.at))) out.push({f,kind:"int",from:a.at,to:b.at,h,a:a.id,b:b.id});
+    if(isDT(a.to)&&isDT(b.from)&&ms(b.from)>ms(a.to)+60e3&&!stopped(f,ms(a.to),ms(b.from))) out.push({f,kind:"data",from:a.to,to:b.from,h:(ms(b.from)-ms(a.to))/H,a:a.id,b:b.id});}
+  return out;
+}
+
+/* ---------- HTSA 1.9 assessment ---------- */
+const SCORE={s:["good","Satisfactory"],ns:["warn","Not satisfactory"],nia:["crit","Needs immediate action"]};
+const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","✕","Not met"],info:["info","i","Note"]};
+function assess19(){
+  const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),F=furnaces(),W0=nowMs()-S().covDays*864e5,mx=S().maxHrs;
+  const R=DB.reviews.filter(r=>isDT(r.at)&&ms(r.at)>=W0);
+  /* qualified personnel */
+  const Q=DB.reviewers.filter(q=>q.active),Qok=Q.filter(qualNow),Qno=Q.filter(q=>!qualNow(q));
+  add(!Qok.length?"crit":Qno.length?"warn":"ok","Second-level reviewers qualified (as per 1.17)",!Q.length?"No reviewer listed.":`${plural(Qok.length,"qualified reviewer")}: ${lim(Qok.map(q=>`${q.name} (${q.qualRef})`))}.${Qno.length?` Without qualification evidence: ${lim(Qno.map(q=>q.name))}.`:""}`,
+    !Qok.length?"List the qualified reviewers with the evidence of their qualification (HTSA 1.17).":Qno.length?"Record the qualification evidence of these people, or make them inactive.":"");
+  /* documented process */
+  const on=sysOn(),comp=on.filter(s=>s.comp);
+  add(!txt(S().procRef)||!on.length?"crit":!comp.length?"warn":"ok","Review process documented, computerized data included",`${txt(S().procRef)?"Procedure "+S().procRef:"No procedure named"}; ${plural(on.length,"monitoring system")} reviewed: ${lim(on.map(s=>sysShort(s.k)),8)}.${comp.length?" Computerized data: "+comp.map(s=>sysShort(s.k)).join(", ")+".":" No computerized data log in the list."}`,
+    !txt(S().procRef)?"Name the procedure / work instruction for the review in Settings (and write it on the Procedures & WIs page).":!on.length?"Tick the monitoring systems reviewed.":!comp.length?"Add the computerized data log (SCADA) to the systems reviewed.":"");
+  /* the 24-hour interval */
+  const st=F.map(fstat),G=F.flatMap(gaps),bad=st.filter(s=>s.st==="overdue"||s.st==="none"),soon=st.filter(s=>s.st==="soon");
+  const longest=F.map(f=>{const L=revsOf(f).filter(r=>ms(r.at)>=W0);let m=0;for(let i=1;i<L.length;i++)m=Math.max(m,(ms(L[i].at)-ms(L[i-1].at))/H);return `${f}: ${plural(L.length,"review")}${L.length>1?", longest interval "+fh(m):""}`;});
+  add(bad.length||G.length?"crit":soon.length?"warn":"ok",`Reviewed at intervals not exceeding ${mx} hours`,`Last ${S().covDays} days · ${longest.join("; ")}.${bad.length?` Overdue now: ${bad.map(s=>s.f+(s.last?" (last "+fdt(s.last.at)+")":" (never)")).join(", ")}.`:""}${G.length?` ${plural(G.filter(g=>g.kind==="int").length,"interval")} over ${mx} h and ${plural(G.filter(g=>g.kind==="data").length,"period")} of data not reviewed.`:""}${soon.length?` Due within ${S().soonHrs} h: ${soon.map(s=>s.f).join(", ")}.`:""}`,
+    bad.length?"Review these furnaces now.":G.length?"Find why the reviews were missed and correct the review rota (the gaps stay on record).":soon.length?"Review before the 24 hours end.":"");
+  /* documented and complete */
+  const inc=R.filter(r=>missRev(r).length),unq=R.filter(r=>{const q=rqById(r.by);return !q||!qualOn(q,r.at.slice(0,10));});
+  add(!R.length||inc.length||unq.length?"crit":"ok","Each review documented and complete",!R.length?`No review in the last ${S().covDays} days.`:`${plural(R.length,"review")} in the last ${S().covDays} days, each with the period of data, reviewer, time and the result per system.${inc.length?` Incomplete: ${lim(inc.map(r=>r.id))}.`:""}${unq.length?` Not by a reviewer qualified on the day: ${lim(unq.map(r=>r.id))}.`:""}`,
+    !R.length?"Record the reviews.":inc.length||unq.length?"Complete these reviews (a review by an unqualified person is repeated by a qualified reviewer).":"");
+  /* detection */
+  const det=R.flatMap(r=>detect(r.furnace,r.from,r.to).map(d=>({r,d}))),nack=det.filter(({r,d})=>!r.det[d.key]||!r.det[d.key].how),ooc=R.filter(revOoc),pend=st.reduce((a,s)=>a+s.pend.length,0);
+  add(nack.length?"crit":"ok","Detection of out-of-control conditions and alarms",`${plural(ooc.length,"review")} with out-of-control conditions found; ${plural(det.length,"condition")} recorded in CALOR (alarms, SCADA days out of tolerance, quench tests, push-cycle holds) for the periods reviewed${nack.length?`, ${nack.length} not acknowledged in its review: ${lim(nack.map(x=>x.r.id+" "+x.d.txt),4)}`:", all acknowledged"}.${pend?` ${plural(pend,"condition")} since the last reviews, for the next review.`:""}`,
+    nack.length?"Open these reviews and acknowledge each condition (reaction or the record handling it).":"");
+  /* reaction */
+  const RX=DB.reviews.flatMap(r=>r.rx.map(a=>({r,a}))),rxInc=RX.filter(({a})=>!txt(a.action)||!DISP[a.disp]||!a.owner),open=RX.filter(({a})=>rxOpen(a)),held=open.filter(({a})=>a.disp==="held");
+  add(rxInc.length?"crit":open.length?"warn":"ok","Reaction documented",!RX.length?"No reaction needed so far.":`${plural(RX.length,"reaction")} recorded, ${open.length} open${held.length?` (${plural(held.length,"with product held","with product held")})`:""}.${rxInc.length?` Incomplete: ${lim(rxInc.map(x=>x.r.id))}.`:""}`,
+    rxInc.length?"Complete the reaction: what was done, product disposition, owner.":open.length?"Close the open reactions with their verification.":"");
+  const crit=I.filter(i=>i.lvl==="crit");
+  return {I,score:!Qok.length||!R.length?"nia":crit.length?"ns":"s",st,G};
+}
+
+/* ---------- render ---------- */
+function render(){
+  LC={};
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${plural(furnaces().length,"furnace")} · ${plural(DB.reviews.length,"review")}</span><span>Now ${fdt(nowStr())}</span>`;
+  $("#b-orgpeople").hidden=!api("org");
+  const A=assess19();drawH19(A);drawKpis(A);drawFurn(A);drawRx();drawGaps(A);drawPF();drawLog();drawRevs();drawSettings();
+}
+function drawH19(A){
+  const sc=SCORE[A.score];
+  $("#h19score").innerHTML=`<span class="big ${sc[0]}">${sc[1]}</span><span class="muted">${plural(A.I.filter(i=>i.lvl==="ok").length,"item")} met · ${plural(A.I.filter(i=>i.lvl==="crit").length,"item")} not met · ${plural(A.I.filter(i=>i.lvl==="warn").length,"item")} needing attention</span>`;
+  $("#h19").innerHTML=`<table class="log cards"><thead><tr><th>Requirement</th><th>Evidence in this register</th><th>Result</th><th>Action</th></tr></thead><tbody>${A.I.map(i=>`<tr><td data-label="Requirement"><b>${esc(i.req)}</b></td><td data-label="Evidence">${esc(i.ev)}</td><td data-label="Result">${chip(...LV[i.lvl])}</td><td data-label="Action">${esc(i.act||"—")}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawKpis(A){
+  const k=(l,v,s,c)=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${s}</span></div>`;
+  const run=A.st.filter(s=>s.st!=="stopped"),okN=run.filter(s=>s.st==="ok"||s.st==="soon").length,over=run.filter(s=>s.st==="overdue"||s.st==="none").length;
+  const open=DB.reviews.flatMap(r=>r.rx).filter(rxOpen),held=open.filter(a=>a.disp==="held").length,gi=A.G.filter(g=>g.kind==="int").length;
+  $("#kpis").innerHTML=k(`Reviewed within ${S().maxHrs} h`,`${okN}<small style="font-size:15px"> / ${run.length}</small>`,`furnaces in operation${A.st.length>run.length?` · ${A.st.length-run.length} stopped`:""}`,over?"bad":"ok")
+    +k("Overdue now",over,`no review in the last ${S().maxHrs} h`,over?"bad":"ok")
+    +k(`Intervals over ${S().maxHrs} h`,gi,`last ${S().covDays} days · ${A.G.length-gi} period${A.G.length-gi===1?"":"s"} of data not reviewed`,A.G.length?"bad":"ok")
+    +k("Reactions open",open.length,`${held} with product held`,held?"bad":open.length?"caution":"ok");
+}
+function drawFurn(A){
+  $("#furnNote").textContent=`Every furnace in operation is reviewed at least every ${S().maxHrs} hours. “Since then” lists the conditions CALOR already holds for the data after the last review: they will be in the next review.`;
+  if(!A.st.length){$("#furn").innerHTML=`<div class="empty">No furnace. Enter the furnaces in Settings.</div>`;return;}
+  $("#furn").innerHTML=`<table class="log cards"><thead><tr><th>Furnace</th><th>Last review</th><th>Data reviewed up to</th><th>Next review due</th><th>Since then</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${A.st.map(s=>`<tr>
+    <td data-label="Furnace"><b>${esc(s.f)}</b></td>
+    <td data-label="Last review" class="nw">${s.last?`${fdt(s.last.at)}<br><span class="sub2">${esc(s.last.byName||(rqById(s.last.by)||{}).name||"")} · ${esc(s.last.id)}</span>`:"never"}</td>
+    <td data-label="Data up to" class="nw">${s.last?fdt(s.last.to):"—"}</td>
+    <td data-label="Next due" class="nw"><span class="${s.st==="overdue"?"bad":s.st==="soon"?"caution":""}">${s.last?fdt(s.due):"now"}</span>${s.since!=null?`<br><span class="sub2">${fh(s.since)} since the last review</span>`:""}</td>
+    <td data-label="Since then">${s.pend.length?`<ul class="findings">${s.pend.slice(0,4).map(d=>`<li class="${d.sys==="push"?"info":"warn"}">${esc(fdt(d.when))} ${esc(d.txt)}</li>`).join("")}${s.pend.length>4?`<li class="info">… ${s.pend.length-4} more</li>`:""}</ul>`:`<span class="muted">nothing recorded</span>`}</td>
+    <td data-label="Status">${chip(...FST[s.st])}</td>
+    <td class="act noprint"><button class="btn small" data-new="${esc(s.f)}">Record review</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawRx(){
+  const L=DB.reviews.flatMap(r=>r.rx.map((a,i)=>({r,a,i}))).sort((x,y)=>(rxOpen(y.a)-rxOpen(x.a))||(x.r.at<y.r.at?1:-1));
+  if(!L.length){$("#rx").innerHTML=`<div class="empty">No out-of-control condition recorded.</div>`;return;}
+  $("#rx").innerHTML=`<table class="log cards"><thead><tr><th>Review</th><th>Furnace</th><th>System · found</th><th>Reaction</th><th>Product</th><th>Owner</th><th>State</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,60).map(({r,a})=>`<tr>
+    <td data-label="Review" class="nw"><b>${esc(r.id)}</b><br><span class="sub2">${fdt(r.at)}</span></td><td data-label="Furnace">${esc(r.furnace)}</td>
+    <td data-label="Found"><div><b>${esc(sysShort(a.sys))}</b><br>${esc(a.what)}${isDT(a.when)?`<br><span class="sub2">${fdt(a.when)}</span>`:""}</div></td>
+    <td data-label="Reaction">${esc(a.action)}${a.ref?`<br><span class="sub2">${esc(a.ref)}</span>`:""}</td><td data-label="Product">${esc(DISP[a.disp]||"—")}</td><td data-label="Owner">${esc(a.owner)}</td>
+    <td data-label="State">${rxOpen(a)?a.disp==="held"?chip("crit","✕","Open, product held"):chip("warn","!","Open"):chip("good","✓","Closed "+fdate(a.closed))}</td>
+    <td class="act noprint"><button class="btn ghost small" data-open-rev="${esc(r.id)}">Open</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawGaps(A){
+  $("#gapNote").textContent=`Intervals between two reviews of a furnace longer than ${S().maxHrs} hours, and periods of data no review covered, in the last ${S().covDays} days (not counted while the furnace was stopped by a recorded shutdown). They stay on record; the reason and the correction belong in the review that followed.`;
+  if(!A.G.length){$("#gaps").innerHTML=`<div class="empty">None in the last ${S().covDays} days.</div>`;return;}
+  $("#gaps").innerHTML=`<table class="log cards"><thead><tr><th>Furnace</th><th>Kind</th><th>From</th><th>To</th><th class="n">Length</th><th>Reviews</th><th class="noprint"></th></tr></thead><tbody>${A.G.sort((x,y)=>x.to<y.to?1:-1).map(g=>`<tr><td data-label="Furnace"><b>${esc(g.f)}</b></td><td data-label="Kind">${g.kind==="int"?`Interval over ${S().maxHrs} h`:"Data not reviewed"}</td><td data-label="From" class="nw">${fdt(g.from)}</td><td data-label="To" class="nw">${fdt(g.to)}</td><td data-label="Length" class="n">${fh(g.h)}</td><td data-label="Reviews">${esc(g.a)} → ${esc(g.b)}</td><td class="act noprint"><button class="btn ghost small" data-open-rev="${esc(g.b)}">Open</button></td></tr>`).join("")}</tbody></table>`;
+}
+function drawPF(){$("#pf").innerHTML=[["","All"],...furnaces().map(f=>[f,f]),["ooc","With conditions"]].map(([k,t])=>`<button class="${VIEW.pf===k?"on":""}" aria-pressed="${VIEW.pf===k}" data-pf="${esc(k)}">${esc(t)}</button>`).join("");}
+function drawLog(){
+  const L=DB.reviews.filter(r=>!VIEW.pf||(VIEW.pf==="ooc"?revOoc(r)||Object.keys(r.det).length:r.furnace===VIEW.pf)).sort((a,b)=>a.at<b.at?1:-1);
+  if(!L.length){$("#log").innerHTML=`<div class="empty">${DB.reviews.length?"No review for this selection.":"No review recorded yet. Use “Record review”, or load the example under Settings."}</div>`;return;}
+  $("#log").innerHTML=`<table class="log cards"><thead><tr><th>Review</th><th>Furnace</th><th>Data reviewed</th><th>Reviewed by</th><th>Result</th><th class="noprint"></th></tr></thead><tbody>${L.slice(0,80).map(r=>{const m=missRev(r),q=rqById(r.by);
+    const res=r.idle?`<span class="muted">Furnace not running</span>`:sysOn().map(s=>{const l=r.lines[s.k];return l&&l.res==="ooc"?`<span class="bad">${esc(sysShort(s.k))}: out of control</span>`:"";}).filter(Boolean).join("<br>")||`<span class="muted">All in control</span>`;
+    return `<tr><td data-label="Review" class="nw"><b>${esc(r.id)}</b><br><span class="sub2">${fdt(r.at)}</span></td><td data-label="Furnace">${esc(r.furnace)}</td>
+    <td data-label="Data" class="nw">${fdt(r.from)} →<br>${fdt(r.to)}</td><td data-label="By">${esc(q?q.name:r.byName||"—")}</td>
+    <td data-label="Result"><div>${res}${Object.keys(r.det).length?`<br><span class="sub2">${plural(Object.keys(r.det).length,"recorded condition")} acknowledged</span>`:""}${m.length?`<br><span class="bad">Incomplete: ${esc(lim(m,2))}</span>`:""}</div></td>
+    <td class="act noprint"><button class="btn ghost small" data-open-rev="${esc(r.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>${L.length>80?`<p class="muted" style="font-size:12.5px">The 80 latest of ${L.length} reviews are shown; the Excel download has all of them.</p>`:""}`;
+}
+function drawRevs(){
+  const L=DB.reviewers.slice().sort((a,b)=>(b.active-a.active)||a.name.localeCompare(b.name));
+  if(!L.length){$("#revs").innerHTML=`<div class="empty">No reviewer listed. Add the qualified people who do the second-level review.</div>`;return;}
+  $("#revs").innerHTML=`<table class="log cards"><thead><tr><th>Reviewer</th><th>Role</th><th>Qualification evidence (1.17)</th><th>Reviews</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(q=>{const n=DB.reviews.filter(r=>r.by===q.id).length;return `<tr class="${q.active?"":"muted"}">
+    <td data-label="Reviewer"><b>${esc(q.name)}</b><br><span class="sub2">${esc(q.id)}</span></td><td data-label="Role">${esc(q.role||"—")}</td>
+    <td data-label="Qualification">${q.qualRef?`${esc(q.qualRef)}<br><span class="sub2">${isDate(q.qualDate)?"since "+fdate(q.qualDate):"no date"}${q.scope?" · "+esc(q.scope):""}</span>`:`<span class="bad">no evidence recorded</span>`}</td>
+    <td data-label="Reviews" class="n">${n}</td><td data-label="Status">${!q.active?chip("info","i","Inactive"):qualNow(q)?chip("good","✓","Qualified"):chip("crit","✕","Not qualified")}</td>
+    <td class="act noprint"><button class="btn ghost small" data-open-rq="${esc(q.id)}">Edit</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,t,h)=>`<div class="field"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="${t}" ${LIMITS[k]?`min="${LIMITS[k][0]}" max="${LIMITS[k][1]}" step="1"`:""} value="${esc(s[k])}">${h?`<span class="muted" style="font-size:12px">${h}</span>`:""}</div>`;
+  $("#settings").innerHTML=`<div class="field wide"><label for="s-plant">Plant</label><input id="s-plant" data-set="plant" value="${esc(s.plant)}"></div>`
+    +`<div class="field wide"><label for="s-procRef">Documented review process (procedure / work instruction no.)</label><input id="s-procRef" data-set="procRef" value="${esc(s.procRef)}" placeholder="e.g. SOP-HT-11 Second-level review of furnace data"></div>`
+    +f("maxHrs","Longest interval between reviews (h)","number","CQI-9: not more than 24")+f("soonHrs","Warn this many hours before (h)","number")+f("covDays","Look back for gaps (days)","number")
+    +(api("sat")?"":`<div class="field wide"><label for="s-furnaces">Furnaces (comma separated)</label><input id="s-furnaces" data-set="furnaces" value="${esc(s.furnaces)}"></div>`);
+  $("#syslist").innerHTML=s.systems.map(x=>`<label><input type="checkbox" data-sys="${esc(x.k)}" ${x.on?"checked":""}><span>${esc(x.name)}${x.comp?' <span class="sub2">(computerized data)</span>':""}${x.own?` <button class="btn ghost small" data-delsys="${esc(x.k)}" aria-label="Remove ${esc(x.name)}">✕</button>`:""}</span></label>`).join("");
+}
+
+/* ---------- dialogs ---------- */
+const dlg=$("#dlg");
+let ED=null,MODE="",MSG="",MSGOK=false;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+const fld=(path,label,o={})=>{const v=val(path),id=o.id||"f-"+path.replace(/\./g,"-"),dis=o.dis?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${esc(path)}" rows="${o.rows||2}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${esc(path)}" ${dis}>${o.blank!==false?`<option value="">${esc(o.blankTxt||"")}</option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${esc(path)}" type="${o.type||"text"}" ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;LC={};drawDlg();if(!dlg.open)dlg.showModal();}
+function drawDlg(){dlg.innerHTML=MODE==="rq"?dlgRq():dlgRev();}
+const foot=b=>`<div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>${b}</div>`;
+const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:"";
+
+/* review */
+function newRev(f){
+  f=f||furnaces()[0]||"";const L=revsOf(f),last=L.at(-1),now=nowStr(),mx=S().maxHrs;
+  const from=last&&isDT(last.to)?last.to:dtOf(nowMs()-mx*H);
+  const q=DB.reviewers.filter(qualNow);
+  return fixRev({furnace:f,from,to:now,at:now,by:q.length===1?q[0].id:""});
+}
+function dlgRev(){
+  const E=ED,D=detect(E.furnace,E.from,E.to),m=missRev(E),Q=DB.reviewers.filter(q=>q.active||q.id===E.by),q=rqById(E.by),mx=S().maxHrs;
+  const prev=revsOf(E.furnace).filter(r=>r.id!==E.id&&isDT(E.at)&&ms(r.at)<ms(E.at)).at(-1),gapH=prev&&isDT(E.at)?(ms(E.at)-ms(prev.at))/H:null,spanH=isDT(E.from)&&isDT(E.to)?(ms(E.to)-ms(E.from))/H:null;
+  const notes=[prev?`Previous review ${prev.id} at ${fdt(prev.at)} covered the data up to ${fdt(prev.to)}.`:"No earlier review of this furnace.",
+    gapH!=null&&gapH>mx?`<span class="bad">${fh(gapH)} since the previous review: more than ${mx} h. Note the reason below.</span>`:"",
+    prev&&isDT(prev.to)&&isDT(E.from)&&ms(E.from)>ms(prev.to)+60e3?`<span class="bad">The data from ${fdt(prev.to)} to ${fdt(E.from)} is not covered by any review.</span>`:"",
+    spanH!=null&&spanH>mx?`<span class="caution">This review covers ${fh(spanH)} of data.</span>`:""].filter(Boolean);
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id):"Second-level review"} · ${esc(E.furnace||"furnace")}</h2>${E.id?(m.length?chip("crit","✕","Incomplete"):revOoc(E)?chip("warn","!",plural(E.rx.length,"reaction")):chip("good","✓","Complete")):""}</div></div>
+  <div class="dlg-b">
+    <section class="stage" style="--k:var(--p)"><h3>Period of data reviewed <small>furnace, data period, reviewer</small></h3><div class="fgrid">
+      ${fld("furnace","Furnace",{opts:furnaces(),req:true})}${fld("from","Data from",{type:"datetime-local",req:true})}${fld("to","Data up to",{type:"datetime-local",req:true})}${fld("at","Reviewed at",{type:"datetime-local",req:true})}
+      ${fld("by","Reviewed by (qualified reviewer)",{opts:Q.map(x=>[x.id,`${x.name}${x.role?" · "+x.role:""}${qualNow(x)?"":" (not qualified)"}`]),req:true,span:true,hint:q?(qualOn(q,isDT(E.at)?E.at.slice(0,10):today())?`Qualification: ${esc(q.qualRef)} since ${fdate(q.qualDate)}`:`<span class="bad">${esc(q.name)} has no qualification evidence dated by the review day: only qualified reviewers can sign.</span>`):DB.reviewers.length?"":"No reviewer listed yet: add the qualified reviewers on the page first."})}
+      <div class="field span"><label class="ckl"><input type="checkbox" data-f="idle" ${E.idle?"checked":""}>The furnace was not running during the whole period (state why in the note)</label></div></div>
+      <p class="sub2" style="margin:8px 0 0">${notes.join(" ")}</p></section>
+    ${E.idle?"":`<section class="stage" style="--k:var(--d)"><h3>Monitoring systems reviewed <small>one answer per system</small></h3>
+      <div>${sysOn().map(s=>{const l=E.lines[s.k]||{};return `<div class="sysl ${l.res==="ooc"?"ooc":""}"><span class="nm">${esc(s.name)}</span>
+        <select id="f-l-${esc(s.k)}" data-f="lines.${esc(s.k)}.res" aria-label="Result: ${esc(sysShort(s.k))}"><option value=""></option>${Object.entries(RES).map(([k,t])=>`<option value="${k}" ${l.res===k?"selected":""}>${t}</option>`).join("")}</select>
+        <input id="f-n-${esc(s.k)}" data-f="lines.${esc(s.k)}.note" value="${esc(l.note||"")}" placeholder="${l.res==="na"?"reason (required)":"note"}" aria-label="Note: ${esc(sysShort(s.k))}"></div>`;}).join("")}</div>
+      <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="allok">Mark the rest “Reviewed, in control”</button></div></section>`}
+    <section class="stage" style="--k:var(--c)"><h3>Recorded in CALOR for this period <small>${D.length?plural(D.length,"condition")+": acknowledge each one":"alarms, SCADA days, quench tests, push-cycle holds"}</small></h3>
+      ${D.length?`<div>${D.map((d,i)=>{const a=E.det[d.key]||{};return `<div class="sysl"><span class="nm"><b>${esc(sysShort(d.sys))}</b> · ${esc(fdt(d.when))}<br>${esc(d.txt)}</span>
+        <select id="f-dh-${i}" data-f="det.${esc(d.key)}.how" aria-label="How it was handled"><option value=""></option>${Object.entries(HOW).map(([k,t])=>`<option value="${k}" ${a.how===k?"selected":""}>${t}</option>`).join("")}</select>
+        <div>${a.how==="react"?(E.rx.some(x=>x.det===d.key)?`<span class="sub2">Reaction ${E.rx.findIndex(x=>x.det===d.key)+1} below.</span>`:`<button class="btn ghost small" type="button" data-d="rxdet:${i}">Add the reaction</button>`):`<input id="f-dn-${i}" data-f="det.${esc(d.key)}.note" value="${esc(a.note||"")}" placeholder="${esc(d.ref)}" aria-label="Record handling it">`}</div></div>`;}).join("")}</div>
+      <div class="actions" style="margin-top:6px"><button class="btn ghost small" type="button" data-d="ackref">Acknowledge the rest as handled in their own records</button></div>`:`<p class="muted" style="margin:0">Nothing recorded for this furnace and period on the Alarms, SCADA review, Quench media or Daily production pages.</p>`}</section>
+    <section class="stage" style="--k:var(--a)"><h3>Reactions to out-of-control conditions <small>documented reaction and product disposition</small></h3>
+      ${E.rx.map((a,i)=>`<div class="rxc"><h4>Reaction ${i+1}${a.det?` <span class="sub2">· from a recorded condition</span>`:""}<span class="sp">${rxOpen(a)?(a.disp==="held"?chip("crit","✕","Product held"):chip("warn","!","Open")):chip("good","✓","Closed")}</span><button class="btn ghost small" type="button" data-d="rxdel:${i}" aria-label="Remove reaction ${i+1}">✕</button></h4><div class="fgrid">
+        ${fld(`rx.${i}.sys`,"Monitoring system",{opts:S().systems.map(s=>[s.k,sysShort(s.k)]),req:true})}${fld(`rx.${i}.when`,"When it happened",{type:"datetime-local"})}${fld(`rx.${i}.owner`,"Owner",{opts:ROLES,req:true})}
+        ${fld(`rx.${i}.what`,"What was found",{type:"textarea",req:true,span:true})}${fld(`rx.${i}.action`,"What was done (reaction)",{type:"textarea",req:true,span:true})}
+        ${fld(`rx.${i}.disp`,"Product disposition",{opts:Object.entries(DISP),req:true})}${fld(`rx.${i}.ref`,"Reference (alarm record, NC, 8D, batch)")}${fld(`rx.${i}.closed`,"Closed on",{type:"date"})}
+        ${fld(`rx.${i}.verify`,"Verification when closed (effect seen in the data, product released)",{type:"textarea",span:true})}</div></div>`).join("")}
+      <div class="actions"><button class="btn ghost small" type="button" data-d="rxadd">Add a reaction</button></div></section>
+    <section><div class="fgrid">${fld("notes",E.idle?"Why the furnace was not running":"Notes (e.g. the reason a review was late)",{type:"textarea",span:true,req:E.idle})}</div>
+      <p class="muted" id="rev-miss" style="margin:10px 0 0;font-size:12.5px">${m.length?"To save: "+esc(lim(m,8))+".":"Complete."}</p></section>
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn danger small" data-d="delete">Delete</button><button class="btn ghost small" data-d="pdf">PDF</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+function saveRev(){
+  const E=ED,m=missRev(E);if(m.length) return "To save: "+lim(m,8)+".";
+  const dup=DB.reviews.find(r=>r.id!==E.id&&r.furnace===E.furnace&&r.at===E.at);if(dup) return `${dup.id} already records a review of ${E.furnace} at ${fdt(E.at)}.`;
+  /* only the acknowledgements of conditions in this period are kept */
+  const keys=new Set(detect(E.furnace,E.from,E.to).map(d=>d.key));Object.keys(E.det).forEach(k=>{if(!keys.has(k))delete E.det[k];});
+  if(E.idle) E.lines={};else Object.keys(E.lines).forEach(k=>{if(!sysOn().some(s=>s.k===k))delete E.lines[k];});
+  E.byName=(rqById(E.by)||{}).name||"";
+  if(!E.id){E.id=newId("DR","r");logIt(E,`Review recorded by ${E.byName}`);DB.reviews.push(E);}
+  else{const old=revById(E.id),cl=E.rx.filter((a,i)=>isDate(a.closed)&&!(old.rx[i]&&isDate(old.rx[i].closed)));logIt(E,cl.length?`${plural(cl.length,"reaction")} closed`:"Updated");DB.reviews[DB.reviews.findIndex(r=>r.id===E.id)]=E;}
+  ED=clone(E);save();render();return "";
+}
+/* reviewer */
+function dlgRq(){
+  const E=ED;
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.name||E.id):"New reviewer"}</h2>${E.id?(qualNow(E)?chip("good","✓","Qualified"):chip("crit","✕","Not qualified")):""}</div></div>
+  <div class="dlg-b"><section class="stage" style="--k:var(--p)"><h3>Reviewer <small>second-level review of the furnace data</small></h3><div class="fgrid">
+    ${fld("name","Name",{req:true})}${fld("role","Role / position",{list:"dl-roles"})}<datalist id="dl-roles">${ROLES.map(r=>`<option value="${esc(r)}"></option>`).join("")}</datalist>
+    ${fld("qualRef","Qualification evidence (HTSA 1.17: training / qualification record no.)",{span:true,hint:"Without it the person cannot sign a review."})}${fld("qualDate","Qualified since",{type:"date"})}
+    ${fld("scope","Scope (e.g. all furnaces, hardening and tempering)")}
+    <div class="field"><label class="ckl"><input type="checkbox" data-f="active" ${E.active?"checked":""}>Active reviewer</label></div></div></section>
+    ${hist(E)}</div>
+  ${foot(`${E.id&&!DB.reviews.some(r=>r.by===E.id)?`<button class="btn danger small" data-d="delete">Delete</button>`:""}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+function saveRq(){
+  const E=ED;if(!txt(E.name)) return "Enter the name.";
+  if(txt(E.qualRef)&&!isDate(E.qualDate)) return "Enter the date of the qualification.";
+  if(isDate(E.qualDate)&&E.qualDate>today()) return "The qualification date cannot be in the future.";
+  if(DB.reviewers.some(q=>q.id!==E.id&&txt(q.name).toUpperCase()===txt(E.name).toUpperCase())) return "A reviewer of this name exists.";
+  if(!E.id){E.id=newId("RQ","q",2);logIt(E,"Added as reviewer");DB.reviewers.push(E);}
+  else{const o=rqById(E.id),ch=["name","role","qualRef","qualDate","scope","active"].filter(k=>String(o[k])!==String(E[k]));logIt(E,ch.length?"Changed: "+ch.join(", "):"Updated");DB.reviewers[DB.reviewers.findIndex(q=>q.id===E.id)]=E;}
+  ED=clone(E);save();render();return "";
+}
+
+let RT=0;
+const liveMiss=()=>{clearTimeout(RT);RT=setTimeout(()=>{const p=$("#rev-miss");if(p&&MODE==="rev"){const m=missRev(ED);p.textContent=m.length?"To save: "+lim(m,8)+".":"Complete.";}},150);};
+dlg.addEventListener("input",ev=>{const el=ev.target;if(!ED||!el.dataset.f) return;setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);liveMiss();});
+dlg.addEventListener("change",ev=>{const el=ev.target;if(!ED||!el.dataset.f) return;const p=el.dataset.f;setPath(ED,p,el.type==="checkbox"?el.checked:el.value);
+  if(MODE==="rev"&&(["furnace","from","to","at","idle","by"].includes(p)||/^lines\..*\.res$|^det\..*\.how$|^rx\.\d+\.(disp|closed)$/.test(p))){
+    if(p==="furnace"&&!ED.id){const n=newRev(ED.furnace);ED.from=n.from;}
+    if(/^det\..*\.how$/.test(p)){const k=p.slice(4,-4),d=detect(ED.furnace,ED.from,ED.to).find(x=>x.key===k);if(d&&ED.det[k].how==="ref"&&!txt(ED.det[k].note))ED.det[k].note=d.ref;}
+    MSG="";drawDlg();return;}
+  liveMiss();});
+dlg.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(MODE==="rq"){
+    if(a==="save"){done(saveRq(),"Saved.");return;}
+    if(a==="delete"){if(confirm(`Remove ${ED.name} from the reviewers?`)){DB.reviewers=DB.reviewers.filter(q=>q.id!==ED.id);save();render();dlg.close();}return;}
+  }
+  if(MODE==="rev"){
+    if(a==="save"){done(saveRev(),"Saved.");return;}
+    if(a==="allok"){sysOn().forEach(s=>{if(!ED.lines[s.k]||!ED.lines[s.k].res)ED.lines[s.k]={res:"ok",note:(ED.lines[s.k]||{}).note||""};});MSG="";drawDlg();return;}
+    if(a==="ackref"){detect(ED.furnace,ED.from,ED.to).forEach(d=>{const x=ED.det[d.key];if(!x||!x.how)ED.det[d.key]={how:"ref",note:(x&&x.note)||d.ref};});MSG="";drawDlg();return;}
+    if(a==="rxadd"){ED.rx.push({...RXF,when:ED.to});MSG="";drawDlg();return;}
+    if(a.startsWith("rxdet:")){const d=detect(ED.furnace,ED.from,ED.to)[+a.slice(6)];if(d){ED.det[d.key]={how:"react",note:""};ED.rx.push({...RXF,sys:d.sys,det:d.key,what:d.txt,when:d.when,ref:d.ref});if(!ED.idle&&ED.lines[d.sys]&&ED.lines[d.sys].res==="ok")ED.lines[d.sys].res="ooc";}MSG="";drawDlg();return;}
+    if(a.startsWith("rxdel:")){const i=+a.slice(6),x=ED.rx[i];if(x&&x.det&&ED.det[x.det])ED.det[x.det].how="";ED.rx.splice(i,1);MSG="";drawDlg();return;}
+    if(a==="pdf"){const m=revPdf(revById(ED.id));if(m)done(m);return;}
+    if(a==="delete"){if(confirm(`Delete review ${ED.id}? A missed review is better kept with its reason than deleted.`)){DB.reviews=DB.reviews.filter(r=>r.id!==ED.id);save();render();dlg.close();}return;}
+  }
+});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",ev=>{
+  if(dlg.contains(ev.target)) return;
+  const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.pf!=null){setView({pf:b.dataset.pf});drawPF();drawLog();return;}
+  if(b.dataset.new){openDlg("rev",newRev(b.dataset.new));return;}
+  if(b.dataset.openRev){const r=revById(b.dataset.openRev);if(r)openDlg("rev",clone(r));return;}
+  if(b.dataset.openRq){const q=rqById(b.dataset.openRq);if(q)openDlg("rq",clone(q));return;}
+  if(b.dataset.delsys){S().systems=S().systems.filter(s=>s.k!==b.dataset.delsys);save();render();return;}
+  const id=b.id;
+  if(id==="b-rev") openDlg("rev",newRev(VIEW.pf&&furnaces().includes(VIEW.pf)?VIEW.pf:(assess19().st.find(s=>s.st==="overdue"||s.st==="none")||{}).f));
+  else if(id==="b-reviewer") openDlg("rq",fixRq({id:"",active:true}));
+  else if(id==="b-orgpeople"){const o=api("org");if(!o) return;const P=o.people(),have=new Set(DB.reviewers.map(q=>txt(q.name).toUpperCase()));
+    const add=P.filter(p=>p.name&&!have.has(txt(p.name).toUpperCase()));if(!add.length){alert("Everybody of the HT organization page is already listed.");return;}
+    if(!confirm(`Add ${plural(add.length,"person","people")} of the HT organization page as reviewers (${lim(add.map(p=>p.name),5)})? They cannot sign until their qualification evidence is recorded.`)) return;
+    add.forEach(p=>{const q=fixRq({id:newId("RQ","q",2),name:p.name,role:arr(p.positions).join(", "),active:true});logIt(q,"Added from the HT organization page");DB.reviewers.push(q);});save();render();}
+  else if(id==="b-addsys"){const n=txt($("#s-newsys").value);if(!n) return;S().systems.push({k:"own"+Date.now().toString(36),name:n,on:true,comp:false,own:true});save();render();}
+  else if(id==="b-h19"){const m=h19Pdf();if(m)alert(m);}
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("mrv-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-export") download(`monitoring-review-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!(DB.reviews.length||DB.reviewers.length)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete the reviewers, the reviews and the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#setup").addEventListener("change",ev=>{
+  const el=ev.target;
+  if(el.dataset.sys){const s=S().systems.find(x=>x.k===el.dataset.sys);if(s){s.on=el.checked;save();render();}return;}
+  if(!el.dataset.set) return;const k=el.dataset.set;
+  if(LIMITS[k]){const v=fixSet(k,el.value);if(String(v)!==String(Math.round(num(el.value))))alert(`Enter a whole number from ${LIMITS[k][0]} to ${LIMITS[k][1]}; ${v} is used.`);S()[k]=v;}else S()[k]=el.value;
+  save();render();
+});
+$("#imp").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a monitoring review backup");
+    if(confirm(`Import ${plural(o.reviews.length,"review")} and ${plural(o.reviewers.length,"reviewer")}? This replaces the records now in this browser.`)){const old=DB;DB=o;
+      try{render();}catch(err){DB=old;render();throw new Error("the data could not be shown ("+err.message+"); nothing was changed");}save();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells});
+const lineTxt=r=>r.idle?"Furnace not running":sysOn().map(s=>{const l=r.lines[s.k];return `${sysShort(s.k)}: ${l?RES[l.res]||"—":"—"}${l&&l.note?" ("+l.note+")":""}`;}).join("; ");
+function regXlsx(){
+  const A=assess19(),R=DB.reviews.slice().sort((a,b)=>a.at<b.at?-1:1);
+  const sheets=[
+    {name:"HTSA 1.9",widths:[44,90,12,50],rows:[B(["HTSA 1.9 Is the heat treat monitoring system reviewed by Qualified Personnel?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdt(nowStr())]),N(["Procedure",S().procRef||"not named"]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
+    {name:"Furnace status",widths:[10,18,24,18,18,14,60],rows:[B(["Furnace","Last review","Reviewed by","Data up to","Next due","Status","Recorded since then"]),...A.st.map(s=>N([s.f,s.last?fdt(s.last.at):"never",s.last?s.last.byName:"",s.last?fdt(s.last.to):"",s.last?fdt(s.due):"now",FST[s.st][2],s.pend.map(d=>fdt(d.when)+" "+d.txt).join("; ")]))]},
+    {name:"Reviews",widths:[10,10,18,18,18,22,10,80,40],rows:[B(["Review","Furnace","Data from","Data up to","Reviewed at","Reviewed by","Reactions","Result per system","Notes"]),...R.map(r=>N([r.id,r.furnace,fdt(r.from),fdt(r.to),fdt(r.at),r.byName,r.rx.length,lineTxt(r),r.notes]))]},
+    {name:"Recorded conditions",widths:[10,10,18,16,60,26,40],rows:[B(["Review","Furnace","When","System","Condition","Handled","Record / note"]),...R.flatMap(r=>detect(r.furnace,r.from,r.to).map(d=>{const a=r.det[d.key]||{};return N([r.id,r.furnace,fdt(d.when),sysShort(d.sys),d.txt,HOW[a.how]||"not acknowledged",a.how==="ref"?a.note:""]);}))]},
+    {name:"Reactions",widths:[10,10,16,18,44,44,26,24,16,12,40],rows:[B(["Review","Furnace","System","When","Found","Reaction","Product","Reference","Owner","Closed","Verification"]),...R.flatMap(r=>r.rx.map(a=>N([r.id,r.furnace,sysShort(a.sys),fdt(a.when),a.what,a.action,DISP[a.disp]||"",a.ref,a.owner,isDate(a.closed)?fdate(a.closed):"open",a.verify])))]},
+    {name:"Gaps",widths:[10,24,18,18,12,22],rows:[B(["Furnace","Kind","From","To","Hours","Reviews"]),...A.G.map(g=>N([g.f,g.kind==="int"?`Interval over ${S().maxHrs} h`:"Data not reviewed",fdt(g.from),fdt(g.to),Math.round(g.h*10)/10,g.a+" → "+g.b]))]},
+    {name:"Reviewers",widths:[8,28,24,40,14,30,10,10],rows:[B(["ID","Name","Role","Qualification evidence","Since","Scope","Active","Reviews"]),...DB.reviewers.map(q=>N([q.id,q.name,q.role,q.qualRef,fdate(q.qualDate),q.scope,q.active?"yes":"no",DB.reviews.filter(r=>r.by===q.id).length]))]}];
+  try{download(ascii(`Monitoring data review ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    .res-s{color:#0a6b0a;font-weight:600}.res-ns{color:#8a5a00;font-weight:600}.res-nia{color:#b02a2a;font-weight:600}
+    .sig{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:22px}.sig div{border-top:1px solid #131d24;padding-top:4px}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}`;
+function popup(title,body){
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PDF_CSS}</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>${body}</body></html>`);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);return "";
+}
+const tblH=(head,rows)=>rows.length?`<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+const revBody=r=>{const D=detect(r.furnace,r.from,r.to),q=rqById(r.by);
+  return `${tblH(["Furnace","Data from","Data up to","Reviewed at","Reviewed by","Qualification"],[[r.furnace,fdt(r.from),fdt(r.to),fdt(r.at),r.byName||(q||{}).name||"",q?q.qualRef:""]])}
+  <h2>Monitoring systems</h2>${r.idle?`<p>Furnace not running during the whole period: ${esc(r.notes)}</p>`:tblH(["System","Result","Note"],sysOn().map(s=>{const l=r.lines[s.k]||{};return [s.name,RES[l.res]||"—",l.note||""];}))}
+  <h2>Recorded in CALOR for this period</h2>${tblH(["When","System","Condition","Handled","Record / note"],D.map(d=>{const a=r.det[d.key]||{};return [fdt(d.when),sysShort(d.sys),d.txt,HOW[a.how]||"not acknowledged",a.how==="ref"?a.note:""];}))}
+  <h2>Reactions</h2>${tblH(["System","Found","Reaction","Product","Owner","Closed","Verification"],r.rx.map(a=>[sysShort(a.sys),a.what+(isDT(a.when)?" ("+fdt(a.when)+")":""),a.action+(a.ref?" · "+a.ref:""),DISP[a.disp]||"",a.owner,isDate(a.closed)?fdate(a.closed):"open",a.verify]))}
+  ${r.notes&&!r.idle?`<p><b>Notes:</b> ${esc(r.notes)}</p>`:""}`;};
+function revPdf(r){if(!r) return "Save the review first.";
+  return popup(ascii(`Monitoring review ${r.id} ${r.furnace}`),`<h1>Second-level review of the furnace monitoring data · ${esc(r.id)}</h1><p class="sub">${esc(S().plant)} · HTSA 1.9 · ${esc(S().procRef||"procedure not named")}</p>${revBody(r)}
+  <div class="sig"><div>Reviewed by (qualified reviewer): ${esc(r.byName)} · ${fdt(r.at)}</div><div>Seen by (HT Manager) · sign / date</div></div>`);}
+function h19Pdf(){
+  const A=assess19(),sc=SCORE[A.score],W0=nowMs()-S().covDays*864e5,R=DB.reviews.filter(r=>isDT(r.at)&&ms(r.at)>=W0).sort((a,b)=>a.at<b.at?1:-1);
+  return popup(ascii(`HTSA 1-9 evidence ${today()}`),`<h1>HTSA 1.9 · Monitoring system reviewed by qualified personnel</h1><p class="sub">${esc(S().plant)} · evidence · ${fdt(nowStr())} · procedure ${esc(S().procRef||"not named")}</p>
+  <p>Assessment: <span class="res-${A.score}">${esc(sc[1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
+  <h2>Qualified reviewers</h2>${tblH(["Name","Role","Qualification evidence (1.17)","Since","Status"],DB.reviewers.map(q=>[q.name,q.role,q.qualRef,fdate(q.qualDate),!q.active?"inactive":qualNow(q)?"qualified":"not qualified"]))}
+  <h2>Monitoring systems reviewed</h2>${tblH(["System","Computerized data"],sysOn().map(s=>[s.name,s.comp?"yes":""]))}
+  <h2>Status per furnace</h2>${tblH(["Furnace","Last review","By","Data up to","Next due","Status"],A.st.map(s=>[s.f,s.last?fdt(s.last.at):"never",s.last?s.last.byName:"",s.last?fdt(s.last.to):"",s.last?fdt(s.due):"now",FST[s.st][2]]))}
+  <h2>Intervals over ${S().maxHrs} h · last ${S().covDays} days</h2>${tblH(["Furnace","Kind","From","To","Length"],A.G.map(g=>[g.f,g.kind==="int"?"Interval":"Data not reviewed",fdt(g.from),fdt(g.to),fh(g.h)]))}
+  <h2>Reactions</h2>${tblH(["Review","Furnace","System","Found","Reaction","Product","Owner","Closed"],DB.reviews.flatMap(r=>r.rx.map(a=>[r.id,r.furnace,sysShort(a.sys),a.what,a.action,DISP[a.disp]||"",a.owner,isDate(a.closed)?fdate(a.closed):"open"])))}
+  <h2>Reviews · last ${S().covDays} days</h2>${tblH(["Review","Furnace","Data reviewed","Reviewed at","By","Result"],R.map(r=>[r.id,r.furnace,fdt(r.from)+" → "+fdt(r.to),fdt(r.at),r.byName,r.idle?"furnace not running":r.rx.length?plural(r.rx.length,"reaction"):"all in control"]))}`);
+}
+
+/* ---------- example data ---------- */
+function example(){
+  const o=blank();DB=o;LC={};
+  o.settings.procRef="SOP-HT-11 Second-level review of furnace monitoring data (example)";o.settings.systems.find(s=>s.k==="cc").on=true;
+  const td=today(),d=n=>addDays(td,-n);
+  const rq=(name,role,qualRef,qualDate)=>{const q=fixRq({id:"RQ-"+pad(o.seq.q++),name,role,qualRef,qualDate,scope:qualRef?"All furnaces, hardening and tempering":"",active:true,log:[{d:d(60),t:"Added as reviewer"}]});o.reviewers.push(q);return q;};
+  const a=rq("R. Sharma (example)","HT Manager","QR-HT-01 qualification record, HTSA 1.17",d(400)),b=rq("A. Verma (example)","HT Engineer","QR-HT-04 qualification record, HTSA 1.17",d(200));
+  rq("S. Kumar (example)","Shift Supervisor","","");
+  const F=furnaces(),now=nowMs();
+  F.forEach((f,fi)=>{
+    const hm=`08:${pad(30+fi*10>59?59:30+fi*10)}`;let prev=null;
+    for(let n=13;n>=0;n--){
+      const at=d(n)+"T"+hm;if(ms(at)>now) continue;
+      if(fi===1&&n<2) continue;            /* F-02: no review for the last two days (overdue) */
+      if(fi===2&&n===6) continue;          /* F-03: one day missed (interval of 48 h) */
+      const from=prev?prev.to:dtOf(ms(at)-24*H);
+      const r=fixRev({id:"DR-"+String(o.seq.r++).padStart(4,"0"),furnace:f,from,to:at,at,by:(n+fi)%3?a.id:b.id,lines:{},det:{},rx:[],notes:"",log:[{d:d(n),t:"Review recorded"}]});
+      r.byName=(r.by===a.id?a:b).name;
+      sysOn().forEach(s=>{r.lines[s.k]={res:"ok",note:""};});
+      if(fi===2&&n===5) r.notes="Review of 11 Oct missed (reviewer on leave, no deputy named); both days reviewed now. Deputy added to the rota.";
+      if(fi===3&&n===4){r.lines.quench={res:"ooc",note:"Oil 84 °C at 02:10 for 25 min"};
+        r.rx.push({...RXF,sys:"quench",what:"Quench oil temperature 84 °C (limit 80 °C) for 25 minutes on the night shift; the operator log has no entry.",when:d(5)+"T02:10",action:"Cooler fan found tripped and reset; batch B-2291 quenched in that window held and hardness re-tested (3 samples per tray). Operators reminded to log alarms.",disp:"released",ref:"Batch B-2291, hardness test MT-example",owner:"Maintenance Head",closed:d(3),verify:"Hardness of B-2291 within 28–32 HRC on all samples; oil 62–70 °C since."});}
+      if(fi===0&&n===1){r.lines.temp={res:"ooc",note:"Hardening zone 2 TC-03 4 °C above TC-04 for 6 h"};
+        r.rx.push({...RXF,sys:"temp",what:"Hardening zone 2: TC-03 reads 4–5 °C above TC-04 since 22:00, both within ±10 °C of the set value.",when:d(2)+"T22:00",action:"SAT of TC-03 brought forward; zone 2 trays of the period kept for a hardness check.",disp:"held",ref:"SAT request, batches of zone 2",owner:"HT Manager"});}
+      /* the conditions the other CALOR pages hold for the period: acknowledged as handled in their records */
+      detect(f,r.from,r.to).forEach(x=>{r.det[x.key]={how:"ref",note:x.ref};});
+      o.reviews.push(r);prev=r;
+    }
+  });
+  return o;
+}
+
+/* ---------- CALOR ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true;
+  const ov=()=>{const A=assess19(),open=DB.reviews.flatMap(r=>r.rx.filter(rxOpen).map(a=>({id:r.id,furnace:r.furnace,sys:sysShort(a.sys),what:a.what,disp:a.disp,owner:a.owner})));
+    return {furnaces:A.st.map(s=>({f:s.f,st:s.st,label:FST[s.st][2],last:s.last?s.last.at:"",by:s.last?s.last.byName:"",due:s.due,since:s.since,pending:s.pend.length})),open,gaps:A.G.length,maxHrs:S().maxHrs,covDays:S().covDays,reviewers:DB.reviewers.filter(qualNow).length};};
+  HTQ.provide("mon",{
+    htsa19:()=>{const A=assess19();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),crit:A.I.filter(i=>i.lvl==="crit").length};},
+    overview:ov,
+    counts:()=>{const A=assess19();return {overdue:A.st.filter(s=>s.st==="overdue"||s.st==="none").length,open:DB.reviews.reduce((a,r)=>a+r.rx.filter(rxOpen).length,0),held:DB.reviews.reduce((a,r)=>a+r.rx.filter(x=>rxOpen(x)&&x.disp==="held").length,0),crit:A.I.filter(i=>i.lvl==="crit").length};}
+  });
+  HTQ.on("nav:mon",o=>{if(!o) return;if(o.furnace)openDlg("rev",newRev(o.furnace));if(o.review){const r=revById(o.review);if(r)openDlg("rev",clone(r));}});
+  ["sat:ready","sat:changed","ops:changed","quench:changed","prod:changed","scada:changed","org:changed"].forEach(ev=>HTQ.on(ev,()=>{LC={};if(!dlg.open)render();clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("mon:changed"),300);}));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("mrv-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.reviews.length&&!localStorage.getItem(KEY)) $("#setup").open=true;
+/* the status moves with the clock: refresh every 5 minutes */
+setInterval(()=>{if(!dlg.open)render();},300000);
+window.__MRV={get DB(){return DB;},assess19,missRev,detect,fstat,gaps,stopped,newRev,openDlg,example};
+</script>
+</body></html>

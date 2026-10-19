@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SHELL = ROOT / "suite" / "shell.html"
 APPS = {"/*@ORG@*/": ROOT / "Organization_Personnel.html",
         "/*@WI@*/": ROOT / "Work_Instructions.html",
+        "/*@MON@*/": ROOT / "Monitoring_Review.html",
         "/*@PROD@*/": ROOT / "Production_Report.html",
         "/*@LOAD@*/": ROOT / "Load_Build_Fixturing.html",
         "/*@TRAP@*/": ROOT / "Trap_Points.html",
