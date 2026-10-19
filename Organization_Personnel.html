@@ -301,7 +301,7 @@ table.rows td{vertical-align:top}
       <li><b>Organization chart:</b> built from the positions (“reports to”). It is approved with a revision and date; any change to a position, holder or reporting line after the approval asks for a new approval. A periodic re-approval is due after the review interval.</li>
       <li><b>Job description:</b> a controlled document per position (draft → approved, new revision with a reason). For the heat treat position it must state the education, the metallurgical and heat treat knowledge and a minimum experience of at least the HTSA minimum.</li>
       <li><b>Process specifications (HTSA 1.6):</b> the holder and the deputy of the heat treat position, and of every position marked “authorized to establish and approve process specifications”, are the people the Specifications page accepts as approvers.</li>
-      <li><b>Qualification:</b> heat treat experience = the dated experience entries marked as heat treat work (overlaps counted once, an open entry runs to today); formal metallurgical education = the duration of metallurgy / materials programmes. A certificate or letter reference is optional. Qualified when the heat treat experience reaches the minimum, or when the heat treat experience plus the metallurgical education together reach it (both present).</li>
+      <li><b>Qualification:</b> heat treat experience = the service in this organization since the joining date (when it is heat treat work) plus the dated experience entries marked as heat treat work (overlaps counted once, an open entry runs to today); formal metallurgical education = the duration of metallurgy / materials programmes. A certificate or letter reference is optional. Qualified when the heat treat experience reaches the minimum, or when the heat treat experience plus the metallurgical education together reach it (both present).</li>
     </ul>
   </footer>
 </div>
@@ -344,7 +344,7 @@ function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.positions)||!Array.isArray(o.people)) return null;
   o.settings={...DEF,...(o.settings&&typeof o.settings==="object"?o.settings:{})};
   o.positions=o.positions.filter(p=>p&&p.id).map(p=>({title:"",dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,specAuth:false,log:[],...p,jd:{...blankJd(),...(p.jd||{})}}));
-  o.people=o.people.filter(p=>p&&p.id).map(p=>({name:"",empNo:"",employment:"full",site:"on",joined:"",edu:[],exp:[],trn:[],notes:"",log:[],...p}));
+  o.people=o.people.filter(p=>p&&p.id).map(p=>({name:"",empNo:"",employment:"full",site:"on",joined:"",htHere:true,edu:[],exp:[],trn:[],notes:"",log:[],...p}));
   o.chart={rev:0,apprDate:"",appr:"",dirty:false,log:[],...(o.chart||{})};
   const s=o.seq&&typeof o.seq==="object"?o.seq:{};
   o.seq={pos:Math.max(+s.pos||1,seqOf(o.positions)),p:Math.max(+s.p||1,seqOf(o.people))};
@@ -379,14 +379,16 @@ function mergedMonths(entries){
   let tot=0,cur=null;iv.forEach(([a,b])=>{if(!cur){cur=[a,b];return;}if(a<=cur[1])cur[1]=Math.max(cur[1],b);else{tot+=cur[1]-cur[0];cur=[a,b];}});if(cur)tot+=cur[1]-cur[0];
   return tot;
 }
+const hereEntry=p=>p.htHere!==false&&isDate(p.joined)&&p.joined<=today()?{org:"this organization",from:p.joined.slice(0,7),to:"",ht:true}:null;
 function qual(p){
   /* every entry counts: a reference to a certificate or letter is optional (the user's request: no mandatory upload of certificates) */
-  const htE=p.exp.filter(e=>e.ht),ht=mergedMonths(htE)/12,htClaim=ht;
+  /* the service in this organization since "Joined" counts as heat treat experience when it is heat treat work (htHere), merged with the experience entries (an entry for this organization over the same months counts once) */
+  const here=hereEntry(p),htE=[...p.exp.filter(e=>e.ht),...(here?[here]:[])],ht=mergedMonths(htE)/12,htClaim=ht,hereY=here?mergedMonths([here])/12:0;
   const metE=p.edu.filter(e=>e.met),edu=metE.reduce((a,e)=>a+(num(e.years)||0),0),eduClaim=edu;
   const min=MIN(),p1=ht>=min,p2=ht>0&&edu>0&&ht+edu>=min;
   const noEv=[];
   const bad=p.exp.filter(e=>isMonth(e.from)&&isMonth(e.to)&&e.to<e.from).length;
-  return {ht,edu,htClaim,eduClaim,qualified:p1||p2,path:p1?`${yrs(ht)} heat treat experience (minimum ${min})`:p2?`${yrs(edu)} metallurgical education + ${yrs(ht)} heat treat experience = ${yrs(edu+ht)} (minimum ${min})`:"",
+  return {ht,edu,htClaim,eduClaim,hereY,qualified:p1||p2,path:p1?`${yrs(ht)} heat treat experience (minimum ${min})`:p2?`${yrs(edu)} metallurgical education + ${yrs(ht)} heat treat experience = ${yrs(edu+ht)} (minimum ${min})`:"",
     short:p1||p2?"":`${yrs(ht)} heat treat experience${edu?` + ${yrs(edu)} metallurgical education`:""}: below the minimum of ${min} years`,noEv,bad};
 }
 
@@ -490,7 +492,7 @@ function personBox(p,label,empty,lvl){
   return `<div style="--k:${k}"><h3>${esc(label)}: ${esc(p.name)}</h3><dl>
     <dt>Position</dt><dd>${esc(heldBy(p.id).map(x=>x.title).join(", ")||"—")}</dd>
     <dt>Employment</dt><dd>${esc(EMP[p.employment]||"—")} · ${esc(SITE[p.site]||"—")}${isDate(p.joined)?" · since "+fdate(p.joined):""}</dd>
-    <dt>Heat treat experience</dt><dd>${yrs(q.ht)}</dd>
+    <dt>Heat treat experience</dt><dd>${yrs(q.ht)}${q.hereY?` <span class="muted">(incl. ${yrs(q.hereY)} here)</span>`:""}</dd>
     <dt>Metallurgical education</dt><dd>${yrs(q.edu)}</dd>
     <dt>HTSA 1.1 minimum</dt><dd>${q.qualified?`<span class="ok">met: ${esc(q.path)}</span>`:`<span class="bad">${esc(q.short)}</span>`}</dd>
   </dl><div class="actions noprint" style="margin-top:8px"><button class="btn ghost small" data-open-p="${esc(p.id)}">Open</button><button class="btn ghost small" data-p-pdf="${esc(p.id)}">Qualification record (PDF)</button></div></div>`;
@@ -580,7 +582,7 @@ function dlgPos(){
     ${E.jd.status==="approved"?`<button class="btn ghost" data-d="revise">New JD revision</button>`:`<button class="btn ghost" data-d="approve">Approve job description</button>`}
     <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button></div>`;
 }
-function newPer(){return {id:"",name:"",empNo:"",employment:"full",site:"on",joined:"",edu:[],exp:[],trn:[],notes:"",log:[]};}
+function newPer(){return {id:"",name:"",empNo:"",employment:"full",site:"on",joined:"",htHere:true,edu:[],exp:[],trn:[],notes:"",log:[]};}
 const ROWS={
   edu:{t:"Education",h:["Qualification","Field","Institute","Year passed","Duration (years)","Metallurgical","Reference (optional: certificate / letter no.)"],f:["qual","field","inst","year","years","met","ref"],ty:{year:"number",years:"number",met:"check"},blank:{qual:"",field:"",inst:"",year:"",years:"",met:false,ref:""}},
   exp:{t:"Experience",h:["Organization","Role","From (month)","To (empty = now)","Heat treat work","Reference (optional: letter no.)"],f:["org","role","from","to","ht","ref"],ty:{from:"month",to:"month",ht:"check"},blank:{org:"",role:"",from:"",to:"",ht:true,ref:""}},
@@ -596,7 +598,7 @@ function dlgPer(){
   return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.name||E.id):"New person"}</h2>${E.id?(q.qualified?chip("good","✓","HTSA 1.1 minimum met"):chip("info","–","HTSA 1.1 minimum not met")):""}<span class="muted">${esc(E.id)}</span></div></div>
   <div class="dlg-b">
     <section class="stage" style="--k:var(--p)"><h3>Person <small>Employment</small></h3><div class="fgrid">
-      ${fld("name","Name",{req:true})}${fld("empNo","Employee no.")}${fld("employment","Employment",{opts:Object.entries(EMP),blank:false})}${fld("site","Works",{opts:Object.entries(SITE),blank:false})}${fld("joined","Joined",{type:"date"})}${fld("notes","Notes",{type:"textarea",span:true})}</div></section>
+      ${fld("name","Name",{req:true})}${fld("empNo","Employee no.")}${fld("employment","Employment",{opts:Object.entries(EMP),blank:false})}${fld("site","Works",{opts:Object.entries(SITE),blank:false})}${fld("joined","Joined this organization",{type:"date"})}${fld("htHere","",{type:"check",text:"Work here since joining is heat treat work (counts as heat treat experience)"})}${fld("notes","Notes",{type:"textarea",span:true})}</div></section>
     <section class="stage" style="--k:var(--d)"><h3>Qualification <small>Education and experience as entered; a certificate / letter reference is optional</small></h3>
       ${rowsTable("edu")}${rowsTable("exp")}${rowsTable("trn")}
       <div class="wi" id="qbox" style="margin-top:12px">${qBox(q)}</div></section>
@@ -607,7 +609,7 @@ function dlgPer(){
     ${E.id&&!DB.positions.some(p=>p.holder===E.id||p.deputy===E.id)?`<button class="btn danger small" data-d="delete">Delete</button>`:""}
     <button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button></div>`;
 }
-const qBox=q=>`<b>Heat treat experience</b><span>${yrs(q.ht)}</span><b>Metallurgical education</b><span>${yrs(q.edu)}</span>
+const qBox=q=>`<b>Heat treat experience</b><span>${yrs(q.ht)}${q.hereY?` <span class="muted">(incl. ${yrs(q.hereY)} in this organization)</span>`:""}</span><b>Metallurgical education</b><span>${yrs(q.edu)}</span>
   <b>HTSA 1.1 minimum (${MIN()} years)</b><span class="${q.qualified?"ok":"bad"}">${q.qualified?"Met: "+esc(q.path):esc(q.short)}</span>${q.bad?`<b>Dates</b><span class="bad">${plural(q.bad,"experience entry","experience entries")} ends before it starts</span>`:""}`;
 let RT=0;
 function onDlgInput(ev){
@@ -617,6 +619,7 @@ function onDlgInput(ev){
   if(!el.dataset.f) return;
   if(el.dataset.f.startsWith("jd.")&&jdLocked()) return;
   setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);
+  if(MODE==="per"&&(el.dataset.f==="joined"||el.dataset.f==="htHere")){clearTimeout(RT);RT=setTimeout(()=>{const b=$("#qbox");if(b)b.innerHTML=qBox(qual(ED));},120);return;}
   if(MODE==="pos"){if(el.dataset.f==="ht"&&ev.type==="change"){drawDlg();return;}
     clearTimeout(RT);RT=setTimeout(()=>{const p=$("#jd-miss");if(p&&ED.jd.status==="draft"){const m=jdMissing(ED);p.textContent=m.length?"To approve the job description: "+m.join(", ")+".":"Ready to approve.";}},150);}
 }
@@ -795,7 +798,7 @@ function jdHtml(p){
 function perHtml(p){
   const q=qual(p);
   return `<h1>Qualification record · ${esc(p.name)}</h1><p class="sub">${esc(S().plant)} · ${esc(heldBy(p.id).map(x=>x.title).join(", ")||"no position")} · ${fdate(today())}</p>
-  ${kvH([["Employee no.",p.empNo],["Employment",EMP[p.employment]+" · "+SITE[p.site]],["Joined",fdate(p.joined)],["Heat treat experience",yrs(q.ht)],["Metallurgical education",yrs(q.edu)],["HTSA 1.1 minimum ("+MIN()+" years)",q.qualified?"Met: "+q.path:"Not met: "+q.short]])}
+  ${kvH([["Employee no.",p.empNo],["Employment",EMP[p.employment]+" · "+SITE[p.site]],["Joined",fdate(p.joined)],["Heat treat experience",yrs(q.ht)+(q.hereY?` (incl. ${yrs(q.hereY)} in this organization since ${fdate(p.joined)})`:"")],["Metallurgical education",yrs(q.edu)],["HTSA 1.1 minimum ("+MIN()+" years)",q.qualified?"Met: "+q.path:"Not met: "+q.short]])}
   <h2>Education</h2>${tblH(["Qualification","Field","Institute","Year","Years","Metallurgical","Reference"],p.edu.map(e=>[e.qual,e.field,e.inst,num(e.year)??"",num(e.years)??"",e.met?"yes":"",e.ref||"—"]))}
   <h2>Experience</h2>${tblH(["Organization","Role","From","To","Heat treat","Reference"],p.exp.map(e=>[e.org,e.role,fmon(e.from),e.to?fmon(e.to):"now",e.ht?"yes":"",e.ref||"—"]))}
   <h2>Training and certificates</h2>${tblH(["Course / certificate","Date","Provider","Reference"],p.trn.map(e=>[e.course,fdate(e.date),e.provider,e.ref]))}
@@ -818,8 +821,8 @@ function packPdf(){
 /* ---------- example data ---------- */
 function example(){
   const o=blank(),td=today(),d=n=>addDays(td,-n),ym=n=>{const t=new Date(td+"T00:00:00Z");t.setUTCMonth(t.getUTCMonth()-n);return t.toISOString().slice(0,7);};DB=o;
-  const per=x=>{const p={id:"P-"+String(o.seq.p++).padStart(3,"0"),empNo:"",employment:"full",site:"on",joined:"",edu:[],exp:[],trn:[],notes:"",log:[{d:d(300),t:"Person added"}],...x};o.people.push(p);return p;};
-  const md=per({name:"Director (example)",empNo:"E-001",joined:d(4000),edu:[{qual:"B.E. Mechanical",field:"Mechanical engineering",inst:"Example university",year:"1995",years:"4",met:false,ref:"HR file E-001"}]});
+  const per=x=>{const p={id:"P-"+String(o.seq.p++).padStart(3,"0"),empNo:"",employment:"full",site:"on",joined:"",htHere:true,edu:[],exp:[],trn:[],notes:"",log:[{d:d(300),t:"Person added"}],...x};o.people.push(p);return p;};
+  const md=per({name:"Director (example)",empNo:"E-001",joined:d(4000),htHere:false,edu:[{qual:"B.E. Mechanical",field:"Mechanical engineering",inst:"Example university",year:"1995",years:"4",met:false,ref:"HR file E-001"}]});
   const ht=per({name:"R. Sharma (example)",empNo:"E-014",joined:d(2200),
     edu:[{qual:"B.Tech",field:"Metallurgical engineering",inst:"Example institute of technology",year:"2010",years:"4",met:true,ref:"Degree certificate, HR file E-014"}],
     exp:[{org:"Example forge and heat treat Ltd.",role:"Heat treat engineer",from:ym(190),to:ym(75),ht:true,ref:"Experience letter dated "+fdate(d(2260))},{org:"Mass Wire and Steels",role:"HT Manager",from:ym(74),to:"",ht:true,ref:"Appointment letter E-014"}],
@@ -827,9 +830,9 @@ function example(){
   const dep=per({name:"A. Verma (example)",empNo:"E-031",joined:d(900),
     edu:[{qual:"B.Tech",field:"Metallurgical and materials engineering",inst:"Example university",year:"2021",years:"4",met:true,ref:"Degree certificate, HR file E-031"}],
     exp:[{org:"Mass Wire and Steels",role:"HT Engineer",from:ym(29),to:"",ht:true,ref:"Appointment letter E-031"}],trn:[{course:"Metallography and hardness testing",date:d(200),provider:"In-house",ref:"Training record T-118"}]});
-  const qm=per({name:"S. Gupta (example)",empNo:"E-007",joined:d(3000),edu:[{qual:"M.Sc.",field:"Chemistry",inst:"Example university",year:"2005",years:"2",met:false,ref:"HR file E-007"}],exp:[{org:"Mass Wire and Steels",role:"Quality Manager",from:ym(98),to:"",ht:false,ref:"Appointment letter E-007"}]});
+  const qm=per({name:"S. Gupta (example)",empNo:"E-007",joined:d(3000),htHere:false,edu:[{qual:"M.Sc.",field:"Chemistry",inst:"Example university",year:"2005",years:"2",met:false,ref:"HR file E-007"}],exp:[{org:"Mass Wire and Steels",role:"Quality Manager",from:ym(98),to:"",ht:false,ref:"Appointment letter E-007"}]});
   const pm=per({name:"V. Singh (example)",empNo:"E-011",joined:d(2600),exp:[{org:"Mass Wire and Steels",role:"Production Manager",from:ym(85),to:"",ht:true,ref:""}]});
-  const mh=per({name:"K. Yadav (example)",empNo:"E-019",joined:d(1900),edu:[{qual:"Diploma",field:"Electrical engineering",inst:"Example polytechnic",year:"2008",years:"3",met:false,ref:"HR file E-019"}]});
+  const mh=per({name:"K. Yadav (example)",empNo:"E-019",joined:d(1900),htHere:false,edu:[{qual:"Diploma",field:"Electrical engineering",inst:"Example polytechnic",year:"2008",years:"3",met:false,ref:"HR file E-019"}]});
   const pos=x=>{const p={id:"POS-"+String(o.seq.pos++).padStart(2,"0"),dept:"",reportsTo:"",holder:"",deputy:"",ht:false,fte:"full",site:"on",dedicated:false,log:[{d:d(300),t:"Position created"}],...x,jd:{...blankJd(),...(x.jd||{})}};o.positions.push(p);return p;};
   const appr={prep:"HR executive",appr:"Director (example)",status:"approved",apprDate:d(280)};
   const D=pos({title:"Director",dept:"Management",holder:md.id,jd:{purpose:"Lead the plant.",resp:"Business, resources, quality policy, management review.",edu:"Graduate engineer",minYears:"15",...appr}});
