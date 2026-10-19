@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rework and Reprocessing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#eceff1;--surface:#fbfcfc;--surface2:#f2f4f5;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;
+  --line:#d5dbdf;--grid:#e3e7ea;--accent:#0e5566;--accent-ink:#ffffff;
+  --good:#0ca30c;--good-ink:#0a6b0a;--warn:#fab219;--warn-ink:#8a5a00;--crit:#d03b3b;--crit-ink:#b02a2a;--info-ink:#4a5761;
+  --p:#2a78d6;--d:#7a5bd0;--c:#d9822b;--a:#0e8a6a;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+    --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+    --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+    --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1316;--surface:#161e23;--surface2:#1c262c;--ink:#eaf0f3;--ink2:#aebbc3;--muted:#84929b;
+  --line:#2b373e;--grid:#243037;--accent:#5fb3c7;--accent-ink:#06232b;
+  --good-ink:#3fcf3f;--warn-ink:#fab219;--crit-ink:#ff7d7d;--info-ink:#aebbc3;
+  --p:#5a9cf0;--d:#a58bf0;--c:#f0a050;--a:#3fc49c;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:24px;line-height:1.2}h2{font-size:16px}h3{font-size:14px}
+.mono,.n{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.muted{color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:16px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:12px}
+.sec-head p{margin:0;color:var(--ink2);font-size:13px;max-width:75ch}
+header.top{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--ink2);font-size:13px;margin-top:6px}
+.meta b{font-weight:500;color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:500;border-radius:4px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);padding:7px 13px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12.5px;white-space:nowrap}
+.btn.danger{border-color:var(--crit);background:transparent;color:var(--crit-ink)}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:24px;font-weight:600;line-height:1.2}
+.kpi .v small{font-size:13px;font-weight:500;color:var(--ink2)}
+.kpi .s{font-size:12px;color:var(--ink2)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;border-radius:999px;padding:1px 9px 1px 3px;border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.chip i{font-style:normal;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff}
+.chip.good{color:var(--good-ink)}.chip.good i{background:var(--good)}
+.chip.warn{color:var(--warn-ink)}.chip.warn i{background:var(--warn);color:#2b1e00}
+.chip.crit{color:var(--crit-ink)}.chip.crit i{background:var(--crit)}
+.chip.info{color:var(--info-ink)}.chip.info i{background:var(--muted)}
+.bad{color:var(--crit-ink)!important;font-weight:500}.caution{color:var(--warn-ink)!important;font-weight:500}.ok{color:var(--good-ink)!important}
+.cycle-explain{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 18px;font-size:12.5px;color:var(--ink2);margin:0;padding:0;list-style:none}
+.cycle-explain b{color:var(--ink)}
+
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-weight:500;color:var(--ink2);padding:6px 10px 6px 0;border-bottom:1px solid var(--line);vertical-align:bottom}
+table.log td{padding:6px 10px 6px 0;border-bottom:1px solid var(--grid);vertical-align:top;overflow-wrap:anywhere}
+table.log td.n{text-align:right;white-space:nowrap}table.log th.n{text-align:right}
+table.log td.act{white-space:nowrap;text-align:right}
+tr.grp td{background:var(--surface2);font-weight:600;color:var(--ink);padding:5px 8px!important}
+.empty{padding:14px;background:var(--surface2);border-radius:4px;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.lg-dash{width:18px;border-top:1.5px dashed var(--crit);display:inline-block}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mini-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px}
+@media (max-width:860px){.mini-grid{grid-template-columns:1fr}}
+.mini-grid svg{display:block;width:100%;height:auto}
+.mini-grid h3{font-size:13px;font-weight:500}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--ink2)}
+.trend-tank+.trend-tank{margin-top:16px;padding-top:12px;border-top:1px solid var(--grid)}
+.trend-tank>h3{margin-bottom:8px}
+
+/* tanks (also the page filter) */
+.fgrid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.fcard{border:1px solid var(--line);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;overflow:hidden}
+.fcard.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fhead,.fch,.fall{font:inherit;color:inherit;background:none;border:0;text-align:left;cursor:pointer;width:100%}
+.fhead{padding:8px 12px;font-weight:600;font-size:15px;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--grid)}
+.fhead small{font-weight:400;color:var(--ink2);font-size:12px}
+.fch{padding:7px 12px 7px 10px;border-left:4px solid var(--k);display:flex;flex-direction:column;gap:1px}
+.fch b{font-weight:500}.fch span{font-size:12px;color:var(--ink2)}
+.fhead:hover,.fch:hover{background:var(--surface2)}
+.fall{border:1px dashed var(--line);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.fall.on{border:1px solid var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fall b{font-size:15px}.fall span{font-size:12px;color:var(--ink2)}
+.viewbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--ink2);margin-top:10px}
+.viewbar b{color:var(--ink)}
+
+/* settings + forms */
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--ink2)}
+.field input,.field select,.field textarea,table.edit input,table.edit select,table.vals input,table.vals select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:58px;resize:vertical}
+.field input[type=number],table.vals input,table.edit input[type=number]{font-family:var(--mono)}
+.controls .field input{width:110px}
+.controls .field.wide input{width:280px}
+.field.req label::after{content:" *";color:var(--crit-ink)}
+table.edit td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid)}
+table.edit th{font-size:12px}
+table.edit select{min-width:110px}table.edit input{min-width:70px}table.edit input[type=date]{min-width:140px}
+table.edit input[type=checkbox]{width:auto;min-width:0}
+details.more>summary{cursor:pointer;font-weight:600;font-size:16px}
+details.more[open]>summary{margin-bottom:12px}
+.scroll{overflow-x:auto}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:0;width:min(900px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg-h{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;flex-direction:column;gap:6px;z-index:2}
+.dlg-h .row{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dlg-b{padding:14px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-f{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:12px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
+.dlg-f .msg{margin-right:auto;font-size:12.5px;color:var(--crit-ink);max-width:60ch}
+.dlg-f .msg.okmsg{color:var(--good-ink)}
+.stage{border:1px solid var(--line);border-left:4px solid var(--k);border-radius:6px;padding:12px 14px}
+.stage h3{margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.stage h3 small{font-weight:400;color:var(--ink2);font-size:12.5px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 14px}
+.fgrid .span{grid-column:1/-1}
+table.vals{width:100%;border-collapse:collapse;font-size:13px}
+table.vals th{text-align:left;font-weight:500;color:var(--ink2);font-size:12px;padding:5px 8px 5px 0;border-bottom:1px solid var(--line)}
+table.vals td{padding:4px 8px 4px 0;border-bottom:1px solid var(--grid);vertical-align:middle}
+table.vals td.m{font-size:12px;color:var(--ink2)}
+table.vals td.lim{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+table.vals td.in{width:130px}
+table.vals td.j{width:110px}
+.calc{background:var(--surface2);border-radius:5px;padding:10px 12px;font-size:13px;display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.calc ul{margin:0;padding-left:18px}
+.loglist{font-size:12px;color:var(--ink2);margin:0;padding-left:18px}
+.print-only{display:none}
+footer{font-size:12.5px;color:var(--ink2)}
+footer ul{margin:6px 0 0;padding-left:18px;max-width:100ch}
+.signoff{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+@media screen{.signoff.print-only{display:none}}
+.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--ink2)}
+.signoff b{color:var(--ink)}
+@media screen and (max-width:760px){
+  table.log.cards,table.log.cards tbody,table.log.cards tr,table.log.cards td{display:block;width:100%!important}
+  table.log.cards thead{display:none}
+  table.log.cards tr{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-bottom:8px;background:var(--surface)}
+  table.log.cards td{border:0!important;padding:3px 0;display:grid;grid-template-columns:42% 1fr;gap:8px;text-align:left!important}
+  table.log.cards td::before{content:attr(data-label);color:var(--ink2);font-family:var(--sans);font-size:12px}
+  table.log.cards tr.grp td{display:block!important}table.log.cards tr.grp td::before{content:none}
+  table.vals thead{display:none}
+  table.vals tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;padding:6px 0;border-bottom:1px solid var(--grid)}
+  table.vals td{border:0;padding:0;width:auto!important}
+  table.vals td:first-child{grid-column:1/-1}
+  table.vals tr.grp td{grid-column:1/-1}
+}
+@media print{
+  :root{color-scheme:light;--bg:#fff;--surface:#fff;--surface2:#f4f5f6;--ink:#131d24;--ink2:#4a5761;--muted:#76838c;--line:#cfd5d9;--grid:#e3e7ea}
+  body{background:#fff;font-size:11.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .noprint{display:none!important}
+  .print-only{display:block!important}
+  .signoff.print-only{display:grid!important}
+  .wrap{max-width:none;padding:0;gap:10px}
+  .panel{padding:10px 12px}
+  .mini-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(5,1fr)}
+  .kpi .v{font-size:18px}
+  .mini-grid>div{break-inside:avoid}
+}
+@media screen{.signoff.print-only{display:none}}
+/* rework and reprocessing */
+.findings{margin:0;padding-left:18px;font-size:13px}
+.findings li.crit{color:var(--crit-ink)}.findings li.warn{color:var(--warn-ink)}.findings li.info{color:var(--ink2)}
+.nw{white-space:nowrap}
+.req-q{border-left:4px solid var(--accent);background:var(--surface2);border-radius:5px;padding:10px 14px;font-size:13.5px}
+.req-q b{display:block;font-size:14.5px;margin-bottom:4px}
+.req-q ul{margin:4px 0 0;padding-left:18px}
+.req-q p{margin:4px 0}
+.score{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.score .big{font-size:22px;font-weight:600}
+.score .big.good{color:var(--good-ink)}.score .big.warn{color:var(--warn-ink)}.score .big.crit{color:var(--crit-ink)}
+.tabs-k{display:flex;gap:6px;flex-wrap:wrap}
+.tabs-k button{font:inherit;font-size:12.5px;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:2px 11px;cursor:pointer}
+.tabs-k button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+table.log td{overflow-wrap:break-word}
+.sub2{font-size:12px;color:var(--ink2)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:8px}
+.pgrid>div{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--surface)}
+.pgrid h3{margin:0 0 6px;font-size:13.5px}
+.pgrid ul{margin:0;padding-left:18px;font-size:13px}
+.pgrid p{margin:0;font-size:13px}
+table.edit{width:100%;border-collapse:collapse;margin:4px 0}
+table.edit th{font-size:12px;color:var(--ink2);text-align:left;font-weight:500;padding:4px}
+table.edit td{padding:3px 4px;vertical-align:top}
+table.edit textarea{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface2);color:var(--ink);width:100%;min-width:0;field-sizing:content;min-height:36px;resize:vertical}
+table.edit input[type=checkbox]{width:auto}
+.ckl{display:inline-flex;gap:7px;align-items:center;font-size:13px}
+.ckl input{width:auto}
+dialog textarea{field-sizing:content;max-height:none}
+.locked{background:var(--surface2);border:1px dashed var(--line);border-radius:5px;padding:6px 10px;font-size:12.5px;color:var(--ink2);margin:0 0 10px}
+@media (max-width:760px){table.log.cards td.act{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap}table.edit,table.edit tbody,table.edit tr,table.edit td{display:block;width:100%}table.edit thead{display:none}table.edit tr{border-top:1px solid var(--grid);padding:6px 0}}
+</style></head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">CQI-9 · HTSA 1.11 · Management responsibility</div>
+      <h1>Rework and reprocessing of heat treated parts</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions noprint">
+      <button class="btn" id="b-job">Record rework</button>
+      <button class="btn ghost" id="b-proc">Rework procedure</button>
+      <button class="btn ghost" id="b-h111">HTSA 1.11 evidence (PDF)</button>
+      <button class="btn ghost" id="b-print">Print report</button>
+      <button class="btn ghost" id="b-theme" aria-label="Toggle colour theme">Theme</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="sec-head"><h2>HTSA 1.11 · Documented procedure for rework / reprocessing</h2><p>The requirement, the evidence this page holds for it and the resulting assessment. Confirm the wording and the scoring rules against the controlled CQI-9 copy.</p></div>
+    <div class="req-q"><b>1.11 Does the heat treater have a documented procedure for the rework / reprocessing of parts?</b>
+      <p>Rework / reprocessing of heat treated components can have a significant impact on the performance of the component. Reworking / reprocessing in some cases is an acceptable practice. A rework / reprocessing procedure is key to identifying the rework / reprocessing practice. To be approved for rework / reprocessing, either on a case basis or pre-approved in the PPAP, the heat treater shall meet the following requirements.</p>
+      <ul><li>Any change or addition to the rework / reprocessing procedure shall require notification and approval in accordance with the AIAG PPAP process. Any rework / reprocessing not previously approved and identified in the rework / reprocessing procedure is not allowed.</li>
+      <li>The OEM shall be notified by the Tier 1 supplier prior to rework / reprocessing product utilizing an unapproved process. If not Tier 1, the customer shall be notified.</li>
+      <li>The rework / reprocessing procedure shall be referenced in the heat treater's PPAP approved PFMEA and process control plan.</li>
+      <li>The procedure shall include: a description of product characteristics for which rework / reprocessing is allowed and those for which it is not permissible; a requirement that all rework / reprocessing activity have a new process control sheet issued by qualified personnel, including the heat treat parameter modification; a requirement that there is a record or log of all rework / reprocessing work; a description of the sampling plan; a requirement that the Quality Manager or a designee shall authorize the release of rework / reprocessed product.</li></ul></div>
+    <div class="score" id="h111score"></div>
+    <div class="scroll" id="h111"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Rework / reprocessing procedure</h2><p id="procNote"></p></div>
+    <div id="procBox"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Rework log</h2><p>Every rework / reprocessing job: the lot, why it is reworked, the approved method, the new process control sheet with the parameter modification, the sampling result and the release by the Quality Manager or a designee.</p>
+      <div class="actions noprint"><div class="tabs-k" id="pf"></div><button class="btn ghost small" id="b-xlsx">Download (Excel)</button></div></div>
+    <div class="scroll" id="jobs"></div>
+  </section>
+
+  <section class="panel">
+    <div class="sec-head"><h2>Rework on the daily production reports</h2><p id="prodNote"></p></div>
+    <div class="scroll" id="prodrw"></div>
+  </section>
+
+  <div class="signoff print-only">
+    <div><span>Prepared (HT Engineer)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Reviewed (HT Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+    <div><span>Approved (Quality Manager)</span><b>&nbsp;</b><span>Sign · Date</span></div>
+  </div>
+
+  <details class="panel more noprint" id="setup">
+    <summary>Settings and data</summary>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">Who may release reworked product (the Quality Manager and the designees named in the procedure) and who may issue a process control sheet (qualified personnel) are checked by name. In CALOR the holders of a quality position and the heat treat / specification-authorized people of the HT organization page count as well. The day settings are site rules, not CQI-9 figures.</p>
+    <div class="controls" id="settings"></div>
+    <h3 style="margin:18px 0 6px">Data</h3>
+    <p class="muted" style="margin:0 0 8px;font-size:13px">The procedure and the rework log are kept in this browser only. Production rework trays, hardness re-tests and the PFMEA / control plan references are read from the CALOR pages in the same browser. Export a backup regularly.</p>
+    <div class="actions">
+      <button class="btn ghost small" id="b-export">Export backup (JSON)</button>
+      <button class="btn ghost small" id="b-import">Import backup</button>
+      <button class="btn ghost small" id="b-example">Load example data</button>
+      <button class="btn danger small" id="b-clear">Clear all records</button>
+    </div>
+    <input type="file" id="imp" accept=".json,application/json" hidden>
+  </details>
+
+  <footer>
+    <b>Method</b>
+    <ul>
+      <li><b>Procedure:</b> one controlled rework / reprocessing procedure: the characteristics that may and may not be reworked, the approved methods (each marked when pre-approved in the PPAP, with a limit on how often a lot may be reworked), the process control sheet, the log, the sampling plan, the release and the customer notification. Approved revisions are locked; a change starts a new revision that must be notified and approved through PPAP before use.</li>
+      <li><b>Each rework job:</b> a characteristic not permissible for rework cannot be reworked (scrap, return or customer concession). A method not in the procedure or not pre-approved in the PPAP, a case-basis rework, or a lot past the method's limit needs the OEM / customer notification and approval before the rework starts.</li>
+      <li><b>Process control sheet:</b> issued by qualified personnel before the rework, with the heat treat parameter modification.</li>
+      <li><b>Sampling and release:</b> the sampling plan of the procedure; release only by the Quality Manager or a designee after a passing result.</li>
+      <li><b>Log:</b> every rework tray on the daily production reports must have its job in this log (matched by the rework reference, or by part and batch).</li>
+    </ul>
+  </footer>
+</div>
+
+<dialog id="dlg"></dialog>
+
+<script>
+"use strict";
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());};
+const isDate=s=>typeof s==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dnum=s=>isDate(s)?Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10))/864e5:NaN;
+const dstr=n=>{const d=new Date(n*864e5);return isFinite(d)?d.toISOString().slice(0,10):"";};
+const addDays=(s,n)=>dstr(dnum(s)+n);
+const num=v=>v===""||v==null||!isFinite(+v)?null:+v;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fdate=s=>isDate(s)?s.slice(8,10)+"-"+MON[+s.slice(5,7)-1]+"-"+s.slice(0,4):"—";
+const chip=(cls,ic,t)=>`<span class="chip ${cls}"><i>${ic}</i>${esc(t)}</span>`;
+const plural=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const txt=v=>String(v??"").trim();
+const up=v=>txt(v).toUpperCase();
+const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
+const uniq=a=>[...new Set(a)];
+const arr=v=>Array.isArray(v)?v:[],str=v=>v==null?"":String(v),isObj=v=>!!v&&typeof v==="object"&&!Array.isArray(v);
+const lim=(L,n=6)=>L.slice(0,n).join("; ")+(L.length>n?` … (${L.length} in all)`:"");
+/* an identity for matching entered text: never "N/A" or empty */
+const idv=v=>txt(v)&&!isNA(v)?up(v):"";
+const names=s=>uniq(String(s||"").split(/[,;\n]+/).map(txt).filter(Boolean));
+
+/* ---------- data model ---------- */
+const KEY="rwk-reg", VKEY="rwk-view";
+const ROLES=["Quality Manager","HT Manager","Production Manager","Maintenance Head","HT Engineer","Shift Supervisor"];
+const BASIS={ppap:"Pre-approved in the PPAP",case:"Case basis (customer approval for this lot)"};
+const DISP={released:"Released after rework",scrap:"Scrapped",returned:"Returned to the customer",concession:"Released under customer concession"};
+const SMP={pass:"Pass",fail:"Fail"};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",tier:"tier1",releasers:"",pcsBy:"",reviewDays:365,covDays:90,openDays:14};
+const LIMITS={reviewDays:[30,1095],covDays:[7,730],openDays:[1,90]};
+const fixSet=(k,v)=>{const n=num(v),[lo,hi]=LIMITS[k];return n==null||Math.round(n)<lo||Math.round(n)>hi?DEF[k]:Math.round(n);};
+/* the typical content of a rework procedure for this direct-fired pusher line: to adapt and to confirm with the customers */
+const DEF_PROC={no:"SOP-QA-12",title:"Rework and reprocessing of heat treated parts",
+  scope:"Parts hardened and tempered, isothermally annealed or normalized on the pusher furnaces F-01 … F-04 that do not meet a heat treat requirement.",
+  allowed:[{char:"Surface hardness above the maximum (over-hard)",rule:"Re-temper (method M1)."},
+    {char:"Surface or core hardness below the minimum, soft spots",rule:"Re-harden and temper (method M2), only without cracks and with decarburization within the limit."},
+    {char:"Microstructure not as specified after normalizing or isothermal annealing",rule:"Re-normalize / re-anneal (method M3)."}],
+  notAllowed:[{char:"Cracks (quench cracks) or other surface defects",why:"Cannot be recovered by heat treatment: scrap."},
+    {char:"Decarburization beyond the limit",why:"Not restored in a direct-fired furnace without a protective atmosphere: scrap or customer decision."},
+    {char:"Overheating / burning, grain growth beyond the limit",why:"The damage to the material is permanent: scrap."},
+    {char:"Distortion beyond the drawing tolerance",why:"Straightening is not part of the approved heat treatment: customer decision."}],
+  methods:[{k:"M1",name:"Re-temper",chars:"Hardness above the maximum",param:"Tempering set values raised within the specification's range or the push time lengthened; the new values on the process control sheet",limit:"2",ppap:true},
+    {k:"M2",name:"Re-harden and temper",chars:"Hardness below the minimum, soft spots",param:"Full cycle of the specification; austenitizing temperature / push time adjustment on the process control sheet",limit:"1",ppap:true},
+    {k:"M3",name:"Re-normalize / re-anneal",chars:"Microstructure after normalizing / isothermal annealing",param:"Cycle of the specification with the adjustment on the process control sheet",limit:"1",ppap:false}],
+  pcsReq:"Every rework / reprocessing lot gets a new process control sheet (rework job card) issued by qualified personnel (the holder or deputy of the heat treat position, or a person authorized for process specifications) before the rework starts. It names the original lot and the reason, the method and the heat treat parameter modification (set values, push time, cycle) against the specification.",
+  logReq:"Every rework / reprocessing job is entered in the rework log with the original lot and nonconformance, the reason, the method, the process control sheet, the date and furnace, the sampling result and the release. Rework trays on the daily production report carry the rework job or nonconformance number.",
+  sampling:"After rework: surface hardness on 5 pieces per lot (3 readings each) from the first, middle and last trays, plus core hardness / microstructure when the specification asks for it; the characteristic that failed is checked on every lot. Any failure: the lot stays on hold and goes to the Quality Manager.",
+  releaseReq:"Reworked / reprocessed product is released only by the Quality Manager or a designee named in this procedure, after a passing sampling result. Until then it stays identified and segregated as rework.",
+  notifyReq:"A rework / reprocessing method not listed in this procedure and pre-approved in the PPAP is not allowed. Where the customer's approval on a case basis is needed, the OEM is notified by the Tier 1 supplier (when not Tier 1: the customer) and the approval is recorded before the rework starts. Any change or addition to this procedure is notified and approved through the AIAG PPAP process."};
+const PROCF={no:"",title:"",scope:"",allowed:[],notAllowed:[],methods:[],pcsReq:"",logReq:"",sampling:"",releaseReq:"",notifyReq:"",pfmeaRef:"",cpRef:"",ppap:{ref:"",date:"",rev:"",by:""},rev:0,status:"draft",prep:"",appr:"",apprDate:"",change:"",revs:[],log:[]};
+const TXT=["no","title","scope","pcsReq","logReq","sampling","releaseReq","notifyReq","pfmeaRef","cpRef","prep","appr","apprDate","change"];
+const fixProc=p=>{const x={...clone(PROCF),...(isObj(p)?p:{})};TXT.forEach(k=>{x[k]=str(x[k]);});
+  x.allowed=arr(x.allowed).filter(isObj).map(a=>({char:str(a.char),rule:str(a.rule)}));x.notAllowed=arr(x.notAllowed).filter(isObj).map(a=>({char:str(a.char),why:str(a.why)}));
+  x.methods=arr(x.methods).filter(isObj).map((m,i)=>({k:str(m.k)||"M"+(i+1),name:str(m.name),chars:str(m.chars),param:str(m.param),limit:str(m.limit),ppap:!!m.ppap}));
+  x.ppap={ref:"",date:"",rev:"",by:"",...(isObj(x.ppap)?x.ppap:{})};["ref","date","rev","by"].forEach(k=>{x.ppap[k]=str(x.ppap[k]);});
+  x.rev=+x.rev||0;x.status=x.status==="approved"?"approved":"draft";x.revs=arr(x.revs).filter(isObj);x.log=arr(x.log).filter(isObj);return x;};
+const JOBF={id:"",date:"",furnace:"",part:"",batch:"",heat:"",qty:"",origRef:"",char:"",charOther:"",found:"",method:"",basis:"ppap",
+  notify:{to:"",ref:"",date:""},cust:{ref:"",date:"",by:""},pcs:{no:"",by:"",date:"",params:""},rwDate:"",prodRef:"",
+  smp:{n:"",res:"",date:"",by:"",testRef:""},rel:{by:"",date:""},disp:"",note:"",closed:"",log:[]};
+const fixJob=j=>{const x={...clone(JOBF),...(isObj(j)?j:{})};["id","date","furnace","part","batch","heat","qty","origRef","char","charOther","found","method","rwDate","prodRef","disp","note","closed"].forEach(k=>{x[k]=str(x[k]);});
+  x.basis=BASIS[x.basis]?x.basis:"ppap";["notify","cust","pcs","smp","rel"].forEach(k=>{x[k]={...JOBF[k],...(isObj(x[k])?x[k]:{})};Object.keys(x[k]).forEach(f=>{x[k][f]=str(x[k][f]);});});
+  if(!DISP[x.disp]) x.disp="";if(!SMP[x.smp.res]) x.smp.res="";x.log=arr(x.log).filter(isObj);return x;};
+const blank=()=>({v:1,settings:clone(DEF),proc:fixProc({}),jobs:[],seq:{j:1}});
+const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
+function normalize(o){
+  if(!isObj(o)||!Array.isArray(o.jobs)) return null;
+  o.settings={...clone(DEF),...(isObj(o.settings)?o.settings:{})};Object.keys(LIMITS).forEach(k=>{o.settings[k]=fixSet(k,o.settings[k]);});
+  ["plant","releasers","pcsBy"].forEach(k=>{o.settings[k]=str(o.settings[k]);});if(!o.settings.plant) o.settings.plant=DEF.plant;if(!["tier1","other"].includes(o.settings.tier)) o.settings.tier="tier1";
+  o.proc=fixProc(o.proc);o.proc.revs=o.proc.revs.map(r=>{const x=fixProc(r);delete x.revs;delete x.log;return x;});
+  o.jobs=o.jobs.filter(j=>isObj(j)&&j.id).map(fixJob);
+  const q=isObj(o.seq)?o.seq:{};o.seq={j:Math.max(+q.j||1,seqOf(o.jobs))};o.v=1;return o;
+}
+const HTQ=(()=>{try{return window.parent!==window&&window.parent.HTQ||null;}catch(e){return null;}})();
+const api=n=>{try{return HTQ&&HTQ.api(n)||null;}catch(e){return null;}};
+let DB=null;try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+if(!DB) DB=blank();
+let EMIT=0,LC={};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){}LC={};
+  if(HTQ){clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("rwk:changed"),300);}};
+const S=()=>DB.settings;
+const logIt=(x,t)=>x.log.push({d:today(),t});
+const jobById=id=>DB.jobs.find(j=>j.id===id)||null;
+let VIEW={pf:""};try{VIEW={...VIEW,...JSON.parse(localStorage.getItem(VKEY)||"{}")};}catch(e){}
+const setView=o=>{VIEW={...VIEW,...o};try{localStorage.setItem(VKEY,JSON.stringify(VIEW));}catch(e){}};
+const LS=k=>{if(k in LC) return LC[k];let v=null;try{v=JSON.parse(localStorage.getItem(k)||"null");}catch(e){}return LC[k]=v;};
+
+/* ---------- the procedure: revision in force ---------- */
+const P=()=>DB.proc;
+/* the revision in force: the approved one, or while a new revision is drafted the last approved snapshot */
+const eff=()=>{const p=P();if(p.status==="approved") return p;const r=p.revs.filter(x=>x.status==="approved").at(-1);return r||null;};
+const reviewDue=()=>{const e=eff();return e&&isDate(e.apprDate)?addDays(e.apprDate,S().reviewDays):null;};
+/* PPAP: the approval of the customer covers a revision; a later revision in force is a change not yet approved */
+const ppapOk=e=>!!e&&!!txt(e.ppap.ref)&&isDate(e.ppap.date)&&String(num(e.ppap.rev))===String(e.rev);
+function missProc(p){
+  const m=[];
+  if(!txt(p.no)) m.push("procedure number");if(!txt(p.title)) m.push("title");
+  if(!p.allowed.some(a=>txt(a.char))) m.push("characteristics for which rework is allowed");
+  if(!p.notAllowed.some(a=>txt(a.char))) m.push("characteristics for which rework is not permissible");
+  if(!p.methods.some(x=>txt(x.name))) m.push("at least one approved rework method");
+  p.methods.forEach((x,i)=>{if(txt(x.name)&&!txt(x.param)) m.push(`the parameter modification of method ${x.k||i+1}`);});
+  if(!txt(p.pcsReq)) m.push("the requirement of a new process control sheet by qualified personnel");
+  if(!txt(p.logReq)) m.push("the requirement of a rework log");
+  if(!txt(p.sampling)) m.push("the sampling plan");
+  if(!txt(p.releaseReq)) m.push("the release by the Quality Manager or a designee");
+  if(!txt(p.notifyReq)) m.push("the customer / OEM notification and PPAP approval of changes");
+  if(!txt(p.prep)) m.push("prepared by");if(!txt(p.appr)) m.push("approved by");
+  if(p.rev>0&&!txt(p.change)) m.push("the reason for the change");
+  return m;
+}
+
+/* ---------- people: who may release and who may issue a process control sheet ---------- */
+function releasers(){
+  const L=names(S().releasers).map(n=>({name:n,why:"named in the procedure"}));
+  const o=api("org");if(o){try{o.people().filter(p=>arr(p.positions).some(t=>/quality/i.test(t))).forEach(p=>{if(!L.some(x=>up(x.name)===up(p.name)))L.push({name:p.name,why:arr(p.positions).join(", ")});});}catch(e){}}
+  return L;
+}
+function issuers(){
+  const L=names(S().pcsBy).map(n=>({name:n,why:"qualified, named in Settings"}));
+  const o=api("org");if(o){try{o.authorized().forEach(p=>{if(!L.some(x=>up(x.name)===up(p.name)))L.push({name:p.name,why:p.position});});}catch(e){}}
+  return L;
+}
+const isRel=n=>!!txt(n)&&releasers().some(x=>up(x.name)===up(n));
+const isIss=n=>!!txt(n)&&issuers().some(x=>up(x.name)===up(n));
+
+/* ---------- a rework job ---------- */
+const charKind=j=>{const e=eff();if(!e||j.char==="__other"||!j.char) return j.char?"other":"";if(e.allowed.some(a=>a.char===j.char)) return "ok";if(e.notAllowed.some(a=>a.char===j.char)) return "no";return "other";};
+const charTxt=j=>j.char==="__other"?(txt(j.charOther)||"other characteristic"):j.char;
+const methOf=j=>{const e=eff();return e&&j.method&&j.method!=="__other"?e.methods.find(m=>m.k===j.method)||null:null;};
+/* how often this lot has been reworked: earlier jobs of the same part and batch (or heat when the batch is not available) */
+const lotKey=j=>idv(j.part)?(idv(j.batch)?idv(j.part)+"|B|"+idv(j.batch):idv(j.heat)?idv(j.part)+"|H|"+idv(j.heat):""):"";
+const countOf=j=>{const k=lotKey(j);if(!k) return 1;return DB.jobs.filter(x=>x.id!==j.id&&lotKey(x)===k&&charKind(x)!=="no"&&(x.date<j.date||(x.date===j.date&&x.id<j.id&&!!j.id))).length+1;};
+const overLimit=j=>{const m=methOf(j);return !!m&&num(m.limit)>0&&countOf(j)>num(m.limit);};
+/* the customer's approval (and the OEM / customer notification) is needed before the rework when the method is not pre-approved */
+const custWhy=j=>{const m=methOf(j),w=[];if(charKind(j)==="other") w.push("the characteristic is not in the procedure");
+  if(j.method==="__other") w.push("the method is not in the procedure");else if(m&&!m.ppap) w.push("the method is not pre-approved in the PPAP");
+  if(j.basis==="case") w.push("case-basis approval");if(overLimit(j)) w.push(`rework no. ${countOf(j)} of the lot, the method allows ${num(methOf(j).limit)}`);return w;};
+function stageOf(j){
+  if(isDate(j.closed)) return "closed";
+  if(charKind(j)==="no") return j.disp?"release":"blocked";
+  if(!j.method) return "method";
+  if(custWhy(j).length&&(!txt(j.cust.ref)||!isDate(j.cust.date)||!txt(j.notify.ref)||!isDate(j.notify.date))) return "approval";
+  if(!txt(j.pcs.no)||!isIss(j.pcs.by)||!isDate(j.pcs.date)||!txt(j.pcs.params)) return "pcs";
+  if(!isDate(j.rwDate)) return "rework";
+  if(!j.smp.res) return "test";
+  if(j.smp.res==="fail"&&!j.disp) return "fail";
+  return "release";
+}
+const STG={blocked:["crit","✕","Not permissible: decide the disposition"],method:["warn","!","Choose the method"],approval:["crit","✕","Customer approval needed"],pcs:["warn","!","Process control sheet"],rework:["info","…","Awaiting rework"],test:["warn","!","Sampling"],fail:["crit","✕","Sampling failed"],release:["warn","!","Awaiting release"],closed:["good","✓","Closed"]};
+/* completeness of a job; "close" adds the release gate */
+function missJob(j,close){
+  const m=[];
+  if(!isDate(j.date)) m.push("date");if(!txt(j.part)) m.push("part no.");if(!txt(j.batch)&&!txt(j.heat)) m.push("batch or heat no.");if(!(num(j.qty)>0)) m.push("quantity");
+  if(!txt(j.origRef)) m.push("original lot / nonconformance reference");if(!j.char) m.push("characteristic not met");if(j.char==="__other"&&!txt(j.charOther)) m.push("the characteristic");if(!txt(j.found)) m.push("what was found");
+  if(isDate(j.date)&&j.date>today()) m.push("a date not in the future");
+  const k=charKind(j);
+  if(k==="no"){
+    if(isDate(j.rwDate)||txt(j.pcs.no)) m.push("no rework: the characteristic is not permissible for rework (remove the rework entries)");
+    if(close){if(!j.disp||j.disp==="released") m.push("the disposition (scrap, return or customer concession)");
+      if(j.disp==="concession"&&(!txt(j.cust.ref)||!isDate(j.cust.date))) m.push("the customer's concession (reference and date)");
+      if(!isRel(j.rel.by)) m.push("decided by the Quality Manager or a designee");if(!isDate(j.rel.date)) m.push("decision date");}
+    return m;
+  }
+  if(!j.method&&(close||isDate(j.rwDate))) m.push("rework method");
+  const cw=custWhy(j);
+  if(cw.length&&(isDate(j.rwDate)||close)){
+    if(!txt(j.notify.ref)||!isDate(j.notify.date)) m.push(`the ${S().tier==="tier1"?"OEM":"customer"} notification (reference and date) before the rework`);
+    else if(isDate(j.rwDate)&&j.notify.date>j.rwDate) m.push("the notification before the rework date");
+    if(!txt(j.cust.ref)||!isDate(j.cust.date)||!txt(j.cust.by)) m.push("the customer's approval (reference, date, by)");
+    else if(isDate(j.rwDate)&&j.cust.date>j.rwDate) m.push("the customer's approval before the rework date");
+  }
+  if(isDate(j.rwDate)||close){
+    if(!txt(j.pcs.no)) m.push("process control sheet no.");if(!txt(j.pcs.params)) m.push("the heat treat parameter modification on the process control sheet");
+    if(!txt(j.pcs.by)) m.push("process control sheet issued by");else if(!isIss(j.pcs.by)) m.push(`process control sheet issued by qualified personnel (${j.pcs.by} is not listed)`);
+    if(!isDate(j.pcs.date)) m.push("process control sheet date");else if(isDate(j.rwDate)&&j.pcs.date>j.rwDate) m.push("the process control sheet issued before the rework");
+  }
+  if(isDate(j.rwDate)&&isDate(j.date)&&j.rwDate<j.date) m.push("a rework date on or after the nonconformance date");
+  if(isDate(j.rwDate)&&j.rwDate>today()) m.push("a rework date not in the future");
+  if(j.smp.res&&(!isDate(j.smp.date)||!txt(j.smp.n))) m.push("sampling date and sample size");
+  if(close){
+    if(!isDate(j.rwDate)) m.push("rework date");if(!j.smp.res) m.push("sampling result");
+    if(!j.disp) m.push("disposition");else if(j.disp==="released"&&j.smp.res!=="pass") m.push("a passing sampling result to release");
+    if(j.disp==="concession"&&(!txt(j.cust.ref)||!isDate(j.cust.date))) m.push("the customer's concession (reference and date)");
+    if(!txt(j.rel.by)) m.push("released by");else if(!isRel(j.rel.by)) m.push(`release by the Quality Manager or a designee (${j.rel.by} is not one)`);
+    if(!isDate(j.rel.date)) m.push("release date");else if(isDate(j.smp.date)&&j.rel.date<j.smp.date) m.push("a release on or after the sampling");
+  }
+  return m;
+}
+/* hardness tests of the reworked lot after the rework (Hardness page): suggestion for the sampling result */
+const nums=a=>arr(a).map(num).filter(v=>v!=null);
+const testNc=t=>{const r=t.req||{},lo=num(r.hMin),hi=num(r.hMax),cl=num(r.cMin),ch=num(r.cMax),dm=num(r.decarbMax);
+  return arr(t.samples).flatMap(s=>nums(s.r)).some(v=>(lo!=null&&v<lo)||(hi!=null&&v>hi))||nums(t.core).some(v=>(cl!=null&&v<cl)||(ch!=null&&v>ch))||(dm!=null&&num(t.decarb)!=null&&num(t.decarb)>dm)||t.micro==="nok";};
+const retests=j=>!isDate(j.rwDate)||!idv(j.part)?[]:arr((LS("hmt-reg")||{}).tests).filter(t=>isObj(t)&&up(t.part)===idv(j.part)&&isDate(t.date)&&t.date>=j.rwDate&&((idv(j.batch)&&up(t.batch)===idv(j.batch))||(!idv(j.batch)&&idv(j.heat)&&up(t.heat)===idv(j.heat)))).map(t=>({id:t.id,date:t.date,n:arr(t.samples).length,pass:!testNc(t)}));
+
+/* ---------- rework on the daily production reports (same browser) ---------- */
+function prodRework(){
+  const from=addDays(today(),-S().covDays),M=new Map();
+  arr((LS("prod-reg")||{}).reports).filter(r=>isObj(r)&&isDate(r.date)&&r.date>=from).forEach(r=>arr(isObj(r.tl)?r.tl.trays:[]).forEach(t=>arr(t&&t.items).forEach(it=>{
+    if(!it||!isObj(it.rw)) return;const k=[up(it.rw.ref),idv(it.part),idv(it.batch)||("H:"+idv(it.heat))].join("|");
+    const x=M.get(k)||{ref:txt(it.rw.ref),reason:txt(it.rw.reason),part:txt(it.part),batch:txt(it.batch),heat:txt(it.heat),furnace:r.furnace,date:r.date,rep:r.id,trays:0,qty:0};
+    x.trays++;x.qty+=num(it.qty)||0;if(r.date<x.date){x.date=r.date;x.rep=r.id;}M.set(k,x);})));
+  return [...M.values()].map(x=>({...x,job:DB.jobs.find(j=>(idv(x.ref)&&(up(j.id)===up(x.ref)||up(j.origRef)===up(x.ref)||up(j.prodRef)===up(x.rep)&&lotKey(j)))||(lotKey(j)&&idv(x.part)===idv(j.part)&&((idv(x.batch)&&idv(x.batch)===idv(j.batch))||(!idv(x.batch)&&idv(x.heat)&&idv(x.heat)===idv(j.heat)))))||null})).sort((a,b)=>a.date<b.date?1:-1);
+}
+/* the approved PFMEA and control plans that name the procedure (CP & PFMEA page) */
+function cpfRefs(){
+  const e=eff(),no=e?idv(e.no):"";const docs=arr((LS("cpf-reg")||{}).docs).filter(isObj);
+  const inForce=d=>d.status==="approved"||arr(d.revs).some(r=>r&&r.status==="approved");
+  /* named in the document's rows / notes, or the document named in the procedure's own reference field */
+  const hit=(d,ref)=>(!!no&&JSON.stringify([d.rows,d.notes,d.steps]).toUpperCase().includes(no))||(!!idv(d.id)&&up(ref).includes(up(d.id)));
+  return {any:docs.length>0,pf:docs.filter(d=>d.kind==="pfmea"&&inForce(d)&&hit(d,e?e.pfmeaRef:"")).map(d=>d.id+(d.title?" "+d.title:"")),cp:docs.filter(d=>d.kind==="cp"&&inForce(d)&&hit(d,e?e.cpRef:"")).map(d=>d.id+(d.part?" "+d.part:""))};
+}
+
+/* ---------- HTSA 1.11 assessment ---------- */
+const SCORE={s:["good","Satisfactory"],ns:["warn","Not satisfactory"],nia:["crit","Needs immediate action"]};
+const LV={ok:["good","✓","Met"],warn:["warn","!","Attention"],crit:["crit","✕","Not met"],info:["info","i","Note"]};
+function assess111(){
+  const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),e=eff(),p=P(),rd=reviewDue();
+  /* the procedure */
+  add(!e?"crit":rd&&rd<today()?"warn":"ok","Documented rework / reprocessing procedure",!e?(p.no?`${p.no} rev ${p.rev} is a draft, not approved.`:"No rework procedure."):`${e.no} rev ${e.rev} “${e.title}”, approved ${fdate(e.apprDate)} by ${e.appr}${p.status==="draft"?` (rev ${p.rev} in draft)`:""}; review due ${fdate(rd)}.`,
+    !e?"Write and approve the procedure (“Rework procedure”).":rd<today()?"Review the procedure.":"");
+  if(e){
+    const c=missProc(e).filter(x=>!/prepared|approved by|reason for the change/.test(x));
+    add(c.length?"crit":"ok","Content: allowed / not permissible characteristics, process control sheet, log, sampling plan, release",c.length?`Missing in rev ${e.rev}: ${c.join("; ")}.`:`${plural(e.allowed.length,"characteristic")} reworkable, ${e.notAllowed.length} not permissible; ${plural(e.methods.length,"method")} (${e.methods.filter(m=>m.ppap).length} pre-approved in the PPAP); process control sheet, log, sampling plan and release by the Quality Manager or a designee stated.`,c.length?"Complete the procedure in a new revision.":"");
+    add(ppapOk(e)?(p.status==="draft"?"warn":"ok"):"crit","Procedure and its changes approved through PPAP",ppapOk(e)?`Rev ${e.rev} approved in PPAP ${e.ppap.ref} on ${fdate(e.ppap.date)}${e.ppap.by?" by "+e.ppap.by:""}.${p.status==="draft"?` Rev ${p.rev} is being drafted: notify the customer and get the PPAP approval before it is used.`:""}`:`Rev ${e.rev} in force has no PPAP approval recorded${e.ppap.ref?` (PPAP ${e.ppap.ref} covers rev ${e.ppap.rev||"?"})`:""}.`,
+      ppapOk(e)?(p.status==="draft"?"Submit the change through PPAP.":""):"Notify the customer and record the PPAP approval of this revision.");
+    const R=cpfRefs();
+    const pfOk=R.any?R.pf.length>0:!!txt(e.pfmeaRef),cpOk=R.any?R.cp.length>0:!!txt(e.cpRef);
+    add(pfOk&&cpOk?"ok":"crit","Referenced in the PPAP-approved PFMEA and process control plan",R.any?`${e.no} named in ${R.pf.length?"PFMEA "+lim(R.pf,3):"no approved PFMEA"} and ${R.cp.length?"control plan "+lim(R.cp,3):"no approved control plan"} (CP & PFMEA page).`:`PFMEA: ${e.pfmeaRef||"not named"}; control plan: ${e.cpRef||"not named"}.`,
+      pfOk&&cpOk?"":R.any?`Name ${e.no} in the reaction plan / rework step of the approved PFMEA and control plans.`:"Name the PFMEA and control plan that reference the procedure.");
+  }
+  /* the rework jobs */
+  const J=DB.jobs,act=J.filter(j=>charKind(j)!=="no");
+  const noRw=J.filter(j=>charKind(j)==="no"&&(isDate(j.rwDate)||txt(j.pcs.no)));
+  const unappr=act.filter(j=>isDate(j.rwDate)&&custWhy(j).length&&(!txt(j.cust.ref)||!isDate(j.cust.date)||j.cust.date>j.rwDate||!txt(j.notify.ref)||!isDate(j.notify.date)||j.notify.date>j.rwDate));
+  const pendA=act.filter(j=>!isDate(j.rwDate)&&!isDate(j.closed)&&stageOf(j)==="approval");
+  add(noRw.length||unappr.length?"crit":pendA.length?"warn":"ok","Only approved rework; OEM / customer notified before an unapproved process",`${plural(act.filter(j=>isDate(j.rwDate)).length,"rework job")} done${act.filter(j=>isDate(j.rwDate)&&custWhy(j).length).length?`, ${act.filter(j=>isDate(j.rwDate)&&custWhy(j).length).length} needing the customer's approval`:""}.${noRw.length?` Reworked although not permissible: ${lim(noRw.map(j=>j.id))}.`:""}${unappr.length?` Without the ${S().tier==="tier1"?"OEM":"customer"} notification and approval before the rework: ${lim(unappr.map(j=>`${j.id} (${custWhy(j).join(", ")})`),3)}.`:""}${pendA.length?` Waiting for the customer's approval (not to be reworked before it): ${lim(pendA.map(j=>`${j.id} (${custWhy(j).join(", ")})`),3)}.`:""}`,
+    noRw.length||unappr.length?"Contain these lots and inform the customer.":pendA.length?"Notify the customer and obtain the approval, or decide another disposition.":"");
+  const done=act.filter(j=>isDate(j.rwDate)),noPcs=done.filter(j=>!txt(j.pcs.no)||!txt(j.pcs.params)||!isIss(j.pcs.by)||!isDate(j.pcs.date)||j.pcs.date>j.rwDate);
+  add(noPcs.length?"crit":"ok","New process control sheet by qualified personnel with the parameter modification",noPcs.length?`Missing or incomplete for: ${lim(noPcs.map(j=>j.id))}.`:done.length?`${plural(done.length,"rework job")} each with a process control sheet issued before the rework by qualified personnel.`:"No rework done yet.",noPcs.length?"Issue / complete the process control sheets.":"");
+  const PR=prodRework(),unlog=PR.filter(x=>!x.job),inc=J.filter(j=>missJob(j,false).length);
+  add(unlog.length||inc.length?"crit":"ok","Record / log of all rework",`${plural(J.length,"job")} in the rework log; ${plural(PR.length,"rework lot")} on the daily production reports in the last ${S().covDays} days${unlog.length?`, ${unlog.length} without a log entry: ${lim(unlog.map(x=>`${x.part} ${x.batch||x.heat} (${x.ref||"no ref"}, ${fdate(x.date)})`),3)}`:", all logged"}.${inc.length?` Incomplete entries: ${lim(inc.map(j=>j.id))}.`:""}`,
+    unlog.length?"Record these rework lots in the log (“Record” in the production rework list).":inc.length?"Complete the log entries.":"");
+  const noSmp=done.filter(j=>!j.smp.res&&!isDate(j.closed)),relNoSmp=act.filter(j=>isDate(j.closed)&&j.disp==="released"&&j.smp.res!=="pass");
+  add(relNoSmp.length?"crit":noSmp.length?"warn":"ok","Sampling plan applied",relNoSmp.length?`Released without a passing sampling result: ${lim(relNoSmp.map(j=>j.id))}.`:noSmp.length?`Sampling result not yet recorded: ${lim(noSmp.map(j=>j.id))}.`:"Every reworked lot sampled to the plan before release.",relNoSmp.length?"Sample these lots; contain if needed.":noSmp.length?"Record the sampling results.":"");
+  const badRel=J.filter(j=>isDate(j.closed)&&!isRel(j.rel.by)),waiting=J.filter(j=>!isDate(j.closed)&&isDate(j.date)&&addDays(j.date,S().openDays)<today());
+  add(badRel.length||!releasers().length?"crit":waiting.length?"warn":"ok","Release authorized by the Quality Manager or a designee",!releasers().length?"Nobody named who may release (Settings, or a quality position on the HT organization page).":`May release: ${lim(releasers().map(x=>x.name),4)}.${badRel.length?` Released by someone else: ${lim(badRel.map(j=>`${j.id} (${j.rel.by||"nobody"})`))}.`:""}${waiting.length?` Open over ${S().openDays} days: ${lim(waiting.map(j=>j.id))}.`:""}`,
+    badRel.length||!releasers().length?"Name the Quality Manager and designees; have these lots released by them.":waiting.length?"Close the open rework jobs.":"");
+  const crit=I.filter(i=>i.lvl==="crit");
+  return {I,score:!e?"nia":crit.length?"ns":"s"};
+}
+
+/* ---------- render ---------- */
+function render(){
+  LC={};const e=eff();
+  $("#meta").innerHTML=`<span><b>${esc(S().plant)}</b></span><span>${e?`${esc(e.no)} rev ${e.rev}`:"no procedure in force"} · ${plural(DB.jobs.length,"rework job")}</span><span>Today ${fdate(today())}</span>`;
+  drawH111();drawKpis();drawProc();drawPF();drawJobs();drawProd();drawSettings();
+}
+function drawH111(){
+  const A=assess111(),sc=SCORE[A.score];
+  $("#h111score").innerHTML=`<span class="big ${sc[0]}">${sc[1]}</span><span class="muted">${plural(A.I.filter(i=>i.lvl==="ok").length,"item")} met · ${plural(A.I.filter(i=>i.lvl==="crit").length,"item")} not met · ${plural(A.I.filter(i=>i.lvl==="warn").length,"item")} needing attention</span>`;
+  $("#h111").innerHTML=`<table class="log cards"><thead><tr><th>Requirement</th><th>Evidence in this register</th><th>Result</th><th>Action</th></tr></thead><tbody>${A.I.map(i=>`<tr><td data-label="Requirement"><b>${esc(i.req)}</b></td><td data-label="Evidence">${esc(i.ev)}</td><td data-label="Result">${chip(...LV[i.lvl])}</td><td data-label="Action">${esc(i.act||"—")}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawKpis(){
+  const k=(l,v,s,c)=>`<div class="kpi"><span class="eyebrow">${l}</span><span class="v ${c||""}">${v}</span><span class="s">${s}</span></div>`,e=eff();
+  const open=DB.jobs.filter(j=>stageOf(j)!=="closed"),blk=open.filter(j=>["blocked","approval","fail"].includes(stageOf(j))),rel=open.filter(j=>stageOf(j)==="release"),un=prodRework().filter(x=>!x.job);
+  $("#kpis").innerHTML=k("Procedure in force",e?`rev ${e.rev}`:"none",e?`${esc(e.no)} · ${ppapOk(e)?"PPAP approved":"no PPAP approval"}`:"write and approve it",!e||!ppapOk(e)?"bad":"ok")
+    +k("Rework jobs open",open.length,`${blk.length} blocked (approval, not permissible or failed)`,blk.length?"bad":open.length?"caution":"ok")
+    +k("Awaiting release",rel.length,"by the Quality Manager or a designee",rel.length?"caution":"ok")
+    +k("Production rework not logged",un.length,`rework trays in the last ${S().covDays} days`,un.length?"bad":"ok");
+}
+function drawProc(){
+  const p=P(),e=eff(),rd=reviewDue(),R=e?cpfRefs():null;
+  $("#procNote").innerHTML=e?`${esc(e.no)} rev ${e.rev}, approved ${fdate(e.apprDate)} by ${esc(e.appr)} · ${ppapOk(e)?`PPAP ${esc(e.ppap.ref)} (${fdate(e.ppap.date)})`:`<span class="bad">no PPAP approval of rev ${e.rev}</span>`} · review ${rd<today()?`<span class="caution">overdue since ${fdate(rd)}</span>`:"due "+fdate(rd)}${p.status==="draft"?` · <span class="caution">rev ${p.rev} in draft</span>`:""}.`:p.no||p.allowed.length?`<span class="caution">${esc(p.no||"The procedure")} rev ${p.rev} is a draft: complete and approve it.</span>`:"No procedure yet. Open “Rework procedure” and start from the typical content of this line.";
+  if(!e){$("#procBox").innerHTML=`<div class="actions noprint"><button class="btn small" data-open-proc="1">Open the procedure</button></div>`;return;}
+  $("#procBox").innerHTML=`<div class="pgrid">
+    <div><h3>Rework allowed</h3><ul>${e.allowed.map(a=>`<li><b>${esc(a.char)}</b>${a.rule?` — ${esc(a.rule)}`:""}</li>`).join("")}</ul></div>
+    <div><h3>Rework not permissible</h3><ul>${e.notAllowed.map(a=>`<li><b>${esc(a.char)}</b>${a.why?` — ${esc(a.why)}`:""}</li>`).join("")}</ul></div>
+    <div><h3>Approved methods</h3><ul>${e.methods.map(m=>`<li><b>${esc(m.k)} ${esc(m.name)}</b> · ${m.ppap?"pre-approved in the PPAP":'<span class="caution">case basis only</span>'}${num(m.limit)>0?` · at most ${num(m.limit)}× per lot`:""}<br><span class="sub2">${esc(m.param)}</span></li>`).join("")}</ul></div>
+    <div><h3>Sampling plan</h3><p>${esc(e.sampling)}</p></div>
+    <div><h3>Release</h3><p>${esc(e.releaseReq)}</p><p class="sub2" style="margin-top:4px">May release: ${esc(lim(releasers().map(x=>x.name),5))||"<b>nobody named</b>"}</p></div>
+    <div><h3>References</h3><p>${R.any?`PFMEA: ${esc(R.pf.length?lim(R.pf,3):"none naming "+e.no)}<br>Control plan: ${esc(R.cp.length?lim(R.cp,3):"none naming "+e.no)}`:`PFMEA: ${esc(e.pfmeaRef||"—")}<br>Control plan: ${esc(e.cpRef||"—")}`}</p></div></div>
+    <div class="actions noprint" style="margin-top:10px"><button class="btn small" data-open-proc="1">Open the procedure</button><button class="btn ghost small" id="b-procpdf">Procedure (PDF)</button></div>`;
+}
+const JF=[["","All"],["open","Open"],["block","Blocked"],["release","Awaiting release"],["closed","Closed"]];
+function drawPF(){$("#pf").innerHTML=JF.map(([k,t])=>`<button class="${VIEW.pf===k?"on":""}" aria-pressed="${VIEW.pf===k}" data-pf="${k}">${t}</button>`).join("");}
+function drawJobs(){
+  const f=VIEW.pf,L=DB.jobs.filter(j=>{const s=stageOf(j);return !f||(f==="open"?s!=="closed":f==="block"?["blocked","approval","fail"].includes(s):f==="release"?s==="release":s==="closed");}).sort((a,b)=>(a.date+a.id)<(b.date+b.id)?1:-1);
+  if(!L.length){$("#jobs").innerHTML=`<div class="empty">${DB.jobs.length?"No rework job for this selection.":"No rework recorded. Use “Record rework”, or load the example under Settings."}</div>`;return;}
+  $("#jobs").innerHTML=`<table class="log cards"><thead><tr><th>Job</th><th>Lot</th><th>Not met</th><th>Method</th><th>Process control sheet</th><th>Sampling</th><th>Release</th><th>Status</th><th class="noprint"></th></tr></thead><tbody>${L.map(j=>{const m=methOf(j),k=charKind(j),cw=custWhy(j);
+    return `<tr><td data-label="Job" class="nw"><b>${esc(j.id)}</b><br><span class="sub2">${fdate(j.date)}${j.furnace?" · "+esc(j.furnace):""}</span></td>
+    <td data-label="Lot"><div>${esc(j.part)} · ${esc(j.batch||j.heat)}<br><span class="sub2">${esc(j.qty)} pcs · ${esc(j.origRef)}${countOf(j)>1?` · rework no. ${countOf(j)}`:""}</span></div></td>
+    <td data-label="Not met"><div>${k==="no"?`<span class="bad">${esc(charTxt(j))} (not permissible)</span>`:esc(charTxt(j))}<br><span class="sub2">${esc(j.found)}</span></div></td>
+    <td data-label="Method"><div>${k==="no"?"—":j.method==="__other"?'<span class="bad">not in the procedure</span>':m?`${esc(m.k)} ${esc(m.name)}`:"—"}${cw.length&&k!=="no"?`<br><span class="sub2">${esc(j.cust.ref?"customer approval "+j.cust.ref:"needs customer approval")}</span>`:""}</div></td>
+    <td data-label="Control sheet"><div>${j.pcs.no?`${esc(j.pcs.no)}<br><span class="sub2">${esc(j.pcs.by)} · ${fdate(j.pcs.date)}</span>`:"—"}</div></td>
+    <td data-label="Sampling">${j.smp.res?`<span class="${j.smp.res==="pass"?"":"bad"}">${SMP[j.smp.res]}</span> <span class="sub2">${esc(j.smp.n)} pcs</span>`:"—"}</td>
+    <td data-label="Release"><div>${j.rel.by?`${esc(j.rel.by)}<br><span class="sub2">${fdate(j.rel.date)} · ${esc(DISP[j.disp]||"")}</span>`:"—"}</div></td>
+    <td data-label="Status">${chip(...STG[stageOf(j)])}</td>
+    <td class="act noprint"><button class="btn ghost small" data-open-job="${esc(j.id)}">Open</button></td></tr>`;}).join("")}</tbody></table>`;
+}
+function drawProd(){
+  const L=prodRework();
+  $("#prodNote").textContent=`Trays marked as rework on the Daily production page in the last ${S().covDays} days, matched to the rework log by the rework reference (job or nonconformance no.), else by part and batch.`;
+  if(!L.length){$("#prodrw").innerHTML=`<div class="empty">No rework trays on the production reports in this browser for the last ${S().covDays} days.</div>`;return;}
+  $("#prodrw").innerHTML=`<table class="log cards"><thead><tr><th>Report</th><th>Furnace</th><th>Lot</th><th>Rework reference</th><th class="n">Trays · pcs</th><th>Rework log</th><th class="noprint"></th></tr></thead><tbody>${L.map((x,i)=>`<tr>
+    <td data-label="Report" class="nw">${esc(x.rep||"—")}<br><span class="sub2">${fdate(x.date)}</span></td><td data-label="Furnace">${esc(x.furnace)}</td><td data-label="Lot">${esc(x.part)} · ${esc(x.batch||x.heat)}</td>
+    <td data-label="Reference"><div>${esc(x.ref||"—")}<br><span class="sub2">${esc(x.reason)}</span></div></td><td data-label="Trays · pcs" class="n">${x.trays} · ${x.qty}</td>
+    <td data-label="Log">${x.job?chip(...STG[stageOf(x.job)].slice(0,2),x.job.id):chip("crit","✕","Not in the log")}</td>
+    <td class="act noprint">${x.job?`<button class="btn ghost small" data-open-job="${esc(x.job.id)}">Open</button>`:`<button class="btn small" data-from-prod="${i}">Record</button>`}</td></tr>`).join("")}</tbody></table>`;
+}
+function drawSettings(){
+  const s=S(),f=(k,l,h)=>`<div class="field"><label for="s-${k}">${l}</label><input id="s-${k}" data-set="${k}" type="number" min="${LIMITS[k][0]}" max="${LIMITS[k][1]}" step="1" value="${esc(s[k])}">${h?`<span class="muted" style="font-size:12px">${h}</span>`:""}</div>`;
+  $("#settings").innerHTML=`<div class="field wide"><label for="s-plant">Plant</label><input id="s-plant" data-set="plant" value="${esc(s.plant)}"></div>
+    <div class="field"><label for="s-tier">Our place in the supply chain</label><select id="s-tier" data-set="tier"><option value="tier1" ${s.tier==="tier1"?"selected":""}>Tier 1: notify the OEM</option><option value="other" ${s.tier==="other"?"selected":""}>Not Tier 1: notify the customer</option></select></div>
+    <div class="field wide"><label for="s-releasers">Quality Manager and designees who may release (comma separated)</label><input id="s-releasers" data-set="releasers" value="${esc(s.releasers)}"></div>
+    <div class="field wide"><label for="s-pcsBy">Qualified to issue a process control sheet (comma separated)</label><input id="s-pcsBy" data-set="pcsBy" value="${esc(s.pcsBy)}"></div>
+    ${f("reviewDays","Review the procedure every (days)")}${f("covDays","Production rework look-back (days)")}${f("openDays","Rework job open longer than (days) = attention")}`;
+}
+
+/* ---------- dialogs ---------- */
+const dlg=$("#dlg");
+let ED=null,MODE="",MSG="",MSGOK=false;
+const val=path=>path.split(".").reduce((a,k)=>a?.[k],ED)??"";
+const setPath=(o,path,v)=>{const ks=path.split(".");let x=o;ks.slice(0,-1).forEach(k=>{x[k]=x[k]??{};x=x[k];});x[ks.at(-1)]=v;};
+const fld=(path,label,o={})=>{const v=val(path),id="f-"+path.replace(/\./g,"-"),dis=o.dis?"disabled":"";
+  const inp=o.type==="textarea"?`<textarea id="${id}" data-f="${esc(path)}" rows="${o.rows||2}" ${dis}>${esc(v)}</textarea>`
+    :o.opts?`<select id="${id}" data-f="${esc(path)}" ${dis}>${o.blank!==false?`<option value="">${esc(o.blankTxt||"")}</option>`:""}${o.opts.map(x=>{const [k,t]=Array.isArray(x)?x:[x,x];return `<option value="${esc(k)}" ${String(k)===String(v)?"selected":""}>${esc(t)}</option>`;}).join("")}</select>`
+    :`<input id="${id}" data-f="${esc(path)}" type="${o.type||"text"}" ${o.list?`list="${o.list}"`:""} value="${esc(v)}" ${dis}>`;
+  return `<div class="field ${o.req?"req":""} ${o.span?"span":""}"><label for="${id}">${label}</label>${inp}${o.hint?`<span class="muted" style="font-size:12px">${o.hint}</span>`:""}</div>`;};
+function openDlg(mode,obj){MODE=mode;ED=obj;MSG="";MSGOK=false;LC={};drawDlg();if(!dlg.open)dlg.showModal();}
+function drawDlg(){dlg.innerHTML=MODE==="proc"?dlgProc():dlgJob();}
+const foot=b=>`<div class="dlg-f"><span class="msg ${MSGOK?"okmsg":""}" id="dmsg" role="status">${esc(MSG)}</span>${b}</div>`;
+const hist=E=>E.log&&E.log.length?`<section><h3 style="margin-bottom:4px">History</h3><ul class="loglist">${E.log.map(x=>`<li>${fdate(x.d)}: ${esc(x.t)}</li>`).join("")}</ul></section>`:"";
+
+/* the procedure (document control: approved = locked, new revision, discard) */
+const ROWS={allowed:{h:["Characteristic for which rework is allowed","How (rule / method)"],f:["char","rule"],blank:{char:"",rule:""}},
+  notAllowed:{h:["Characteristic for which rework is not permissible","Why / what happens instead"],f:["char","why"],blank:{char:"",why:""}},
+  methods:{h:["Code","Method","For","Heat treat parameter modification","Max per lot","PPAP"],f:["k","name","chars","param","limit","ppap"],blank:{k:"",name:"",chars:"",param:"",limit:"1",ppap:false}}};
+const rowsTable=(key,dis)=>{const R=ROWS[key],L=ED[key];
+  return `<table class="edit"><thead><tr>${R.h.map(h=>`<th>${esc(h)}</th>`).join("")}${dis?"":"<th></th>"}</tr></thead><tbody>${L.map((r,i)=>`<tr>${R.f.map(f=>{const id=`${key}.${i}.${f}`,lab=R.h[R.f.indexOf(f)];
+    return `<td>${f==="ppap"?`<label class="ckl"><input type="checkbox" data-r="${id}" ${r[f]?"checked":""} ${dis?"disabled":""}>pre-approved</label>`:f==="limit"||f==="k"?`<input data-r="${id}" value="${esc(r[f])}" aria-label="${esc(lab)}" ${dis?"disabled":""} style="width:${f==="k"?"56px":"70px"}" ${f==="limit"?'type="number" min="0" step="1"':""}>`:`<textarea data-r="${id}" aria-label="${esc(lab)}" rows="1" ${dis?"disabled":""}>${esc(r[f])}</textarea>`}</td>`;}).join("")}${dis?"":`<td><button class="btn ghost small" type="button" data-d="del:${key}:${i}" aria-label="Remove line ${i+1}">✕</button></td>`}</tr>`).join("")}</tbody></table>${dis?"":`<button class="btn ghost small" type="button" data-d="add:${key}">Add a line</button>`}`;};
+function dlgProc(){
+  const E=ED,lock=E.status==="approved",m=missProc(E),e=eff(),R=cpfRefs();
+  return `<div class="dlg-h"><div class="row"><h2>${esc(E.no||"Rework procedure")} · rev ${E.rev}</h2>${chip(...(lock?["good","✓","Approved"]:["warn","!","Draft"]))}${e&&!lock?`<span class="muted">rev ${e.rev} stays in force until this revision is approved</span>`:""}</div></div>
+  <div class="dlg-b">${lock?`<p class="locked">Approved revisions are locked. A change needs a new revision, notified and approved through PPAP before use. The PPAP record below stays editable.</p>`:""}
+    <section class="stage" style="--k:var(--p)"><h3>Document <small>number, title, scope</small></h3><div class="fgrid">
+      ${fld("no","Procedure no.",{req:true,dis:lock})}${fld("title","Title",{req:true,dis:lock,span:true})}${fld("scope","Scope",{type:"textarea",span:true,dis:lock})}</div>
+      ${!lock&&!E.allowed.length&&!E.methods.length?`<div class="actions" style="margin-top:8px"><button class="btn ghost small" type="button" data-d="defaults">Fill in the typical content of this line (to adapt)</button></div>`:""}</section>
+    <section class="stage" style="--k:var(--d)"><h3>Product characteristics <small>where rework is allowed and where it is not permissible</small></h3>${rowsTable("allowed",lock)}<div style="height:10px"></div>${rowsTable("notAllowed",lock)}</section>
+    <section class="stage" style="--k:var(--c)"><h3>Approved rework methods <small>each with the heat treat parameter modification; mark the ones pre-approved in the PPAP</small></h3>${rowsTable("methods",lock)}</section>
+    <section class="stage" style="--k:var(--a)"><h3>Requirements <small>process control sheet, log, sampling, release, notification</small></h3><div class="fgrid">
+      ${fld("pcsReq","New process control sheet issued by qualified personnel, with the parameter modification",{type:"textarea",span:true,dis:lock,req:true})}
+      ${fld("logReq","Record / log of all rework",{type:"textarea",span:true,dis:lock,req:true})}
+      ${fld("sampling","Sampling plan",{type:"textarea",span:true,dis:lock,req:true})}
+      ${fld("releaseReq","Release authorized by the Quality Manager or a designee",{type:"textarea",span:true,dis:lock,req:true})}
+      ${fld("notifyReq","Unapproved rework, OEM / customer notification, PPAP approval of changes",{type:"textarea",span:true,dis:lock,req:true})}</div></section>
+    <section class="stage" style="--k:var(--p)"><h3>PPAP and references <small>the customer's approval of this revision; the PFMEA and control plan naming it</small></h3><div class="fgrid">
+      ${fld("ppap.ref","PPAP submission / approval no.")}${fld("ppap.date","PPAP approved on",{type:"date"})}${fld("ppap.rev","Revision approved",{type:"number"})}${fld("ppap.by","Approved by (customer)")}
+      ${fld("pfmeaRef","PFMEA referencing it",{dis:lock,hint:R.any?`CP & PFMEA page: ${R.pf.length?esc(lim(R.pf,3)):"no approved PFMEA names "+esc(E.no||"it")}`:""})}${fld("cpRef","Control plan referencing it",{dis:lock,hint:R.any?`CP & PFMEA page: ${R.cp.length?esc(lim(R.cp,3)):"no approved control plan names "+esc(E.no||"it")}`:""})}</div></section>
+    <section class="stage" style="--k:var(--d)"><h3>Approval</h3><div class="fgrid">
+      ${fld("prep","Prepared by",{dis:lock,req:true})}${fld("appr","Approved by",{dis:lock,req:true})}${E.rev>0?fld("change","Reason for the change",{type:"textarea",span:true,dis:lock,req:true}):""}</div>
+      ${lock?"":`<p class="muted" id="proc-miss" style="margin:10px 0 0;font-size:12.5px">${m.length?"To approve: "+esc(lim(m,8))+".":"Ready to approve."}</p>`}</section>
+    ${E.revs.length?`<section><h3 style="margin-bottom:4px">Revisions</h3><ul class="loglist">${E.revs.map(r=>`<li>rev ${r.rev} approved ${fdate(r.apprDate)} by ${esc(r.appr)}${r.change?" — "+esc(r.change):""}</li>`).join("")}${lock?`<li>rev ${E.rev} approved ${fdate(E.apprDate)} by ${esc(E.appr)}${E.change?" — "+esc(E.change):""}</li>`:""}</ul></section>`:""}
+    ${hist(E)}</div>
+  ${foot(`${lock?`<button class="btn ghost small" data-d="pdf">PDF</button><button class="btn ghost" data-d="revise">New revision</button>`:`${E.revs.length?`<button class="btn ghost small" data-d="discard">Discard revision</button>`:""}<button class="btn ghost" data-d="approve">Approve</button>`}<button class="btn ghost" data-d="cancel">Close</button><button class="btn" data-d="save">Save</button>`)}`;
+}
+function saveProc(){
+  const E=ED;if(E.status==="approved"){const o=P();o.ppap={...E.ppap};logIt(o,"PPAP record updated");DB.proc=o;ED=clone(o);save();render();return "";}
+  if(!txt(E.no)) return "Enter the procedure number.";
+  logIt(E,"Draft saved");DB.proc=E;ED=clone(E);save();render();return "";
+}
+
+/* rework job */
+function newJob(x){const e=eff(),o=fixJob({date:today(),...(x||{})});if(!o.method&&e&&e.methods.length===1) o.method=e.methods[0].k;return o;}
+function dlgJob(){
+  const E=ED,e=eff(),k=charKind(E),m=methOf(E),cw=custWhy(E),st=stageOf(E),miss=missJob(E,false),T=retests(E),closed=isDate(E.closed);
+  const charOpts=e?[...e.allowed.map(a=>[a.char,a.char]),...e.notAllowed.map(a=>[a.char,a.char+" — not permissible"]),["__other","Other (not in the procedure)"]]:[["__other","Other (no procedure in force)"]];
+  if(E.char&&E.char!=="__other"&&!charOpts.some(o=>o[0]===E.char)) charOpts.unshift([E.char,E.char+" (earlier revision)"]);
+  const methOpts=e?[...e.methods.map(x=>[x.k,`${x.k} ${x.name}${x.ppap?"":" (case basis)"}`]),["__other","Other (not in the procedure: not allowed without approval)"]]:[["__other","Other"]];
+  const who=S().tier==="tier1"?"OEM":"customer";
+  return `<div class="dlg-h"><div class="row"><h2>${E.id?esc(E.id):"Rework job"}${E.part?" · "+esc(E.part):""}</h2>${chip(...STG[st])}</div></div>
+  <div class="dlg-b">${!e?`<p class="locked">No rework procedure is in force: any rework needs the customer's approval case by case.</p>`:""}
+    <section class="stage" style="--k:var(--p)"><h3>Lot and nonconformance <small>what failed</small></h3><div class="fgrid">
+      ${fld("date","Date",{type:"date",req:true,dis:closed})}${fld("furnace","Furnace",{list:"dl-furn",dis:closed})}<datalist id="dl-furn">${furnList().map(f=>`<option value="${esc(f)}"></option>`).join("")}</datalist>
+      ${fld("part","Part no.",{req:true,dis:closed})}${fld("batch","Batch no.",{dis:closed})}${fld("heat","Heat no.",{dis:closed})}${fld("qty","Quantity (pcs)",{type:"number",req:true,dis:closed})}
+      ${fld("origRef","Original lot / nonconformance ref. (production report, hardness test, NC no.)",{req:true,span:true,dis:closed})}
+      ${fld("char","Characteristic not met",{opts:charOpts,req:true,span:true,dis:closed})}${E.char==="__other"?fld("charOther","The characteristic",{req:true,span:true,dis:closed}):""}
+      ${fld("found","What was found (values, test reference)",{type:"textarea",req:true,span:true,dis:closed})}</div>
+      ${k==="no"?`<p class="bad" style="margin:8px 0 0;font-size:13px">Rework is not permissible for this characteristic (${esc((e.notAllowed.find(a=>a.char===E.char)||{}).why||"")}). The lot cannot be reworked: decide the disposition (scrap, return, or release under a customer concession) below.</p>`:countOf(E)>1?`<p class="sub2" style="margin:8px 0 0">This is rework no. ${countOf(E)} of the lot.</p>`:""}</section>
+    ${k==="no"?"":`<section class="stage" style="--k:var(--d)"><h3>Method and approval <small>${cw.length?`<span class="bad">needs the ${who} notification and the customer's approval before the rework: ${esc(cw.join("; "))}</span>`:"approved method of the procedure"}</small></h3><div class="fgrid">
+      ${fld("method","Rework method",{opts:methOpts,req:true,span:true,dis:closed,hint:m?esc(m.param):""})}${fld("basis","Approval basis",{opts:Object.entries(BASIS),blank:false,dis:closed})}
+      ${cw.length?fld("notify.to",`${who} notified (name / company)`,{dis:closed})+fld("notify.ref","Notification ref.",{req:true,dis:closed})+fld("notify.date","Notified on (before the rework)",{type:"date",req:true,dis:closed})+fld("cust.ref","Customer approval ref.",{req:true,dis:closed})+fld("cust.date","Approved on",{type:"date",req:true,dis:closed})+fld("cust.by","Approved by (customer)",{req:true,dis:closed}):""}</div></section>
+    <section class="stage" style="--k:var(--c)"><h3>New process control sheet <small>issued by qualified personnel before the rework</small></h3><div class="fgrid">
+      ${fld("pcs.no","Process control sheet no.",{req:true,dis:closed})}${fld("pcs.by","Issued by",{list:"dl-iss",req:true,dis:closed,hint:E.pcs.by&&!isIss(E.pcs.by)?`<span class="bad">${esc(E.pcs.by)} is not listed as qualified</span>`:"Qualified: "+esc(lim(issuers().map(x=>x.name),4)||"nobody named (Settings)")})}<datalist id="dl-iss">${issuers().map(x=>`<option value="${esc(x.name)}"></option>`).join("")}</datalist>
+      ${fld("pcs.date","Issued on",{type:"date",req:true,dis:closed})}
+      ${fld("pcs.params","Heat treat parameter modification (against the specification)",{type:"textarea",req:true,span:true,dis:closed,hint:m?"Method: "+esc(m.param):""})}
+      ${fld("rwDate","Reworked on",{type:"date",dis:closed})}${fld("prodRef","Production report of the rework",{dis:closed})}</div></section>
+    <section class="stage" style="--k:var(--a)"><h3>Sampling <small>${esc(e?lim([e.sampling],1):"")}</small></h3><div class="fgrid">
+      ${fld("smp.n","Sample size (pcs)",{type:"number",dis:closed})}${fld("smp.res","Result",{opts:Object.entries(SMP),dis:closed})}${fld("smp.date","Tested on",{type:"date",dis:closed})}${fld("smp.by","Tested by",{dis:closed})}${fld("smp.testRef","Test reference (hardness test no.)",{dis:closed})}</div>
+      ${T.length?`<p class="sub2" style="margin:6px 0 0">Hardness page after the rework: ${T.map(t=>`${esc(t.id)} ${fdate(t.date)} ${t.pass?"conforms":"<span class=\"bad\">does not conform</span>"}`).join(" · ")}${closed?"":` <button class="btn ghost small" type="button" data-d="usetest">Use the latest</button>`}</p>`:""}</section>`}
+    <section class="stage" style="--k:var(--p)"><h3>${k==="no"?"Disposition":"Release"} <small>by the Quality Manager or a designee</small></h3><div class="fgrid">
+      ${fld("disp","Disposition",{opts:Object.entries(DISP).filter(([d])=>k!=="no"||d!=="released"),dis:closed})}
+      ${fld("rel.by",k==="no"?"Decided by":"Released by",{list:"dl-rel",dis:closed,hint:E.rel.by&&!isRel(E.rel.by)?`<span class="bad">${esc(E.rel.by)} is not the Quality Manager or a designee</span>`:"May release: "+esc(lim(releasers().map(x=>x.name),4)||"nobody named")})}<datalist id="dl-rel">${releasers().map(x=>`<option value="${esc(x.name)}"></option>`).join("")}</datalist>
+      ${fld("rel.date","On",{type:"date",dis:closed})}
+      ${k==="no"||(E.disp==="concession"&&!cw.length)?fld("cust.ref","Customer concession ref.",{dis:closed})+fld("cust.date","Concession date",{type:"date",dis:closed}):""}
+      ${fld("note","Note",{type:"textarea",span:true,dis:closed})}</div>
+      <p class="muted" id="job-miss" style="margin:10px 0 0;font-size:12.5px">${closed?`Closed ${fdate(E.closed)}.`:miss.length?"To complete: "+esc(lim(miss,8))+".":"Entries complete."+(missJob(E,true).length?" To close: "+esc(lim(missJob(E,true),6))+".":" Ready to close.")}</p></section>
+    ${hist(E)}</div>
+  ${foot(`${E.id?`<button class="btn ghost small" data-d="pdf">Process control sheet (PDF)</button>${closed?`<button class="btn ghost" data-d="reopen">Reopen</button>`:`<button class="btn danger small" data-d="delete">Delete</button><button class="btn ghost" data-d="close">Close the job</button>`}`:""}<button class="btn ghost" data-d="cancel">Close</button>${closed?"":`<button class="btn" data-d="save">Save</button>`}`)}`;
+}
+function furnList(){try{const a=api("sat");const L=a?a.furnaces():[];if(L.length) return L;}catch(e){}return uniq(DB.jobs.map(j=>j.furnace).filter(Boolean));}
+function saveJob(){
+  const E=ED,m=missJob(E,false);if(m.length) return "To save: "+lim(m,8)+".";
+  if(!E.id){E.id="RW-"+String(DB.seq.j++).padStart(4,"0");logIt(E,"Rework job recorded");DB.jobs.push(E);}
+  else{logIt(E,"Updated");DB.jobs[DB.jobs.findIndex(j=>j.id===E.id)]=E;}
+  ED=clone(E);save();render();return "";
+}
+
+let RT=0;
+const live=()=>{clearTimeout(RT);RT=setTimeout(()=>{if(MODE==="proc"){const p=$("#proc-miss");if(p){const m=missProc(ED);p.textContent=m.length?"To approve: "+lim(m,8)+".":"Ready to approve.";}}
+  else{const p=$("#job-miss");if(p&&!isDate(ED.closed)){const m=missJob(ED,false),c=missJob(ED,true);p.textContent=m.length?"To complete: "+lim(m,8)+".":"Entries complete."+(c.length?" To close: "+lim(c,6)+".":" Ready to close.");}}},150);};
+dlg.addEventListener("input",ev=>{const el=ev.target;if(!ED) return;
+  if(el.dataset.r){const [k,i,f]=el.dataset.r.split(".");ED[k][+i][f]=el.type==="checkbox"?el.checked:el.value;live();return;}
+  if(!el.dataset.f) return;setPath(ED,el.dataset.f,el.type==="checkbox"?el.checked:el.value);live();});
+dlg.addEventListener("change",ev=>{const el=ev.target;if(!ED||!el.dataset.f) return;setPath(ED,el.dataset.f,el.value);
+  if(MODE==="job"&&el.tagName==="SELECT"&&["char","method","basis","disp","smp.res"].includes(el.dataset.f)){MSG="";drawDlg();return;}live();});
+dlg.addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-d]");if(!b) return;const a=b.dataset.d;
+  const done=(err,ok)=>{MSG=err||ok;MSGOK=!err;drawDlg();};
+  if(a==="cancel"){dlg.close();return;}
+  if(MODE==="proc"){
+    if(a.startsWith("add:")){const k=a.slice(4);const r=clone(ROWS[k].blank);if(k==="methods")r.k="M"+(ED.methods.length+1);ED[k].push(r);drawDlg();return;}
+    if(a.startsWith("del:")){const [,k,i]=a.split(":");ED[k].splice(+i,1);drawDlg();return;}
+    if(a==="defaults"){const d=clone(DEF_PROC);Object.keys(d).forEach(k=>{if(k==="no"||k==="title"){if(!txt(ED[k]))ED[k]=d[k];}else ED[k]=d[k];});done("","Typical content filled in: adapt it to your parts and customers before approving.");return;}
+    if(a==="save"){done(saveProc(),"Saved.");return;}
+    if(a==="approve"){const m=missProc(ED);if(m.length){done("To approve: "+lim(m,8)+".");return;}
+      ED.status="approved";ED.apprDate=today();logIt(ED,`Revision ${ED.rev} approved by ${ED.appr}`);DB.proc=ED;ED=clone(ED);save();render();done("",`Revision ${ED.rev} approved. Notify the customer and record the PPAP approval of this revision.`);return;}
+    if(a==="revise"){const o=P(),snap=clone(o);delete snap.revs;delete snap.log;o.revs.push(snap);o.rev++;o.status="draft";o.appr="";o.apprDate="";o.change="";logIt(o,`New revision ${o.rev} started`);DB.proc=o;ED=clone(o);save();render();done("",`Revision ${o.rev} started; revision ${o.rev-1} stays in force until this one is approved.`);return;}
+    if(a==="discard"){if(!confirm(`Discard the draft revision ${ED.rev}? The last approved revision comes back.`)) return;const o=P(),last=o.revs.pop();if(!last) return;const r=fixProc({...last,revs:o.revs,log:o.log});logIt(r,`Draft revision ${o.rev} discarded`);DB.proc=r;ED=clone(r);save();render();done("","Draft discarded.");return;}
+    if(a==="pdf"){const m=procPdf();if(m)done(m);return;}
+  }
+  if(MODE==="job"){
+    if(a==="save"){done(saveJob(),"Saved.");return;}
+    if(a==="usetest"){const t=retests(ED).at(-1);if(t){ED.smp.testRef=t.id;ED.smp.date=t.date;ED.smp.res=t.pass?"pass":"fail";if(!txt(ED.smp.n))ED.smp.n=String(t.n||"");}drawDlg();return;}
+    if(a==="close"){const m=missJob(ED,true);if(m.length){done("To close: "+lim(m,8)+".");return;}ED.closed=today();logIt(ED,`Closed: ${DISP[ED.disp]} by ${ED.rel.by}`);const err=saveJob();if(err){ED.closed="";done(err);}else done("","Closed.");return;}
+    if(a==="reopen"){const why=prompt("Reason for reopening:");if(!why||!why.trim()) return;ED.closed="";logIt(ED,"Reopened: "+why.trim());DB.jobs[DB.jobs.findIndex(j=>j.id===ED.id)]=ED;ED=clone(ED);save();render();drawDlg();return;}
+    if(a==="pdf"){const m=jobPdf(jobById(ED.id));if(m)done(m);return;}
+    if(a==="delete"){if(confirm(`Delete rework job ${ED.id}? The log should keep every rework.`)){DB.jobs=DB.jobs.filter(j=>j.id!==ED.id);save();render();dlg.close();}return;}
+  }
+});
+
+/* ---------- page actions ---------- */
+document.addEventListener("click",ev=>{
+  if(dlg.contains(ev.target)) return;
+  const b=ev.target.closest("button");if(!b) return;
+  if(b.dataset.pf!=null){setView({pf:b.dataset.pf});drawPF();drawJobs();return;}
+  if(b.dataset.openJob){const j=jobById(b.dataset.openJob);if(j)openDlg("job",clone(j));return;}
+  if(b.dataset.openProc){openDlg("proc",clone(P()));return;}
+  if(b.dataset.fromProd!=null){const x=prodRework()[+b.dataset.fromProd];if(x)openDlg("job",newJob({date:x.date,furnace:x.furnace,part:x.part,batch:x.batch,heat:x.heat,qty:String(x.qty||""),origRef:x.ref,found:x.reason,prodRef:x.rep}));return;}
+  const id=b.id;
+  if(id==="b-job") openDlg("job",newJob());
+  else if(id==="b-proc") openDlg("proc",clone(P()));
+  else if(id==="b-procpdf"){const m=procPdf();if(m)alert(m);}
+  else if(id==="b-h111"){const m=h111Pdf();if(m)alert(m);}
+  else if(id==="b-print") window.print();
+  else if(id==="b-theme"){const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("rwk-theme",r.dataset.theme);}catch(err){}}
+  else if(id==="b-xlsx"){const m=regXlsx();if(m)alert(m);}
+  else if(id==="b-export") download(`rework-${today()}.json`,JSON.stringify(DB,null,1),"application/json");
+  else if(id==="b-import") $("#imp").click();
+  else if(id==="b-example"){if(!(DB.jobs.length||DB.proc.no)||confirm("Replace all current records with the example data?")){DB=example();save();render();}}
+  else if(id==="b-clear"){if(confirm("Delete the rework procedure, the rework log and the settings? Export a backup first if you need one.")){DB=blank();save();render();}}
+});
+$("#setup").addEventListener("change",ev=>{
+  const el=ev.target;if(!el.dataset.set) return;const k=el.dataset.set;
+  if(LIMITS[k]){const v=fixSet(k,el.value);if(String(v)!==String(Math.round(num(el.value))))alert(`Enter a whole number from ${LIMITS[k][0]} to ${LIMITS[k][1]}; ${v} is used.`);S()[k]=v;}else S()[k]=el.value;
+  save();render();
+});
+$("#imp").addEventListener("change",async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f) return;
+  try{const o=normalize(JSON.parse(await f.text()));if(!o) throw new Error("not a rework backup");
+    if(confirm(`Import the procedure and ${plural(o.jobs.length,"rework job")}? This replaces the records now in this browser.`)){const old=DB;DB=o;
+      try{render();}catch(err){DB=old;render();throw new Error("the data could not be shown ("+err.message+"); nothing was changed");}save();}}
+  catch(err){alert("Import failed: "+err.message);}
+});
+
+/* ---------- downloads ---------- */
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(text instanceof Blob?text:new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const ascii=s=>s.normalize("NFKD").replace(/[^\x20-\x7E]/g,"").replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim();
+/* minimal .xlsx writer (stored zip, inline strings) so the page needs no spreadsheet library */
+const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let j=0;j<8;j++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc32=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRCT[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+function zipBlob(files,type){
+  const enc=new TextEncoder(),out=[],cen=[];let off=0;
+  files.forEach(f=>{const nm=enc.encode(f.name),dat=enc.encode(f.text),cr=crc32(dat);
+    const h=new DataView(new ArrayBuffer(30));[[0,0x04034b50,4],[4,20,2],[6,0x0800,2],[12,0x21,2],[14,cr,4],[18,dat.length,4],[22,dat.length,4],[26,nm.length,2]].forEach(([o,v,n])=>n===4?h.setUint32(o,v,true):h.setUint16(o,v,true));
+    out.push(new Uint8Array(h.buffer),nm,dat);
+    const ch=new DataView(new ArrayBuffer(46));[[0,0x02014b50,4],[4,20,2],[6,20,2],[8,0x0800,2],[14,0x21,2],[16,cr,4],[20,dat.length,4],[24,dat.length,4],[28,nm.length,2],[42,off,4]].forEach(([o,v,n])=>n===4?ch.setUint32(o,v,true):ch.setUint16(o,v,true));
+    cen.push(new Uint8Array(ch.buffer),nm);off+=30+nm.length+dat.length;});
+  const cl=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cl,true);e.setUint32(16,off,true);
+  return new Blob([...out,...cen,new Uint8Array(e.buffer)],{type});
+}
+/* sheets: [{name, widths, rows:[{b:bold?, cells:[...]}]}] */
+function xlsxBlob(sheets){
+  const x=v=>String(v??"").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col=i=>{let s="";i++;while(i){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+  const sheetXml=sh=>`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${sh.widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")}</cols><sheetData>${
+    sh.rows.map((r,ri)=>`<row r="${ri+1}">${r.cells.map((v,ci)=>{const ref=col(ci)+(ri+1),st=r.b?1:2;
+      return typeof v==="number"&&isFinite(v)?`<c r="${ref}" s="${st}"><v>${v}</v></c>`:v===""||v==null?"":`<c r="${ref}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${x(v)}</t></is></c>`;}).join("")}</row>`).join("")}</sheetData></worksheet>`;
+  const files=[
+    {name:"[Content_Types].xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`},
+    {name:"_rels/.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:"xl/workbook.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sh,i)=>`<sheet name="${x(sh.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`},
+    {name:"xl/_rels/workbook.xml.rels",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:"xl/styles.xml",text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+    ...sheets.map((sh,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:sheetXml(sh)}))];
+  return zipBlob(files,"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const B=cells=>({b:true,cells}),N=cells=>({cells});
+function regXlsx(){
+  const A=assess111(),e=eff()||P();
+  const sheets=[
+    {name:"HTSA 1.11",widths:[44,90,12,50],rows:[B(["HTSA 1.11 Does the heat treater have a documented procedure for the rework / reprocessing of parts?"]),N([S().plant]),N(["Assessment",SCORE[A.score][1]]),N(["Date",fdate(today())]),N([]),B(["Requirement","Evidence","Result","Action"]),...A.I.map(i=>N([i.req,i.ev,LV[i.lvl][2],i.act||""]))]},
+    {name:"Procedure",widths:[34,100],rows:[B([`${e.no} rev ${e.rev} ${e.title}`]),N(["Status",e.status]),N(["Approved",`${fdate(e.apprDate)} ${e.appr}`]),N(["PPAP",`${e.ppap.ref} ${fdate(e.ppap.date)} rev ${e.ppap.rev} ${e.ppap.by}`]),N(["PFMEA",e.pfmeaRef]),N(["Control plan",e.cpRef]),N(["Scope",e.scope]),N([]),
+      B(["Rework allowed","Rule"]),...e.allowed.map(a=>N([a.char,a.rule])),N([]),B(["Not permissible","Why"]),...e.notAllowed.map(a=>N([a.char,a.why])),N([]),
+      N(["Process control sheet",e.pcsReq]),N(["Log",e.logReq]),N(["Sampling plan",e.sampling]),N(["Release",e.releaseReq]),N(["Notification / PPAP",e.notifyReq])]},
+    {name:"Methods",widths:[8,26,34,70,10,14],rows:[B(["Code","Method","For","Parameter modification","Max per lot","PPAP"]),...e.methods.map(m=>N([m.k,m.name,m.chars,m.param,m.limit,m.ppap?"pre-approved":"case basis"]))]},
+    {name:"Rework log",widths:[10,12,10,16,16,14,8,22,34,34,16,30,22,14,40,12,8,10,18,12,24,18,12,24],rows:[B(["Job","Date","Furnace","Part","Batch","Heat","Qty","Original ref.","Characteristic","Found","Method","Customer approval","Notified","PCS no.","Parameter modification","PCS by","Rework no.","Reworked","Sampling","Tested","Released by","Release date","Disposition","Status"]),
+      ...DB.jobs.slice().sort((a,b)=>a.id<b.id?-1:1).map(j=>{const m=methOf(j);return N([j.id,fdate(j.date),j.furnace,j.part,j.batch,j.heat,j.qty,j.origRef,charTxt(j)+(charKind(j)==="no"?" (not permissible)":""),j.found,j.method==="__other"?"not in the procedure":m?m.k+" "+m.name:"",[j.cust.ref,fdate(j.cust.date),j.cust.by].filter(x=>x&&x!=="—").join(" "),[j.notify.to,j.notify.ref,fdate(j.notify.date)].filter(x=>x&&x!=="—").join(" "),j.pcs.no,j.pcs.params,j.pcs.by,countOf(j),fdate(j.rwDate),SMP[j.smp.res]?SMP[j.smp.res]+" ("+j.smp.n+" pcs)":"",fdate(j.smp.date),j.rel.by,fdate(j.rel.date),DISP[j.disp]||"",STG[stageOf(j)][2]]);})]},
+    {name:"Production rework",widths:[12,12,10,16,16,18,40,8,8,12],rows:[B(["Report","Date","Furnace","Part","Batch / heat","Rework ref.","Reason","Trays","Pcs","Log"]),...prodRework().map(x=>N([x.rep,fdate(x.date),x.furnace,x.part,x.batch||x.heat,x.ref,x.reason,x.trays,x.qty,x.job?x.job.id:"not logged"]))]}];
+  try{download(ascii(`Rework ${today()}`)+".xlsx",xlsxBlob(sheets));return "";}catch(err){return "The Excel file could not be made: "+err.message;}
+}
+const PDF_CSS=`@page{size:A4 portrait;margin:12mm}
+    body{font:11px/1.4 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h1{font-size:18px;margin:0 0 2px}h2{font-size:13.5px;margin:14px 0 6px;padding:0 0 3px;color:#0e5566;border-bottom:2px solid #0e5566;break-after:avoid}
+    .sub{color:#4a5761;margin:0 0 8px}.muted{color:#76838c}p{margin:4px 0}
+    table{width:100%;border-collapse:collapse;margin:4px 0 8px}th,td{border:1px solid #cfd5d9;padding:3px 6px;text-align:left;vertical-align:top}
+    thead th{background:#f2f4f5;font-weight:600}tr{break-inside:avoid}
+    .tb td:first-child{width:32%;background:#f7f8f9;font-weight:600}
+    .res-s{color:#0a6b0a;font-weight:600}.res-ns{color:#8a5a00;font-weight:600}.res-nia{color:#b02a2a;font-weight:600}
+    .banner{border:2px solid #b02a2a;color:#b02a2a;font-weight:700;padding:4px 8px;display:inline-block;margin:4px 0}
+    .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}.sig div{border-top:1px solid #131d24;padding-top:4px}
+    .bar{position:sticky;top:0;background:#fff;padding:6px 0 10px;border-bottom:1px solid #cfd5d9;margin-bottom:10px}.bar button{font:inherit;padding:5px 12px;border:1px solid #0e5566;background:#0e5566;color:#fff;border-radius:4px;cursor:pointer}
+    @media print{.bar{display:none}body{margin:0}}`;
+function popup(title,body){
+  const w=window.open("","_blank");
+  if(!w) return "The browser blocked the new window. Allow pop-ups for this page and try again.";
+  w.document.open();w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)}</title><style>${PDF_CSS}</style></head><body><div class="bar"><button onclick="print()">Print / Save as PDF</button> <span class="muted">In the print dialog choose “Save as PDF”.</span></div>${body}</body></html>`);w.document.close();
+  setTimeout(()=>{try{w.focus();w.print();}catch(err){}},300);return "";
+}
+const tblH=(head,rows)=>rows.length?`<table><thead><tr>${head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
+const kvH=rows=>`<table class="tb"><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</tbody></table>`;
+function procPdf(){
+  const p=P(),e=p.status==="approved"?p:p;
+  return popup(ascii(`${e.no||"Rework procedure"} rev ${e.rev}`),`<h1>${esc(e.title||"Rework and reprocessing procedure")}</h1><p class="sub">${esc(S().plant)} · ${esc(e.no)} rev ${e.rev} · HTSA 1.11</p>${e.status!=="approved"?'<div class="banner">DRAFT — not in force</div>':""}
+  ${kvH([["Document no.",e.no],["Revision",String(e.rev)],["Approved",e.status==="approved"?`${fdate(e.apprDate)} by ${e.appr}`:"not approved"],["Prepared by",e.prep],["PPAP approval",e.ppap.ref?`${e.ppap.ref}, ${fdate(e.ppap.date)}, rev ${e.ppap.rev}${e.ppap.by?", "+e.ppap.by:""}`:"not recorded"],["Referenced in PFMEA / control plan",[e.pfmeaRef,e.cpRef].filter(Boolean).join(" · ")||"—"]])}
+  <h2>1 Scope</h2><p>${esc(e.scope)}</p>
+  <h2>2 Characteristics for which rework / reprocessing is allowed</h2>${tblH(["Characteristic","How"],e.allowed.map(a=>[a.char,a.rule]))}
+  <h2>3 Characteristics for which rework / reprocessing is not permissible</h2>${tblH(["Characteristic","Why / what happens instead"],e.notAllowed.map(a=>[a.char,a.why]))}
+  <h2>4 Approved rework methods</h2>${tblH(["Code","Method","For","Heat treat parameter modification","Max per lot","PPAP"],e.methods.map(m=>[m.k,m.name,m.chars,m.param,m.limit,m.ppap?"pre-approved":"case basis only"]))}
+  <h2>5 Unapproved rework, notification and changes</h2><p>${esc(e.notifyReq)}</p>
+  <h2>6 Process control sheet</h2><p>${esc(e.pcsReq)}</p>
+  <h2>7 Rework log</h2><p>${esc(e.logReq)}</p>
+  <h2>8 Sampling plan</h2><p>${esc(e.sampling)}</p>
+  <h2>9 Release</h2><p>${esc(e.releaseReq)}</p><p>May release: ${esc(releasers().map(x=>x.name).join(", ")||"to be named")}</p>
+  <h2>Revisions</h2>${tblH(["Rev","Approved","By","Change"],[...e.revs.map(r=>[r.rev,fdate(r.apprDate),r.appr,r.change]),...(e.status==="approved"?[[e.rev,fdate(e.apprDate),e.appr,e.change]]:[])])}
+  <div class="sig"><div>Prepared · ${esc(e.prep)}</div><div>Approved · ${esc(e.appr)}</div><div>Customer PPAP · ${esc(e.ppap.ref)}</div></div>`);
+}
+function jobPdf(j){if(!j) return "Save the job first.";const m=methOf(j),e=eff();
+  return popup(ascii(`Rework ${j.id} ${j.part}`),`<h1>Rework / reprocessing process control sheet · ${esc(j.pcs.no||j.id)}</h1><p class="sub">${esc(S().plant)} · rework job ${esc(j.id)} · procedure ${esc(e?e.no+" rev "+e.rev:"none in force")}</p>${charKind(j)==="no"?'<div class="banner">NOT PERMISSIBLE FOR REWORK</div>':""}
+  <h2>Lot</h2>${kvH([["Part",j.part],["Batch / heat",[j.batch,j.heat].filter(Boolean).join(" / ")],["Quantity",j.qty+" pcs"],["Furnace",j.furnace],["Original lot / nonconformance",j.origRef],["Characteristic not met",charTxt(j)],["Found",j.found],["Rework no. of the lot",String(countOf(j))]])}
+  ${charKind(j)==="no"?"":`<h2>Method and approval</h2>${kvH([["Method",j.method==="__other"?"not in the procedure":m?`${m.k} ${m.name}`:"—"],["Approval basis",BASIS[j.basis]],["Customer approval",[j.cust.ref,fdate(j.cust.date),j.cust.by].join(" · ")],["Notification",[j.notify.to,j.notify.ref,fdate(j.notify.date)].join(" · ")]])}
+  <h2>Heat treat parameter modification</h2><p>${esc(j.pcs.params)}</p>${kvH([["Issued by (qualified)",j.pcs.by],["Issued on",fdate(j.pcs.date)],["Reworked on",fdate(j.rwDate)],["Production report",j.prodRef]])}
+  <h2>Sampling</h2>${kvH([["Plan",e?e.sampling:""],["Sample",j.smp.n+" pcs"],["Result",SMP[j.smp.res]||"—"],["Tested",`${fdate(j.smp.date)} ${j.smp.by}`],["Test reference",j.smp.testRef]])}`}
+  <h2>${charKind(j)==="no"?"Disposition":"Release"}</h2>${kvH([["Disposition",DISP[j.disp]||"—"],["By (Quality Manager / designee)",j.rel.by],["On",fdate(j.rel.date)]])}
+  <div class="sig"><div>Issued by · ${esc(j.pcs.by)}</div><div>Reworked · operator</div><div>Released · ${esc(j.rel.by)}</div></div>`);}
+function h111Pdf(){
+  const A=assess111(),sc=SCORE[A.score],e=eff();
+  return popup(ascii(`HTSA 1-11 evidence ${today()}`),`<h1>HTSA 1.11 · Documented procedure for rework / reprocessing</h1><p class="sub">${esc(S().plant)} · evidence · ${fdate(today())}</p>
+  <p>Assessment: <span class="res-${A.score}">${esc(sc[1])}</span></p>${tblH(["Requirement","Evidence","Result","Action"],A.I.map(i=>[i.req,i.ev,LV[i.lvl][2],i.act||""]))}
+  ${e?`<h2>Procedure in force · ${esc(e.no)} rev ${e.rev}</h2>${kvH([["Approved",`${fdate(e.apprDate)} by ${e.appr}`],["PPAP",e.ppap.ref?`${e.ppap.ref} ${fdate(e.ppap.date)} rev ${e.ppap.rev}`:"not recorded"]])}
+  ${tblH(["Rework allowed","Rule"],e.allowed.map(a=>[a.char,a.rule]))}${tblH(["Not permissible","Why"],e.notAllowed.map(a=>[a.char,a.why]))}${tblH(["Method","Parameter modification","PPAP"],e.methods.map(m=>[m.k+" "+m.name,m.param,m.ppap?"pre-approved":"case basis"]))}`:""}
+  <h2>Rework log</h2>${tblH(["Job","Date","Lot","Characteristic","Method","PCS","Sampling","Released","Status"],DB.jobs.map(j=>{const m=methOf(j);return [j.id,fdate(j.date),`${j.part} ${j.batch||j.heat} (${j.qty})`,charTxt(j),j.method==="__other"?"not in procedure":m?m.k:"—",j.pcs.no?`${j.pcs.no} ${j.pcs.by}`:"—",SMP[j.smp.res]||"—",j.rel.by?`${j.rel.by} ${fdate(j.rel.date)}`:"—",STG[stageOf(j)][2]];}))}
+  <h2>Production rework · last ${S().covDays} days</h2>${tblH(["Report","Date","Lot","Reference","Log"],prodRework().map(x=>[x.rep,fdate(x.date),`${x.part} ${x.batch||x.heat}`,x.ref,x.job?x.job.id:"not logged"]))}`);
+}
+
+/* ---------- example data ---------- */
+function example(){
+  const o=blank(),td=today(),d=n=>addDays(td,-n);DB=o;LC={};
+  o.settings.releasers="S. Gupta (example), N. Mehra (example)";o.settings.pcsBy="R. Sharma (example), A. Verma (example)";
+  const p=fixProc({...clone(DEF_PROC),no:"SOP-QA-12",rev:1,status:"approved",prep:"A. Verma (example)",appr:"S. Gupta (example)",apprDate:d(120),change:"Method M3 added; sampling extended to core hardness.",
+    pfmeaRef:"PF-0001 step 70 reaction plan",cpRef:"CP-0001 reaction plan",ppap:{ref:"PPAP-0456 (example customer)",date:d(110),rev:"1",by:"Customer SQE (example)"},
+    revs:[{...clone(DEF_PROC),no:"SOP-QA-12",rev:0,status:"approved",prep:"A. Verma (example)",appr:"S. Gupta (example)",apprDate:d(500),methods:DEF_PROC.methods.slice(0,2)}],
+    log:[{d:d(500),t:"Revision 0 approved by S. Gupta (example)"},{d:d(120),t:"Revision 1 approved by S. Gupta (example)"},{d:d(110),t:"PPAP record updated"}]});
+  o.proc=p;
+  const J=x=>{const j=fixJob({id:"RW-"+String(o.seq.j++).padStart(4,"0"),log:[{d:x.date,t:"Rework job recorded"}],...x});o.jobs.push(j);return j;};
+  J({date:d(40),furnace:"F-02",part:"MW-4512",batch:"F2-0901-03",heat:"H-23810",qty:"480",origRef:"MT-0012 (hardness test)",char:DEF_PROC.allowed[0].char,found:"Surface hardness 54–55 HRC, requirement 48–52 HRC.",method:"M1",
+    pcs:{no:"PCS-RW-101",by:"R. Sharma (example)",date:d(39),params:"Tempering zones 1–3: 600 / 610 / 610 °C instead of 580 / 590 / 590 °C; push 12 min (unchanged)."},rwDate:d(38),prodRef:"production report of "+fdate(d(38)),
+    smp:{n:"5",res:"pass",date:d(37),by:"Lab (example)",testRef:"MT-0013"},rel:{by:"S. Gupta (example)",date:d(37)},disp:"released",closed:d(37)});
+  J({date:d(6),furnace:"F-04",part:"MW-3307",batch:"F4-2609-11",heat:"H-24577",qty:"72",origRef:"MT-0005",char:DEF_PROC.allowed[1].char,found:"Surface hardness 42–44 HRC, requirement 46–50 HRC; no cracks, decarburization 0.05 mm.",method:"M2",
+    pcs:{no:"PCS-RW-102",by:"A. Verma (example)",date:d(5),params:"Full cycle of PS-0003: hardening 880 / 880 / 870 °C, push 15 min; tempering 540 °C (−10 °C against the specification to reach the hardness)."},rwDate:d(4),
+    smp:{n:"5",res:"pass",date:d(3),by:"Lab (example)",testRef:"hardness re-test"}});
+  J({date:d(12),furnace:"F-01",part:"MW-2201",batch:"F1-2209-07",heat:"H-24102",qty:"150",origRef:"NC-0031",char:DEF_PROC.notAllowed[0].char,found:"Quench cracks on 12 of 20 pieces checked (MPI).",disp:"scrap",rel:{by:"S. Gupta (example)",date:d(11)},closed:d(11)});
+  J({date:d(2),furnace:"F-02",part:"MW-4512",batch:"F2-0901-03",heat:"H-23810",qty:"60",origRef:"MT-0019",char:DEF_PROC.allowed[1].char,found:"Soft spots 44 HRC on 3 pieces after the re-temper of RW-0001.",method:"M2"});
+  return o;
+}
+
+/* ---------- CALOR ---------- */
+if(HTQ){
+  $("#b-theme").hidden=true;
+  HTQ.provide("rwk",{
+    htsa111:()=>{const A=assess111();return {score:A.score,label:SCORE[A.score][1],items:A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>({lvl:i.lvl,req:i.req,ev:i.ev,act:i.act})),crit:A.I.filter(i=>i.lvl==="crit").length};},
+    overview:()=>{const e=eff(),open=DB.jobs.filter(j=>stageOf(j)!=="closed");return {proc:e?{no:e.no,rev:e.rev,ppap:ppapOk(e)}:null,open:open.map(j=>({id:j.id,part:j.part,batch:j.batch||j.heat,furnace:j.furnace,stage:stageOf(j),label:STG[stageOf(j)][2],lvl:STG[stageOf(j)][0]})),unlogged:prodRework().filter(x=>!x.job).map(x=>({part:x.part,batch:x.batch||x.heat,ref:x.ref,date:x.date,furnace:x.furnace})),covDays:S().covDays};},
+    counts:()=>{const open=DB.jobs.filter(j=>stageOf(j)!=="closed");return {blocked:open.filter(j=>["blocked","approval","fail"].includes(stageOf(j))).length,release:open.filter(j=>stageOf(j)==="release").length,unlogged:prodRework().filter(x=>!x.job).length,crit:assess111().I.filter(i=>i.lvl==="crit").length};}
+  });
+  HTQ.on("nav:rwk",o=>{if(!o) return;if(o.job){const j=jobById(o.job);if(j)openDlg("job",clone(j));}if(o.proc)openDlg("proc",clone(P()));});
+  ["prod:changed","metal:changed","cpf:changed","org:changed","sat:ready"].forEach(ev=>HTQ.on(ev,()=>{LC={};if(!dlg.open)render();clearTimeout(EMIT);EMIT=setTimeout(()=>HTQ.emit("rwk:changed"),300);}));
+}
+
+/* ---------- start ---------- */
+try{const th=localStorage.getItem("rwk-theme");if(th&&!HTQ)document.documentElement.dataset.theme=th;}catch(e){}
+render();
+if(!DB.jobs.length&&!DB.proc.no&&!localStorage.getItem(KEY)) $("#setup").open=true;
+window.__RWK={get DB(){return DB;},assess111,missProc,missJob,stageOf,charKind,custWhy,countOf,prodRework,cpfRefs,eff,openDlg,example};
+</script>
+</body></html>

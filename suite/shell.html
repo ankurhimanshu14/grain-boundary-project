@@ -193,6 +193,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
     <button class="ddh" id="h-quality" aria-haspopup="menu" aria-expanded="false" aria-controls="m-quality"><span class="pd">Quality</span><span class="cur"></span><span class="badge" hidden></span><span class="car" aria-hidden="true">▼</span></button>
     <div class="menu" id="m-quality" role="menu" aria-labelledby="h-quality" hidden>
       <button class="tab" role="menuitem" id="tab-metal" data-page="metal" aria-controls="page-metal"><span class="long">Hardness<span class="sub">Hardness and metallurgical tests</span></span><span class="badge" id="badge-metal" hidden></span></button>
+      <button class="tab" role="menuitem" id="tab-rwk" data-page="rwk" aria-controls="page-rwk" title="Rework and reprocessing"><span class="long">Rework<span class="sub">Rework / reprocessing procedure, rework log and release (HTSA 1.11)</span></span><span class="badge" id="badge-rwk" hidden></span></button>
       <button class="tab" role="menuitem" id="tab-cpf" data-page="cpf" aria-controls="page-cpf"><span class="long">CP &amp; PFMEA<span class="sub">Control plan and process FMEA</span></span><span class="badge" id="badge-cpf" hidden></span></button>
       <button class="tab" role="menuitem" id="tab-trend" data-page="trend" aria-controls="page-trend" title="Trend analysis of product and process data"><span class="long">Trend analysis<span class="sub">Product and process data over time, signals and reactions (HTSA 1.8)</span></span><span class="badge" id="badge-trend" hidden></span></button>
     </div>
@@ -219,6 +220,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   <iframe id="page-ops" role="tabpanel" aria-labelledby="tab-ops" title="Furnace start-up, shutdown and alarm response"></iframe>
   <iframe id="page-quench" role="tabpanel" aria-labelledby="tab-quench" title="Quench media testing"></iframe>
   <iframe id="page-metal" role="tabpanel" aria-labelledby="tab-metal" title="Hardness and metallurgical testing"></iframe>
+  <iframe id="page-rwk" role="tabpanel" aria-labelledby="tab-rwk" title="Rework and reprocessing"></iframe>
   <iframe id="page-cpf" role="tabpanel" aria-labelledby="tab-cpf" title="Control plan and PFMEA"></iframe>
   <iframe id="page-trend" role="tabpanel" aria-labelledby="tab-trend" title="Trend analysis of product and process data"></iframe>
   <iframe id="page-sat" role="tabpanel" aria-labelledby="tab-sat" title="Thermocouple SAT PDCA"></iframe>
@@ -228,7 +230,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 
 <dialog id="dataDlg" aria-labelledby="dataTitle">
   <h2 id="dataTitle">CALOR data</h2>
-  <p>Everything you enter is saved in this browser on this computer. All pages share it, and so do the separate page files (HT organization, procedures &amp; WIs, data review, production, load build, trap points, specifications, SCADA review, alarms, quench media, hardness, control plan, trend analysis, SAT, TUS, equipment) when they are opened from this computer in the same browser.</p>
+  <p>Everything you enter is saved in this browser on this computer. All pages share it, and so do the separate page files (HT organization, procedures &amp; WIs, data review, production, load build, trap points, specifications, SCADA review, alarms, quench media, hardness, rework, control plan, trend analysis, SAT, TUS, equipment) when they are opened from this computer in the same browser.</p>
   <p>To move the data to another computer or browser, or to keep a copy, download a backup and restore it there.</p>
   <h3 class="sub">Data per tab</h3>
   <p><b>Reset settings</b> puts the tab's settings back to the defaults and keeps its records. <b>Delete data</b> deletes everything that tab has saved (records and settings); the other tabs are not touched.</p>
@@ -236,7 +238,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   <p id="dmsg"></p>
   <div class="danger-zone">
     <h3>Clear all data (every tab)</h3>
-    <p>Deletes everything CALOR has saved in this browser: the heat treat organization (positions, job descriptions, people), procedures and work instructions (documents, points of use, availability checks, employees, training records), second-level reviews of the furnace data and the reviewers, production reports, loading standards, load checks, trays and fixtures, trap points and lot changeover checks, process specifications, SAT register and cycles, temperature uniformity surveys, equipment qualification records, control plans and PFMEAs, thermocouple replacements, quench media tests, hardness and metallurgical tests, trend analysis plans and reviews, SCADA reviews and reaction plans, SCADA history, links and settings. The separate page files (HT organization, production, load build, specifications, SCADA review, alarms, quench media, hardness, control plan, trend analysis, SAT, TUS, equipment) opened in this browser use the same data, so they are cleared too. Download a backup first if you may need any of it.</p>
+    <p>Deletes everything CALOR has saved in this browser: the heat treat organization (positions, job descriptions, people), procedures and work instructions (documents, points of use, availability checks, employees, training records), second-level reviews of the furnace data and the reviewers, production reports, loading standards, load checks, trays and fixtures, trap points and lot changeover checks, process specifications, SAT register and cycles, temperature uniformity surveys, equipment qualification records, control plans and PFMEAs, thermocouple replacements, quench media tests, hardness and metallurgical tests, the rework procedure and rework log, trend analysis plans and reviews, SCADA reviews and reaction plans, SCADA history, links and settings. The separate page files (HT organization, production, load build, specifications, SCADA review, alarms, quench media, hardness, rework, control plan, trend analysis, SAT, TUS, equipment) opened in this browser use the same data, so they are cleared too. Download a backup first if you may need any of it.</p>
     <button class="nb danger" id="dClear">Clear all data…</button>
   </div>
   <div class="row"><button class="nb" id="dRestore">Restore from backup…</button><button class="nb pri" id="dBackup">Download backup</button><button class="nb" id="dClose">Close</button></div>
@@ -254,6 +256,7 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 <script type="application/json" id="src-spec">/*@SPEC@*/</script>
 <script type="application/json" id="src-quench">/*@QUENCH@*/</script>
 <script type="application/json" id="src-metal">/*@METAL@*/</script>
+<script type="application/json" id="src-rwk">/*@RWK@*/</script>
 <script type="application/json" id="src-trend">/*@TREND@*/</script>
 <script type="application/json" id="src-cpf">/*@CPF@*/</script>
 <script type="application/json" id="src-sat">/*@SAT@*/</script>
@@ -272,7 +275,7 @@ window.HTQ={
   /* open a page, optionally passing what to show there (e.g. {view:{f:"F-04",ch:"Tempering"}}) */
   go(page,opts){ show(page); if(opts) this.emit("nav:"+page,opts); }
 };
-const PAGES=["home","org","wi","mon","prod","load","trap","spec","scada","ops","quench","metal","cpf","trend","sat","tus","equip"], FRAMES=["org","wi","mon","prod","load","trap","spec","scada","ops","quench","metal","cpf","trend","sat","tus","equip"];
+const PAGES=["home","org","wi","mon","prod","load","trap","spec","scada","ops","quench","metal","rwk","cpf","trend","sat","tus","equip"], FRAMES=["org","wi","mon","prod","load","trap","spec","scada","ops","quench","metal","rwk","cpf","trend","sat","tus","equip"];
 const $=s=>document.querySelector(s);
 function show(page){
   if(!PAGES.includes(page)) page="home";
@@ -392,6 +395,7 @@ function renderHome(){
   const wia=HTQ.api("wi"), WI=wia?wia.overview():null, H115=wia?wia.htsa115():null;
   const tra=HTQ.api("trend"), TR=tra?tra.overview():null, H18=tra?tra.htsa18():null;
   const moa=HTQ.api("mon"), MO=moa?moa.overview():null, H19=moa?moa.htsa19():null;
+  const rka=HTQ.api("rwk"), RK=rka?rka.overview():null, H111=rka?rka.htsa111():null;
   /* equipment items that no other page reports */
   const EQOWN={"Instrumentation type supported by the equipment":"instrumentation type not supported by the installed equipment","Control instruments calibrated":"controller calibration expired","Recording instrument calibrated":"recorder calibration expired","Over-temperature protection tested":"over-temperature protection test overdue","Over-temperature protection":"no over-temperature protection","Furnace class meets the parts":"furnace class not proven for the tolerance the parts need","No equipment change waiting for requalification":"equipment change waiting for TUS / SAT"};
   const TLV={ok:"good",soon:"warn",partial:"warn",none:"warn",overdue:"crit",fail:"crit"};
@@ -491,6 +495,13 @@ function renderHome(){
   if(H115){
     H115.items.forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?1:7,txt:`<b>HTSA 1.15 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="wi">Procedures &amp; WIs</button>`}));
   }
+  if(RK){
+    RK.open.filter(x=>x.lvl==="crit").forEach(x=>att.push({lvl:"crit",o:1,txt:`<b>${esc(x.furnace||"Rework")} · ${esc(x.id)}</b>: ${esc(x.part)} ${esc(x.batch)} — ${esc(x.label.toLowerCase())}`,btn:`<button class="nb" data-rwk="${esc(x.id)}">Open rework</button>`}));
+    RK.unlogged.forEach(x=>att.push({lvl:"crit",o:2,txt:`<b>${esc(x.furnace)}</b>: rework of ${esc(x.part)} ${esc(x.batch)} on the production report of ${fd(x.date)} is not in the rework log`,btn:`<button class="nb" data-go="rwk">Rework</button>`}));
+  }
+  if(H111){
+    H111.items.filter(i=>!/^Record \/ log of all rework/.test(i.req)||!RK||!RK.unlogged.length).forEach(i=>att.push({lvl:i.lvl==="crit"?"crit":"warn",o:i.lvl==="crit"?2:7,txt:`<b>HTSA 1.11 · ${esc(i.req)}</b>: ${esc(i.ev)}`,btn:`<button class="nb" data-go="rwk">Rework</button>`}));
+  }
   if(MO){
     MO.furnaces.filter(x=>x.st==="overdue"||x.st==="none").forEach(x=>att.push({lvl:"crit",o:1,txt:`<b>${esc(x.f)}</b>: furnace data not reviewed ${x.last?`for ${Math.round(x.since)} h (last review ${fd(x.last.slice(0,10))} ${esc(x.last.slice(11,16))})`:"yet"}: the second-level review is due every ${MO.maxHrs} h`,btn:`<button class="nb" data-mon="${esc(x.f)}">Record review</button>`}));
     MO.open.forEach(x=>att.push({lvl:x.disp==="held"?"crit":"warn",o:x.disp==="held"?2:6,txt:`<b>${esc(x.furnace)} · ${esc(x.id)}</b>: ${esc(x.sys)} out of control — ${esc(x.what)}${x.disp==="held"?" (product held)":""}: reaction open`,btn:`<button class="nb" data-monrev="${esc(x.id)}">Open review</button>`}));
@@ -545,13 +556,14 @@ function renderHome(){
       ${PR?(()=>{const d=new Date(Date.now()-864e5),y=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"),L=PR.filter(r=>r.date===y),kg=L.reduce((a,r)=>a+r.rows.reduce((b,x)=>b+(x.kg||0),0),0),nb=L.reduce((a,r)=>a+r.rows.length,0),dr=prodDrafts().length;
         return tile(L.length?Math.round(kg).toLocaleString("en-IN")+'<small style="font-size:16px"> kg</small>':"—","Production yesterday",`${nb} batch${nb===1?"":"es"} in ${L.length} report${L.length===1?"":"s"} · ${dr} report${dr===1?"":"s"} of earlier days not approved`,dr?"warn":"");})():""}
       ${CP?(()=>{const inF=CP.docs.filter(d=>d.status==="approved"||d.rev>0).length,dr=CP.docs.filter(d=>d.status==="draft").length;return tile(inF,"Control plans & PFMEA",`in force · ${dr} draft${dr===1?"":"s"} · ${CP.apH} AP-High row${CP.apH===1?"":"s"} open`,CP.late.length?"bad":CP.apH||dr?"warn":"");})():""}
-      ${OR||S16||H18||H19||H115||H25?(()=>{const Q=[OR&&["1.1",OR],S16&&["1.6",S16],H18&&["1.8",H18],H19&&["1.9",H19],H115&&["1.15",H115],H25&&["2.5",H25]].filter(Boolean),rank={s:0,ns:1,nia:2},w=Q.reduce((a,[,x])=>rank[x.score]>rank[a.score]?x:a,Q[0][1]);
+      ${OR||S16||H18||H19||H111||H115||H25?(()=>{const Q=[OR&&["1.1",OR],S16&&["1.6",S16],H18&&["1.8",H18],H19&&["1.9",H19],H111&&["1.11",H111],H115&&["1.15",H115],H25&&["2.5",H25]].filter(Boolean),rank={s:0,ns:1,nia:2},w=Q.reduce((a,[,x])=>rank[x.score]>rank[a.score]?x:a,Q[0][1]);
         return tile(`<span style="font-size:22px">${esc(w.label)}</span>`,"HTSA self-assessment",Q.map(([q,x])=>`${q} ${esc(x.label.toLowerCase())}`).join(" · ")+(OR&&OR.person?` · HT person ${esc(OR.person.name)}`:""),w.score==="s"?"ok":w.score==="ns"?"warn":"bad");})():""}
       ${WI?tile(WI.inForce,"Procedures & WIs",`in force · ${WI.reviewOver} review${WI.reviewOver===1?"":"s"} overdue · ${WI.locBad} point${WI.locBad===1?"":"s"} of use not current · ${WI.late} employee${WI.late===1?"":"s"} late on training`,WI.locBad||WI.late||!WI.inForce?"bad":WI.reviewOver||WI.locCheck||WI.due||WI.drafts?"warn":"ok"):""}
       ${LB?(()=>{const n=LB.overdue+LB.lifeOver+LB.open.length;return tile(n,"Load build & fixtures",`${LB.overdue} inspection${LB.overdue===1?"":"s"} overdue · ${LB.lifeOver} past life · ${LB.open.length} load check${LB.open.length===1?"":"s"} not OK · ${LB.unchecked.length} batch${LB.unchecked.length===1?"":"es"} unchecked`,n?"bad":LB.unchecked.length||LB.never||LB.noStd.length?"warn":"ok");})():""}
       ${OP?(()=>{const a=OP.items.filter(x=>x.status==="active").length,r=OP.items.filter(x=>x.status==="react").length,v=OP.items.filter(x=>x.status==="review"||x.status==="incomplete").length;return tile(a+r,"Alarms & start-ups",`${a} alarm${a===1?"":"s"} active · ${r} reaction${r===1?"":"s"} open · ${v} to review or complete`,a+r?"bad":v?"warn":"ok");})():""}
       ${MO?(()=>{const run=MO.furnaces.filter(x=>x.st!=="stopped"),ok=run.filter(x=>x.st==="ok"||x.st==="soon").length,held=MO.open.filter(x=>x.disp==="held").length;return tile(`${ok}<small style="font-size:16px"> / ${run.length}</small>`,"Furnace data reviewed",`within ${MO.maxHrs} h by a qualified reviewer · ${MO.open.length} reaction${MO.open.length===1?"":"s"} open${held?` (${held} product held)`:""} · ${MO.gaps} gap${MO.gaps===1?"":"s"} in ${MO.covDays} days`,ok<run.length||held?"bad":MO.open.length||MO.gaps?"warn":"ok");})():""}
       ${TR?tile(TR.signals,"Trend analysis",`signals to review on ${TR.params} parameter${TR.params===1?"":"s"} · ${TR.outSpec.length} outside the specification · ${TR.reviewsDue} chart review${TR.reviewsDue===1?"":"s"} due · ${TR.actionsLate} action${TR.actionsLate===1?"":"s"} late`,TR.outSpec.length||TR.actionsLate?"bad":TR.signals||TR.reviewsDue||!TR.params?"warn":"ok"):""}
+      ${RK?(()=>{const b=RK.open.filter(x=>x.lvl==="crit").length,r=RK.open.filter(x=>x.stage==="release").length;return tile(RK.open.length,"Rework jobs open",`${RK.proc?`${esc(RK.proc.no)} rev ${RK.proc.rev}${RK.proc.ppap?"":" (no PPAP approval)"}`:"no rework procedure in force"} · ${b} blocked · ${r} awaiting release · ${RK.unlogged.length} production rework not logged`,b||RK.unlogged.length||!RK.proc||!RK.proc.ppap?"bad":RK.open.length?"warn":"ok");})():""}
       ${MT?tile(MT.open.length,"Hardness & metallurgy",`nonconforming batches open · ${MT.tests30} tests, ${MT.nok30} not conforming or invalid in 30 days`,MT.open.length?"bad":MT.nok30?"warn":"ok"):""}
       ${tile(tcs,"Thermocouples","active in the SAT register")}
       ${EQ?(()=>{const q=EQ.filter(x=>x.lvl==="good").length,nq=EQ.filter(x=>x.lvl==="crit").length;return tile(`${q}<small style="font-size:16px"> / ${EQ.length}</small>`,"Chambers qualified",`${nq} not qualified · ${EQ.reduce((a,x)=>a+x.openChanges,0)} change(s) to requalify`,nq?"bad":q<EQ.length?"warn":"ok");})():""}
@@ -589,13 +601,14 @@ $("#home").addEventListener("click",e=>{
   else if(b.dataset.trchk) HTQ.go("trap",{check:b.dataset.trchk});
   else if(b.dataset.trend) HTQ.go("trend",{review:b.dataset.trend});
   else if(b.dataset.mon) HTQ.go("mon",{furnace:b.dataset.mon});
+  else if(b.dataset.rwk) HTQ.go("rwk",{job:b.dataset.rwk});
   else if(b.dataset.monrev) HTQ.go("mon",{review:b.dataset.monrev});
   else if(b.dataset.prod!=null){ const [f,d]=b.dataset.prod.split("|"); HTQ.go("prod",d?{f,d}:{f}); }
   else if(b.dataset.qtest) HTQ.go("quench",{test:b.dataset.qtest});
   else if(b.dataset.go){ const [pg,f,ch]=b.dataset.go.split("|"); HTQ.go(pg,f?{view:{f,ch}}:null); }
 });
 let homeT=0; const homeSoon=()=>{ clearTimeout(homeT); homeT=setTimeout(()=>{ if(!$("#page-home").hasAttribute("data-off")) renderHome(); },150); };
-["sat:ready","sat:changed","scada:ready","scada:changed","scada:pdca","quench:ready","quench:changed","spec:ready","spec:changed","metal:ready","metal:changed","prod:ready","prod:changed","tus:ready","tus:changed","equip:ready","equip:changed","cpf:ready","cpf:changed","ops:ready","ops:changed","load:ready","load:changed","org:ready","org:changed","trap:ready","trap:changed","wi:ready","wi:changed","trend:ready","trend:changed","mon:ready","mon:changed"].forEach(ev=>HTQ.on(ev,homeSoon));
+["sat:ready","sat:changed","scada:ready","scada:changed","scada:pdca","quench:ready","quench:changed","spec:ready","spec:changed","metal:ready","metal:changed","prod:ready","prod:changed","tus:ready","tus:changed","equip:ready","equip:changed","cpf:ready","cpf:changed","ops:ready","ops:changed","load:ready","load:changed","org:ready","org:changed","trap:ready","trap:changed","wi:ready","wi:changed","trend:ready","trend:changed","mon:ready","mon:changed","rwk:ready","rwk:changed"].forEach(ev=>HTQ.on(ev,homeSoon));
 function badgeScada(){
   const b=$("#badge-scada"), api=HTQ.api("scada"), c=api&&api.pdca?api.pdca():{overdue:0,open:0}, n=c.overdue+(c.e8late||0);
   b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":"");
@@ -687,6 +700,13 @@ function badgeWi(){
   b.title=n?n+" HTSA 1.15 item"+(n>1?"s":"")+" not met":"";
 }
 ["wi:ready","wi:changed","sat:ready","sat:changed","org:changed"].forEach(ev=>HTQ.on(ev,badgeWi));
+/* rework badge: rework jobs blocked (not permissible, customer approval, failed sampling) + production rework not in the log */
+function badgeRwk(){
+  const b=$("#badge-rwk"), api=HTQ.api("rwk"), c=api?api.counts():{blocked:0,unlogged:0}, n=c.blocked+c.unlogged;
+  b.hidden=!n; b.textContent=n; b.className="badge"+(n?" alert":"");
+  b.title=[c.blocked&&c.blocked+" rework job"+(c.blocked>1?"s":"")+" blocked",c.unlogged&&c.unlogged+" production rework lot"+(c.unlogged>1?"s":"")+" not in the log"].filter(Boolean).join(", ");
+}
+["rwk:ready","rwk:changed"].forEach(ev=>HTQ.on(ev,badgeRwk));
 /* data review badge: furnaces whose data is not reviewed within 24 h + reactions with product held */
 function badgeMon(){
   const b=$("#badge-mon"), api=HTQ.api("mon"), c=api?api.counts():{overdue:0,held:0}, n=c.overdue+c.held;
@@ -704,7 +724,7 @@ function badgeTrend(){
 ["trend:ready","trend:changed"].forEach(ev=>HTQ.on(ev,badgeTrend));
 
 /* ---------- backup and restore of everything both pages keep in this browser ---------- */
-const KEYS={"mrv-reg":"Data review: second-level reviews of the furnace monitoring data, reviewers, settings","mrv-view":"Data review filter","tra-reg":"Trend analysis (analysis plan, parameters, data entered there, reviews)","tra-view":"Trend analysis filter","prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","sr2-pdca":"SCADA review: PDCA reviews","sr2-8d":"SCADA review: 8D problem solving","sr2-hist":"SCADA review: day summaries (history)","sr2-repl":"SCADA review: replacement register","sr2-last":"SCADA review: latest record per furnace / chamber","sr2-link":"SCADA review: links to furnaces / chambers","sr2-settings":"SCADA review: settings","sr2-mig":"SCADA review: earlier data imported (date)","sr2-fold":"SCADA review: review and 8D cards folded or open","pfsr-last":"Earlier SCADA review: latest record per furnace / chamber","pfsr-pdca":"Earlier SCADA review: review PDCA (reaction plans)","pfsr-repl":"Earlier SCADA review: replacement register","pfsr-hist":"Earlier SCADA review: day summaries (history)","pfsr-settings":"Earlier SCADA review: settings","pfsr-link":"Earlier SCADA review: links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","lbf-reg":"Load build and fixturing (loading standards, load checks, trays and fixtures, inspections)","lbf-view":"Load build page filter","org-reg":"Heat treat organization (positions, job descriptions, people and qualification evidence)","org-view":"HT organization page view","wi-reg":"Procedures and work instructions (documents, points of use, availability checks, employees, training records)","wi-view":"Procedures page view","trp-reg":"Trap points and lot changeover checks (register, checks, reaction plans)","trp-view":"Trap points page filter","htq-theme":"Theme"};
+const KEYS={"rwk-reg":"Rework: rework / reprocessing procedure and rework log","rwk-view":"Rework log filter","mrv-reg":"Data review: second-level reviews of the furnace monitoring data, reviewers, settings","mrv-view":"Data review filter","tra-reg":"Trend analysis (analysis plan, parameters, data entered there, reviews)","tra-view":"Trend analysis filter","prod-reg":"Production reports (batches per furnace and day, part list, settings)","prod-view":"Production page: furnace and day shown","psr-reg":"Process specifications (recipes, revisions, approvals)","psr-view":"Process specification filter","tsat-pdca":"SAT register (thermocouples, SAT cycles, replacements)","sr2-pdca":"SCADA review: PDCA reviews","sr2-8d":"SCADA review: 8D problem solving","sr2-hist":"SCADA review: day summaries (history)","sr2-repl":"SCADA review: replacement register","sr2-last":"SCADA review: latest record per furnace / chamber","sr2-link":"SCADA review: links to furnaces / chambers","sr2-settings":"SCADA review: settings","sr2-mig":"SCADA review: earlier data imported (date)","sr2-fold":"SCADA review: review and 8D cards folded or open","pfsr-last":"Earlier SCADA review: latest record per furnace / chamber","pfsr-pdca":"Earlier SCADA review: review PDCA (reaction plans)","pfsr-repl":"Earlier SCADA review: replacement register","pfsr-hist":"Earlier SCADA review: day summaries (history)","pfsr-settings":"Earlier SCADA review: settings","pfsr-link":"Earlier SCADA review: links to furnaces / chambers","tsat-view":"SAT page filter","hmt-reg":"Hardness and metallurgical tests (results, verifications, equipment)","hmt-view":"Hardness page filter","qmt-reg":"Quench media tests (tanks, test plan, results, reaction plans)","qmt-view":"Quench page filter","tus-reg":"Temperature uniformity surveys (qualified ranges, surveys, reaction plans)","tus-view":"TUS page filter","eqq-reg":"Equipment qualification (equipment survey, classification, gaps, changes)","eqq-view":"Equipment page filter","cpf-reg":"Control plans and PFMEAs","cpf-view":"Control plan page view","fop-reg":"Start-up, shutdown and alarm log (records, checklists, alarm matrix)","fop-view":"Start-up and alarm page filter","lbf-reg":"Load build and fixturing (loading standards, load checks, trays and fixtures, inspections)","lbf-view":"Load build page filter","org-reg":"Heat treat organization (positions, job descriptions, people and qualification evidence)","org-view":"HT organization page view","wi-reg":"Procedures and work instructions (documents, points of use, availability checks, employees, training records)","wi-view":"Procedures page view","trp-reg":"Trap points and lot changeover checks (register, checks, reaction plans)","trp-view":"Trap points page filter","htq-theme":"Theme"};
 const get=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const jget=k=>{ try{ return JSON.parse(get(k)||"null"); }catch(e){ return null; } };
 const cnt=(n,w,ws)=>`${n} ${n===1?w:(ws||w+"s")}`;
@@ -721,6 +741,8 @@ const MODS=[
     what:()=>{const v=jget("wi-reg");return v?`${cnt((v.docs||[]).length,"document")} · ${cnt((v.people||[]).length,"employee")} · ${cnt((v.trn||[]).length,"training record")}`:"";}},
   {page:"mon",name:"Second-level data review (HTSA 1.9)",keys:["mrv-reg","mrv-view"],reset:{key:"mrv-reg",fields:["settings"]},
     what:()=>{const v=jget("mrv-reg");return v?`${cnt((v.reviews||[]).length,"review")} · ${cnt((v.reviewers||[]).length,"reviewer")}`:"";}},
+  {page:"rwk",name:"Rework and reprocessing (HTSA 1.11)",keys:["rwk-reg","rwk-view"],reset:{key:"rwk-reg",fields:["settings"]},
+    what:()=>{const v=jget("rwk-reg");return v?`${v.proc&&v.proc.no?v.proc.no+" rev "+v.proc.rev:"no procedure"} · ${cnt((v.jobs||[]).length,"rework job")}`:"";}},
   {page:"trap",name:"Trap points and lot changeover",keys:["trp-reg","trp-view"],reset:{key:"trp-reg",fields:["settings"]},
     what:()=>{const v=jget("trp-reg");return v?`${cnt((v.tps||[]).length,"trap point")} · ${cnt((v.checks||[]).length,"changeover check")}`:"";}},
   {page:"spec",name:"Process specifications",keys:["psr-reg","psr-view"],reset:{key:"psr-reg",fields:["settings"]},
