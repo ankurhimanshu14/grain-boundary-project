@@ -88,6 +88,20 @@ dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-
 .danger-zone h3{font-size:16px;color:var(--bad);margin:0 0 4px}
 .danger-zone p{color:var(--ink);font-size:13px;margin:0 0 8px}
 button.nb.danger{color:var(--bad);border-color:var(--bad)}button.nb.danger:hover{background:var(--bad);color:#fff}
+/* Google Drive folder: status chip in the header, section in the data dialog, access dialog at start */
+button.nb.sync{display:inline-flex;align-items:center;gap:6px;font-size:12.5px}
+button.nb.sync .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}
+button.nb.sync[data-st=ok] .dot{background:var(--ok)}button.nb.sync[data-st=busy] .dot{background:var(--accent)}
+button.nb.sync[data-st=wait] .dot{background:var(--warn)}button.nb.sync[data-st=bad] .dot{background:var(--bad)}
+.drive{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:10px 0}
+.drive h3{font-size:16px;margin:0 0 4px}
+.drive .st{font-size:13.5px;color:var(--ink);margin:4px 0}
+.drive .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.drive .choice{border:1px solid var(--warn);background:var(--warn-bg);border-radius:6px;padding:8px 10px;margin-top:8px}
+.drive .choice p,.drive .cf p{color:var(--ink)}
+.drive .cf{border:1px solid var(--bad);background:var(--bad-bg);border-radius:6px;padding:8px 10px;margin-top:8px}
+.drive ul{margin:4px 0 0;padding-left:18px;font-size:13px}
+.drive code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12.5px}
 /* pages */
 .frames{position:relative;flex:1;min-height:0}
 .frames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg)}
@@ -153,10 +167,11 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   <div class="ctrl" aria-label="Document control">
     <div><b>Standard</b>AIAG CQI-9 4th Ed.</div>
     <div><b>Scope</b><span id="ctl-scope">Pusher furnaces</span></div>
-    <div><b>Records</b>This browser</div>
+    <div><b>Records</b><span id="ctl-rec">This browser</span></div>
     <div><b>Date</b><span id="ctl-date"></span></div>
   </div>
   <div class="tools">
+    <button class="nb sync" id="sync" data-st="off" title="Where CALOR saves the data"><span class="dot" aria-hidden="true"></span><span id="syncTxt">This browser only</span></button>
     <button class="nb" id="data">Data</button>
     <button class="nb" id="theme" aria-label="Toggle colour theme">Theme</button>
   </div>
@@ -230,6 +245,11 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
 
 <dialog id="dataDlg" aria-labelledby="dataTitle">
   <h2 id="dataTitle">CALOR data</h2>
+  <section class="drive" id="drive" aria-labelledby="driveTitle">
+    <h3 id="driveTitle">Google Drive folder</h3>
+    <p>CALOR can keep its data as JSON files (one per register) in a Google Drive folder synced to this computer by <b>Google Drive for Desktop</b>. Every change is written to the folder a moment later, and Drive uploads it; other computers linked to the same folder see the changes within about a minute. The data stays in this browser too, so CALOR keeps working when the folder cannot be reached and catches up afterwards. Needs Chrome or Edge.</p>
+    <div id="dsync"></div>
+  </section>
   <p>Everything you enter is saved in this browser on this computer. All pages share it, and so do the separate page files (HT organization, procedures &amp; WIs, data review, production, load build, trap points, specifications, SCADA review, alarms, quench media, hardness, rework, control plan, trend analysis, SAT, TUS, equipment) when they are opened from this computer in the same browser.</p>
   <p>To move the data to another computer or browser, or to keep a copy, download a backup and restore it there.</p>
   <h3 class="sub">Data per tab</h3>
@@ -243,6 +263,13 @@ span.bad{color:var(--bad);font-weight:500}span.caution{color:var(--warn);font-we
   </div>
   <div class="row"><button class="nb" id="dRestore">Restore from backup…</button><button class="nb pri" id="dBackup">Download backup</button><button class="nb" id="dClose">Close</button></div>
   <input type="file" id="dFile" accept=".json,application/json" hidden>
+</dialog>
+
+<dialog id="syncGate" aria-labelledby="gateTitle">
+  <h2 id="gateTitle">Google Drive folder</h2>
+  <p>CALOR saves its data in the folder <b id="gateName"></b>. The browser needs your permission again to read and write it.</p>
+  <p>Without it, CALOR opens with the data in this browser; your changes wait here and are written to the folder once access is given (Data → Google Drive folder → Sync now).</p>
+  <div class="row"><button class="nb" id="gateSkip">Continue without the folder</button><button class="nb pri" id="gateOk">Allow access</button></div>
 </dialog>
 
 <script type="application/json" id="src-scada">/*@SCADA@*/</script>
@@ -341,18 +368,21 @@ $("#theme").addEventListener("click",()=>{
   applyTheme();
 });
 
-/* ---------- load the applications ---------- */
-FRAMES.forEach(p=>{
+/* ---------- load the applications (after the data has been read from the Google Drive folder, see the end) ---------- */
+const RELOAD=new Set();
+function loadFrame(p){
   const f=$("#page-"+p);
   f.addEventListener("load",()=>{
     applyTheme();
+    /* reloaded with data changed on another computer: tell the other pages */
+    if(RELOAD.delete(p)) HTQ.emit(p+":changed");
     /* printing happens inside the page; give the saved PDF the page's own title */
     const w=f.contentWindow; let saved=null;
     w.addEventListener("beforeprint",()=>{ saved=document.title; document.title=w.document.title; });
     w.addEventListener("afterprint",()=>{ if(saved!=null) document.title=saved; });
   });
   f.srcdoc=JSON.parse($("#src-"+p).textContent);
-});
+}
 { const d=new Date(); $("#ctl-date").textContent=`${String(d.getDate()).padStart(2,"0")}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}-${d.getFullYear()}`; }
 show(location.hash.slice(1)||"home");
 
@@ -825,6 +855,247 @@ $("#dFile").addEventListener("change",async e=>{
     keys.forEach(k=>{ try{ localStorage.setItem(k,typeof data[k]==="string"?data[k]:JSON.stringify(data[k])); }catch(err){} });
     location.reload();
   }catch(err){ $("#dmsg").textContent="Restore failed: "+err.message; }
+});
+
+/* ---------- Google Drive folder: the data as JSON files ----------
+   Google Drive for Desktop syncs a Drive folder with this computer; CALOR writes one JSON file per data key into it through the
+   File System Access API (Chrome / Edge) and Drive uploads it. localStorage stays the working copy the pages read and write
+   synchronously: every change (reported by the hook suite/build.py puts into each page, and by the patch below for this window)
+   marks the key dirty and is written to the folder 1.5 s later. The dirty list is kept in localStorage, so a change made while the
+   folder cannot be reached (or just before a reload) is written later. Each file carries a stamp; a file whose stamp is not the one
+   this browser last read or wrote was changed on another computer: it is loaded (the page holding it reloads), and when this browser
+   had unsaved changes of that key they are kept as a copy in conflicts/ (never merged). A deleted key is written as a file marked
+   deleted, so a missing file never deletes data here (it is uploaded again). View, filter and theme keys stay in this browser. */
+const LOCAL_ONLY=k=>/-view$/.test(k)||k==="htq-theme"||k==="sr2-fold";
+const DKEYS=Object.keys(KEYS).filter(k=>!LOCAL_ONLY(k));
+const RAW={set:Storage.prototype.setItem,rem:Storage.prototype.removeItem};
+const rawSet=(k,v)=>{ try{ if(v==null) RAW.rem.call(localStorage,k); else RAW.set.call(localStorage,k,v); }catch(e){} };
+let SY={pc:"",folder:"",base:{},dirty:{},conflicts:[],saved:"",backup:""};
+try{ const o=JSON.parse(localStorage.getItem("calor-sync")||"null"); if(o&&typeof o==="object") SY={...SY,...o}; }catch(e){}
+["base","dirty"].forEach(f=>{ if(!SY[f]||typeof SY[f]!=="object"||Array.isArray(SY[f])) SY[f]={}; }); if(!Array.isArray(SY.conflicts)) SY.conflicts=[];
+const saveSY=()=>rawSet("calor-sync",JSON.stringify(SY));
+let DIR=null, DIRH=null, BUSY=false, AGAIN=false, FT=0, ERR="", STARTED=false, LINKING=null;
+const PEND=new Set();
+const pad2=n=>String(n).padStart(2,"0");
+const today=()=>{ const d=new Date(); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; };
+const fileTime=()=>{ const d=new Date(); return `${today()}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`; };
+const safe=s=>String(s||"PC").replace(/[^A-Za-z0-9_-]+/g,"-").slice(0,40);
+const hm=iso=>{ if(!iso) return ""; const d=new Date(iso); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}${today()===`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`?"":` on ${d.getDate()} ${MON[d.getMonth()]}`}`; };
+const newStamp=()=>`${new Date().toISOString()}|${SY.pc}|${Math.random().toString(36).slice(2,8)}`;
+/* the file of one key: {format, key, about, saved, by, stamp, deleted, raw, data}; data = the parsed JSON (raw: a plain string) */
+function toEnv(k,v,st){ let data=v, raw=false; if(v!=null){ try{ data=JSON.parse(v); }catch(e){ raw=true; } }
+  return {format:"CALOR data",version:1,key:k,about:KEYS[k]||"",saved:new Date().toISOString(),by:SY.pc,stamp:st,deleted:v==null,raw,data:v==null?null:data}; }
+const fromEnv=e=>e.deleted?null:e.raw?String(e.data):JSON.stringify(e.data);
+/* the folder handle is kept in IndexedDB (a handle cannot be stored in localStorage) */
+function idb(mode,fn){ return new Promise((res,rej)=>{ const o=indexedDB.open("calor-drive",1);
+  o.onupgradeneeded=()=>o.result.createObjectStore("h"); o.onerror=()=>rej(o.error);
+  o.onsuccess=()=>{ const db=o.result, tx=db.transaction("h",mode), r=fn(tx.objectStore("h")); tx.oncomplete=()=>{ db.close(); res(r&&r.result); }; tx.onerror=()=>{ db.close(); rej(tx.error); }; }; }); }
+const hGet=()=>idb("readonly",s=>s.get("dir")).catch(()=>null), hPut=h=>idb("readwrite",s=>s.put(h,"dir")), hDel=()=>idb("readwrite",s=>s.delete("dir")).catch(()=>{});
+const perm=async(h,ask)=>{ try{ if(!h.queryPermission) return "granted"; const o={mode:"readwrite"}; const p=await h.queryPermission(o); return p==="granted"||!ask?p:await h.requestPermission(o); }catch(e){ return "denied"; } };
+async function writeJSON(dir,name,obj){ const fh=await dir.getFileHandle(name,{create:true}), w=await fh.createWritable(); await w.write(JSON.stringify(obj,null,1)); await w.close(); return (await fh.getFile()).lastModified; }
+/* read a key's file: null = no file, {same} = not changed since `mod`, {bad} = not readable (e.g. Drive still writing it) */
+async function readKey(dir,k,mod){
+  let fh; try{ fh=await dir.getFileHandle(k+".json"); }catch(e){ if(e.name==="NotFoundError"||e.name==="TypeError") return null; throw e; }
+  const f=await fh.getFile(); if(mod!=null&&f.lastModified===mod) return {same:true,mod};
+  try{ const env=JSON.parse(await f.text()); if(!env||env.key!==k||typeof env.stamp!=="string") return {bad:true}; return {env,mod:f.lastModified}; }catch(e){ return {bad:true}; }
+}
+const pagesOf=keys=>MODS.filter(m=>m.keys.some(k=>keys.includes(k))).map(m=>m.page);
+/* data changed on another computer: reload the pages holding it (a page with a dialog open waits until it is closed) */
+function reloadPages(pages){ pages.forEach(p=>PEND.add(p)); flushPend(); }
+function flushPend(){
+  if(!STARTED) { PEND.clear(); return; }
+  [...PEND].forEach(p=>{ const f=$("#page-"+p); let busy=false; try{ busy=!!f.contentDocument.querySelector("dialog[open]"); }catch(e){}
+    if(busy) return; PEND.delete(p); RELOAD.add(p); try{ f.contentWindow.location.reload(); }catch(e){ f.srcdoc=JSON.parse($("#src-"+p).textContent); } });
+  if(!PEND.size) renderHome();
+  status();
+}
+function applyRemote(k,r){ rawSet(k,fromEnv(r.env)); SY.base[k]={st:r.env.stamp,mod:r.mod}; }
+/* this browser had unsaved changes of a key that was changed on another computer: keep ours as a copy, load theirs */
+async function conflict(k,r){
+  const name=`${k}_${fileTime()}_${safe(SY.pc)}.json`, cd=await DIR.getDirectoryHandle("conflicts",{create:true});
+  await writeJSON(cd,name,toEnv(k,localStorage.getItem(k),newStamp()));
+  applyRemote(k,r); delete SY.dirty[k];
+  SY.conflicts.push({k,file:"conflicts/"+name,at:new Date().toISOString(),by:r.env.by||"another computer"});
+  return k;
+}
+/* read the folder: load what changed elsewhere; keys with data here and no file are marked to upload */
+async function pull(){
+  const changed=[];
+  for(const k of DKEYS){
+    const b=SY.base[k], r=await readKey(DIR,k,b?b.mod:null);
+    if(!r){ if(localStorage.getItem(k)!=null) SY.dirty[k]=1; continue; }
+    if(r.same||r.bad) continue;
+    if(b&&r.env.stamp===b.st){ b.mod=r.mod; continue; }
+    if(SY.dirty[k]) changed.push(await conflict(k,r));
+    else{ const was=localStorage.getItem(k); applyRemote(k,r); if(was!==localStorage.getItem(k)) changed.push(k); }
+  }
+  saveSY(); return changed;
+}
+/* write the dirty keys; a file changed elsewhere since this browser last read it is not overwritten (conflict) */
+async function flush(){
+  clearTimeout(FT);
+  if(!DIR) { status(); return; }
+  if(BUSY){ AGAIN=true; return; }
+  BUSY=true; status(); const changed=[]; let wrote=false;
+  try{
+    for(const k of Object.keys(SY.dirty)){
+      const b=SY.base[k], r=await readKey(DIR,k,b?b.mod:null);
+      if(r&&r.bad){ ERR=`${k}.json could not be read (Drive may still be syncing it); it will be tried again.`; continue; }
+      if(r&&!r.same&&r.env.stamp!==(b&&b.st)){ changed.push(await conflict(k,r)); continue; }
+      delete SY.dirty[k];
+      const st=newStamp();
+      try{ const mod=await writeJSON(DIR,k+".json",toEnv(k,localStorage.getItem(k),st)); SY.base[k]={st,mod}; wrote=true; }
+      catch(e){ SY.dirty[k]=1; throw e; }
+    }
+    if(wrote){ SY.saved=new Date().toISOString(); await manifest(); }
+    if(SY.backup!==today()) await dailyBackup();
+    if(!Object.keys(SY.dirty).length) ERR="";
+  }catch(e){ ERR=`The folder could not be written (${e.message||e.name}). The changes wait in this browser.`; }
+  finally{ BUSY=false; saveSY(); }
+  if(changed.length) reloadPages(pagesOf(changed));
+  status();
+  if(AGAIN){ AGAIN=false; flush(); }
+}
+/* a list of the files for whoever opens the folder */
+async function manifest(){
+  const keys={}; DKEYS.forEach(k=>{ const b=SY.base[k]; if(b) keys[k]={file:k+".json",about:KEYS[k],stamp:b.st}; });
+  await writeJSON(DIR,"calor-manifest.json",{format:"CALOR data folder",version:1,updated:new Date().toISOString(),by:SY.pc,
+    note:"One file per CALOR data key; the data is in its 'data' field. backup/ = one full backup per day (Data → Restore from backup), conflicts/ = changes kept when two computers changed the same register.",keys});
+}
+/* one full backup per day in backup/, the latest 30 kept; the same format as Data → Download backup */
+async function dailyBackup(){
+  const bd=await DIR.getDirectoryHandle("backup",{create:true}), data={};
+  DKEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; });
+  await writeJSON(bd,`calor-backup-${today()}.json`,{suite:"CALOR",saved:new Date().toISOString(),by:SY.pc,data});
+  SY.backup=today();
+  const names=[]; for await(const [n] of bd.entries()) if(/^calor-backup-\d{4}-\d{2}-\d{2}\.json$/.test(n)) names.push(n);
+  names.sort().slice(0,-30).forEach(n=>bd.removeEntry(n).catch(()=>{}));
+}
+/* reached from every page (hook) and this window: a key was set or removed */
+function touch(k){
+  if(!DKEYS.includes(k)) return;
+  SY.dirty[k]=1; saveSY();
+  if(DIR){ clearTimeout(FT); FT=setTimeout(flush,1500); }
+  status();
+}
+{ const P=Storage.prototype;
+  P.setItem=function(k,v){ const same=this===localStorage&&this.getItem(k)===String(v); RAW.set.call(this,k,v); if(this===localStorage&&!same) touch(String(k)); };
+  P.removeItem=function(k){ const had=this===localStorage&&this.getItem(k)!=null; RAW.rem.call(this,k); if(had) touch(String(k)); }; }
+/* poll for changes made on other computers: every minute and when CALOR gets the focus again */
+let LASTPOLL=0;
+async function poll(force){
+  if(PEND.size) flushPend();
+  if(BUSY||LINKING||(!force&&Date.now()-LASTPOLL<10000)) return; LASTPOLL=Date.now();
+  if(!DIR){ if(DIRH&&await perm(DIRH,false)==="granted") DIR=DIRH; else { status(); return; } }
+  try{ BUSY=true; const ch=await pull(); BUSY=false; if(ch.length) reloadPages(pagesOf(ch)); await flush(); }
+  catch(e){ BUSY=false; ERR=`The folder cannot be reached (${e.message||e.name}). Is Google Drive for Desktop running? The changes wait in this browser.`; status(); }
+}
+const nDirty=()=>Object.keys(SY.dirty).length;
+function status(){
+  const b=$("#sync"), t=$("#syncTxt"); let st="off", txt="This browser only", tip="The data is saved in this browser only. Data → Google Drive folder links a Drive folder.";
+  if(DIRH){
+    const n=nDirty(), cf=SY.conflicts.length;
+    if(!DIR){ st="wait"; txt=n?`Drive: ${n} waiting`:"Drive: no access"; tip=`No access to the folder ${DIRH.name} yet. Data → Sync now.`; }
+    else if(ERR){ st="bad"; txt=n?`Drive: ${n} waiting`:"Drive: problem"; tip=ERR; }
+    else if(cf){ st="bad"; txt=`Drive: ${cf} conflict${cf>1?"s":""}`; tip="Changes of this browser were kept as copies in conflicts/. Data → Google Drive folder."; }
+    else if(BUSY||n){ st="busy"; txt="Drive: saving…"; tip=`Writing to ${DIRH.name}`; }
+    else { st="ok"; txt=SY.saved?`Drive: saved ${hm(SY.saved)}`:"Drive: linked"; tip=`Saved in the Google Drive folder ${DIRH.name}`; }
+    if(PEND.size) tip+=` · newer data from another computer opens in ${[...PEND].join(", ")} when its dialog is closed`;
+  }
+  if(b.dataset.st!==st) b.dataset.st=st; if(t.textContent!==txt) t.textContent=txt; b.title=tip;
+  $("#ctl-rec").textContent=DIRH?`Drive folder ${DIRH.name}`:"This browser";
+  if($("#dataDlg").open&&!LINKING) drawSync();
+}
+/* the Google Drive section of the data dialog */
+function drawSync(){
+  const el=$("#dsync"); if(!el) return;
+  if(!("showDirectoryPicker" in window)){ el.innerHTML=`<p class="st">This browser cannot write to a folder. Open CALOR in <b>Chrome</b> or <b>Edge</b> to use a Google Drive folder; until then the data is saved in this browser only.</p>`; return; }
+  const n=nDirty();
+  let h="";
+  if(!DIRH) h=`<p class="st">Not linked: the data is saved in this browser only.</p>
+    <ol style="font-size:13px;margin:4px 0;padding-left:20px"><li>Install <b>Google Drive for Desktop</b> and sign in (it shows Drive as a drive, e.g. <code>G:\\My Drive</code>).</li><li>Create a folder for CALOR there, e.g. <code>My Drive\\CALOR-data</code> (or in a Shared drive for the whole team).</li><li>Link it here. On another computer, link the same folder.</li></ol>
+    <div class="btns"><button class="nb pri" id="dLink">Link a Google Drive folder…</button></div>`;
+  else{
+    h=`<p class="st">Linked to the folder <b>${esc(DIRH.name)}</b> as <b>${esc(SY.pc)}</b>. ${!DIR?"No access yet: click Sync now.":ERR?esc(ERR):n?`${n} change${n>1?"s":""} waiting to be written.`:SY.saved?`Last saved ${hm(SY.saved)}.`:"Up to date."}</p>
+      <p>Files: <code>&lt;key&gt;.json</code> per register, <code>calor-manifest.json</code>, <code>backup/</code> (one full backup per day, the latest 30; restore one with “Restore from backup”), <code>conflicts/</code>.</p>`;
+    if(SY.conflicts.length) h+=`<div class="cf"><p><b>Changes kept as copies.</b> These registers were changed on another computer while this browser had unsaved changes. The other computer's version is in CALOR now; the changes made here are in the files below. Enter again what is missing, or restore the file's data if it should win.</p>
+      <ul>${SY.conflicts.map(c=>`<li>${esc(KEYS[c.k]||c.k)} — changed by ${esc(c.by)}; this browser's version: <code>${esc(c.file)}</code> (${esc(hm(c.at))})</li>`).join("")}</ul>
+      <div class="btns"><button class="nb" id="dCfOk">Done, clear this list</button></div></div>`;
+    h+=`<div class="btns"><button class="nb pri" id="dSync">Sync now</button><button class="nb" id="dLink">Link another folder…</button><button class="nb" id="dName">Rename this computer…</button><button class="nb danger" id="dUnlink">Unlink</button></div>`;
+  }
+  el.innerHTML=h;
+}
+/* link a folder: an empty folder gets this browser's data; a folder with data replaces this browser's (or the other way round, asked) */
+async function link(){
+  let h; try{ h=await showDirectoryPicker({id:"calor-data",mode:"readwrite"}); }catch(e){ if(e.name!=="AbortError") $("#dmsg").textContent="The folder could not be opened: "+e.message; return; }
+  if(await perm(h,true)!=="granted"){ $("#dmsg").textContent="CALOR needs permission to read and write the folder."; return; }
+  const name=prompt("Name of this computer (written into the files as who saved them):",SY.pc||"PC-"+Math.random().toString(36).slice(2,6).toUpperCase());
+  if(name==null) return;
+  const remote={}; let latest=null;
+  try{ for(const k of DKEYS){ const r=await readKey(h,k,null); if(r&&r.bad) throw new Error(k+".json is not readable"); if(r&&!r.env.deleted){ remote[k]=r; if(!latest||r.env.saved>latest.env.saved) latest=r; } } }
+  catch(e){ $("#dmsg").textContent="The folder could not be read: "+e.message; return; }
+  const local=DKEYS.filter(k=>localStorage.getItem(k)!=null), rk=Object.keys(remote);
+  const go=async use=>{ LINKING=null; await doLink(h,name.trim()||"PC",use,remote); };
+  if(!rk.length) return go("here");
+  if(!local.length) return go("folder");
+  LINKING={h};
+  $("#dsync").innerHTML=`<div class="choice"><p><b>Both have CALOR data.</b> The folder <b>${esc(h.name)}</b> has ${rk.length} register${rk.length>1?"s":""} (last saved ${esc(hm(latest.env.saved))} by ${esc(latest.env.by||"?")}); this browser has ${local.length}. Which should CALOR use? The other one is saved first as a full backup in <code>backup/</code>.</p>
+    <div class="btns"><button class="nb pri" id="lkFolder">Use the folder's data</button><button class="nb" id="lkHere">Upload this browser's data to the folder</button><button class="nb" id="lkCancel">Cancel</button></div></div>`;
+  $("#lkFolder").onclick=()=>go("folder"); $("#lkHere").onclick=()=>go("here"); $("#lkCancel").onclick=()=>{ LINKING=null; drawSync(); };
+}
+async function doLink(h,name,use,remote){
+  try{
+    SY.pc=name; SY.base={}; SY.dirty={}; SY.conflicts=[]; SY.backup=""; DIR=h; DIRH=h;
+    const bd=await h.getDirectoryHandle("backup",{create:true}), t=fileTime();
+    if(use==="folder"){
+      const data={}; DKEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; });
+      if(Object.keys(data).length) await writeJSON(bd,`before-link_${t}_${safe(name)}.json`,{suite:"CALOR",saved:new Date().toISOString(),by:name,note:"this browser's data before the folder was linked",data});
+      DKEYS.forEach(k=>{ if(remote[k]) applyRemote(k,remote[k]); else rawSet(k,null); });
+    }else{
+      const data={}; Object.keys(remote).forEach(k=>data[k]=fromEnv(remote[k].env));
+      if(Object.keys(data).length) await writeJSON(bd,`before-link_${t}_folder.json`,{suite:"CALOR",saved:new Date().toISOString(),by:name,note:"the folder's data before this browser's data was uploaded",data});
+      DKEYS.forEach(k=>{ if(remote[k]) SY.base[k]={st:remote[k].env.stamp,mod:remote[k].mod}; if(localStorage.getItem(k)!=null||remote[k]) SY.dirty[k]=1; });
+    }
+    await hPut(h); saveSY();
+    if(use==="here") await flush();
+    location.reload();
+  }catch(e){ $("#dmsg").textContent="Linking failed: "+e.message; }
+}
+$("#sync").addEventListener("click",()=>$("#data").click());
+$("#dataDlg").addEventListener("click",async e=>{
+  const id=e.target.closest("button")?.id;
+  if(id==="dLink") link();
+  else if(id==="dSync"){ if(DIRH&&!DIR&&await perm(DIRH,true)==="granted") DIR=DIRH; ERR=""; await poll(true); $("#dmsg").textContent=DIR?"Synchronized with the folder.":"No access to the folder."; }
+  else if(id==="dName"){ const v=prompt("Name of this computer:",SY.pc); if(v&&v.trim()){ SY.pc=v.trim(); saveSY(); drawSync(); } }
+  else if(id==="dCfOk"){ SY.conflicts=[]; saveSY(); status(); drawSync(); }
+  else if(id==="dUnlink"){
+    if(!confirm(`Stop saving to the folder ${DIRH.name}? The data stays in this browser and in the folder; changes made from now on are saved in this browser only.`)) return;
+    if(nDirty()&&DIR) await flush();
+    await hDel(); DIR=null; DIRH=null; SY.base={}; SY.dirty={}; SY.conflicts=[]; ERR=""; saveSY(); status(); drawSync();
+  }
+});
+$("#data").addEventListener("click",()=>drawSync());
+/* at start: a linked folder is read before the pages open; the browser may ask for permission again (needs a click) */
+function gate(h){ return new Promise(res=>{ const d=$("#syncGate"); $("#gateName").textContent=h.name; d.showModal();
+  d.addEventListener("cancel",e=>e.preventDefault());
+  $("#gateOk").onclick=async()=>{ const p=await perm(h,true); d.close(); res(p); };
+  $("#gateSkip").onclick=()=>{ d.close(); res("skip"); }; }); }
+HTQ.store={touch, status:()=>({linked:!!DIRH,access:!!DIR,folder:DIRH&&DIRH.name,pc:SY.pc,dirty:Object.keys(SY.dirty),conflicts:SY.conflicts.slice(),error:ERR,saved:SY.saved}), sync:()=>poll(true), flush};
+async function startStore(){
+  if(!("showDirectoryPicker" in window)) return;
+  const h=await hGet(); if(!h) return;
+  DIRH=h; status();
+  let p=await perm(h,false); if(p!=="granted") p=await gate(h);
+  if(p!=="granted") return;
+  DIR=h;
+  try{ BUSY=true; await pull(); BUSY=false; await flush(); }
+  catch(e){ BUSY=false; ERR=`The folder cannot be reached (${e.message||e.name}). Is Google Drive for Desktop running? CALOR opened with the data in this browser.`; }
+}
+window.__STORE={SY:()=>SY,DKEYS,toEnv,fromEnv,pull,flush,poll,link,doLink,readKey,status:HTQ.store.status};
+startStore().catch(e=>console.error("drive",e)).finally(()=>{
+  STARTED=true; FRAMES.forEach(loadFrame); status();
+  setInterval(()=>poll(false),60000); setInterval(()=>{ if(PEND.size) flushPend(); },5000);
+  addEventListener("focus",()=>poll(false));
 });
 </script>
 </body></html>

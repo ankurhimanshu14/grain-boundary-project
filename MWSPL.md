@@ -84,6 +84,7 @@ These are typical of this kind of line. The Equipment page asks for each one per
 
 - **Look:** the MWS MSA Manager style. The company line sits over the CALOR heading, with a document-control strip (standard, scope, records, date). The navigation bar has dropdown menus that open on hover, a Dashboard (Home), and Data and Theme buttons.
 - **Data:** everything is saved in the browser's local storage on that computer (per browser). In Chrome / Edge, all `file://` pages share one storage, so CALOR and the separate page files see the same data. Use **Data → Download backup** to move or keep data, and **Restore from backup** elsewhere. The Data dialog also resets settings or deletes data per tab, and can clear everything.
+- **Google Drive folder (optional):** Data → Google Drive folder → *Link a Google Drive folder…* makes CALOR keep its data as JSON files (one per register, e.g. `prod-reg.json`) in a Drive folder synced to the PC by **Google Drive for Desktop** (Chrome / Edge). Changes are written about 1.5 s later; other PCs linked to the same folder pick them up within a minute. The browser copy stays as the working copy, so CALOR works when the folder cannot be reached and catches up later. The folder also gets `calor-manifest.json`, `backup/` (one full backup per day, 30 kept) and `conflicts/` (a PC's own changes when two PCs changed the same register at once: the other PC's version wins, nothing is merged). The header chip shows the state (saved / saving / waiting / conflict). View and theme choices stay per PC.
 - **Examples:** every page has "Load example data" under Settings. Example data is marked "(example)".
 - **Generated file:** `CALOR.html` is built. Never edit it; edit the page files or `suite/shell.html`, then run `python suite/build.py`. Every page also works on its own as a standalone file.
 
@@ -182,7 +183,7 @@ The application fills in typical content for this line. It is marked "example" o
 4. **Equipment gaps** (section 1.4): decide the actions (independent over-temperature protection, independent recording, load thermocouples) on the Equipment page.
 5. **Remaining HTSA questions** (section 3.1), the Job Audit, and a master document register with an HTSA / Process-Table coverage matrix.
 6. **M1 record store:** migrate to a new project later (out of scope here).
-7. **Back up** the browser data regularly (Data → Download backup). Records exist only in the browser where they were entered.
+7. **Back up** the data: link a Google Drive folder (daily backups are then written to `backup/` in it), or download a backup regularly (Data → Download backup). Without a linked folder, records exist only in the browser where they were entered.
 
 ---
 

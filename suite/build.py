@@ -6,7 +6,9 @@ Equipment_Qualification.html as pages
 
 
 Each application stays a standalone file and is embedded unchanged as the srcdoc
-of a same-origin frame, so all share the browser's storage and the HTQ bridge.
+of a same-origin frame, so all share the browser's storage and the HTQ bridge. Each page
+gets the CALOR theme and a small hook that reports storage changes to the shell, which
+writes them to the linked Google Drive folder.
 
     python suite/build.py
 """
@@ -40,6 +42,15 @@ FONTS = ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=
          '&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">')
 
 
+# Reports every change of the browser storage to the shell, which writes it to the linked Google Drive folder
+# (HTQ.store in suite/shell.html). Runs before the page's own scripts; a value set again unchanged is not reported.
+HOOK = ('<script>/* CALOR: report storage changes to the shell (Google Drive folder) */(function(){try{'
+        'var W=window.parent;if(!W||W===window||!W.HTQ||!W.HTQ.store)return;var S=W.HTQ.store,P=Storage.prototype,'
+        'set=P.setItem,rem=P.removeItem;P.setItem=function(k,v){var l=this===localStorage,same=l&&this.getItem(k)===String(v);'
+        'set.call(this,k,v);if(l&&!same)S.touch(String(k));};P.removeItem=function(k){var had=this===localStorage&&'
+        'this.getItem(k)!=null;rem.call(this,k);if(had)S.touch(String(k));};}catch(e){}})();</script>')
+
+
 def themed(html: str) -> str:
     """The page with the CALOR theme (the MSA Manager look) added to its <head>.
 
@@ -47,7 +58,7 @@ def themed(html: str) -> str:
     styles is fine; the standalone page files are not changed."""
     assert "<head>" in html, "page has no <head>"
     css = THEME.read_text(encoding="utf-8")
-    return html.replace("<head>", f'<head>{FONTS}<style id="calor-theme">\n{css}</style>', 1)
+    return html.replace("<head>", f'<head>{HOOK}{FONTS}<style id="calor-theme">\n{css}</style>', 1)
 
 
 def embed(path: Path) -> str:
