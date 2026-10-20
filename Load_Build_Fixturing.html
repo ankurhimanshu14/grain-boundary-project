@@ -334,7 +334,7 @@ const LC_ITEMS=[["pattern","Loading pattern as the standard (arrangement, rows �
   ["height","Load height / number of layers within the standard",0],["sep","Separator grids / spacers as the standard",0],["clean","Parts clean: no oil, coolant, chips, rust or paint",1],
   ["fixture","Trays / fixtures used are in service and without visible damage",1],["ident","Batch identification (route card / tag) travels with the trays",1]];
 const ROLES=["Production Manager","HT Manager","Maintenance Head","Quality Manager","Director"];
-const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",inspDays:30,soonDays:7,warpMax:6,lifeCycles:0,lifeMonths:0,trayKgMax:150,covDays:7};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",inspDays:30,soonDays:7,warpMax:6,lifeCycles:0,lifeMonths:0,trayKgMax:200,covDays:7};
 const blank=()=>({v:1,settings:{...DEF},fixtures:[],insps:[],stds:[],checks:[],seq:{fx:1,fi:1,lb:1,lc:1}});
 const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
 function normalize(o){
@@ -1086,17 +1086,17 @@ function regXlsx(){
 function example(){
   const o=blank(),td=today(),d=n=>addDays(td,-n);DB=o;
   o.settings.lifeCycles=4000;o.settings.lifeMonths=36;
-  const fx=(tag,f,kind,mat,inS,extra)=>{const x={id:"FX-"+String(o.seq.fx++).padStart(4,"0"),tag,kind,mat,furnace:f,size:kind===KINDS[2]?"600 × 600 × 250":"600 × 600 × 40",tare:kind===KINDS[2]?"28":"34",maxLoad:kind===KINDS[2]?"90":"120",maker:"Foundry lot "+tag.slice(0,2),inService:inS,cycles0:"",cycAt:"",status:"use",notes:"",log:[{d:inS,t:`Added to the register (${kind}, ${f})`}],...(extra||{})};o.fixtures.push(x);return x;};
+  const fx=(tag,f,kind,mat,inS,extra)=>{const x={id:"FX-"+String(o.seq.fx++).padStart(4,"0"),tag,kind,mat,furnace:f,size:kind===KINDS[2]?"600 × 600 × 250":"600 × 600 × 40",tare:kind===KINDS[2]?"28":"34",maxLoad:kind===KINDS[2]?"90":"200",maker:"Foundry lot "+tag.slice(0,2),inService:inS,cycles0:"",cycAt:"",status:"use",notes:"",log:[{d:inS,t:`Added to the register (${kind}, ${f})`}],...(extra||{})};o.fixtures.push(x);return x;};
   const ins=(x,date,res,def,warp,by,note)=>{const i={id:"FI-"+String(o.seq.fi++).padStart(4,"0"),fx:x.id,date,by:by||"Maintenance fitter",res,def:def||[],warp:warp==null?"":String(warp),note:note||""};o.insps.push(i);x.status=res==="pass"?"use":res==="repair"?"repair":"scrap";x.log.push({d:date,t:`Inspected: ${RESULTS[res][2].toLowerCase()} (${i.id})`});return i;};
-  /* F-04: 12 cast trays (the circuit is shortened for the example), a basket and two separator grids */
-  const T4=[];for(let n=1;n<=12;n++) T4.push(fx("T4-"+pad(n),"F-04",KINDS[0],MATS[0],n<=4?d(1080):d(420),n<=4?{cycles0:n===2?"4010":"2600",cycAt:d(400)}:{}));
+  /* F-02: 12 cast trays (the circuit is shortened for the example), a basket and two separator grids */
+  const T4=[];for(let n=1;n<=12;n++) T4.push(fx("T2-"+pad(n),"F-02",KINDS[0],MATS[0],n<=4?d(1080):d(420),n<=4?{cycles0:n===2?"4010":"2600",cycAt:d(400)}:{}));
   T4.forEach((x,i)=>{ins(x,d(70),"pass",[],1+(i%3));if(i!==5&&i!==8) ins(x,d(i<6?20:26),"pass",[],2+(i%2));});
   ins(T4[8],d(12),"repair",["crack","weld"],4,"Maintenance fitter","Crack at a corner node; send for weld repair");
   ins(T4[10],d(5),"scrap",["warp","crack"],14,"Maintenance fitter","Bowed 14 mm and cracked across two bars");
-  fx("B4-01","F-04",KINDS[2],MATS[1],d(300));ins(o.fixtures.at(-1),d(25),"pass",[],2);
-  fx("S4-01","F-04",KINDS[4],MATS[1],d(200));fx("S4-02","F-04",KINDS[4],MATS[1],d(15));
+  fx("B2-01","F-02",KINDS[2],MATS[1],d(300));ins(o.fixtures.at(-1),d(25),"pass",[],2);
+  fx("S2-01","F-02",KINDS[4],MATS[1],d(200));fx("S2-02","F-02",KINDS[4],MATS[1],d(15));
   /* F-01: four trays, one quarantined */
-  for(let n=1;n<=4;n++){const x=fx("T1-"+pad(n),"F-01",KINDS[1],MATS[2],d(500));ins(x,d(18),"pass",[],2);}
+  for(let n=1;n<=4;n++){const x=fx("T1-"+pad(n),"F-01",KINDS[0],MATS[0],d(500));ins(x,d(18),"pass",[],2);}
   const q=o.fixtures.at(-1);q.status="quar";q.log.push({d:d(2),t:"In use → quarantined: dropped from the fork-lift, check for distortion"});
   /* loading standards */
   const std=(p)=>{const s={id:"LB-"+String(o.seq.lb++).padStart(4,"0"),rev:0,status:"approved",layers:"1",spacing:"",height:"",sep:"",avoid:"",sketch:"",notes:"",prep:"HT Engineer",appr:"HT Manager",apprDate:d(200),change:"",revs:[],log:[],...p};
@@ -1108,14 +1108,14 @@ function example(){
   s2.revs=[{...clone(s2),rev:0,pcs:"20",apprDate:d(500),change:"",revs:undefined,log:undefined}];s2.rev=1;s2.apprDate=d(120);s2.change="New 24-position hanger; quench trial: runout within the drawing limit.";s2.log.push({d:d(120),t:"Revision 1 approved by HT Manager"});
   std({part:"MW-7120",name:"Forged flange",proc:PROCS[1],fkind:KINDS[0],pcs:"30",orient:ORIENT[1],spacing:"15",height:"120",pattern:"2 layers of 15, a separator grid between the layers.",sep:"One S4 separator grid between the layers.",clean:"Shot-blasted forgings; no scale flakes left on the tray.",status:"draft",appr:"",apprDate:"",prep:"HT Engineer"});
   std({part:"MW-2205",name:"Connecting rod",proc:PROCS[2],fkind:KINDS[2],pcs:"50",orient:ORIENT[5],height:"200",pattern:"Bulk in the basket, levelled; load height not above 200 mm.",clean:"Free of forging lubricant residue.",apprDate:d(90)});
-  /* load checks: the example production day of the Daily production page (F-04, yesterday) and earlier days */
-  const chk=(p)=>{const c={id:"LC-"+String(o.seq.lc++).padStart(4,"0"),time:"06:15",furnace:"F-04",rep:"",heat:"",lb:"",lbRev:"",trays:"2",fx:"",cl:Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),cln:{},by:"Loading operator",note:"",act:{},closed:false,log:[],...p};
+  /* load checks: the example production day of the Daily production page (F-02, yesterday) and earlier days */
+  const chk=(p)=>{const c={id:"LC-"+String(o.seq.lc++).padStart(4,"0"),time:"06:15",furnace:"F-02",rep:"",heat:"",lb:"",lbRev:"",trays:"2",fx:"",cl:Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),cln:{},by:"Loading operator",note:"",act:{},closed:false,log:[],...p};
     c.log.push({d:c.date,t:"Load check recorded"});o.checks.push(c);return c;};
-  chk({date:d(1),part:"MW-4512",batch:"F4-2610-01",heat:"H-24519",rep:"PR-0002",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T4-01, T4-02"});
-  chk({date:d(1),time:"10:40",part:"MW-3307",batch:"F4-2610-02",heat:"H-24611",lb:"LB-0002",lbRev:1,pcs:"26",fx:"T4-03",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),pcs:"nok"},cln:{pcs:"26 shafts on a 24-position hanger: two double-hung"},
+  chk({date:d(1),part:"MW-4512",batch:"F2-2610-01",heat:"H-24519",rep:"PR-0002",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T2-01, T2-02"});
+  chk({date:d(1),time:"10:40",part:"MW-3307",batch:"F2-2610-02",heat:"H-24611",lb:"LB-0002",lbRev:1,pcs:"26",fx:"T2-03",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),pcs:"nok"},cln:{pcs:"26 shafts on a 24-position hanger: two double-hung"},
     act:{contain:"The two double-hung shafts taken off before the push; tray reloaded and re-checked."}});
-  chk({date:d(9),part:"MW-4512",batch:"F4-2609-04",heat:"H-24480",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T4-05",furnace:"F-04"});
-  chk({date:d(9),time:"14:20",part:"MW-7120",batch:"F4-2609-05",heat:"H-24402",pcs:"30",fx:"T4-09",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),clean:"nok"},cln:{clean:"Scale flakes on the tray"},
+  chk({date:d(9),part:"MW-4512",batch:"F2-2609-04",heat:"H-24480",lb:"LB-0001",lbRev:0,pcs:"40",fx:"T2-05",furnace:"F-02"});
+  chk({date:d(9),time:"14:20",part:"MW-7120",batch:"F2-2609-05",heat:"H-24402",pcs:"30",fx:"T2-09",cl:{...Object.fromEntries(LC_ITEMS.map(([k])=>[k,"ok"])),clean:"nok"},cln:{clean:"Scale flakes on the tray"},
     act:{contain:"Trays blown clean before loading.",cause:"Shot-blast hopper not emptied at shift change.",action:"Hopper emptied each shift; added to the shift checklist.",owner:"Production Manager",date:d(8)},closed:true});
   return o;
 }

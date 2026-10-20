@@ -874,7 +874,7 @@ function example(){
   const sc=mk({name:"Scrap after heat treatment, F-04 (example)",kind:"product",src:"manual",unit:"kg / week",usl:"60",owner:"Production Manager",react:"Above 60 kg in a week: Pareto of the scrap causes at the weekly meeting."},ser(30,7,(i)=>Math.max(0,28+9*nrm()+(i===22?42:0))));
   /* process: zone temperature deviation and quench oil temperature */
   const z=mk({name:"F-04 hardening zone 2: mean deviation TC-03 (example)",kind:"process",src:"manual",unit:"°C",lsl:"-10",usl:"10",owner:"Maintenance Head",freq:"14",react:"A shift of the mean: compare the two wall thermocouples and plan a SAT."},ser(45,4,(i,n)=>0.4+0.9*nrm()+(i>n-10?1.6:0)));
-  const q=mk({name:"F-04 quench oil temperature (example)",kind:"process",src:"manual",unit:"°C",lsl:"50",usl:"80",owner:"Maintenance Head",react:"Above 75 °C: check the cooler and the cooling water."},ser(60,3,()=>66+2.2*nrm()));
+  const q=mk({name:"F-02 quench oil temperature (example)",kind:"process",src:"manual",unit:"°C",lsl:"50",usl:"80",owner:"Maintenance Head",react:"Above 75 °C: check the cooler and the cooling water."},ser(60,3,()=>66+2.2*nrm()));
   /* the other pages' records, when they hold data (CALOR with their examples loaded): added to the plan today */
   const now={created:td,log:[{d:td,t:"Added to the analysis plan"}]};
   const T=tests();if(T.length){const part=Object.entries(T.reduce((a,t)=>{if(t.part)a[t.part]=(a[t.part]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1])[0];if(part) mk({...now,name:`Surface hardness ${part[0]} (Hardness page)`,src:"hard",part:part[0],owner:"Quality Manager"});}

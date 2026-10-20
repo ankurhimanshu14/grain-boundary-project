@@ -856,11 +856,11 @@ function example(){
   const add=(d,p)=>{const t={id:"MT-"+String(o.seq++).padStart(4,"0"),date:addDays(td,-d),time:"10:"+pad(10+(o.seq*7)%40),qty:"",heat:"",heatCode:"",by:"Lab",eq:"EQ-01",meq:"EQ-03",core:["",""],decarb:"",micro:"",microNote:"",grain:"",other:"",notes:"",check:{},act:{},closed:false,log:[{d:addDays(td,-d),t:"Test recorded"}],...p};o.tests.push(t);return t;};
   const hrc=(a,b)=>[{label:"Sample 1 (first tray)",r:a.map(String)},{label:"Sample 2 (last tray)",r:b.map(String)}];
   [[12,"B-2401",[29.5,30.1,30.4],[30.0,29.8,30.6]],[10,"B-2402",[30.8,31.0,30.5],[31.2,30.9,31.1]],[8,"B-2403",[29.2,29.0,29.6],[29.9,30.2,29.4]],[3,"B-2405",[30.2,30.6,29.9],[30.4,30.1,30.7]]].forEach(([d,b,x,y])=>
-    add(d,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:b,heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc(x,y),decarb:"0.06",micro:"ok"}));
+    add(d,{furnace:"F-02",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:b,heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc(x,y),decarb:"0.06",micro:"ok"}));
   /* a soft batch: nonconforming, re-heat-treated and re-tested */
-  const nc=add(6,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([26.8,27.4,27.1],[27.9,28.2,27.6]),decarb:"0.07",micro:"nok",microNote:"Upper bainite and ferrite near the core",
+  const nc=add(6,{furnace:"F-02",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([26.8,27.4,27.1],[27.9,28.2,27.6]),decarb:"0.07",micro:"nok",microNote:"Upper bainite and ferrite near the core",
     act:{contain:CONTAIN[0],cause:"Quench oil temperature high (agitator pump tripped).",action:ACTIONS[0],disp:"rework",detail:"Batch re-hardened and tempered; pump repaired.",impact:"Batches B-2403 and B-2405 tested within limits; no other batch affected.",by:"HT Manager",date:addDays(td,-5)}});
-  add(4,{furnace:"F-01",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([30.1,30.5,29.8],[30.3,30.0,30.6]),decarb:"0.07",micro:"ok",notes:"Re-test after re-heat-treatment"});
+  add(4,{furnace:"F-02",part:"EX-1001",specRef:"PS-0001 rev 1",proc:"HT",batch:"B-2404",heat:"H7781",heatCode:"7B",req:{...reqA},samples:hrc([30.1,30.5,29.8],[30.3,30.0,30.6]),decarb:"0.07",micro:"ok",notes:"Re-test after re-heat-treatment"});
   nc.closed=true;nc.log.push({d:addDays(td,-4),t:"Reaction plan closed: "+DISP.rework});
   add(2,{furnace:"F-03",part:"EX-2001",specRef:"PS-0002 rev 0",proc:"IA",batch:"C-118",eq:"EQ-02",req:{...reqB},samples:[{label:"Sample 1",r:["171","176","168"]}],decarb:"0.18",micro:"ok",grain:"ASTM 7"});
   return o;

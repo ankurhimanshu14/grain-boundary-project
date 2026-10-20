@@ -313,11 +313,12 @@ const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
 
 /* ---------- data model ---------- */
 const KEY="trp-reg", VKEY="trp-view"; /* own storage keys */
-const AREAS={load:"Loading table / tray loading",entry:"Pusher entry, door and rails",hard:"Hardening chamber",xfer:"Extractor / transfer at the hardening exit",quench:"Quench elevator, conveyor and tank",cc:"Controlled cooling chamber",mid:"Transfer between the chambers",temp:"Tempering chamber",exit:"Exit door, unloading table, cooling conveyor",trays:"Trays, baskets and separator grids",post:"Washer / shot blast / chutes",pack:"Inspection and packing bins",other:"Other"};
+const AREAS={load:"Loading table / tray loading",entry:"Pusher entry, door and rails",hard:"Hardening chamber",xfer:"Extractor / transfer at the hardening exit",quench:"Quench elevator, conveyor and tank",cc:"Controlled cooling chamber",mid:"Transfer between the chambers",temp:"Tempering chamber",exit:"Exit door, unloading table, cooling conveyor",trays:"Trays, baskets and separator grids",post:"Shot blasting after heat treatment, washer, chutes",pack:"Inspection and packing bins",other:"Other"};
 const PROC={HT:"Hardening & tempering",IA:"Isothermal annealing",NORM:"Normalizing"};
 const PNAME={"Hardening & tempering":"HT","Isothermal annealing":"IA","Normalizing":"NORM"};
 /* the areas every process route must have trap points for */
-const REQ={HT:["load","hard","quench","temp","exit","trays"],IA:["load","hard","cc","temp","exit","trays"],NORM:["load","hard","mid","temp","exit","trays"]};
+/* every process route is shot blasted after heat treatment on this line ("post") */
+const REQ={HT:["load","hard","quench","temp","exit","trays","post"],IA:["load","hard","cc","temp","exit","trays","post"],NORM:["load","hard","mid","temp","exit","trays","post"]};
 const RES={clear:["good","✓","Clear: no parts"],found:["crit","✕","Parts found"],noacc:["warn","!","Not accessible: monitored otherwise"],na:["info","–","Not applicable"]};
 const ROLES=["Production Manager","HT Manager","Maintenance Head","Quality Manager","Director"];
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",covDays:7,sepMin:1,reviewDays:365,matchDays:1};
@@ -333,7 +334,7 @@ const DEF_TP=[
   ["temp","","Parts falling off the tray onto the hearth inside the tempering chamber (cannot be looked into while running)","Empty separator tray between the lots; pieces reconciled; hearth inspected at every shutdown","Every lot changeover (separator + reconciliation); hearth at every shutdown","Count missing: hold both lots; parts recovered later are scrapped or re-tempered after review"],
   ["exit","","Parts left on the unloading table or fallen under the cooling conveyor at the exit door","Visual check of the table, conveyor and floor; cleared before the next lot is unloaded","Every lot changeover","Parts found: identify the lot; quarantine when not certain"],
   ["trays","","Parts stuck in the tray grid, basket mesh or between the separator grids","Every tray and grid emptied and turned at unloading; baskets shaken out","Every lot changeover (all trays of the outgoing lot)","Parts found: return to their lot only when certainly identified, else quarantine"],
-  ["post","","Parts trapped in the washer drum, shot-blast cabinet, chutes or bins (if used for the lot)","Run the machine empty / open and inspect drum, chute and outlet","Every lot changeover","Parts found: identify; quarantine when not certain"],
+  ["post","","Parts trapped in the shot-blast machine (drum / belt, cabinet, elevator, separator, outlet chute) — every lot is shot blasted after heat treatment","Run the machine empty, open and inspect drum / belt, cabinet, chute and outlet; check the separator and dust collector for whole parts","Every lot changeover","Parts found: identify; quarantine when not certain"],
   ["pack","","Parts left in the inspection table, sorting bins or packing chutes","Clear the bins and the table before the next lot","Every lot changeover","Parts found: identify the lot; quarantine when not certain"]];
 const blank=()=>({v:1,settings:{...DEF},tps:[],checks:[],reg:{rev:0,apprDate:"",appr:"",procRef:"",dirty:false,log:[]},seq:{tp:1,co:1}});
 const seqOf=L=>Math.max(1,...L.map(x=>+(String(x.id).match(/\d+/)||[0])[0]+1));
@@ -850,8 +851,8 @@ function example(){
       const k=mk({furnace:c.furnace,rep:c.rep,sep:String(c.sep),date:dt.slice(0,10),time:dt.slice(11,16),from:{part:c.from.part,batch:c.from.batch,heat:c.from.heat,rework:c.from.rework||""},to:{part:c.to.part,batch:c.to.batch,heat:c.to.heat,rework:c.to.rework||""}});clearAll(k);
       if(i===1){const q=o.tps.find(t=>t.area==="quench");if(k.res[q.id]){k.res[q.id]="found";k.qty[q.id]="2";k.note[q.id]="2 parts on the drag-out conveyor";k.act={found:"2 parts identified by the marking as the outgoing lot; quarantined (not tempered)."};}}});
   }else{
-    clearAll(mk({furnace:"F-04",date:d(1),time:"10:40",from:{part:"MW-4512",batch:"F4-2610-01",heat:"H-24519"},to:{part:"MW-3307",batch:"F4-2610-03",heat:"H-24577"}}));
-    const k=clearAll(mk({furnace:"F-04",date:d(1),time:"14:10",from:{part:"MW-3307",batch:"F4-2610-03",heat:"H-24577"},to:{part:"MW-7120",batch:"F4-2610-04",heat:"H-24601"}}));
+    clearAll(mk({furnace:"F-02",date:d(1),time:"10:40",from:{part:"MW-4512",batch:"F2-2610-01",heat:"H-24519"},to:{part:"MW-3307",batch:"F2-2610-03",heat:"H-24577"}}));
+    const k=clearAll(mk({furnace:"F-02",date:d(1),time:"14:10",from:{part:"MW-3307",batch:"F2-2610-03",heat:"H-24577"},to:{part:"MW-7120",batch:"F2-2610-04",heat:"H-24601"}}));
     const q=o.tps.find(t=>t.area==="quench");k.res[q.id]="found";k.qty[q.id]="2";k.note[q.id]="2 parts on the drag-out conveyor";k.act={found:"2 parts identified by the marking as the outgoing lot; quarantined (not tempered)."};
   }
   return o;

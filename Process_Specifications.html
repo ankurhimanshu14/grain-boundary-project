@@ -289,7 +289,7 @@ table.steps tr.miss td{color:var(--crit-ink)}
     <ul>
       <li>CQI-9 4th Edition: hardening &amp; tempering (with the quench) is covered by Process Table A; normalizing and isothermal annealing by Process Table E. Confirm the table letters and every numeric requirement against the controlled copy of CQI-9 and the customer-specific requirements.</li>
       <li>A specification holds the part, steel grade, process, the furnaces it is approved for, the load, the set value and tolerance of every zone, the push time, the quench or controlled-cooling parameters, the quality requirements with sampling, and the approval.</li>
-      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = (13 + 11) × push time: measured, a tray leaves the hardening chamber 13 pushes after it entered and the tempering chamber 11 pushes later (setting), at a push, so the time between the chambers shortens the last tempering zone instead of adding to the total. Hardening chamber 13 positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). Between the chambers: hardening &amp; tempering = quench delay + dip time + transfer; isothermal annealing = the controlled cooling cycle: at each push the extractor takes the 13th tray out of the hardening chamber (and the 26th out of the tempering chamber); the tray goes on the rail into the controlled cooling chamber, air is blown for the cooling time, then it is pushed into the tempering chamber. Cooling time + transfers (setting) must end before the next push, because the controlled cooling chamber holds one tray; normalizing = transfer.</li>
+      <li>Time per zone = tray positions of the zone × push time. Time through the line per tray = 13 × push time + the time between the chambers + 12 × push time (measured with a 9 min push: in 04:06, out of the hardening chamber 06:03, transfer 18 min, into the tempering chamber 06:21, out 08:09). Hardening chamber 13 positions (5 + 4 + 4), tempering chamber 12 (4 + 4 + 4). Between the chambers: hardening &amp; tempering = quench delay + dip time + transfer; isothermal annealing = the controlled cooling cycle: at each push the extractor takes the 13th tray out of the hardening chamber (and the 26th out of the tempering chamber); the tray goes on the rail into the controlled cooling chamber, air is blown for the cooling time, then it is pushed into the tempering chamber. Cooling time + transfers (setting) must end before the next push, because the controlled cooling chamber holds one tray; normalizing = transfer.</li>
       <li>The line checks (hardening chamber above 800 °C for hardening and isothermal annealing, 700–750 °C preheat for normalizing, tempering below the austenitizing set value) follow this line's practice; they are warnings, not CQI-9 requirements.</li>
       <li>The furnaces are direct-fired without a protective atmosphere, so scale and surface decarburization are expected: specify the decarburization limit and check it.</li>
       <li><b>HTSA 1.6:</b> only an authorized person approves a specification (inside CALOR the heat treat person of HTSA 1.1 and the positions marked on the HT organization page, otherwise the names in Settings). Every step is listed with its parameters and an operating tolerance (± value, a maximum, or a range); the approval is refused while one is missing. Each specification states where it is available at the line (work instruction, job card, recipe) and prints as a job card. A new revision needs a change review (customer requirements, customer notification, control plan and PFMEA, validation) before approval, and the date it was implemented on the line is recorded after approval. Inside CALOR every part produced on the Daily production page in the last days must have a specification in force for its furnace.</li>
@@ -330,8 +330,10 @@ const ROLE={
 const MEDIA={oil:"Quench oil",polymer:"Polymer quenchant",water:"Water / brine"};
 const SCALES=["HRC","HRB","HB","HV"];
 const STATUS={draft:["warn","!","Draft"],approved:["good","✓","Approved"],obsolete:["info","–","Obsolete"]};
-const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,tol:10,pushTol:0.5,qDelay:30,dip:8,transfer:5,reviewDays:365,reviewSoon:30,
-  dipTol:1,ccTol:1,fanTol:5,auth:"",activeDays:90,implDays:7};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,tol:10,pushTol:0.5,qDelay:30,dip:8.5,transfer:5,reviewDays:365,reviewSoon:30,
+  dipTol:0.5,ccTol:1,fanTol:5,auth:"",activeDays:90,implDays:7,
+  /* the processes each furnace runs (the user's plant): F-01 water quench, F-02 oil quench; F-03 and F-04 have no quench tank */
+  runs:"F-01: IA, HT\nF-02: IA, NORM, HT\nF-03: IA, NORM\nF-04: IA, NORM"};
 const FORMS={wi:"Work instruction",job:"Job card",recipe:"Computer-based recipe (SCADA / PLC)",other:"Other similar document"};
 const NOTIFY={none:"Not required: customer requirements not affected",notified:"Customer notified",approved:"Customer approval obtained (e.g. PPAP)"};
 const blank=()=>({v:1,lay2:true,settings:{...DEF},specs:[],seq:1});
@@ -347,6 +349,12 @@ function normalize(o){
 let DB=null; try{DB=normalize(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 if(!DB) DB=blank();
 const S=()=>DB.settings;
+/* processes per furnace from Settings ("F-01: IA, HT" per line); null = the furnace is not listed (not judged) */
+function runsOf(f){
+  for(const line of String(S().runs||"").split(/[\n;]+/)){const m=line.match(/^\s*([^:]+):(.*)$/);
+    if(m&&m[1].trim().toUpperCase()===String(f).trim().toUpperCase()) return m[2].split(/[,\s]+/).map(x=>x.trim().toUpperCase()).filter(x=>PROC[x]);}
+  return null;
+}
 /* "N/A" (also "NA", "not available") means the value is not available: it is accepted as an entry but never used to match records */
 const isNA=v=>/^(n\s*\/?\s*a|not\s+available)$/i.test(String(v??"").trim());
 
@@ -459,6 +467,9 @@ function missing(s){
 }
 function advice(s){
   const a=[],h=s.h.map(num),t=s.t.map(num),aus=Math.max(...h.slice(1).filter(v=>v!=null),-Infinity);
+  /* a furnace approved for a process it does not run (Settings: processes per furnace) */
+  const notRun=s.furnaces.filter(f=>{const r=runsOf(f);return r&&!r.includes(s.proc);});
+  if(notRun.length) a.push(["crit",`${notRun.join(", ")} ${notRun.length>1?"do":"does"} not run ${(PROC[s.proc]||s.proc).toLowerCase()}${s.proc==="HT"?" (no quench tank)":""}: remove ${notRun.length>1?"them":"it"} from the approved furnaces, or correct Settings → processes per furnace.`]);
   if(s.proc==="HT"||s.proc==="IA"){
     if(h.slice(1).some(v=>v!=null&&v<=800)) a.push(["warn","Hardening chamber zones 2–3 at or below 800 °C: the line treats these as austenitizing above 800 °C (the SCADA review counts trays only above 800 °C)."]);
     if(t.some(v=>v!=null&&isFinite(aus)&&v>=aus)) a.push(["warn",`${ROLE[s.proc].t} set value is not below the austenitizing set value.`]);
@@ -617,6 +628,7 @@ function drawSettings(){
     +f("qDelay","Default quench delay (s)","number")+f("dip","Default dip time (min)","number")+f("transfer","Default transfer to tempering (min)","number")
     +f("reviewDays","Periodic review every (days)","number")+f("reviewSoon","Show review due this many days before","number")
     +f("dipTol","Default dip time tolerance ± (min)","number")+f("ccTol","Default controlled cooling time tolerance ± (min)","number")+f("fanTol","Default fan cooling time tolerance ± (min)","number")
+    +`<div class="field wide"><label for="s-runs">Processes per furnace (one line per furnace, e.g. "F-01: IA, HT"; HT = hardening &amp; tempering, IA = isothermal annealing, NORM = normalizing). A specification cannot be approved for a furnace that does not run its process.</label><textarea id="s-runs" data-set="runs" rows="4">${esc(s.runs||"")}</textarea></div>`
     +f("activeDays","HTSA 1.6: active processes = parts produced in the last (days)","number")+f("implDays","HTSA 1.6: record the implementation within (days of the approval)","number")
     +`<div class="field wide"><label for="s-auth">Authorized to approve process specifications (names, one per line or comma-separated) ${HTQ?"— used only while the HT organization page has no authorized position":""}</label><textarea id="s-auth" data-set="auth" rows="2">${esc(s.auth||"")}</textarea></div>`;
 }
@@ -688,7 +700,7 @@ function drawDlg(){
     <section class="stage" style="--k:var(--p)"><h3>Part and process</h3><div class="fgrid">
       ${fld("part","Part no.",{req:true})}${fld("name","Part name",{req:true})}${fld("customer","Customer")}${fld("drawing","Drawing / customer specification")}
       ${fld("grade","Steel grade",{req:true})}${fld("proc","Process",{opts:Object.entries(PROC),req:true,blank:false})}
-      <div class="field req span"><span style="font-size:12px;color:var(--ink2)">Approved furnaces</span><div class="checks">${fs.map(f=>`<label><input type="checkbox" data-fur="${esc(f)}" ${ED.furnaces.includes(f)?"checked":""} ${dis}>${esc(f)}</label>`).join("")}</div></div>
+      <div class="field req span"><span style="font-size:12px;color:var(--ink2)">Approved furnaces</span><div class="checks">${fs.map(f=>`<label title="${runsOf(f)?"Runs "+runsOf(f).join(", "):""}"><input type="checkbox" data-fur="${esc(f)}" ${ED.furnaces.includes(f)?"checked":""} ${dis}>${esc(f)}${runsOf(f)&&!runsOf(f).includes(ED.proc)?' <small class="muted">(does not run this process)</small>':""}</label>`).join("")}</div></div>
     </div></section>
     <section class="stage" style="--k:var(--d)"><h3>Load</h3><div class="fgrid">
       ${fld("pcs","Pieces per tray",{type:"number",req:true})}${fld("wt","Part weight (kg)",{type:"number",req:true})}${fld("fixture","Loading pattern / fixture",{span:true})}</div></section>
@@ -988,8 +1000,8 @@ function example(){
   const mk=(p)=>{const s=fill(p);s.id=newId();s.log=[{d:s.apprDate||td,t:"Specification created (draft)"}];if(s.status==="approved")s.log.push({d:s.apprDate,t:`Revision ${s.rev} approved by ${s.appr}`});o.specs.push(s);return s;};
   o.settings.auth="R. Sharma (example), A. Verma (example), S. Gupta (example)";
   const who={prep:"A. Verma (example)",revBy:"S. Gupta (example)",appr:"R. Sharma (example)"};
-  const a=mk({part:"EX-1001",name:"Example shaft",customer:"Example customer",grade:"42CrMo4",proc:"HT",furnaces:["F-01","F-02"],pcs:"60",wt:"1.8",
-    h:["840","870","870"],t:["560","580","580"],push:"12",q:{medium:"oil",tLo:"50",tHi:"80",delay:"30",dip:"8",dipTol:"1",transfer:"5",agit:"Required"},form:"recipe",formRef:"SCADA recipe R-1001",implDate:addDays(td,-398),implBy:"Shift supervisor",
+  const a=mk({part:"EX-1001",name:"Example shaft",customer:"Example customer",grade:"42CrMo4",proc:"HT",furnaces:["F-02"],pcs:"60",wt:"1.8",
+    h:["840","870","870"],t:["560","580","580"],push:"12",q:{medium:"oil",tLo:"50",tHi:"80",delay:"30",dip:"8.5",dipTol:"0.5",transfer:"5",agit:"Required"},form:"recipe",formRef:"SCADA recipe R-1001",implDate:addDays(td,-398),implBy:"Shift supervisor",
     chg:{cust:"Drawing and customer specification: hardness 28–32 HRC unchanged; no customer requirement on the push time.",notify:"none",notifyRef:"",cp:true,valid:"Trial batch T-0412: 29.5–31 HRC, microstructure tempered martensite."},
     req:{hMin:"28",hMax:"32",scale:"HRC",core:"",micro:"Tempered martensite",decarb:"≤ 0.10 mm total",grain:"",other:"",sample:"2 pcs per batch (first and last tray)",method:"WI hardness testing"},
     ...who,status:"approved",apprDate:addDays(td,-400)});

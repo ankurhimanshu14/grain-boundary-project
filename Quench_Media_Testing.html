@@ -326,8 +326,10 @@ const CONTAIN=["Product of the window held and segregated for evaluation","Furna
 const ACTIONS=["Top up with fresh quenchant","Remove water (heat out, settle and drain, or centrifuge)","Filter the quenchant / remove sludge","Adjust concentration (add polymer or water)","Replace the quenchant charge","Repair temperature control (heating / cooling)","Repair agitation / circulation","Remove contamination (skim oil, scale, foreign matter)","Other (see details)"];
 const RES={pass:["good","✓","Pass"],warn:["warn","!","Close to limit"],fail:["crit","✕","Out of limits"],info:["info","i","Recorded"]};
 
-const defTanks=fs=>fs.map((f,i)=>({id:"Q-"+pad(i+1),furnace:f,name:"Quench tank "+f,media:"oil",product:"",capacity:"",charged:"",active:true}));
-const blank=()=>({v:1,settings:{...DEF},plan:DEF_PLAN.map(p=>({...p,on:true})),tanks:defTanks(["F-01","F-02","F-03","F-04"]),tests:[],seq:1});
+/* the plant's quench tanks: F-01 water, F-02 oil; F-03 and F-04 have no quench (isothermal annealing and normalizing only) */
+const DEF_TANKS=[["F-01","water"],["F-02","oil"]];
+const defTanks=()=>DEF_TANKS.map(([f,m],i)=>({id:"Q-"+pad(i+1),furnace:f,name:"Quench tank "+f,media:m,product:"",capacity:"",charged:"",active:true}));
+const blank=()=>({v:1,settings:{...DEF},plan:DEF_PLAN.map(p=>({...p,on:true})),tanks:defTanks(),tests:[],seq:1});
 function normalize(o){
   if(!o||typeof o!=="object"||!Array.isArray(o.tests)) return null;
   o.settings={...DEF,...(o.settings||{})};
@@ -817,14 +819,15 @@ function exportCsv(){
 /* ---------- example data (dates relative to today) ---------- */
 function example(){
   const o=blank(),td=today();let seq=1;
-  o.tanks.forEach((t,i)=>{t.product="Normal-speed quench oil (example)";t.capacity=[12000,12000,15000,15000][i];t.charged=addDays(td,-[400,380,520,300][i]);});
+  o.tanks[0].product="Fresh water (example)";o.tanks[0].capacity=10000;o.tanks[0].charged=addDays(td,-60);
+  o.tanks[1].product="Normal-speed quench oil (example)";o.tanks[1].capacity=12000;o.tanks[1].charged=addDays(td,-380);
   const add=(tank,d,vals,extra={})=>{const t={id:"QT-"+String(seq++).padStart(4,"0"),tank,date:addDays(td,-d),time:extra.time||"08:"+pad(10+(seq*7)%40),by:extra.by||["R. Kumar","S. Yadav","A. Meena"][seq%3],report:extra.report||"",notes:extra.notes||"",vals,check:extra.check||{},act:extra.act||{},closed:!!extra.closed,log:[{d:addDays(td,-d),t:"Test recorded"}]};o.tests.push(t);return t;};
-  /* daily shift checks for 10 days, weekly water content, two laboratory analyses */
-  o.tanks.forEach((tk,i)=>{
-    for(let d=10;d>=0;d--){if(i===3&&d<2) continue;const v={temp:String(Math.round(62+i*2+Math.sin(d+i)*4)),level:"ok",agit:"ok"};
-      if(d%7===(i%7)) v.water=i===1&&d===8?"0.14":(0.02+i*0.01+(d%3)*0.01).toFixed(2);
-      add(tk.id,d,v);}
-  });
+  /* F-01 water tank: daily shift checks for 10 days (the last two days missed), weekly cleanliness check */
+  for(let d=10;d>=2;d--){const v={temp:String(Math.round(29+Math.sin(d)*3)),agit:"ok"};if(d%7===3) v.contam="ok";add("Q-01",d,v);}
+  /* F-02 oil tank: daily shift checks for 10 days, weekly water content */
+  for(let d=10;d>=0;d--){const v={temp:String(Math.round(64+Math.sin(d+1)*4)),level:"ok",agit:"ok"};
+    if(d%7===1) v.water=d===8?"0.14":(0.03+(d%3)*0.01).toFixed(2);
+    add("Q-02",d,v);}
   /* F-02: water out of limits 12 days ago, reaction closed after a passing re-test */
   const w=add("Q-02",12,{temp:"64",level:"ok",agit:"ok",water:"0.16"},{notes:"Crackle test positive; Karl Fischer confirmed.",check:{by:"HT Manager",date:addDays(td,-12)},act:{contain:CONTAIN[0],cause:"Leaking cooling coil in the oil cooler",action:ACTIONS[1],detail:"Coil repaired, oil heated out to 110 °C for 6 h.",impact:"Hardness of retained samples from the window checked: all within specification. Product released.",by:"Maintenance Head",date:addDays(td,-11)}});
   add("Q-02",10,{temp:"63",level:"ok",agit:"ok",water:"0.04"},{notes:"Re-test after heat-out"});
@@ -832,11 +835,9 @@ function example(){
   /* F-02, 8 days ago (loop above): water 0.14 %, re-tested 1 day ago, reaction not yet completed */
   /* laboratory analyses */
   const lab=(tank,d,vals,rep)=>add(tank,d,{...vals},{report:rep,by:"Supplier laboratory",time:"11:00"});
-  lab("Q-01",95,{visc:"21.8",flash:"212",tan:"0.32",sludge:"0.05",cmax:"88",tmax:"610",c300:"7.2",water:"0.03"},"LAB-2291");
-  lab("Q-01",5,{visc:"22.6",flash:"208",tan:"0.41",sludge:"0.10",cmax:"85",tmax:"600",c300:"7.9",water:"0.04"},"LAB-2418");
-  lab("Q-02",30,{visc:"23.1",flash:"205",tan:"0.48",sludge:"0.12",cmax:"84",tmax:"595",c300:"8.4"},"LAB-2377");
-  lab("Q-03",20,{visc:"25.4",flash:"172",tan:"0.92",sludge:"0.46",cmax:"76",tmax:"575",c300:"11.8"},"LAB-2390");
-  lab("Q-04",130,{visc:"20.9",flash:"215",tan:"0.25",sludge:"0.04",cmax:"90",tmax:"615",c300:"6.8"},"LAB-2188");
+  lab("Q-02",190,{visc:"21.8",flash:"212",tan:"0.32",sludge:"0.05",cmax:"88",tmax:"610",c300:"7.2",water:"0.03"},"LAB-2188");
+  lab("Q-02",95,{visc:"22.6",flash:"208",tan:"0.41",sludge:"0.10",water:"0.04"},"LAB-2291");
+  lab("Q-02",5,{visc:"23.1",flash:"205",tan:"0.48",sludge:"0.12",cmax:"84",tmax:"595",c300:"8.4"},"LAB-2418");
   o.seq=seq;return o;
 }
 

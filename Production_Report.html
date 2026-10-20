@@ -1083,7 +1083,7 @@ function prodPdf(){
   return "";
 }
 
-/* ---------- example data (previous day, F-04) ---------- */
+/* ---------- example data (previous day, F-02) ---------- */
 function example(){
   const o=blank(),d=addDays(todayISO(),-1),dt=hm=>d+"T"+hm;
   o.specs=[
@@ -1091,21 +1091,21 @@ function example(){
     {part:"MW-3307",name:"Shaft Ø32 × 410",grade:"42CrMo4",proc:P_HT,h:["840","860","860"],t:["580","580","580"],push:"15",cc:"",fan:"",perTray:"24",wt:"2.6"},
     {part:"MW-7120",name:"Forged flange",grade:"16MnCr5",proc:P_IA,h:["900","940","940"],t:["650","650","650"],push:"18",cc:"12",fan:"",perTray:"30",wt:"1.2"},
     {part:"MW-2205",name:"Connecting rod",grade:"C45",proc:P_NO,h:["720","740","740"],t:["870","890","890"],push:"18",cc:"",fan:"20",perTray:"50",wt:"0.95"}];
-  const R={id:"PR-0001",date:d,furnace:"F-04",tl:{start:dt("06:10"),push:"12",trays:[],seq:1},params:[],holds:[],bx:{},status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
+  const R={id:"PR-0001",date:d,furnace:"F-02",tl:{start:dt("06:10"),push:"12",trays:[],seq:1},params:[],holds:[],bx:{},status:"draft",created:todayISO(),log:[{d:todayISO(),t:"Report created (example)"}]};
   const T=(items,extra)=>{const t={id:"T"+String(R.tl.seq++).padStart(4,"0"),items,at:"",note:"",...(extra||{})};R.tl.trays.push(t);return t;};
   const it=(part,batch,heat,heatCode,qty,rw)=>({part,batch,heat,heatCode,qty,rw:rw||null});
-  for(let i=0;i<10;i++) T([it("MW-4512","F4-2610-01","H-24519","K7",40)]);
-  for(let i=0;i<8;i++) T([it("MW-4512","F4-2610-02","H-24519","K7",40)]);
-  T([it("MW-4512","F4-2610-02","H-24519","K7",30),it("MW-3307","F4-2610-03","H-24577","M2",6)],{note:"End of batch 02 topped up with MW-3307"});
-  for(let i=0;i<8;i++) T([it("MW-3307","F4-2610-03","H-24577","M2",24)]);
-  T([it("MW-3307","F4-2610-03","H-24577","M2",18)]);
+  for(let i=0;i<10;i++) T([it("MW-4512","F2-2610-01","H-24519","K7",40)]);
+  for(let i=0;i<8;i++) T([it("MW-4512","F2-2610-02","H-24519","K7",40)]);
+  T([it("MW-4512","F2-2610-02","H-24519","K7",30),it("MW-3307","F2-2610-03","H-24577","M2",6)],{note:"End of batch 02 topped up with MW-3307"});
+  for(let i=0;i<8;i++) T([it("MW-3307","F2-2610-03","H-24577","M2",24)]);
+  T([it("MW-3307","F2-2610-03","H-24577","M2",18)]);
   /* rework of trays from an earlier nonconforming batch */
   const rw={ref:"MT-0005",reason:"Low hardness after tempering, re-harden and temper"};
-  for(let i=0;i<3;i++) T([it("MW-3307","F4-2609-11","H-24577","M2",24,rw)]);
+  for(let i=0;i<3;i++) T([it("MW-3307","F2-2609-11","H-24577","M2",24,rw)]);
   T([],{note:"Empty: change to isothermal annealing"});T([]);
-  for(let i=0;i<9;i++) T([it("MW-7120","F4-2610-04","H-24601","T9",30)]);
+  for(let i=0;i<9;i++) T([it("MW-7120","F2-2610-04","H-24601","T9",30)]);
   T([]);T([],{note:"Empty: change to normalizing"});
-  for(let i=0;i<9;i++) T([it("MW-2205","F4-2610-05","N/A","N4",50)]);T([it("MW-2205","F4-2610-05","N/A","N4",30)]);
+  for(let i=0;i<9;i++) T([it("MW-2205","F2-2610-05","N/A","N4",50)]);T([it("MW-2205","F2-2610-05","N/A","N4",30)]);
   T([],{note:"Empty trays to push the last batch through"});T([]);T([]);
   /* timing: push changes and the stop */
   R.params.push({id:"P1",at:dt("09:46"),kind:"push",zone:"",from:"12",to:"15",reason:"MW-3307 (42CrMo4) needs 15 min",by:"Shift supervisor"});
@@ -1116,10 +1116,10 @@ function example(){
   R.holds.push({id:"H1",from:dt("10:20"),to:dt("10:32"),reason:"Burner / temperature not in tolerance",ref:"",by:"Shift supervisor",note:"Zone 2 below tolerance after burner 2R flame failure"});
   R.holds.push({id:"H2",from:dt("16:47"),to:dt("17:08"),reason:"Pusher or tray jam",ref:"Alarm log",by:"Shift supervisor",note:"Tray jammed at the hardening chamber exit; extractor reset"});
   /* the night before: trays loaded late in the evening come out the next morning; those out at or after 08:00 count in the next day's report */
-  const d0=addDays(d,-1),R0={id:"PR-0001",date:d0,furnace:"F-04",tl:{start:d0+"T22:00",push:"12",trays:[],seq:1},params:[],holds:[],bx:{},status:"approved",apprBy:"Production supervisor",apprDate:d,created:d0,log:[{d:todayISO(),t:"Report created (example)"},{d:todayISO(),t:"Approved by Production supervisor"}]};
+  const d0=addDays(d,-1),R0={id:"PR-0001",date:d0,furnace:"F-02",tl:{start:d0+"T22:00",push:"12",trays:[],seq:1},params:[],holds:[],bx:{},status:"approved",apprBy:"Production supervisor",apprDate:d,created:d0,log:[{d:todayISO(),t:"Report created (example)"},{d:todayISO(),t:"Approved by Production supervisor"}]};
   const T0=(items,extra)=>{const t={id:"T"+String(R0.tl.seq++).padStart(4,"0"),items,at:"",note:"",...(extra||{})};R0.tl.trays.push(t);return t;};
-  for(let i=0;i<12;i++) T0([it("MW-4512","F4-2609-10","H-24519","K7",40)]);
-  T0([it("MW-4512","F4-2609-10","H-24519","K7",25)]);T0([],{note:"Empty: end of the night shift loading"});T0([]);
+  for(let i=0;i<12;i++) T0([it("MW-4512","F2-2609-10","H-24519","K7",40)]);
+  T0([it("MW-4512","F2-2609-10","H-24519","K7",25)]);T0([],{note:"Empty: end of the night shift loading"});T0([]);
   R0.holds.push({id:"H1",from:d+"T01:00",to:d+"T06:10",reason:"Waiting for material / trays",ref:"",by:"Night shift supervisor",note:"No material released for the night shift; line restarted with the morning loading"});
   R.id="PR-0002";o.reports.push(R0,R);o.seq=3;
   return o;

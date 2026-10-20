@@ -946,8 +946,8 @@ function example(){
   /* F-03: over-temperature active, not yet acknowledged */
   mk({kind:"startup",furnace:"F-03",type:SU_TYPES[0],start:d(200),ready:d(194),firstPush:d(193),cl:ok("startup"),first:{ref:"MT-0003",res:"pass"},check:{by:"Shift supervisor",date:d(193).slice(0,10)}});
   mk({kind:"alarm",furnace:"F-03",alarm:"OT",area:"Hardening chamber",zone:"3",value:"892",start:d(0.4),by:"Shift operator"});
-  /* F-04: quench oil temperature alarm repeating; latest awaiting review; a start-up not yet verified */
-  [16,9,2].forEach((dd,i)=>mk({kind:"alarm",furnace:"F-04",alarm:"QTEMP",area:"Quench",value:String(88+i),start:d(dd*24),ack:d(dd*24-0.1),end:d(dd*24-0.6),done:"Pushing into the quench stopped; cooler fan restarted.",affected:"no",
+  /* F-02: quench oil temperature alarm repeating, latest awaiting review; F-04: a start-up not yet verified */
+  [16,9,2].forEach((dd,i)=>mk({kind:"alarm",furnace:"F-02",alarm:"QTEMP",area:"Quench",value:String(88+i),start:d(dd*24),ack:d(dd*24-0.1),end:d(dd*24-0.6),done:"Pushing into the quench stopped; cooler fan restarted.",affected:"no",
     check:i<2?{by:"HT Manager",date:d(dd*24-1).slice(0,10)}:{}}));
   mk({kind:"startup",furnace:"F-04",type:SU_TYPES[2],reason:"After burner maintenance, zone 2",start:d(60),ready:d(53),firstPush:d(52),cl:{...ok("startup"),s9:""},first:{ref:"MT-0004",res:"pass"}});
   return o;

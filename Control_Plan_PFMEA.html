@@ -849,7 +849,7 @@ function example(){
   newPfmea("IA");
   const sp=specsInForce()[0];
   if(sp) newCp(sp,sp.proc==="HT"?pf.id:"");
-  else{const c=newCp(null,pf.id,{part:"EX-1001",proc:"HT"});c.rows=cpRows({id:"PS-0001",rev:1,part:"EX-1001",name:"Example shaft",proc:"HT",furnaces:["F-01","F-02"],pcs:60,h:[840,870,870],t:[560,580,580],htol:[10,10,10],ttol:[10,10,10],push:12,pushTol:0.5,
+  else{const c=newCp(null,pf.id,{part:"EX-1001",proc:"HT"});c.rows=cpRows({id:"PS-0001",rev:1,part:"EX-1001",name:"Example shaft",proc:"HT",furnaces:["F-02"],pcs:60,h:[840,870,870],t:[560,580,580],htol:[10,10,10],ttol:[10,10,10],push:12,pushTol:0.5,
     q:{medium:"oil",tLo:"50",tHi:"80",delay:"30",dip:"8",transfer:"5",agit:"Required"},req:{hMin:"28",hMax:"32",scale:"HRC",decarb:"≤ 0.10 mm total",micro:"Tempered martensite",sample:"2 pcs per batch"}});c.specRef="PS-0001 rev 1 (example)";markSpecial(c);}
   return o;
 }

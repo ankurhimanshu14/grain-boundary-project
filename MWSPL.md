@@ -13,11 +13,13 @@ Status as of 19-Oct-2026. Repository `ankurhimanshu14/grain-boundary-project`, b
 | Item | Detail |
 |---|---|
 | Company | Mass Wire and Steels Pvt. Ltd. (MWSPL), Bhiwadi |
-| Heat treatment equipment | 4 continuous gas-fired **pusher furnaces**, F-01 … F-04 |
+| Heat treatment equipment | 4 continuous gas-fired **pusher furnaces**, F-01 … F-04, all **identical in structure and size** (confirmed). They differ only in the quench tank and in the process parameters set (temperatures, push time, durations). |
 | Heating | **Direct-fired**, open chambers: products of combustion contact the parts, no protective atmosphere. Scaling and surface decarburization are expected, so decarburization is a checked characteristic. |
 | Chambers per furnace | **Hardening chamber** (3 zones, **13 tray positions**, split 5 / 4 / 4) and **tempering chamber** (3 zones, **12 tray positions**, split 4 / 4 / 4) |
-| Controlled cooling chamber | One-tray chamber between the two chambers, for isothermal annealing only. It is not a line position: 13 + 1 + 12 = 26 trays right after a push. |
-| Quench | Oil quench tank per furnace (hardening and tempering). |
+| Controlled cooling chamber | One-tray chamber between the two chambers, on **every furnace** (confirmed), used for isothermal annealing. It is not a line position: 13 + 1 + 12 = 26 trays right after a push. |
+| Quench | **F-01: water quench tank; F-02: oil quench tank** (separate tanks). F-03 and F-04 have no quench tank. **Quench delay 30 s, dip time 8–9 min** (specification default 8.5 ± 0.5 min). Agitation is fitted but **not monitored** (no flow / agitation alarm). |
+| After heat treatment | **Shot blasting after every process** (a trap point for mixed parts at every lot changeover). |
+| Trays | **HK-grade** heat-resistant cast steel, **maximum load 200 kg** per tray. |
 | Thermocouples | 6 control thermocouples per chamber, 2 per zone, **type K**, named **TC-01 … TC-06**. TC-01 / TC-02 = zone 1, TC-03 / TC-04 = zone 2, TC-05 / TC-06 = zone 3. **Odd-numbered = right wall, even-numbered = left wall.** |
 | Control and recording | PID control per zone; temperatures recorded by **SCADA**. The SCADA export is an Excel file: `Date, Time, SET-1 / PV-1 … SET-6 / PV-6`, one file per furnace chamber and day (real example in `sample_data/furnace4_2026-09-29.xlsx`). The chart heading names the furnace and chamber (e.g. "FURNACE-4 HARDENING"; "TEMPRING" misspelling accepted). |
 | Valid temperature range | 500–1000 °C (values outside are excluded and reported, never drawn). Default tolerance ±10 °C. A set value of exactly 800 °C is treated as the lower class (preheating / tempering). |
@@ -47,6 +49,15 @@ At every push:
 
 ### 1.2 Processes run
 
+Processes per furnace (confirmed; Specifications → Settings → "Processes per furnace", a specification cannot be approved for a furnace that does not run its process):
+
+| Furnace | Processes | Quench |
+|---|---|---|
+| F-01 | Isothermal annealing; hardening & tempering | Water |
+| F-02 | Isothermal annealing; normalizing; hardening & tempering | Oil |
+| F-03 | Isothermal annealing; normalizing | — |
+| F-04 | Isothermal annealing; normalizing | — |
+
 | Code | Process | CQI-9 Process Table |
 |---|---|---|
 | HT | Hardening and tempering (oil quench) | Table A (quench is covered inside Table A) |
@@ -75,6 +86,7 @@ These are typical of this kind of line. The Equipment page asks for each one per
 - No production load thermocouples, so TUS plus hardness / metallurgy carry the assurance.
 - Open direct-fired chambers: decarburization must be a checked characteristic. Atmosphere items are N/A.
 - Unmonitored timed steps (quench delay, controlled cooling, fan cooling) are controlled by time / parameters, validation and routine hardness checks.
+- **Quench agitation is not monitored** (F-01, F-02): there is no flow or agitation alarm, so the daily visual check ("agitation / circulation working" in the quench test plan) is the only control. Consider a flow switch or a motor-running signal into SCADA.
 
 ---
 
