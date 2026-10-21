@@ -183,6 +183,7 @@ The application fills in typical content for this line. It is marked "example" o
 | Document | File | Status |
 |---|---|---|
 | WI-HT-01 General operating procedure for all pusher furnaces (title block, purpose, scope, safety, 45 steps in phases A–I with key points, revisions, signatures; same structure as the Procedures & WIs page) | `documents/WI-HT-01_General_Operating_Procedure.docx` | Draft, to adapt and approve |
+| F-HT-02A furnace start-up checksheet and F-HT-03A shutdown checksheet (Excel: check items per furnace with critical items, soak and first-off timing, zone readings vs tolerance, product left inside, calculated result, sign-off; filled examples for F-02) | `documents/Furnace_Startup_Shutdown_Checksheet.xlsx` | Draft, to confirm against the furnace manual |
 | Process specification, job card, controlled procedure, rework process control sheet, key function list, HTSA evidence packs, control plan / PFMEA, SAT / TUS / quench / hardness records | Generated from CALOR (PDF / Excel buttons on each page) | As recorded |
 
 ---
