@@ -66,6 +66,7 @@ input[type=number]{font-family:var(--mono)}
 input:disabled,select:disabled,textarea:disabled{opacity:.75}
 .req::after{content:" *";color:var(--crit-ink)}
 .controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end}
+.bxout{margin:8px 0 2px}.bxout .field input{min-width:200px}.bxout>.muted{padding-bottom:6px}
 /* batch cards */
 .batch{border:1px solid var(--line);border-left:5px solid var(--k,var(--line));border-radius:6px;background:var(--surface);padding:10px 12px;margin-bottom:10px}
 .batch-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;margin-bottom:8px}
@@ -522,6 +523,14 @@ function calcBatch(R,b){
           I("info",`${b.trays.length} of the batch's ${b.fb.trays.length} trays counted in this production day; the other ${rest.length} in ${days.length?days.map(fdate).join(", "):"no day yet (no times)"}`);}
         const now=nowMs(),inF=b.trays.map(outOf).filter(x=>x!=null&&x>now);
         if(inF.length){out.expected=inF.length;I("info",`${inF.length} tray${inF.length>1?"s":""} still in the furnace: expected out by ${fdtShort(Math.max(...inF),R.date)}`);}}
+      /* the actual exit of the batch's last tray from the tempering chamber (entered) vs the calculated exit; the calculated times stay as they are */
+      const ao=tms(bx.out);
+      if(ao!=null){const tol=num(s.exitTol)??DEF.exitTol,d=Math.round((ao-out.x)/60000),[wa,wb]=dayWin(R.date),at=fdtShort(ao,R.date);out.aOut=ao;out.outDiff=d;
+        if(ao>nowMs()) I("warn",`Last tray out of the tempering chamber: ${at} is in the future`);
+        else if(ao<out.e) I("warn",`Last tray out of the tempering chamber: ${at} is before the batch entered the furnace`);
+        else{if(ao<wa||ao>=wb) I("warn",`Last tray out of the tempering chamber at ${at} is not in this production day (${winTxt(R.date)})`);
+          if(Math.abs(d)>tol) I("warn",`Last tray out of the tempering chamber at ${at}: ${fmin(Math.abs(d))} ${d>0?"later":"earlier"} than calculated (${fdtShort(out.x,R.date)}; more than ± ${tol} min): check the start time, the push time, the push changes and the holds of the trays before it`);
+          else I("info",`Last tray out of the tempering chamber at ${at}, within ± ${tol} min of the calculated exit${d?` (${fmin(Math.abs(d))} ${d>0?"later":"earlier"})`:""}`);}}
     }
   } else if(R.tl.trays.length) I("crit","Time the first tray entered is missing");
   /* the same batch no. in this furnace with another heat no. */
@@ -731,6 +740,9 @@ function drawBatches(){
         <span>batch <b>${esc(b.batch||"—")}</b> · heat ${esc(b.heat||"—")}${b.heatCode?" / "+esc(b.heatCode):""}</span>${b.rw?`<span class="tag rw">REWORK of ${esc(b.rw.ref||"?")}</span>`:""}</div>
       <div class="calc"><span>Trays <b>${k.n}</b></span><span>Pieces <b>${f0(k.qty)}</b></span><span>Weight <b>${k.kg!=null?f1(k.kg)+" kg":"—"}</b></span><span>Entry <b>${fdtShort(k.e,R.date)}</b></span><span>Exit <b>${fdtShort(k.x,R.date)}</b></span>${b.trays.length<b.fb.trays.length?`<span>Batch total <b>${b.fb.trays.length} trays · ${f0(b.fb.qty)} pcs</b></span>`:""}
         <span>In furnace <b>${fmin(k.mins)}</b></span><span>Push <b>${k.pushTxt?k.pushTxt+" min":"—"}</b></span><span>Between chambers <b>${k.between!=null?f1(k.between)+" min":"—"}</b></span></div>
+      ${k.x!=null?`<div class="controls bxout"><div class="field"><label for="bx-o-${i}">Last tray out of the tempering chamber (actual)${b.trays.length<b.fb.trays.length?", of this day's trays":""}</label><input id="bx-o-${i}" type="datetime-local" data-bx="${esc(b.key)}|out" value="${esc(bx.out||"")}"${dis}></div>
+        ${lk?"":`<button class="btn ghost small" data-bxnow="${esc(b.key)}">Now</button>${bx.out?`<button class="btn ghost small" data-bxclr="${esc(b.key)}" aria-label="Remove the actual exit time">Clear</button>`:""}`}
+        <span class="muted small">Calculated <b>${fdtShort(k.x,R.date)}</b>${k.outDiff!=null?` · difference <b>${k.outDiff>0?"+":k.outDiff<0?"−":"±"}${fmin(Math.abs(k.outDiff))}</b>`:""}</span></div>`:""}
       ${k.issues.length?`<div class="issues">${k.issues.map(([l,t])=>chip(l,l==="info"?"i":"!",t)).join("")}</div>`:`<div class="issues">${chip("good","✓","Complete and consistent")}</div>`}
       <details class="more"><summary>Zone windows, weight and note</summary>
         <div class="scroll"><table class="zt"><thead><tr><th></th><th>Zone 1</th><th>Zone 2</th><th>Zone 3</th></tr></thead><tbody>
@@ -741,6 +753,15 @@ function drawBatches(){
           <div class="field" style="flex:1;min-width:220px"><label for="bx-n-${i}">Note</label><input id="bx-n-${i}" data-bx="${esc(b.key)}|note" value="${esc(bx.note||"")}"${dis}></div></div></details>
     </div>`;}).join("");
 }
+/* a batch field changed while the cursor stayed in it: redraw the batches (checks, difference) once it leaves them */
+let BXPEND=false;
+document.addEventListener("focusout",e=>{if(!BXPEND||!e.target.closest||!e.target.closest("#batches"))return;
+  setTimeout(()=>{const el=$("#batches");if(!el||typing(el))return;BXPEND=false;drawBatches();},0);});
+/* a batch named by its part and batch no. for the log; "Now" / "Clear" of the actual last tray exit */
+const bxName=(R,k)=>{const b=batchesOf(R).find(x=>x.key===k);return b?`${b.part||"?"} ${b.batch||""}`.trim():k;};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-bxnow],[data-bxclr]");if(!b)return;
+  const R=ensureRep();if(locked(R))return;const k=b.dataset.bxnow||b.dataset.bxclr,v=b.dataset.bxnow?nowLocal():"";
+  R.bx[k]={...(R.bx[k]||{}),out:v};logIt(R,v?`Batch ${bxName(R,k)}: last tray out of the tempering chamber at ${v.replace("T"," ")}`:`Batch ${bxName(R,k)}: actual last tray exit removed`);save();drawBatches();drawKpis();});
 function drawKpis(){
   const R=prodRep(),B=R?batchesOf(R):[],ks=R?B.map(b=>calcBatch(R,b)):[],DT=dayTrays(VIEW.f,VIEW.d),T=DT.map(g=>g.tr);
   const prev=DT.filter(g=>g.R.date<VIEW.d).length,later=nowMs(),notOut=DT.filter(g=>g.T.tOut>later).length,[wa,wb]=dayWin(VIEW.d);
@@ -936,7 +957,10 @@ document.addEventListener("change",e=>{
   if(el.dataset.tl){const R=ensureRep();if(locked(R))return;R.tl[el.dataset.tl]=el.value.trim();save();setTimeout(()=>{drawReport();drawSearch();},0);return;}
   if(el.dataset.sel){el.checked?SEL.add(el.dataset.sel):SEL.delete(el.dataset.sel);drawSelBar();return;}
   if(el.id==="sel-all"){const R=curRep();SEL=new Set(el.checked?R.tl.trays.map(t=>t.id):[]);drawTrays();return;}
-  if(el.dataset.bx){const R=ensureRep();if(locked(R))return;const [k,f]=el.dataset.bx.split("|");R.bx[k]={...(R.bx[k]||{}),[f]:el.value.trim()};save();setTimeout(()=>{drawBatches();drawKpis();},0);return;}
+  if(el.dataset.bx){const R=ensureRep();if(locked(R))return;/* the batch key itself contains "|": the field is after the last one */
+    const cut=el.dataset.bx.lastIndexOf("|"),k=el.dataset.bx.slice(0,cut),f=el.dataset.bx.slice(cut+1);R.bx[k]={...(R.bx[k]||{}),[f]:el.value.trim()};
+    if(f==="out") logIt(R,el.value?`Batch ${bxName(R,k)}: last tray out of the tempering chamber at ${el.value.replace("T"," ")}`:`Batch ${bxName(R,k)}: actual last tray exit removed`);
+    save();BXPEND=true;setTimeout(()=>{drawBatches();drawKpis();},0);return;}
   if(el.dataset.s){const [i,k]=el.dataset.s.split(":"),x=DB.specs[+i];if(!x)return;
     if(/^[ht][012]$/.test(k))x[k[0]][+k[1]]=el.value;else x[k]=el.value.trim();
     save();if(k==="proc"){el.blur();drawSpecs();}else{const p=$("#specs p");if(p)p.innerHTML=specIssues();}drawReport();return;}
@@ -1054,8 +1078,8 @@ function prodTables(R){
   const out={head:["Leaves tempering","Loaded (report)","Tray","Enters hardening","Part no.","Batch no.","Heat no.","Heat code","Pieces","Rework of"],
     rows:DT.flatMap(g=>{const no=g.R.tl.trays.indexOf(g.tr)+1,base=[fdt(g.T.tOut),fdate(g.R.date),no,fdt(g.T.t)];
       return g.tr.items.length?g.tr.items.map((it,j)=>[...(j?["","","",""]:base),it.part,it.batch,it.heat,it.heatCode,num(it.qty)??"",it.rw?it.rw.ref:""]):[[...base,"empty","","","","",""]];})};
-  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Rework of","Trays","Pieces","Weight kg","Weighed kg","Entry (hardening)","Exit (tempering)","Push min","Time in furnace","Remarks"];
-  const rows=B.map((b,i)=>{const k=ks[i],bx=R.bx[b.key]||{};return [i+1,k.sp?.part||b.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",b.batch,b.heat,b.heatCode,b.rw?b.rw.ref:"",k.n,b.qty,k.kg!=null?Math.round(k.kg*10)/10:"",num(bx.weighed)??"",fdt(k.e),fdt(k.x),k.pushTxt||"",k.mins!=null?fmin(k.mins):"",[...k.issues.map(x=>x[1]),bx.note].filter(Boolean).join(" | ")];});
+  const head=["#","Part no.","Part name","Steel grade","Process","Batch no.","Heat no.","Heat code","Rework of","Trays","Pieces","Weight kg","Weighed kg","Entry (hardening)","Exit (tempering)","Last tray out (actual)","Push min","Time in furnace","Remarks"];
+  const rows=B.map((b,i)=>{const k=ks[i],bx=R.bx[b.key]||{};return [i+1,k.sp?.part||b.part,k.sp?.name||"",k.sp?.grade||"",k.sp?.proc||"",b.batch,b.heat,b.heatCode,b.rw?b.rw.ref:"",k.n,b.qty,k.kg!=null?Math.round(k.kg*10)/10:"",num(bx.weighed)??"",fdt(k.e),fdt(k.x),k.aOut!=null?fdt(k.aOut):"",k.pushTxt||"",k.mins!=null?fmin(k.mins):"",[...k.issues.map(x=>x[1]),bx.note].filter(Boolean).join(" | ")];});
   const zones={head:["#","Batch no.","Part no.","Chamber","Zone","Batch in zone from","to"],rows:B.flatMap((b,i)=>(ks[i].zones||[]).map(z=>[i+1,b.batch,b.part,z.ch,z.z,fdt(z.from),fdt(z.to)]))};
   const params={head:["Time","Parameter","Zone","From","To","Reason","By"],rows:[[fdt(tms(R.tl.start)),"Push time (at the start)","","",tlPush0(R)??"","",""],...(R.params||[]).slice().sort((a,b)=>(a.at||"")<(b.at||"")?-1:1).map(p=>[fdt(tms(p.at)),(PARAMS[p.kind]||PARAMS.other)[0]+(p.what?": "+p.what:""),p.zone||"",p.from||"",p.to||"",p.reason||"",p.by||""])]};
   const holds={head:["On hold from","Restarted","Duration","Reason","Reference","By","Note"],rows:holdsOf(R).map(x=>[fdt(x.f),x.open?"not ended":fdt(x.t),fmin(x.d/60000),x.h.reason,x.h.ref||"",x.h.by||"",x.h.note||""])};
@@ -1080,7 +1104,7 @@ function prodXlsx(){
   const T=prodTables(R),B=cells=>({b:true,cells}),N=cells=>({cells}),tbl=(h,rows)=>[B(h),...(rows.length?rows.map(N):[N(["—"])])];
   const sheets=[
     {name:"Summary",widths:[34,46],rows:[B(["Production report"]),N([]),...T.summary.map(N)]},
-    {name:"Batches",widths:[5,14,24,14,22,14,12,10,14,7,9,11,11,18,18,9,14,60],rows:[B([`Production · ${R.furnace} · ${winTxt(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
+    {name:"Batches",widths:[5,14,24,14,22,14,12,10,14,7,9,11,11,18,18,18,9,14,60],rows:[B([`Production · ${R.furnace} · ${winTxt(R.date)}`]),N([]),...tbl(T.batch.head,T.batch.rows)]},
     {name:"Trays out",widths:[18,14,6,18,14,14,12,10,8,14],rows:[B([`Trays out of the furnace · ${R.furnace} · ${winTxt(R.date)}`]),N([]),...tbl(T.out.head,T.out.rows)]},
     {name:"Tray log",widths:[6,18,8,14,14,12,10,8,14,7,18,18,14,18,30],rows:[B([`Tray log (trays loaded) · ${R.furnace} · ${fdate(R.date)}`]),N([]),...tbl(T.trays.head,T.trays.rows)]},
     {name:"Parameter changes",widths:[18,34,7,10,10,40,16],rows:[B(["Process parameter changes"]),N([]),...tbl(T.params.head,T.params.rows)]},
@@ -1097,7 +1121,7 @@ function prodPdf(){
   const table=(h,rows,cls="")=>rows.length?`<table class="${cls}"><thead><tr>${h.map(x=>`<th>${e(x)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${e(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`:`<p class="muted">None.</p>`;
   const kv=rows=>`<table class="kv"><tbody>${rows.map(([k,v])=>`<tr><th>${e(k)}</th><td>${e(v)}</td></tr>`).join("")}</tbody></table>`;
   const bh=["#","Part","Process","Batch","Heat / code","Rework of","Trays","Pcs","kg","Entry → exit","Push","In furnace","Remarks"];
-  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,r[8],r[9],r[10],r[11],`${r[13]} → ${r[14]}`,r[15],r[16],r[17]]);
+  const br=T.batch.rows.map(r=>[r[0],`${r[1]} ${r[2]} (${r[3]})`,r[4],r[5],`${r[6]} / ${r[7]}`,r[8],r[9],r[10],r[11],`${r[13]} → ${r[14]}${r[15]?` (actual ${r[15]})`:""}`,r[16],r[17],r[18]]);
   const html=`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${e(repName())}</title><style>
     @page{size:A4 landscape;margin:10mm}
     body{font:10px/1.35 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;color:#131d24;margin:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1190,7 +1214,7 @@ window.__PROD={get DB(){return DB;},batchesOf,dayTrays,lastOutCheck,outTrays,pro
    Alarms page and the home page), trays = the tray log, holds = the pauses of the push cycle */
 if(HTQ) HTQ.provide("prod",{reports:()=>prodList().map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.stub?"none":r.status,day:dayWin(r.date),
   rows:batchesOf(r).map(b=>{const k=calcBatch(r,b);return {id:b.key,part:b.part,batch:b.batch,heat:b.heat,heatCode:b.heatCode,qty:b.qty,rework:b.rw?b.rw.ref:"",entry:k.e!=null?iso(k.e):"",exit:k.x!=null?iso(k.x):"",
-    spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lvl:k.incomplete?"crit":k.lvl};}),
+    spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lastOut:k.aOut!=null?iso(k.aOut):"",lvl:k.incomplete?"crit":k.lvl};}),
   holds:holdsOf(r).map(x=>({from:x.f,to:x.open?null:x.t,min:Math.round(x.d/60000),reason:x.h.reason,open:x.open})),
   lastOut:(()=>{const C=lastOutCheck(r);return C?{at:C.a,calc:C.g?C.g.T.tOut:null,diff:C.diff,by:r.lastOut.by||""}:null;})(),
   trays:r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),
