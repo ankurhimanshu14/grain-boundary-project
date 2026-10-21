@@ -184,6 +184,7 @@ The application fills in typical content for this line. It is marked "example" o
 |---|---|---|
 | WI-HT-01 General operating procedure for all pusher furnaces (title block, purpose, scope, safety, 45 steps in phases A–I with key points, revisions, signatures; same structure as the Procedures & WIs page) | `documents/WI-HT-01_General_Operating_Procedure.docx` | Draft, to adapt and approve |
 | F-HT-02A furnace start-up checksheet and F-HT-03A shutdown checksheet (Excel: check items per furnace with critical items, soak and first-off timing, zone readings vs tolerance, product left inside, calculated result, sign-off; filled examples for F-02) | `documents/Furnace_Startup_Shutdown_Checksheet.xlsx` | Draft, to confirm against the furnace manual |
+| F-MT-01 daily predictive maintenance checksheet and F-MT-02 monthly trend (Excel: 28 condition parameters with normal value and watch / act limits on one Parameters sheet, daily status OK / WATCH / ACT, monthly trend with slope and estimated days to the action limit; examples for F-02) | `documents/Furnace_Predictive_Maintenance_Checksheet.xlsx` | Draft: limits are typical, set them from 2–4 weeks of baseline readings and the equipment manuals |
 | Process specification, job card, controlled procedure, rework process control sheet, key function list, HTSA evidence packs, control plan / PFMEA, SAT / TUS / quench / hardness records | Generated from CALOR (PDF / Excel buttons on each page) | As recorded |
 
 ---
