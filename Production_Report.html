@@ -208,6 +208,11 @@ textarea{min-height:54px;resize:vertical}
   </section>
 
   <section class="panel">
+    <div class="sec-head"><h2>Last tray out of the tempering chamber</h2><p>The time the last tray of the production day actually left the tempering chamber, as seen at the exit door. It is compared with the time calculated from the tray log (start, push time, push changes and holds): a difference beyond the setting “Flag the actual last tray exit beyond” means the timing in this report (and so the batch zone windows used by the SCADA review) is off — check the start time, the push time and the holds. Optional; it does not change the calculated times.</p></div>
+    <div id="lastout"></div>
+  </section>
+
+  <section class="panel">
     <div class="sec-head"><h2>Totals of the production day</h2><p>Per part, per heat and per process of the trays out of the furnace in the production day; rework is counted separately from first-time production.</p></div>
     <div class="three" id="totals"></div>
   </section>
@@ -290,7 +295,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const KEY="prod-reg";
 const P_HT="Hardening & tempering",P_IA="Isothermal annealing",P_NO="Normalizing",P_FA="Full annealing";
 const PROCS=[P_HT,P_IA,P_NO,P_FA];
-const DEF={plant:"Heat treatment shop",dayStart:"08:00",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5};
+const DEF={plant:"Heat treatment shop",dayStart:"08:00",posH:"5,4,4",posT:"4,4,4",xfer:18,ccXfer:2,qDelay:0.5,dip:8,toTemp:5,gapNorm:0,gapFA:0,wtTol:5,exitTol:5};
 const DEFF=["F-01","F-02","F-03","F-04"];
 const HOLD_REASONS=["Alarm / line stop","Pusher or tray jam","Extractor or door fault","Power failure","Burner / temperature not in tolerance","Quench or controlled cooling problem","Waiting for material / trays","Planned (shift change, inspection, maintenance)","Other"];
 const PARAMS={push:["Push time","min"],hset:["Hardening chamber set value","°C"],tset:["Tempering chamber set value","°C"],cc:["Controlled cooling time","min"],quench:["Quench oil temperature","°C"],dip:["Dip time","min"],other:["Other",""]};
@@ -556,7 +561,41 @@ function drawReport(){
   const pd=`<span class="small">Production day <b>${winTxt(VIEW.d)}</b>: ${DT.length} tray${DT.length===1?"":"s"} out of the furnace · ${nB} batch${nB===1?"":"es"}</span>`;
   $("#rep-status").innerHTML=!R?`<span class="muted">No report for ${esc(VIEW.f)} on ${fdate(VIEW.d)} yet: ${DT.length?"trays loaded on an earlier day came out of the furnace in this production day (below). Load trays or approve to create the report.":"load the first trays below."}</span>${DT.length?" "+pd:""}`:
     `${locked(R)?chip("good","✓",`Approved by ${R.apprBy} on ${fdate(R.apprDate)} · locked`):chip("warn","…","Draft")}<span class="muted small">${esc(R.id)} · ${R.tl.trays.length} tray${R.tl.trays.length===1?"":"s"} loaded</span> ${pd}${R&&!R.tl.trays.length&&!DT.length&&!locked(R)?`<button class="btn danger small" id="b-delrep">Delete empty report</button>`:""}`;
-  drawLoad();drawTrays();drawParams();drawHolds();drawBatches();drawTotals();drawApproval();drawKpis();
+  drawLoad();drawTrays();drawParams();drawHolds();drawBatches();drawLastOut();drawTotals();drawApproval();drawKpis();
+}
+/* ---------- last tray out of the tempering chamber (actual, entered) vs the calculated time ---------- */
+/* the trays out in the production day, last first; a tray is named by its loading report and its number there */
+const outTrays=(f,d)=>dayTrays(f,d).slice().sort((a,b)=>b.T.tOut-a.T.tOut);
+const trayRef=g=>`${g.R.id}|${g.tr.id}`;
+const trayName=g=>`tray ${g.R.tl.trays.indexOf(g.tr)+1} loaded ${fdate(g.R.date)}${g.tr.items.length?" · "+g.tr.items.map(x=>`${x.part} ${x.batch||""}`.trim()).join(" + "):" · empty"}`;
+function lastOutCheck(R){
+  const L=R&&R.lastOut;if(!L||!tms(L.at))return null;
+  const G=outTrays(R.furnace,R.date),g=G.find(x=>trayRef(x)===L.tray)||G[0]||null,a=tms(L.at),[wa,wb]=dayWin(R.date),tol=num(S().exitTol)??DEF.exitTol;
+  const diff=g?(a-g.T.tOut)/60000:null,out=[];
+  if(a<wa||a>=wb) out.push(["warn",`${fdt(a)} is not in this production day (${winTxt(R.date)}).`]);
+  if(!g) out.push(["warn","No tray of this production day is calculated to leave the tempering chamber: the actual time cannot be compared."]);
+  else if(Math.abs(diff)>tol) out.push(["warn",`The actual exit is ${fmin(Math.abs(diff))} ${diff>0?"later":"earlier"} than calculated (${fdt(g.T.tOut)}; more than ± ${tol} min): check the start time, the push time, the push changes and the holds of the trays before it.`]);
+  else out.push(["good",`Within ± ${tol} min of the calculated time (${diff===0?"same minute":fmin(Math.abs(diff))+" "+(diff>0?"later":"earlier")}).`]);
+  return {g,a,diff,issues:out};
+}
+function drawLastOut(){
+  const el=$("#lastout");if(!el)return;
+  const R=prodRep(),G=outTrays(VIEW.f,VIEW.d);
+  if(!R||!G.length){el.innerHTML=`<div class="empty">No tray comes out of the furnace in this production day (${winTxt(VIEW.d)}).</div>`;return;}
+  if(typing(el))return;
+  const L=R.lastOut||null,C=lastOutCheck(R),lk=locked(R),last=G[0];
+  const rec=L&&C?`<table class="log cards"><thead><tr><th>Tray</th><th>Calculated exit</th><th>Actual exit</th><th class="n">Difference</th><th>By</th><th>Note</th><th></th></tr></thead><tbody><tr>
+      <td data-label="Tray">${C.g?esc(trayName(C.g)):"—"}</td><td data-label="Calculated exit" class="n">${C.g?fdtShort(C.g.T.tOut,R.date):"—"}</td><td data-label="Actual exit" class="n"><b>${fdtShort(C.a,R.date)}</b></td>
+      <td data-label="Difference" class="n">${C.diff==null?"—":(C.diff>0?"+":C.diff<0?"−":"±")+fmin(Math.abs(C.diff))}</td><td data-label="By">${esc(L.by||"")}</td><td data-label="Note">${esc(L.note||"")}</td>
+      <td class="act">${lk?"":`<button class="btn danger small" id="b-lodel" aria-label="Remove the recorded exit time">✕</button>`}</td></tr></tbody></table>
+      <div class="issues" style="margin-top:6px">${C.issues.map(([l,t])=>chip(l,l==="good"?"✓":"!",t)).join("")}</div>`
+    :`<p class="muted small" style="margin:0 0 8px">Not recorded. Calculated: the last tray out of the furnace in this production day is ${esc(trayName(last))}, leaving the tempering chamber at <b>${fdtShort(last.T.tOut,VIEW.d)}</b>.</p>`;
+  el.innerHTML=rec+(lk?"":`<div class="loadgrid" style="margin-top:10px">
+      <div class="field wide"><label for="lo-tray" class="req">Last tray out</label><select id="lo-tray">${G.map(g=>`<option value="${esc(trayRef(g))}" ${(L?L.tray===trayRef(g):g===last)?"selected":""}>${esc(trayName(g))} · calculated ${esc(fdtShort(g.T.tOut,VIEW.d))}</option>`).join("")}</select></div>
+      <div class="field"><label for="lo-at" class="req">Left the tempering chamber at</label><input id="lo-at" type="datetime-local" value="${esc(L?L.at:"")}"></div>
+      <div class="field"><label for="lo-by">By</label><input id="lo-by" value="${esc(L?L.by||"":"")}"></div>
+      <div class="field wide"><label for="lo-note">Note</label><input id="lo-note" value="${esc(L?L.note||"":"")}"></div>
+      <div class="actions"><button class="btn small" id="b-loset">${L?"Update":"Record"} exit time</button><button class="btn ghost small" id="b-lonow">Now</button><span class="msg" id="lo-msg"></span></div></div>`);
 }
 /* part list for the entry fields: specifications in force (CALOR) and this page's own list */
 function partList(){
@@ -788,7 +827,7 @@ function drawSettings(){
   const s=S(),f=(k,l,t="number",w=110)=>`<div class="field"><label for="set-${k}">${l}</label><input id="set-${k}" data-set="${k}" type="${t}" step="any" value="${esc(s[k])}" style="width:${w}px"></div>`;
   $("#settings").innerHTML=f("plant","Plant / shop","text",220)+f("dayStart","Production day starts at (trays out of the furnace)","time",120)+f("posH","Tray positions hardening Z1,Z2,Z3","text",130)+f("posT","Tray positions tempering Z1,Z2,Z3","text",130)+f("xfer","Transfer hardening → tempering chamber, min (measured)")+
     f("ccXfer","Isothermal annealing: transfers into and out of the controlled cooling chamber, min")+
-    f("wtTol","Flag weighed vs calculated beyond, %")+(HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
+    f("wtTol","Flag weighed vs calculated beyond, %")+f("exitTol","Flag the actual last tray exit beyond ± min")+(HTQ?"":`<div class="field"><label for="set-furn">Furnaces (comma separated)</label><input id="set-furn" value="${esc(DB.furnaces.join(", "))}" style="width:220px"></div>`);
 }
 
 /* ---------- editing ---------- */
@@ -938,6 +977,14 @@ document.addEventListener("click",e=>{
       const id="H"+(1+Math.max(0,...R2.holds.map(h=>+(String(h.id).match(/\d+/)||[0])[0])));
       R2.holds.push({id,from,to:to||"",reason:$("#ho-reason").value,ref:txt($("#ho-ref").value),by:txt($("#ho-by").value),note:txt($("#ho-note").value)});
       logIt(R2,`Push cycle on hold from ${from.slice(11,16)}${to?" to "+to.slice(11,16):""}: ${$("#ho-reason").value}`);save();drawReport();drawSearch();break;}
+    case "b-lonow":{const x=$("#lo-at");if(x)x.value=nowLocal();break;}
+    case "b-loset":{const at=$("#lo-at").value,a=tms(at);
+      if(!a){$("#lo-msg").textContent="Enter the time the last tray left the tempering chamber.";return;}
+      if(a>nowMs()+60000){$("#lo-msg").textContent="The time is in the future.";return;}
+      const R2=ensureRep();if(locked(R2))return;
+      R2.lastOut={tray:$("#lo-tray").value,at,by:txt($("#lo-by").value),note:txt($("#lo-note").value)};
+      const C=lastOutCheck(R2);logIt(R2,`Last tray out of the tempering chamber at ${at.slice(11,16)}${C&&C.diff!=null?` (calculated ${iso(C.g.T.tOut).slice(11,16)})`:""}`);save();drawReport();break;}
+    case "b-lodel":{if(!R||locked(R)||!R.lastOut)return;if(!confirm("Remove the recorded exit time of the last tray?"))return;delete R.lastOut;logIt(R,"Recorded last tray exit time removed");save();drawReport();break;}
     case "b-delrep":{if(R&&!R.tl.trays.length){DB.reports=DB.reports.filter(x=>x!==R);save();drawReport();}break;}
     case "b-approve":{const by=txt($("#appr-by").value);if(!by){$("#appr-msg").textContent="Enter who approves the report.";return;}
       const R=ensureRep();R.status="approved";R.apprBy=by;R.apprDate=todayISO();logIt(R,`Approved by ${by}`);SEL.clear();save();drawReport();drawSearch();break;}
@@ -952,7 +999,7 @@ document.addEventListener("click",e=>{
     case "b-theme":{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("prod-theme",r.dataset.theme);}catch(err){}break;}
     case "b-export":dl(`production-backup-${todayISO()}.json`,new Blob([JSON.stringify(DB,null,1)],{type:"application/json"}));break;
     case "b-import":$("#imp").click();break;
-    case "b-example":if(!DB.reports.length&&!DB.specs.length||confirm("Replace all production data with the example data?")){DB=example();VIEW.f="F-04";VIEW.d=addDays(todayISO(),-1);saveView();save();render();}break;
+    case "b-example":if(!DB.reports.length&&!DB.specs.length||confirm("Replace all production data with the example data?")){DB=example();VIEW.f="F-02";VIEW.d=addDays(todayISO(),-1);saveView();save();render();}break;
     case "b-clear":if(confirm("Delete all production reports and specifications? Export a backup first if you need one.")){DB=blank();save();render();}break;
   }
 });
@@ -1022,6 +1069,9 @@ function prodTables(R){
   const summary=[["Report",R.id||"not created yet"],["Furnace",R.furnace],["Production day",winTxt(R.date)+" (trays out of the furnace)"],["Status",R.status==="approved"?`Approved by ${R.apprBy} on ${fdate(R.apprDate)}`:"Draft"],
     ["Trays out of the furnace",`${To.length} (${To.filter(t=>!t.items.length).length} empty, ${To.filter(t=>t.items.length>1).length} mixed, ${DT.filter(g=>g.R.date<R.date).length} loaded the day before)`],
     ["Trays loaded (tray log of this report)",`${Tr.length} (${Tr.filter(t=>!t.items.length).length} empty, ${Tr.filter(t=>t.items.length>1).length} mixed) · first tray entered ${fdt(tms(R.tl.start))}`],["Push cycle on hold",(()=>{const H=holdsOf(R);return H.length?`${H.length}× · ${fmin(sum(H.map(x=>x.d))/60000)}`:"no";})()],["Rework trays out",To.filter(t=>t.items.some(i=>i.rw)).length],["Batches",B.length],
+    ["Last tray out of the tempering chamber",(()=>{const C=lastOutCheck(R),G=outTrays(R.furnace,R.date);
+      return C?`actual ${fdt(C.a)}${C.g?` · calculated ${fdt(C.g.T.tOut)} (${trayName(C.g)}) · difference ${C.diff>0?"+":C.diff<0?"−":"±"}${fmin(Math.abs(C.diff))}`:""}${R.lastOut.by?" · by "+R.lastOut.by:""}${R.lastOut.note?" · "+R.lastOut.note:""}`
+        :G.length?`not recorded (calculated ${fdt(G[0].T.tOut)}, ${trayName(G[0])})`:"no tray out";})()],
     ["Pieces",sum(B.map(b=>b.qty))],["Weight kg",Math.round(sum(ks.map(k=>k.kg||0))*10)/10],["Incomplete entries",incompleteCount(R)],["Plant",s.plant],["Downloaded",fdate(todayISO())]];
   return {summary,trays,out,batch:{head,rows},zones,params,holds,specs,parts:tot(T.parts),heats:tot(T.heats),procs:tot(T.procs),settings,hist:R.log.map(x=>[fdate(x.d),x.t])};
 }
@@ -1135,13 +1185,14 @@ if(HTQ){
 }
 render();
 if(!DB.specs.length&&!DB.reports.length) $("#setup").open=true;
-window.__PROD={get DB(){return DB;},batchesOf,dayTrays,dayBatches,prodDay,prodList,calcBatch,trayTimes,specOf,timeline,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();},LOADF};
+window.__PROD={get DB(){return DB;},batchesOf,dayTrays,lastOutCheck,outTrays,prodTables,dayBatches,prodDay,prodList,calcBatch,trayTimes,specOf,timeline,setView:(f,d)=>{VIEW.f=f;VIEW.d=d;render();},LOADF};
 /* offered to the suite once everything above is defined: rows = the batches built from the trays (shape used by the SCADA review, the
    Alarms page and the home page), trays = the tray log, holds = the pauses of the push cycle */
 if(HTQ) HTQ.provide("prod",{reports:()=>prodList().map(r=>({id:r.id,date:r.date,furnace:r.furnace,status:r.stub?"none":r.status,day:dayWin(r.date),
   rows:batchesOf(r).map(b=>{const k=calcBatch(r,b);return {id:b.key,part:b.part,batch:b.batch,heat:b.heat,heatCode:b.heatCode,qty:b.qty,rework:b.rw?b.rw.ref:"",entry:k.e!=null?iso(k.e):"",exit:k.x!=null?iso(k.x):"",
     spec:k.sp,trays:k.n,kg:k.kg,zones:k.zones,lvl:k.incomplete?"crit":k.lvl};}),
   holds:holdsOf(r).map(x=>({from:x.f,to:x.open?null:x.t,min:Math.round(x.d/60000),reason:x.h.reason,open:x.open})),
+  lastOut:(()=>{const C=lastOutCheck(r);return C?{at:C.a,calc:C.g?C.g.T.tOut:null,diff:C.diff,by:r.lastOut.by||""}:null;})(),
   trays:r.tl.trays.map((tr,i)=>{const T=trayTimes(r,tr);return {no:i+1,t:T?T.t:null,hOut:T?T.hOut:null,tOut:T?T.tOut:null,load:trayLoad(r,tr),
     items:tr.items.map(it=>({part:it.part,batch:it.batch,heat:it.heat,qty:num(it.qty),rework:it.rw?it.rw.ref:""}))};})}))});
 </script>
