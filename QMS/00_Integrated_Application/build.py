@@ -11,7 +11,8 @@ QMS = HERE.parent
 SRC = HERE / "src"
 OUT = HERE / "calor-quality-system.html"
 # module code -> (module source, document folder under QMS/)
-MODULES = {"spec": (QMS / "SPEC/04_Application/mwspl-spec-module.js", "SPEC")}
+MODULES = {"spec": (QMS / "SPEC/04_Application/mwspl-spec-module.js", "SPEC"),
+           "tc": (QMS / "TC/04_Application/mwspl-tc-module.js", "TC")}
 
 def wrap(code, src):
     """Each module runs in its own scope; its listeners only act while it is the open module."""

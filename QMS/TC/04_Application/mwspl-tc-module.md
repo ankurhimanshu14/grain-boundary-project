@@ -1,0 +1,24 @@
+# MASS WIRE AND STEELS PVT. LTD., BHIWADI
+
+## TC MODULE: APPLICATION DESCRIPTION
+
+The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calor-quality-system.html`, "Thermocouples"). Source: `QMS/TC/04_Application/mwspl-tc-module.js`; build `python QMS/00_Integrated_Application/build.py`. The documents of this module must match the rules below, which are taken from the code.
+
+| Item | Value in the code |
+|---|---|
+| Records | collections `tcs` (elements `TE-nnnn`), `eq` (test TCs / instruments `TT-nnnn`), `sats` (`SAT-nnnn`), `tubes` (checks `PT-nnnn`), `config/settings`, `config/pm`; shared record store (prefix `tc-`) or this browser (`mws-tc-local-v1`) |
+| Element | furnace, chamber, tag (TC-01 …; zone from the number, odd = right wall), use (control / monitoring / recording / load / over-temperature), type, serial, installed, calibration (certificate, date, range, largest error), range of use, protection tube (material, installed, check / replacement interval), status in use / spare / removed |
+| Calibration (P3.1) `calIssues` | certificate, date on or before installation, range covering the range of use (defaults hardening 700–960, tempering 500–900 °C), largest error within ± the greater of 2.2 °C or 0.75 % (base metal) / 1.5 °C or 0.25 % (noble) at the top of the range; test TCs 1.1 °C or 0.4 % / 0.6 °C or 0.1 % — settings to confirm |
+| SAT (P3.3) `satState` | control, monitoring, recording TCs: a valid passing SAT after installation, then every 90 days (setting); difference = furnace − (test + instrument correction + test TC correction); fail beyond ±5.5 °C (setting), warning beyond 70 %; a failure stays until a later pass |
+| Valid SAT `satEval` | instrument and test TC identified and in calibration on the test day; depth rules |
+| Insertion depth (P3.1.3.3) `depthIssues` | type K / E test TC: depth required; reused shallower than the deepest earlier use = issue (setting "reuseDeeper"); optional maximum uses |
+| SAT record (P3.3.5) `satMissing` | thermocouple, date, time, technician, set point, instrument, test TC, both readings, both corrections, depth (K / E), approval by and date |
+| Failed SAT | cause, action, product impact, owner, date; re-SAT shown on the Reactions view |
+| Protection tubes `tubeState` | not in the PM schedule (no material / interval), never checked, check overdue, replacement interval passed, last check worn / cracked (open until "Replaced"); PM schedule approved (rev, approver, date), changes after approval mark it changed, review every 365 days |
+| Element life `lifeOf` | 365 days after installation (setting, 0 = off) |
+| HTSA 3.3 `assess33` | the five bullets of the question plus element life; score needs immediate action (nothing registered, or a control TC failed / never SAT checked), not satisfactory (any item not met), satisfactory |
+| Data | export / import JSON, register and SAT CSV, import from the CALOR SAT register (`tsat-pdca`: thermocouples, SATs as the mean of their readings, test equipment), starter set-up, clear all |
+| API | `MWS.tc.stats()`, `summary()`, `closeModal()` (Overview) |
+| Test hook | `window.__TCM` |
+
+**Not in the application:** the calibration certificates themselves (kept in the maintenance file; the register holds their numbers); TUS and controller / recorder calibration (CALOR TUS and Equipment pages).

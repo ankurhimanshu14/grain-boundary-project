@@ -193,6 +193,7 @@ Rules: if a page's default list (`DEF_DOCS`, `DEF_PROC`) changes numbers, change
 | `MWSPL.md`, `CLAUDE.md`, this note | — | Plant facts, technical description, handover | 19–22-Oct-2026 |
 | `documents/builders/` | — | Builder scripts of every Word / Excel document | 22-Oct-2026 |
 | `QMS/SPEC/` (pilot module set) | HTSA 1.6, Process Tables A / E | Master list, MWSPL-QP-SPEC-01, WI-SPEC-01 … 03, F-SPEC-01 … 05 (KPI), module description | 22-Oct-2026 |
+| `QMS/TC/` + TC module of the integrated application | HTSA 3.3, P3.1, P3.3 | Master list, MWSPL-QP-TC-01, WI-TC-01 … 03, F-TC-01 … 03, module description; thermocouple register, SAT records, test equipment, tube PM schedule and checks | 22-Oct-2026 |
 | `QMS/00_Integrated_Application/` (pilot application) | HTSA 1.6 | `calor-quality-system.html`: Overview + native SPEC module in the IATF integrated-application UI/UX (built by `build.py` from `src/` and `QMS/SPEC/04_Application/mwspl-spec-module.js`) | 22-Oct-2026 |
 
 HTSA questions with a self-assessment in CALOR: **1.1, 1.6, 1.8, 1.9, 1.11, 1.15, 1.17, 2.5** (scores on the HT organization page and the Home tile).
@@ -401,6 +402,8 @@ Targets are to be set by the user (Section 3).
 | 26 | 22-Oct | Prepare CALOR in the QMS project template | This note |
 | 27 | 22-Oct | Create the CALOR application in this template (pilot: one module first) | SPEC module set in `QMS/SPEC/` |
 | 28 | 22-Oct | Create one module (SPEC) in the UI/UX of the Integrated Application of IATF 16949 | `QMS/00_Integrated_Application/calor-quality-system.html` |
+| 29 | 22-Oct | Temperature–time sketch on the job card | SPEC module job card |
+| 30 | 22-Oct | Module for HTSA 3.3 (thermocouples and protection tubes) | TC module in the integrated application; `QMS/TC/` document set |
 
 ---
 

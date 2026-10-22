@@ -54,7 +54,7 @@ nav#nav .wrap{display:flex;gap:6px 18px;flex-wrap:wrap;padding-top:8px;padding-b
 /* layout helpers */
 main.wrap{padding-top:18px;padding-bottom:40px}
 .row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}.between{justify-content:space-between}
-.stack{display:grid;gap:16px}
+.stack{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}.row>h2,.row>h3{min-width:0}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
