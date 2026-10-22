@@ -23,4 +23,21 @@ The application of this module is the CALOR page **`Process_Specifications.html`
 | Outputs | specification PDF / Excel, job card, register Excel (incl. sheet "HTSA 1.6"), HTSA 1.6 evidence PDF |
 | Used by | Hardness (requirements), Daily production (spec of each batch), Load build, CP & PFMEA (control plan rows), Equipment (class required), SCADA review (set values vs spec), Home |
 
-**Not in the application (handled by the documents):** a "reviewed, no change" entry for the periodic review (F-SPEC-04); a printout of the authorization list (F-SPEC-03); the rule that an active part without a specification runs only on the HT Manager's written instruction (WI-SPEC-03 §2.2).
+**Not in the CALOR page (handled by the documents):** a "reviewed, no change" entry for the periodic review (F-SPEC-04); a printout of the authorization list (F-SPEC-03); the rule that an active part without a specification runs only on the HT Manager's written instruction (WI-SPEC-03 §2.2).
+
+## Native module in the integrated application (pilot, 22-Oct-2026)
+
+The same module is also built natively in the form of the MWSPL Integrated Application (the IATF 16949 application's UI/UX): **`QMS/00_Integrated_Application/calor-quality-system.html`**, one self-contained file with an Overview and the module "Process specifications". It is the pilot for moving CALOR into that form; until the user decides, the CALOR page above stays the application in use.
+
+| Item | Native module |
+|---|---|
+| Source | `QMS/SPEC/04_Application/mwspl-spec-module.js` (module), `QMS/00_Integrated_Application/src/` (shell head, CSS, Overview); build `python QMS/00_Integrated_Application/build.py` (never edit the built file) |
+| Views (PDCA) | Dashboard · **P** Register, Authorization & settings · **D** At the line (job cards, implementation) · **C** Review & HTSA 1.6, KPIs (financial year) · **A** Revisions · Rules, Documentation (this module's documents, embedded), Data |
+| Records | collections `specs` (one document per specification `PS-nnnn`, same fields as `psr-reg`) and `config/settings`; shared record store when published with the `db` capability (collection prefix `spec-`), else this browser only (`localStorage` `mws-spec-local-v1`, banner "Local mode") |
+| Rules | the same approval gate, change review, authorization, implementation and HTSA 1.6 rules as the CALOR page (copied from its code) |
+| Added | **Record review (no change)** on the Review view: date, reviewer, note; it restarts the periodic review of the revision in force (the gap of WI-SPEC-03 §1.3 / F-SPEC-04 is closed in this module) |
+| Delete | armed button (second click confirms), never a browser dialog; only never-approved drafts |
+| Data | export / import JSON (merge or replace), CSV of the register, **Import from CALOR** (reads `psr-reg` in the same browser), starter set-up (three example specifications), clear all (type CLEAR ALL) |
+| Links | reads CALOR's `org-reg` (authorized names) and `prod-reg` (active parts) in the same browser when present |
+| API | `MWS.spec.stats()`, `summary()`, `inForce()`, `closeModal()` (used by the Overview) |
+| Test hook | `window.__SPECM` (`S`, `eff`, `calc`, `missing`, `assess16`, `review`, `kp`) |

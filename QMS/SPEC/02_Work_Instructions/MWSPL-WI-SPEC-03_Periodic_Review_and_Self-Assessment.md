@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 1.1 | Open CALOR → PROCESS → Specifications. The tiles show the reviews due (within 30 days) and overdue (365 days after the approval of the revision in force). | HT Engineer | First working day of the month |
 | 1.2 | For each specification due: compare it with the current customer drawing / specification, the hardness and SCADA results of the last year (Hardness, Trend analysis, SCADA review pages) and any customer complaint. | HT Engineer | Before the due date |
-| 1.3 | No change needed: the HT Manager confirms it; record the review on F-SPEC-04 (date, by, result). Change needed: start a new revision (WI-SPEC-02); its approval resets the review date. Note: CALOR has no "reviewed, no change" entry for specifications — the register keeps showing the review as overdue until a new revision is approved, so F-SPEC-04 is the record of a review without change (application change requested in the handover note). | HT Manager | Before the due date |
+| 1.3 | No change needed: the HT Manager confirms it; record the review on F-SPEC-04 (date, by, result). Change needed: start a new revision (WI-SPEC-02); its approval resets the review date. Note: CALOR has no "reviewed, no change" entry for specifications — the register keeps showing the review as overdue until a new revision is approved, so F-SPEC-04 is the record of a review without change (application change requested in the handover note). In the integrated application (pilot) use **Review & HTSA 1.6 → Record review**; it restarts the review date. | HT Manager | Before the due date |
 
 ### 2. Active parts without a specification
 

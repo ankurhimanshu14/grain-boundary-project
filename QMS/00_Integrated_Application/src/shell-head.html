@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CALOR Quality System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+{{CSS}}
+</style></head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand"><div class="co">Mass Wire and Steels Pvt. Ltd. · Bhiwadi</div><h1 id="apptitle">CALOR</h1></div>
+  <div class="hdr-r"><div class="ctrl" id="ctrl" aria-label="Document control"></div><button id="themeBtn" type="button" aria-label="Toggle colour theme">Theme</button></div>
+</div></header>
+<nav class="sys" aria-label="Modules"><div class="wrap">
+  <a href="#home" data-sys="home">Overview</a>
+  <a href="#spec/dash" data-sys="spec">Specifications</a>
+</div></nav>
+<nav id="nav" aria-label="Module views" hidden></nav>
+<main id="main" class="wrap"></main>
+<div id="modal" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+/* ---------- shell: module table, routing, theme ---------- */
+const MODS=["spec"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
+const today0=()=>{const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}-${d.getFullYear()}`;};
+const SYS={
+  home:{t:"CALOR · Heat treat quality system",ctrl:()=>`<div><b>Standard</b>AIAG CQI-9 4th Ed.</div><div><b>Scope</b>Pusher furnaces F-01 … F-04</div><div><b>Records</b><span id="dbstate">—</span></div><div><b>Date</b>${today0()}</div>`},
+  spec:{t:"Process specifications",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SPEC-01</div><div><b>Standard</b>CQI-9 · HTSA 1.6</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`}
+};
+const appOf=h=>{const m=String(h||"").match(/^#([a-z]+)(?:\/|$)/);return m&&MODS.includes(m[1])?m[1]:"home";};
+const MWS={
+  app:appOf(location.hash),docs:{},
+  /* the location a module sees: only its own part of the hash (#view); setting it writes #<mod>/view */
+  loc(mod){return {
+    get hash(){const m=location.hash.match(new RegExp("^#"+mod+"/?(.*)$"));return m&&m[1]?"#"+m[1]:"";},
+    set hash(v){location.hash="#"+mod+"/"+String(v||"").replace(/^#/,"");},
+    get href(){return location.href;},reload(){location.reload();}};},
+  /* a module's data changed while another page is shown: refresh the Overview */
+  bg(){if(MWS.app==="home"&&typeof renderHome==="function"){clearTimeout(MWS._bg);MWS._bg=setTimeout(renderHome,120);}},
+  toast(t){const el=document.getElementById("toast");el.textContent=t;el.classList.add("on");clearTimeout(MWS._t);MWS._t=setTimeout(()=>el.classList.remove("on"),2600);}
+};
+function shellRoute(){
+  const prev=MWS.app;MWS.app=appOf(location.hash);
+  if(prev!==MWS.app&&MWS[prev]&&MWS[prev].closeModal){try{MWS[prev].closeModal();}catch(e){}}
+  const S=SYS[MWS.app];document.getElementById("apptitle").textContent=S.t;document.getElementById("ctrl").innerHTML=S.ctrl();
+  document.title=(MWS.app==="home"?"":S.t+" · ")+"CALOR Quality System";
+  document.querySelectorAll("nav.sys a").forEach(a=>{if(a.dataset.sys===MWS.app)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
+  document.getElementById("nav").hidden=MWS.app==="home";
+  if(MWS.app==="home"){document.getElementById("nav").innerHTML="";if(typeof renderHome==="function")renderHome();}
+}
+addEventListener("hashchange",shellRoute,true);
+/* inside a module, links are written #view: rewrite them to #<mod>/view (capture phase, before the module sees the click) */
+document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[href^='#']");if(!a||MWS.app==="home")return;
+  const h=a.getAttribute("href");if(h==="#home"||/^#[a-z]+\//.test(h)||a.closest("nav.sys"))return;
+  e.preventDefault();location.hash="#"+MWS.app+"/"+h.slice(1);},true);
+/* theme: automatic, with a manual override kept per browser */
+(function(){let t=null;try{t=localStorage.getItem("mws-theme");}catch(e){}if(t)document.documentElement.dataset.theme=t;
+  document.getElementById("themeBtn").addEventListener("click",()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
+    r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("mws-theme",r.dataset.theme);}catch(e){}});})();
+const useCap=n=>{try{return window.claude&&window.claude.use?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);}catch(e){return Promise.resolve(null);}};
+</script>

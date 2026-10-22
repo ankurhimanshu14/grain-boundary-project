@@ -193,6 +193,7 @@ Rules: if a page's default list (`DEF_DOCS`, `DEF_PROC`) changes numbers, change
 | `MWSPL.md`, `CLAUDE.md`, this note | — | Plant facts, technical description, handover | 19–22-Oct-2026 |
 | `documents/builders/` | — | Builder scripts of every Word / Excel document | 22-Oct-2026 |
 | `QMS/SPEC/` (pilot module set) | HTSA 1.6, Process Tables A / E | Master list, MWSPL-QP-SPEC-01, WI-SPEC-01 … 03, F-SPEC-01 … 05 (KPI), module description | 22-Oct-2026 |
+| `QMS/00_Integrated_Application/` (pilot application) | HTSA 1.6 | `calor-quality-system.html`: Overview + native SPEC module in the IATF integrated-application UI/UX (built by `build.py` from `src/` and `QMS/SPEC/04_Application/mwspl-spec-module.js`) | 22-Oct-2026 |
 
 HTSA questions with a self-assessment in CALOR: **1.1, 1.6, 1.8, 1.9, 1.11, 1.15, 1.17, 2.5** (scores on the HT organization page and the Home tile).
 
@@ -265,6 +266,7 @@ Targets are to be set by the user (Section 3).
   - rework → control plan / PFMEA;
   - every page → Home and the HTSA panel.
 - **Seed data:** every page has "Load example data". Example data is marked "(example)" and the SCADA example is never saved to history. **Before go-live:** clear the example data (Data → Clear all data) and enter real data (Section 11).
+- **Integrated application (pilot):** `QMS/00_Integrated_Application/calor-quality-system.html` rebuilds one module (SPEC) in the form of the MWSPL IATF integrated application: one file, module switcher (Overview | modules), PDCA-grouped views, hash routes `#home` / `#<mod>/<view>`, each module in its own scope with `MWS.<mod>` API, shared record store (`db` capability) or this browser, embedded module documents. Build: `python QMS/00_Integrated_Application/build.py`. Add a module: its JS under `QMS/<MOD>/04_Application/`, an entry in `MODULES` (build.py), `MODS` / `SYS` / `nav.sys` (src/shell-head.html) and a card in the Overview (src/shell-tail.js).
 - **Testing:** no automated suite; drive the pages with headless Chromium (Playwright), read `window.__XXX` objects and console errors. The Google Drive sync is tested over `http://localhost` with an OPFS folder.
 
 ## 9. Mistakes made and lessons learned
@@ -355,7 +357,8 @@ Targets are to be set by the user (Section 3).
   - WI-HT-10 Loading and unloading of trays;
   - the KPI format;
   - per-module master lists and procedures in the template format (Part 2): **SPEC done as the pilot (QMS/SPEC)**; the other 12 modules after the user has checked the pilot.
-- [ ] **Application changes asked by the SPEC documents:** a "reviewed, no change" action for specifications (WI-SPEC-03 §1.3); optionally a printable authorization list (F-SPEC-03).
+- [ ] **Application changes asked by the SPEC documents:** a "reviewed, no change" action for specifications (WI-SPEC-03 §1.3) — **done in the integrated-application pilot**, not in the CALOR page; optionally a printable authorization list (F-SPEC-03).
+- [ ] **Integrated application:** the user checks the SPEC pilot (`QMS/00_Integrated_Application/calor-quality-system.html`); then decide whether the other modules move into it, in which order, and whether CALOR's records move with "Import from CALOR".
 - [ ] **HTSA questions not yet in CALOR:**
   - section 1: 1.2–1.5, 1.7, 1.10, 1.12–1.14, 1.16, 1.18–1.20;
   - section 2: every question except 2.5;
@@ -397,6 +400,7 @@ Targets are to be set by the user (Section 3).
 | 25 | 22-Oct | What is the burner management sequence; document it | WI-HT-12 |
 | 26 | 22-Oct | Prepare CALOR in the QMS project template | This note |
 | 27 | 22-Oct | Create the CALOR application in this template (pilot: one module first) | SPEC module set in `QMS/SPEC/` |
+| 28 | 22-Oct | Create one module (SPEC) in the UI/UX of the Integrated Application of IATF 16949 | `QMS/00_Integrated_Application/calor-quality-system.html` |
 
 ---
 

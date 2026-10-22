@@ -4,7 +4,7 @@
 
 **Basis:** AIAG CQI-9 4th Edition, HTSA question 1.6 ("a documented system to create process specifications for all active processes") and the Process Tables (Table A hardening & tempering, Table E annealing / normalizing; table letters to be confirmed against the controlled copy). IATF 16949 §8.5.1 (control plan, work instructions at the line) and §8.5.6 (control of changes) as context. PDCA: **Plan** (the specification is the plan for every heat treatment).
 
-**Application:** CALOR → PROCESS → Specifications (`Process_Specifications.html`). The register, approvals, revisions, job cards and the HTSA 1.6 self-assessment are held there.
+**Application:** CALOR → PROCESS → Specifications (`Process_Specifications.html`). The register, approvals, revisions, job cards and the HTSA 1.6 self-assessment are held there. Pilot of the integrated application: the same module in `QMS/00_Integrated_Application/calor-quality-system.html` (see the module description).
 
 ### Documents
 
