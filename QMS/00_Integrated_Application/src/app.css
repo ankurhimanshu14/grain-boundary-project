@@ -154,3 +154,6 @@ legend{font-family:var(--f-display);font-weight:600;font-size:15px;padding:0 6px
 /* printing a record sheet (job card, evidence): only the sheet's #jobcard */
 @media print{body.pm>*:not(#modal){display:none!important}body.pm #modal{position:static;background:none;padding:0;overflow:visible}
   body.pm .sheet{border:0;max-width:none;padding:0}body.pm .sheet>*:not(#jobcard):not(:first-child){display:none!important}body.pm #jobcard{display:block!important}}
+/* temperature–time sketch on the job card */
+figure.prof{margin:6px 0 10px}figure.prof svg{width:100%;height:auto;display:block;max-width:900px}
+@media print{figure.prof{break-inside:avoid}}

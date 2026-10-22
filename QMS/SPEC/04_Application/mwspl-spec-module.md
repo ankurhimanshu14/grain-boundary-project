@@ -36,6 +36,7 @@ The same module is also built natively in the form of the MWSPL Integrated Appli
 | Records | collections `specs` (one document per specification `PS-nnnn`, same fields as `psr-reg`) and `config/settings`; shared record store when published with the `db` capability (collection prefix `spec-`), else this browser only (`localStorage` `mws-spec-local-v1`, banner "Local mode") |
 | Rules | the same approval gate, change review, authorization, implementation and HTSA 1.6 rules as the CALOR page (copied from its code) |
 | Added | **Record review (no change)** on the Review view: date, reviewer, note; it restarts the periodic review of the revision in force (the gap of WI-SPEC-03 §1.3 / F-SPEC-04 is closed in this module) |
+| Job card | the revision in force with a **temperature–time sketch** below the specification (`profileSvg`): set value per zone with its tolerance band over the time in each zone (positions × push), the quench (dip) / controlled cooling / transfer between the chambers, and the cooling after exit; time axis from loading, total = time through the line. Ramps and cooling curves are schematic, not measured |
 | Delete | armed button (second click confirms), never a browser dialog; only never-approved drafts |
 | Data | export / import JSON (merge or replace), CSV of the register, **Import from CALOR** (reads `psr-reg` in the same browser), starter set-up (three example specifications), clear all (type CLEAR ALL) |
 | Links | reads CALOR's `org-reg` (authorized names) and `prod-reg` (active parts) in the same browser when present |

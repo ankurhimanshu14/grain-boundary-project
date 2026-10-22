@@ -162,6 +162,9 @@ legend{font-family:var(--f-display);font-weight:600;font-size:15px;padding:0 6px
 /* printing a record sheet (job card, evidence): only the sheet's #jobcard */
 @media print{body.pm>*:not(#modal){display:none!important}body.pm #modal{position:static;background:none;padding:0;overflow:visible}
   body.pm .sheet{border:0;max-width:none;padding:0}body.pm .sheet>*:not(#jobcard):not(:first-child){display:none!important}body.pm #jobcard{display:block!important}}
+/* temperature–time sketch on the job card */
+figure.prof{margin:6px 0 10px}figure.prof svg{width:100%;height:auto;display:block;max-width:900px}
+@media print{figure.prof{break-inside:avoid}}
 
 </style></head>
 <body>
@@ -707,6 +710,46 @@ function DRAW_REV(){const m=S.modal;return sheet(`Record periodic review · ${es
   `<button class="pri w" data-save-rev>Save</button><button data-close>Cancel</button>`);}
 function DRAW_OBS(){const m=S.modal;return sheet(`Make obsolete · ${esc(m.id)}`,`<label class="f req"><span>Reason (e.g. part no longer heat treated, replaced by PS-…)</span><textarea id="ob-why">${esc(m.why)}</textarea></label>`,
   `<button class="danger w" data-save-obs>Make obsolete</button><button data-close>Cancel</button>`);}
+/* sketch of temperature vs time through the line (set values per zone, ± tolerance band; schematic, not a measured curve) */
+function profileSvg(e,c){
+  if(!c)return `<p class="small muted">Enter the push time to draw the temperature–time sketch.</p>`;
+  const AMB=30,R=ROLE[e.proc],H=[0,1,2].map(i=>num(e.h[i])),T=[0,1,2].map(i=>num(e.t[i]));
+  if(H.some(v=>v==null)||T.some(v=>v==null))return `<p class="small muted">Enter every zone set value to draw the temperature–time sketch.</p>`;
+  const HT=[0,1,2].map(i=>num(e.htol[i])||0),TT=[0,1,2].map(i=>num(e.ttol[i])||0);
+  const P=[],band=[],segs=[];let t=0;
+  const zones=(set,tol,dur,pre,from)=>{set.forEach((v,i)=>{const d=dur[i],r=Math.min(d*.35,i?d*.15:d*.6);
+    P.push([t+r,v]);band.push([t,t+d,v-tol[i],v+tol[i]]);segs.push([t,t+d,pre+(i+1),v]);t+=d;P.push([t,v]);});};
+  P.push([0,AMB]);zones(H,HT,c.zh,"H",AMB);const tH=t;
+  let mid,midLbl;
+  if(e.proc==="HT"){const q=num(e.q.tHi)!=null&&num(e.q.tLo)!=null?(num(e.q.tLo)+num(e.q.tHi))/2:(e.q.medium==="water"?30:60),
+      dl=(num(e.q.delay)||30)/60,dp=num(e.q.dip)||8.5;
+    P.push([t+dl,H[2]]);P.push([t+dl+.3,q]);P.push([t+dl+dp,q]);P.push([t+c.gap,Math.max(q,AMB)]);midLbl=`Quench · dip ${fx(dp,1)} min`;}
+  else if(e.proc==="IA"){const tg=num(e.cc.target),cool=c.cool||0;P.push([t+cool,tg!=null?tg:T[0]]);P.push([t+c.gap,tg!=null?tg:T[0]]);midLbl=`Controlled cooling ${fx(cool,0)} min`;
+    if(tg!=null)band.push([t,t+cool,tg-(num(e.cc.targetTol)||0),tg+(num(e.cc.targetTol)||0)]);}
+  else{P.push([t+c.gap,H[2]-30]);midLbl=`Transfer ${fx(c.gap,0)} min`;}
+  segs.push([t,t+c.gap,"mid",null]);t+=c.gap;const tT=t;
+  zones(T,TT,c.zt,"T");const tE=t;
+  const after=e.proc==="NORM"&&e.nm.fan==="required"?(num(e.nm.fanTime)||20):Math.max(20,c.total*.08);
+  P.push([t+after,AMB+20]);t+=after;
+  const W=760,Hh=270,L=46,Rr=12,Tp=26,B=50,xs=v=>L+v/t*(W-L-Rr),Ymax=Math.ceil((Math.max(...H,...T)+60)/100)*100,ys=v=>Tp+(1-v/Ymax)*(Hh-Tp-B);
+  const step=t>600?120:t>300?60:30,ticks=[];for(let v=0;v<=t;v+=step)ticks.push(v);
+  const yt=[];for(let v=0;v<=Ymax;v+=Ymax>800?200:100)yt.push(v);
+  const g=[];
+  yt.forEach(v=>g.push(`<line x1="${L}" x2="${W-Rr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${ys(v)+4}" text-anchor="end" class="ax">${v}</text>`));
+  ticks.forEach(v=>g.push(`<text x="${xs(v)}" y="${Hh-B+14}" text-anchor="middle" class="ax">${v}</text>`));
+  band.forEach(b=>g.push(`<rect x="${xs(b[0])}" y="${ys(b[3])}" width="${Math.max(0,xs(b[1])-xs(b[0]))}" height="${Math.max(1,ys(b[2])-ys(b[3]))}" fill="var(--accent-2)"/>`));
+  [[0,tH,`Hardening chamber · ${pos(C().posH).reduce((a,b)=>a+b,0)} trays`],[tH,tT,R.mid],[tT,tE,`Tempering chamber · ${pos(C().posT).reduce((a,b)=>a+b,0)} trays`],[tE,t,e.proc!=="NORM"?"Air cooling":e.nm.fan==="required"?"Fan cooling":"Still air"]].forEach(([a,b,lb],i)=>{
+    if(i)g.push(`<line x1="${xs(a)}" x2="${xs(a)}" y1="${Tp-8}" y2="${Hh-B}" stroke="var(--muted)" stroke-dasharray="3 3" stroke-width="1"/>`);
+    g.push(`<text x="${i===3?W-Rr:(xs(a)+xs(b))/2}" y="${Hh-B+30}" text-anchor="${i===3?"end":"middle"}" class="lb">${esc(i===1?midLbl:lb)}</text>`);});
+  segs.filter(s=>s[2]!=="mid").forEach(s=>g.push(`<text x="${(xs(s[0])+xs(s[1]))/2}" y="${ys(s[3])-7}" text-anchor="middle" class="vl">${s[3]}</text><text x="${(xs(s[0])+xs(s[1]))/2}" y="${Hh-B-5}" text-anchor="middle" class="zl">${s[2]}</text>`));
+  const pts=P.map(p=>`${xs(p[0]).toFixed(1)},${ys(p[1]).toFixed(1)}`).join(" ");
+  return `<figure class="prof"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Temperature against time through the line: ${esc(R.h)} ${H.join(" / ")} °C, ${esc(midLbl)}, ${esc(R.t)} ${T.join(" / ")} °C, ${fx(c.total,0)} min through the line">
+  <style>.prof .ax{font:11px var(--f-mono,monospace);fill:var(--muted)}.prof .lb{font:600 11.5px var(--f-body,sans-serif);fill:var(--ink)}.prof .vl{font:600 11px var(--f-mono,monospace);fill:var(--ink)}.prof .zl{font:10.5px var(--f-mono,monospace);fill:var(--muted)}</style>
+  ${g.join("")}<line x1="${L}" x2="${W-Rr}" y1="${Hh-B}" y2="${Hh-B}" stroke="var(--muted)" stroke-width="1"/>
+  <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="${L}" y="12" class="ax">°C</text><text x="${L}" y="${Hh-4}" class="ax">time from loading into the hardening chamber, min</text></svg>
+  <figcaption class="small muted">Sketch: set value per zone with its tolerance band (shaded), push ${esc(e.push)} min, ${fx(c.total,0)} min through the line. Ramps, the quench / cooling curve and the cooling after exit are schematic, not measured.</figcaption></figure>`;
+}
 function DRAW_JOB(){const s=S.modal.s,e=eff(s),R=ROLE[e.proc],c=calc(e);
   const mid=e.proc==="HT"?`${MEDIA[e.q.medium]} ${e.q.tLo||"?"}–${e.q.tHi||"?"} °C · delay ≤ ${e.q.delay} s · dip ${e.q.dip} ± ${e.q.dipTol||"?"} min · agitation ${e.q.agit} · transfer ≤ ${e.q.transfer} min`
     :e.proc==="IA"?`Controlled cooling ${e.cc.time} ± ${e.cc.timeTol||"?"} min · ${e.cc.method}${e.cc.target?` · target ${e.cc.target} ± ${e.cc.targetTol||"?"} °C`:""}`:`Transfer ≤ ${e.nm.transfer} min · fan cooling ${e.nm.fan==="required"?e.nm.fanTime+" ± "+(e.nm.fanTol||"?")+" min":"not required"}`;
@@ -716,6 +759,7 @@ function DRAW_JOB(){const s=S.modal.s,e=eff(s),R=ROLE[e.proc],c=calc(e);
   <tr><td><b>Hardening · ${R.h}</b></td>${[0,1,2].map(i=>`<td class="n">${esc(e.h[i])} ± ${esc(e.htol[i])} °C</td>`).join("")}</tr>
   <tr><td><b>Tempering · ${R.t}</b></td>${[0,1,2].map(i=>`<td class="n">${esc(e.t[i])} ± ${esc(e.ttol[i])} °C</td>`).join("")}</tr></tbody></table></div>
   <p><b>Push</b> ${esc(e.push)} ± ${esc(e.pushTol)} min${c?` · through the line ${fx(c.total,0)} min`:""}<br><b>${R.mid}</b> ${esc(mid)}<br><b>Requirements</b> ${esc(hardTxt(e))}${e.req.core?" · core "+esc(e.req.core):""}${e.req.micro?" · "+esc(e.req.micro):""} · decarburization ${esc(e.req.decarb)} · sampling ${esc(e.req.sample)}</p>
+  <h3>Temperature – time</h3>${profileSvg(e,c)}
   <p class="small">Approved ${fmtD(e.apprDate)} by ${esc(e.appr)}</p></div>`,`<button class="pri" data-print>Print</button><button data-close>Close</button>`);}
 function DRAW_H16(){const A=assess16(),sc=SCORE[A.score];return sheet("HTSA 1.6 evidence",`<div id="jobcard"><p class="small muted">${esc(C().plant)} · CQI-9 HTSA 1.6 self-assessment · ${fmtD(today())}</p>
   <p><span class="verdict ${sc[2]}">${sc[1]}</span></p><div class="tw"><table><thead><tr><th>Requirement</th><th>Evidence</th><th>Result</th></tr></thead><tbody>${A.I.map(i=>`<tr><td><b>${esc(i.req)}</b></td><td>${esc(i.ev)}</td><td>${esc(LV[i.lvl][1])}</td></tr>`).join("")}</tbody></table></div>
@@ -830,7 +874,7 @@ MWS.spec={closeModal,
   summary:()=>{const k=kp();return `${plural(k.inForce,"process specification")} in force (${plural(k.parts,"part")}), HTSA 1.6 ${SCORE[k.score][1].toLowerCase()}${k.over?`, ${k.over} review(s) overdue`:""}.`;},
   inForce:()=>S.specs.map(s=>eff(s)).filter(Boolean).map(e=>({id:e.id,rev:e.rev,part:e.part,name:e.name,proc:e.proc,furnaces:e.furnaces,push:e.push,h:e.h,t:e.t,htol:e.htol,ttol:e.ttol,req:e.req}))};
 
-window.__SPECM={S,eff,calc,missing,assess16,review,kp};
+window.__SPECM={S,eff,calc,missing,assess16,review,kp,profileSvg};
 
 /* 12. boot */
 async function boot(){
