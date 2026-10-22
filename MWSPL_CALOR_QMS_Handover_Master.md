@@ -295,8 +295,8 @@ Targets are to be set by the user (Section 3).
 10. **Requirements were tightened beyond what the user wanted.** HTSA 1.1 first made certificates mandatory and ignored experience in this organization. Implement the requirement text as given; ask before adding evidence rules.
 11. **An interrupted request was taken literally.** "Implement 1.17" was started before the full requirement text arrived, and the first design was dropped. Wait for, or ask for, the requirement text.
 12. **Names must match across the application and the documents.** SOP-HT-11 first used alarm codes that the Alarms page does not have (MECH, SCADA instead of PUSH, REC). Copy names from the application's constants.
-14. **Module documents must follow the code, not the idea of it.** Writing the SPEC set showed two things the page does not do (a "reviewed, no change" entry, an authorization printout); they are stated in the documents and listed in Section 11 instead of being described as features.
 13. **Builder scripts were kept only in the session scratchpad,** which is lost when the session ends. They were moved to `documents/builders/` on 22-Oct; keep every new builder there.
+14. **Module documents must follow the code, not the idea of it.** Writing the SPEC set showed two things the page does not do (a "reviewed, no change" entry, an authorization printout); they are stated in the documents and listed in Section 11 instead of being described as features.
 
 **Technical (this project)**
 - **Composite keys break on split.** Batch keys contain "|", so `split("|")` stored the batch weight / note / last-tray-out fields under a wrong key (fixed 21-Oct; users re-enter those fields). Split at the last separator, or use a separator the data cannot contain.
