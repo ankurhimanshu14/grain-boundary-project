@@ -113,6 +113,7 @@ Every value below was introduced by the application or the documents, not given 
   - the 25 empty trays to run out the line;
   - tag colours;
   - first-off "hold the first batch until OK". CALOR shows the first-off test link on the start-up record but does not block production.
+- **Introduced in the SPEC module set (QMS/SPEC):** financial year April–March in F-SPEC-05; KPI targets SPEC-1 … SPEC-7 (0 / S); drafts older than 30 days counted (SPEC-6); specification retention "life of the part + 1 year"; an active part without a specification runs only on the HT Manager's written instruction and gets one within 7 days (WI-SPEC-03 §2).
 - **Not given:** financial year, management review cadence, form and record retention periods. The documents say "3 years or as the retention rule says".
 
 ## 4. Document types and numbering
@@ -191,6 +192,7 @@ Rules: if a page's default list (`DEF_DOCS`, `DEF_PROC`) changes numbers, change
 | `documents/` | 1.15 | WI-HT-01, WI-HT-02, WI-HT-03, SOP-HT-08, SOP-HT-11, WI-HT-12 (Word); F-HT-02A/03A, F-MT-01/02 (Excel) | 16–22-Oct-2026 |
 | `MWSPL.md`, `CLAUDE.md`, this note | — | Plant facts, technical description, handover | 19–22-Oct-2026 |
 | `documents/builders/` | — | Builder scripts of every Word / Excel document | 22-Oct-2026 |
+| `QMS/SPEC/` (pilot module set) | HTSA 1.6, Process Tables A / E | Master list, MWSPL-QP-SPEC-01, WI-SPEC-01 … 03, F-SPEC-01 … 05 (KPI), module description | 22-Oct-2026 |
 
 HTSA questions with a self-assessment in CALOR: **1.1, 1.6, 1.8, 1.9, 1.11, 1.15, 1.17, 2.5** (scores on the HT organization page and the Home tile).
 
@@ -293,6 +295,7 @@ Targets are to be set by the user (Section 3).
 10. **Requirements were tightened beyond what the user wanted.** HTSA 1.1 first made certificates mandatory and ignored experience in this organization. Implement the requirement text as given; ask before adding evidence rules.
 11. **An interrupted request was taken literally.** "Implement 1.17" was started before the full requirement text arrived, and the first design was dropped. Wait for, or ask for, the requirement text.
 12. **Names must match across the application and the documents.** SOP-HT-11 first used alarm codes that the Alarms page does not have (MECH, SCADA instead of PUSH, REC). Copy names from the application's constants.
+14. **Module documents must follow the code, not the idea of it.** Writing the SPEC set showed two things the page does not do (a "reviewed, no change" entry, an authorization printout); they are stated in the documents and listed in Section 11 instead of being described as features.
 13. **Builder scripts were kept only in the session scratchpad,** which is lost when the session ends. They were moved to `documents/builders/` on 22-Oct; keep every new builder there.
 
 **Technical (this project)**
@@ -351,7 +354,8 @@ Targets are to be set by the user (Section 3).
   - SOP-HT-09 Product inspection and testing;
   - WI-HT-10 Loading and unloading of trays;
   - the KPI format;
-  - per-module master lists and procedures in the template format (Part 2).
+  - per-module master lists and procedures in the template format (Part 2): **SPEC done as the pilot (QMS/SPEC)**; the other 12 modules after the user has checked the pilot.
+- [ ] **Application changes asked by the SPEC documents:** a "reviewed, no change" action for specifications (WI-SPEC-03 §1.3); optionally a printable authorization list (F-SPEC-03).
 - [ ] **HTSA questions not yet in CALOR:**
   - section 1: 1.2–1.5, 1.7, 1.10, 1.12–1.14, 1.16, 1.18–1.20;
   - section 2: every question except 2.5;
@@ -392,6 +396,7 @@ Targets are to be set by the user (Section 3).
 | 24 | 22-Oct | WI for product segregation | SOP-HT-08 |
 | 25 | 22-Oct | What is the burner management sequence; document it | WI-HT-12 |
 | 26 | 22-Oct | Prepare CALOR in the QMS project template | This note |
+| 27 | 22-Oct | Create the CALOR application in this template (pilot: one module first) | SPEC module set in `QMS/SPEC/` |
 
 ---
 
@@ -399,14 +404,14 @@ Targets are to be set by the user (Section 3).
 
 ## A. Folder skeleton (proposed)
 
-One module per CALOR tab group. The application file of each module already exists (column "Application"); folders 01–03 are still to be written in the template format.
+One module per CALOR tab group. The application file of each module already exists (column "Application"). **SPEC is built as the pilot in `QMS/SPEC/`**; folders 01–03 of the other modules are still to be written. `04_Application` holds a module description (the page's rules), not a copy of the page file, because the build reads the page from the repository root.
 
 ```
 <MOD>\00_<MOD>_Master_List.md
 <MOD>\01_Procedure\MWSPL-QP-<MOD>-01_<Title>.md
 <MOD>\02_Work_Instructions\MWSPL-WI-<MOD>-0n_<Title>.md
 <MOD>\03_Formats\MWSPL-F-<MOD>-0n_<Title>.md
-<MOD>\04_Application\<page file>.html   (today: the page file in the repository root)
+<MOD>\04_Application\mwspl-<mod>-module.md   (description of the page; the page file stays in the repository root)
 ```
 
 | MOD | Module | CQI-9 basis | PDCA | Application | Existing documents |
