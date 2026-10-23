@@ -231,3 +231,11 @@ table.fq td{vertical-align:top}table.fq select{min-width:120px}table.fq input{wi
 button.sync{font-size:12.5px;white-space:nowrap}button.sync.ok{border-color:var(--ok);color:var(--ok)}button.sync.warn{border-color:var(--warn);color:var(--warn)}button.sync.bad{border-color:var(--bad);color:var(--bad)}
 #syncDlg{border:1px solid var(--line);border-radius:10px;padding:0;background:var(--panel);color:var(--ink);max-width:min(640px,calc(100vw - 32px));width:100%}
 #syncDlg::backdrop{background:rgba(0,0,0,.35)}#syncDlg .sheet{padding:18px}#syncDlg .row{margin-top:10px;flex-wrap:wrap}
+/* TC module: SAT difference trend (small multiples) */
+.mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px;margin-top:10px}
+.trc{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel)}.trc h3{font-size:14px;margin:0 0 4px}
+.trc svg{width:100%;height:auto;display:block}.trc svg text{font:10.5px var(--f-mono);fill:var(--muted)}.trc svg circle:hover{r:6}
+.trlg{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:6px}.trlg span{display:inline-flex;align-items:center;gap:6px}
+.trlg i{display:inline-block}.trlg .sw.band{width:16px;height:10px;background:var(--band);border:1px solid var(--line)}.trlg .dot{width:10px;height:10px;border-radius:50%}
+.trlg .ln{width:18px;border-top:2px dashed}.trlg .ln.warn{border-color:var(--warn)}.trlg .ln.repl{border-color:var(--s1)}
+.trsel select{width:auto;min-width:0}.trsel{gap:8px;flex-wrap:wrap}

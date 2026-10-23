@@ -71,7 +71,7 @@ const acc=s=>{const [a,p]=String(s||"").split("|").map(num);return {a:a||0,p:p||
 
 /* 4. state */
 const S={view:"dash",db:null,dbState:"connecting",canWrite:true,dl:null,tcs:[],eq:[],sats:[],tubes:[],repl:[],cfg:{...DEF},pm:{rev:0,appr:"",apprDate:"",ref:"",dirty:false,log:[]},
-  docSel:DOCS[0][0],imp:null,modal:null,pending:false,filt:{f:"",ch:"",st:"inuse",q:""},unsub:[],q:{}};
+  docSel:DOCS[0][0],imp:null,modal:null,pending:false,filt:{f:"",ch:"",st:"inuse",q:"",tr:""},unsub:[],q:{}};
 const C=()=>S.cfg;
 
 /* 5. domain logic */
@@ -363,10 +363,45 @@ function vEq(){
   ${S.eq.length?`<div class="tw"><table><thead><tr><th>Ident</th><th>Kind</th><th>Certificate</th><th>Calibrated</th><th>Due</th><th class="n">Uses</th><th>Status</th></tr></thead><tbody>${S.eq.map(q=>{const i=eqIssues(q),u=S.sats.filter(r=>r.testTc===q.id||r.instr===q.id).length+(q.kind==="testtc"?(num(q.uses0)||0):0);
     return `<tr class="click" data-eq="${esc(q.id)}"><td><b>${esc(q.ident)}</b></td><td>${q.kind==="testtc"?"Test TC type "+esc(q.type):"Test instrument"}</td><td>${esc(q.cert||"—")}</td><td>${fmtD(q.calDate)}</td><td>${fmtD(q.calDue)}</td><td class="n">${u}</td><td>${!q.active?pill("","Not in use"):i.length?pill("bad",i[0]):pill("ok","In calibration")}</td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No test equipment registered.</p></div>`}`;
 }
+/* SAT difference trend per thermocouple position (as the CALOR SAT page): valid SATs of every element that has been at the position,
+   tolerance band, warning lines, points coloured by result, element replacements as dashed lines */
+const dnum=d=>Math.round(new Date(d+"T00:00:00Z").getTime()/864e5),dstr=n=>new Date(n*864e5).toISOString().slice(0,10);
+function trendCard(){
+  const f=S.filt,tol=+C().satTol,warn=tol*C().warnPct/100,pk=e=>`${e.furnace}|${e.chamber}|${tcNo(e.tag)}`;
+  const P={};S.tcs.filter(e=>SATUSE.includes(e.use)&&tcNo(e.tag)!=null&&(!f.f||e.furnace===f.f)&&(!f.ch||e.chamber===f.ch)).forEach(e=>{(P[pk(e)]=P[pk(e)]||[]).push(e);});
+  const key=e=>e.furnace+"|"+e.chamber+"|"+String(tcNo(e.tag)).padStart(2,"0");
+  const pos=Object.values(P).map(E=>{const ids=new Set(E.map(e=>e.id)),cur=E.find(e=>e.status==="inuse")||E[E.length-1];
+    const h=S.sats.filter(r=>ids.has(r.tc)&&validSat(r)).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1).map(r=>({r,v:satEval(r),x:dnum(r.date)}));
+    const rp=S.repl.filter(r=>(ids.has(r.newTc)||ids.has(r.oldTc))&&isDate(r.date));
+    return {cur,h,rp,last:h[h.length-1]};}).sort((a,b)=>key(a.cur)<key(b.cur)?-1:1);
+  const shown=pos.filter(x=>x.h.length&&(f.tr!=="attn"||x.h.some(p=>p.v.res!=="pass"))),noH=pos.filter(x=>!x.h.length&&x.cur.status==="inuse").length;
+  const W=360,H=150,L=34,Rr=8,T=10,B=22,col={pass:"var(--ok)",warn:"var(--warn)",fail:"var(--bad)"};
+  const chart=x=>{const h=x.h,ymax=Math.max(tol*1.6,...h.map(p=>Math.abs(p.v.diff)*1.15));
+    let x0=Math.min(...h.map(p=>p.x),...x.rp.map(r=>dnum(r.date))),x1=Math.max(...h.map(p=>p.x),dnum(today()));if(x1-x0<30)x0=x1-30;
+    const X=v=>L+8+(v-x0)/(x1-x0)*(W-L-Rr-16),Y=v=>T+(ymax-v)/(2*ymax)*(H-T-B),e=x.cur,lt=x.last,bad=h.some(p=>p.v.res==="fail");
+    return `<div class="trc"><h3>${esc(tcName(e))} <span class="small muted" style="font-weight:400">zone ${zoneOf(e)??"?"} · ${esc(wallOf(e.tag))} · latest ${fx(lt.v.diff)} °C · ${fmtD(lt.r.date)}</span></h3>
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="SAT differences of ${esc(tcName(e))}">
+      <rect x="${L}" y="${Y(tol)}" width="${W-L-Rr}" height="${Y(-tol)-Y(tol)}" fill="var(--band)"/>
+      ${[-tol,0,tol].map(v=>`<line x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${Y(v)+3.5}" text-anchor="end">${v>0?"+":""}${fx(v)}</text>`).join("")}
+      ${[warn,-warn].map(v=>`<line x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--warn)" stroke-dasharray="4 3"/>`).join("")}
+      ${x.rp.map(r=>`<line x1="${fx(X(dnum(r.date)),1)}" x2="${fx(X(dnum(r.date)),1)}" y1="${T}" y2="${H-B}" stroke="var(--s1)" stroke-dasharray="3 3" stroke-width="1.5"><title>${esc(r.id)} · replaced ${fmtD(r.date)} · ${esc(r.oldSerial||"?")} → ${esc(r.newSerial)} · ${esc(r.reason)}</title></line>`).join("")}
+      <polyline points="${h.map(p=>fx(X(p.x),1)+","+fx(Y(p.v.diff),1)).join(" ")}" fill="none" stroke="var(--muted)" stroke-width="1.2"/>
+      ${h.map(p=>`<circle cx="${fx(X(p.x),1)}" cy="${fx(Y(p.v.diff),1)}" r="4.5" fill="${col[p.v.res]}" stroke="var(--panel)" stroke-width="1.5" data-sat="${esc(p.r.id)}" style="cursor:pointer"><title>${esc(p.r.id)} · ${fmtD(p.r.date)} · ${fx(p.v.diff)} °C · ${p.v.res==="fail"?"fail":p.v.res==="warn"?"warning":"pass"} · element ${esc((tcById(p.r.tc)||{}).serial||"")}</title></circle>`).join("")}
+      <text x="${L}" y="${H-6}">${fmtD(dstr(x0))}</text><text x="${W-Rr}" y="${H-6}" text-anchor="end">${fmtD(dstr(x1))}</text>
+    </svg></div>`;};
+  return `<div class="panel"><div class="row between"><h3>SAT difference trend per thermocouple</h3>
+      <div class="row trsel"><select data-filt="f" aria-label="Furnace"><option value="">All furnaces</option>${furnaces().map(x=>`<option ${f.f===x?"selected":""}>${esc(x)}</option>`).join("")}</select>
+      <select data-filt="ch" aria-label="Chamber"><option value="">Both chambers</option>${CH.map(x=>`<option ${f.ch===x?"selected":""}>${x}</option>`).join("")}</select>
+      <select data-filt="tr" aria-label="Show"><option value="">Every thermocouple</option><option value="attn" ${f.tr==="attn"?"selected":""}>With a warning or failure</option></select></div></div>
+    <p class="small muted">Valid SATs only, of every element that has been at the position. A trend towards the limit is the cue for preventive action before a failure. Click a point to open the SAT.</p>
+    <div class="trlg small"><span><i class="sw band"></i>within ±${fx(tol)} °C</span><span><i class="ln warn"></i>warning band ±${fx(warn)} °C</span><span><i class="dot" style="background:var(--ok)"></i>pass</span><span><i class="dot" style="background:var(--warn)"></i>warning</span><span><i class="dot" style="background:var(--bad)"></i>fail</span><span><i class="ln repl"></i>element replaced</span></div>
+    ${shown.length?`<div class="mini-grid">${shown.map(chart).join("")}</div>`:`<p class="muted">${pos.some(x=>x.h.length)?"No thermocouple with a warning or failure here.":"No valid SAT yet for these thermocouples."}</p>`}
+    ${noH&&shown.length?`<p class="small muted" style="margin-top:6px">${plural(noH,"thermocouple")} in use without a valid SAT yet.</p>`:""}</div>`;}
 function vSat(){
   const L=S.sats.slice().sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1);
   return `<div class="row between"><h2>SAT records</h2><div class="row"><button class="pri w" data-new-sat>Record a SAT</button><button data-satcsv>SAT CSV</button><button data-rdcsv>Readings CSV</button></div></div>
   <p class="muted">Each SAT records ${C().satMin} minutes of readings (${nRd()} furnace / test pairs, one every ${C().satStep} min). SAT difference = mean of furnace reading − (test reading + instrument correction + test TC correction), tolerance ±${C().satTol} °C.</p>
+  ${trendCard()}
   ${L.length?`<div class="tw"><table><thead><tr><th>Record</th><th>Thermocouple</th><th>Date</th><th class="n">Set point</th><th>Test TC · depth</th><th class="n">Readings</th><th>Result</th><th>Record (P3.3.5)</th></tr></thead><tbody>${L.map(r=>{const m=satMissing(r),t=eqById(r.testTc);
     return `<tr class="click" data-sat="${esc(r.id)}"><td class="mono">${esc(r.id)}</td><td>${esc(tcName(tcById(r.tc)))}</td><td>${fmtD(r.date)} ${esc(r.time)}<br><span class="small muted">${esc(r.by)}</span></td><td class="n">${esc(r.sp)}</td><td>${esc(t?t.ident:"—")}${r.depth?` · ${esc(r.depth)} mm`:""}</td><td class="n">${legacy(r)?`<span class="muted">1 (single)</span>`:`${readingsOf(r).length} / ${nRd()}`}</td><td>${resPill(r)}</td><td>${m.length?pill("warn",m.length+" missing"):pill("ok","Complete · approved")}</td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No SAT recorded yet.</p></div>`}`;
 }
@@ -679,15 +714,16 @@ async function stdOps(){if(!needDb())return;if(S.tcs.length||S.sats.length){toas
     T.push(e);
     const sp=ch==="Hardening"?(k<=2?840:870):(k<=2?560:580);
     const last=f==="F-03"&&ch==="Hardening"&&k===4?-100:-20-fi*7-k;               /* F-03 hardening TC-04: SAT overdue */
-    [last-90,last].forEach((o,j)=>{const fail=f==="F-02"&&ch==="Hardening"&&k===5&&j===1;  /* F-02 hardening TC-05: failed, reaction open */
+    [last-270,last-180,last-90,last].forEach((o,j)=>{const fail=f==="F-02"&&ch==="Hardening"&&k===5&&j===3;  /* F-02 hardening TC-05: failed, reaction open */
+      const drift=f==="F-03"&&ch==="Tempering"&&k===1?1.7*j:0;                     /* F-03 tempering TC-01: drifting towards the limit (warning on the last SAT) */
       const tR=sp+((k*7+fi*3+j)%5-2)*0.4;
       SA.push(fillSat({id:"SAT-"+String(++sa).padStart(4,"0"),tc:id,date:D(o),time:"10:"+pad(10+k*5),by:"S. Patil"+ex,sp:String(sp),instr:"TT-0001",testTc:"TT-0002",depth:String(150+j*10),
-        rd:exRd(tR,(fail?7.2:((k+fi)%3-1)*0.8)-0.2,k*13+fi*7+j),instrCorr:"0.2",tcCorr:"-0.4",
+        rd:exRd(tR,(fail?7.2:((k+fi)%3-1)*0.8+drift)-0.2,k*13+fi*7+j),instrCorr:"0.2",tcCorr:"-0.4",
         appr:fail?{by:"",date:""}:{by:"R. Sharma"+ex,date:D(o+1)},act:fail?{cause:"Element drift suspected",action:"",impact:"",by:"",date:""}:{},log:[{d,t:"Example"}]}));});
     const chk=f==="F-04"&&ch==="Hardening"&&k===3?-45:-10-k;                      /* F-04 hardening TC-03: tube check overdue */
     TB.push(fillTube({id:"PT-"+String(++pt).padStart(4,"0"),tc:id,date:D(chk),by:"Maintenance"+ex,res:f==="F-01"&&ch==="Hardening"&&k===6?"worn":"ok",note:f==="F-01"&&ch==="Hardening"&&k===6?"Heavy scaling at the tip":""}));}}));
   /* the depth rule: the last SAT with the reused K test TC is shallower on one record */
-  const sh=SA.find(r=>r.tc==="TE-0009"&&r.depth==="160");if(sh)sh.depth="120";
+  const sh=SA.find(r=>r.tc==="TE-0009"&&r.depth==="180");if(sh)sh.depth="120";
   S.cfg={...S.cfg};await dbSet("config","settings",S.cfg);
   S.pm={rev:1,appr:"R. Sharma"+ex,apprDate:D(-200),ref:"MWSPL-F-TC-03",dirty:false,log:[{d:D(-200),t:"Approved rev 1 (example)"}]};await dbSet("config","pm",S.pm);
   /* two example replacements: F-01 hardening TC-03 at its service life 60 days ago (verified by the later SAT), F-04 tempering TC-06 five days ago (SAT still due) */
@@ -763,7 +799,7 @@ async function clearAll(){if(($("#clrtxt")||{}).value!=="CLEAR ALL"){toast("Type
 
 /* 11. wiring */
 onDoc("click",e=>{
-  const b=e.target.closest("button,tr.click,a[data-docref],a[data-sat],a[data-tc]");if(!b)return;const d=b.dataset;
+  const b=e.target.closest("button,tr.click,a[data-docref],a[data-sat],a[data-tc],circle[data-sat]");if(!b)return;const d=b.dataset;
   if(b.closest("#modal")||d.close!==undefined){
     if(d.close!==undefined){closeModal();return;}
     if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.saveSat!==undefined){saveSat();return;}
