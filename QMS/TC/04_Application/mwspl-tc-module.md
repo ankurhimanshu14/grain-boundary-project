@@ -12,12 +12,13 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | SAT (P3.3) `satState` | control, monitoring, recording TCs: a valid passing SAT after installation, then every 90 days (setting); difference = furnace − (test + instrument correction + test TC correction); fail beyond ±5.5 °C (setting), warning beyond 70 %; a failure stays until a later pass |
 | Valid SAT `satEval` | instrument and test TC identified and in calibration on the test day; depth rules |
 | Insertion depth (P3.1.3.3) `depthIssues` | type K / E test TC: depth required; reused shallower than the deepest earlier use = issue (setting "reuseDeeper"); optional maximum uses |
-| SAT record (P3.3.5) `satMissing` | thermocouple, date, time, technician, set point, instrument, test TC, both readings, both corrections, depth (K / E), approval by and date |
+| SAT readings `rd` | 30 minutes of furnace / test pairs per SAT (settings `satMin` 30, `satStep` 1 min, `satStab` 5 °C); `satEval` = mean of the per-reading differences, a reading outside the tolerance turns a pass into a warning, a furnace range above `satStab` is noted; paste from Excel, chart of the difference against ±tolerance, readings printed with the record and in the readings CSV; a record saved before (one reading) is kept and noted as single |
+| SAT record (P3.3.5) `satMissing` | thermocouple, date, time, technician, set point, instrument, test TC, the 30-minute series of readings, both corrections, depth (K / E), approval by and date |
 | Failed SAT | cause, action, product impact, owner, date; re-SAT shown on the Reactions view |
 | Protection tubes `tubeState` | not in the PM schedule (no material / interval), never checked, check overdue, replacement interval passed, last check worn / cracked (open until "Replaced"); PM schedule approved (rev, approver, date), changes after approval mark it changed, review every 365 days |
 | Element life `lifeOf` | 365 days after installation (setting, 0 = off) |
 | HTSA 3.3 `assess33` | the five bullets of the question plus element life; score needs immediate action (nothing registered, or a control TC failed / never SAT checked), not satisfactory (any item not met), satisfactory |
-| Data | export / import JSON, register and SAT CSV, import from the CALOR SAT register (`tsat-pdca`: thermocouples, SATs as the mean of their readings, test equipment), starter set-up, clear all |
+| Data | export / import JSON, register and SAT CSV, import from the CALOR SAT register (`tsat-pdca`: thermocouples, SATs with their readings, test equipment), starter set-up, clear all |
 | API | `MWS.tc.stats()`, `summary()`, `closeModal()` (Overview) |
 | Test hook | `window.__TCM` |
 

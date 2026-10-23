@@ -25,9 +25,9 @@
 
 | Step | Action | Who |
 |---|---|---|
-| 3.1 | Read the furnace instrument (SCADA) and the test instrument at the same moment. | Technician |
-| 3.2 | Application → SAT records → "Record a SAT": thermocouple, date, time, technician, set point, instrument, test TC, depth, both readings, both corrections (0 if none). | Technician |
-| 3.3 | The application calculates the SAT difference = furnace − (test + instrument correction + test TC correction) and the result. A record with test equipment out of calibration is invalid: repeat the test. | Application |
+| 3.1 | Note the start time. For **30 minutes**, read the furnace instrument (SCADA) and the test instrument at the same moment **every minute** (30 pairs; minutes and interval are settings of the application). Do not change the set value during the test. | Technician |
+| 3.2 | Application → SAT records → "Record a SAT": thermocouple, date, time, technician, set point, instrument, test TC, depth, the 30 furnace / test reading pairs (typed, or pasted as two columns from Excel or the logger), both corrections (0 if none). A record with fewer pairs is incomplete. | Technician |
+| 3.3 | The application calculates the SAT difference = mean over the readings of furnace − (test + instrument correction + test TC correction) and the result; a single reading outside the tolerance makes a pass a warning, and a furnace range above the stability limit (5 °C) is flagged. A record with test equipment out of calibration is invalid: repeat the test. | Application |
 | 3.4 | The HT Engineer reviews and approves the record (name and date). | HT Engineer |
 
 ### 4. Failed SAT (beyond the tolerance)

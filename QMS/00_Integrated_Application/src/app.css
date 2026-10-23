@@ -217,3 +217,10 @@ svg.lay .lb,.zcw svg .lb{font:600 12.5px var(--f-body);fill:var(--ink)}svg.lay .
 .hmt td.hm{min-width:34px;text-align:center;padding:4px 2px;border-radius:3px;border:2px solid transparent}.hmt td.hm.oot{border-color:var(--ink)}.hmt td.na{background:none}
 .ramp{display:inline-block;width:120px;height:8px;border-radius:4px;vertical-align:middle;background:linear-gradient(90deg,var(--s1),var(--sunk),var(--hot))}
 @media print{.rp-head .row,.upl{display:none}.hero,.kpi,.zcard{break-inside:avoid}}
+/* TC module: SAT readings series */
+.rdw{max-height:380px;overflow:auto}
+.rdt td{padding:3px 6px}.rdt input{width:100%;min-width:72px;font-family:var(--f-mono)}
+.rdt td.mono{white-space:nowrap}
+svg.satc{width:100%;height:auto;display:block;max-width:720px;margin:8px 0}
+svg.satc text{font:11px var(--f-mono);fill:var(--muted)}
+.rdp td,.rdp th{padding:2px 6px;font-size:11px}

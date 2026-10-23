@@ -15,10 +15,11 @@
 | Test instrument (ident, certificate, calibration due) | |
 | Test thermocouple (ident, type, certificate, calibration due) | |
 | Insertion depth of the test TC (mm; required for type K / E) | |
-| Furnace reading °C | |
-| Test instrument reading °C | |
+| Start time; readings every 1 min for 30 min (30 pairs) | |
+| Readings: no. · time · furnace °C · test °C · difference °C (30 lines, printed with the record) | |
+| Mean furnace reading °C / mean test reading °C / furnace range °C | |
 | Instrument correction °C / test TC correction °C | |
-| SAT difference °C = furnace − (test + corrections) | |
+| SAT difference °C = mean of furnace − (test + corrections); lowest / highest per reading | |
 | Tolerance ± °C / result (pass / fail) | |
 | Technician | |
 | Approved by / date | |
