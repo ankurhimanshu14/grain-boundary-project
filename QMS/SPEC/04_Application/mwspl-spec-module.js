@@ -103,10 +103,10 @@ function calc(s){
   const pcs=num(s.pcs),wt=num(s.wt),trayKg=pcs!=null&&wt!=null?pcs*wt:null;
   return {zh,zt,ch:sum(zh),ct:sum(zt),gap,cool,xfer,idle:cool!=null?p-gap:null,total:sum(zh)+sum(zt)+gap,trays:60/p,pcsH:pcs!=null?60/p*pcs:null,trayKg,kgH:trayKg!=null?60/p*trayKg:null};
 }
-/* who may approve: the HT organization in this browser (holder / deputy of the HT position and of positions marked authorized), else Settings */
+/* who may approve: CALOR's HT organization (MWS.calor: Drive folder / files or this browser) (holder / deputy of the HT position and of positions marked authorized), else Settings */
 function authList(){
   if(MWS.org&&MWS.org.hasData()){const L=MWS.org.authorized();return {src:"HT organization module",list:L};}
-  try{const o=JSON.parse(localStorage.getItem("org-reg")||"null");
+  try{const o=MWS.calor.get("org-reg");
     if(o&&Array.isArray(o.positions)&&Array.isArray(o.people)){const nm=id=>(o.people.find(p=>p.id===id)||{}).name;const L=[];
       o.positions.filter(p=>p.ht||p.specAuth).forEach(p=>[p.holder,p.deputy].forEach(id=>{const n=nm(id);if(n&&!L.some(x=>x.name===n))L.push({name:n,position:p.title||""});}));
       if(L.length)return {src:"HT organization (CALOR, this browser)",list:L};}}catch(e){}
@@ -115,7 +115,7 @@ function authList(){
 const isAuth=n=>{const x=String(n||"").trim().toLowerCase();return !!x&&authList().list.some(a=>String(a.name).trim().toLowerCase()===x);};
 /* active processes: parts loaded on the CALOR Daily production page (this browser) in the last activeDays */
 function activeParts(){
-  try{const o=JSON.parse(localStorage.getItem("prod-reg")||"null");if(!o||!Array.isArray(o.reports))return null;
+  try{const o=MWS.calor.get("prod-reg");if(!o||!Array.isArray(o.reports))return null;
     const from=addDays(today(),-(+C().activeDays||90)),m=new Map();
     o.reports.filter(r=>isDate(r.date)&&r.date>=from).forEach(r=>((r.tl&&r.tl.trays)||[]).forEach(t=>(t.items||[]).forEach(it=>{const p=String(it.part||"").trim();if(!p||isNA(p))return;
       const k=p.toUpperCase()+"|"+r.furnace,x=m.get(k);if(!x||x.last<r.date)m.set(k,{part:p,furnace:r.furnace,last:r.date});})));
@@ -321,7 +321,7 @@ function vSpecs(){
 function vAuth(){
   const A=authList(),c=C();
   return `<div class="grid2"><div class="panel"><h3>Authorized to approve process specifications</h3>
-    <p class="small muted">Source now: <b>${esc(A.src)}</b>. When the HT organization module (or CALOR's HT organization page in this browser) holds positions, the holder and deputy of the heat treat position and of positions marked "authorized" are used; otherwise the names below.</p>
+    <p class="small muted">Source now: <b>${esc(A.src)}</b>. When the HT organization module (or CALOR's HT organization page, read from its Drive folder / files or this browser) holds positions, the holder and deputy of the heat treat position and of positions marked "authorized" are used; otherwise the names below.</p>
     ${A.list.length?`<ul class="issues">${A.list.map(a=>`<li>${esc(a.name)}${a.position?` <span class="muted">(${esc(a.position)})</span>`:""}</li>`).join("")}</ul>`:`<p class="banner bad">Nobody is authorized: no specification can be approved.</p>`}
     <label class="f" style="margin-top:10px"><span>Authorized names (one per line), used when no HT organization is found</span><textarea data-cfg="auth" rows="4">${esc(c.auth)}</textarea></label></div>
   <div class="panel"><h3>Processes and quench per furnace</h3>
@@ -374,7 +374,7 @@ function vRules(){
     ["Document control","Approved = locked. A change is a new revision: the approved revision stays in force until the new one is approved. Discard restores it. Obsolete needs a reason. Only a never-approved draft can be deleted (armed delete)."],
     ["Implementation","Date implemented and by whom, not before the approval and not in the future; not recorded "+c.implDays+" days after the approval = HTSA 1.6 item not met."],
     ["Periodic review","Due "+c.reviewDays+" days after the approval of the revision in force or after the last review without change; shown as due "+c.reviewSoon+" days before."],
-    ["Active processes","Parts loaded on the CALOR Daily production page in this browser in the last "+c.activeDays+" days, per furnace, must each have a specification in force approved for that furnace."],
+    ["Active processes","Parts loaded on the CALOR Daily production page (read from its Drive folder / files or this browser) in the last "+c.activeDays+" days, per furnace, must each have a specification in force approved for that furnace."],
     ["Line timing","Time per zone = positions ("+c.posH+" / "+c.posT+") × push. Between the chambers: "+c.xfer+" min measured (HT, NORM) or the controlled cooling cycle (IA). Through the line = hardening + between + tempering."],
     ["HTSA 1.6 score","Needs immediate action: no specification in force or an active part without one. Not satisfactory: any item not met. Satisfactory: otherwise."],
     ["“N/A”","Means not available: accepted as an entry, never used to match (duplicates, active parts)."]];
@@ -408,13 +408,14 @@ function showDoc(){
     .catch(()=>{if($("#docview"))$("#docview").innerHTML=`<p class="banner warn">This document is not embedded in this build and could not be loaded from docs/${esc(p)}.</p>`;});
 }
 function vData(){
-  const calor=(()=>{try{const o=JSON.parse(localStorage.getItem("psr-reg")||"null");return o&&Array.isArray(o.specs)?o.specs.length:0;}catch(e){return 0;}})();
+  const calor=(()=>{try{const o=MWS.calor.get("psr-reg");return o&&Array.isArray(o.specs)?o.specs.length:0;}catch(e){return 0;}})();
   return `<h2>Data</h2><div class="grid2">
   <div class="panel"><h3>Back up and restore</h3><p class="small muted">${plural(S.specs.length,"specification")} · storage: ${S.dbState==="on"?"shared record store":"this browser"}.</p>
     <div class="row"><button class="pri" data-export>Export JSON</button><button data-csv>Register CSV</button></div>
     <div class="row w" style="margin-top:10px"><label class="f"><span>Import a JSON export</span><input type="file" id="impfile" accept=".json,application/json"></label></div>
     ${S.imp?`<div class="banner" style="margin-top:8px">${esc(S.imp.msg)}<div class="row" style="margin-top:6px"><button class="pri" data-imp="merge">Merge (add and update)</button><button class="danger" data-imp="replace">Replace everything</button><button data-imp="cancel">Cancel</button></div></div>`:""}</div>
-  <div class="panel"><h3>From the CALOR Specifications page</h3><p class="small muted">CALOR (this browser) holds ${plural(calor,"specification")} in its register. Importing copies them here with the same numbers, revisions and logs; existing records with the same number are updated.</p>
+  ${MWS.calor.panel(["psr-reg","org-reg","prod-reg"],"The HT organization gives the approvers and the Daily production the active parts (HTSA 1.6).")}
+  <div class="panel"><h3>From the CALOR Specifications page</h3><p class="small muted">${calor?`CALOR (${esc(MWS.calor.where("psr-reg"))}) holds ${plural(calor,"specification")} in its register. Importing copies them here with the same numbers, revisions and logs; existing records with the same number are updated.`:"No CALOR specifications found. Read the CALOR Drive folder or files above, or open this application in the browser where CALOR runs."}</p>
     <button class="w" data-calor ${calor?"":"disabled"}>Import from CALOR</button></div>
   <div class="panel"><h3>Starter set-up</h3><p class="small muted">Three example specifications (HT on F-02, IA on F-03, NORM on F-04) and example authorized names, all marked "(example)".</p><button class="w" data-std>Load starter set-up</button></div>
   <div class="panel"><h3>Clear all</h3><p class="small muted">Deletes every specification and the settings of this module. Type <b>CLEAR ALL</b> to enable.</p>
@@ -583,8 +584,8 @@ async function doImport(mode){if(!S.imp||!needDb())return;const I=S.imp;S.imp=nu
   if(mode==="replace")for(const s of S.specs)if(!I.specs.some(x=>x.id===s.id))await dbDel("specs",s.id);
   for(const s of I.specs)await dbSet("specs",s.id,s);if(I.config){const c={...DEF,...I.config};delete c.id;await dbSet("config","settings",c);}
   toast(`${plural(I.specs.length,"specification")} imported (${mode})`);render();}
-async function importCalor(){if(!needDb())return;let o=null;try{o=JSON.parse(localStorage.getItem("psr-reg")||"null");}catch(e){}
-  if(!o||!Array.isArray(o.specs)){toast("No CALOR specifications in this browser");return;}
+async function importCalor(){if(!needDb())return;let o=null;try{o=MWS.calor.get("psr-reg");}catch(e){}
+  if(!o||!Array.isArray(o.specs)){toast("No CALOR specifications found: read the CALOR Drive folder or files first");return;}
   const L=o.specs.filter(s=>s&&ID_RE.test(String(s.id||""))).map(fill);for(const s of L)await dbSet("specs",s.id,s);
   if(o.settings){const keep={};Object.keys(DEF).forEach(k=>{if(o.settings[k]!=null)keep[k]=o.settings[k];});S.cfg={...S.cfg,...keep};await dbSet("config","settings",S.cfg);}
   toast(`${plural(L.length,"specification")} imported from CALOR`);}

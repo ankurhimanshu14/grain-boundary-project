@@ -447,7 +447,7 @@ function showDoc(){
   fetch("docs/"+p).then(r=>r.ok?r.text():Promise.reject()).then(x=>{if($("#docview")&&S.docSel===p)$("#docview").innerHTML=md(x);})
     .catch(()=>{if($("#docview"))$("#docview").innerHTML=`<p class="banner warn">This document is not embedded in this build and could not be loaded from docs/${esc(p)}.</p>`;});
 }
-const calorSat=()=>{try{const o=JSON.parse(localStorage.getItem("tsat-pdca")||"null");return o&&Array.isArray(o.sensors)?o:null;}catch(e){return null;}};
+const calorSat=()=>{try{const o=MWS.calor.get("tsat-pdca");return o&&Array.isArray(o.sensors)?o:null;}catch(e){return null;}};
 function vData(){
   const cs=calorSat(),n=S.tcs.length+S.eq.length+S.sats.length+S.tubes.length;
   return `<h2>Data</h2><div class="grid2">
@@ -455,7 +455,8 @@ function vData(){
     <div class="row"><button class="pri" data-export>Export JSON</button><button data-csv>Register CSV</button><button data-satcsv>SAT CSV</button><button data-rdcsv>Readings CSV</button></div>
     <div class="row w" style="margin-top:10px"><label class="f"><span>Import a JSON export</span><input type="file" id="impfile" accept=".json,application/json"></label></div>
     ${S.imp?`<div class="banner" style="margin-top:8px">${esc(S.imp.msg)}<div class="row" style="margin-top:6px"><button class="pri" data-imp="merge">Merge (add and update)</button><button class="danger" data-imp="replace">Replace everything</button><button data-imp="cancel">Cancel</button></div></div>`:""}</div>
-  <div class="panel"><h3>From the CALOR SAT register</h3><p class="small muted">${cs?`CALOR (this browser) holds ${plural(cs.sensors.length,"thermocouple")} and ${plural((cs.cycles||[]).length,"SAT cycle")}. Importing adds the thermocouples (type K, control), the SATs with their readings and the replacement history, with their test thermocouples and instruments. Calibration certificates and tube data are not in CALOR and must be added.`:"No CALOR SAT register in this browser."}</p>
+  ${MWS.calor.panel(["tsat-pdca"])}
+  <div class="panel"><h3>From the CALOR SAT register</h3><p class="small muted">${cs?`CALOR (${esc(MWS.calor.where("tsat-pdca"))}) holds ${plural(cs.sensors.length,"thermocouple")} and ${plural((cs.cycles||[]).length,"SAT cycle")}. Importing adds the thermocouples (type K, control), the SATs with their readings and the replacement history, with their test thermocouples and instruments. Calibration certificates and tube data are not in CALOR and must be added.`:"No CALOR SAT register found. Read the CALOR Drive folder or files above, or open this application in the browser where CALOR runs."}</p>
     <button class="w" data-calor ${cs?"":"disabled"}>Import from CALOR</button></div>
   <div class="panel"><h3>Starter set-up</h3><p class="small muted">Six thermocouples per chamber on F-01 … F-04 (TC-01 … TC-06), certificates, test equipment, SATs and tube checks with a few open items, an approved PM schedule; all marked "(example)".</p><button class="w" data-std ${n?"disabled":""}>Load starter set-up</button>${n?`<p class="small muted">Only on an empty module.</p>`:""}</div>
   <div class="panel"><h3>Clear all</h3><p class="small muted">Deletes every record and the settings of this module. Type <b>CLEAR ALL</b> to enable.</p>
@@ -700,7 +701,7 @@ async function stdOps(){if(!needDb())return;if(S.tcs.length||S.sats.length){toas
   SA.forEach(r=>{const v=satEval(r);r.fRdg=String(v.fMean);r.tRdg=String(v.tMean);});
   await batchPut("eq",EQ);await batchPut("tcs",T);await batchPut("sats",SA);await batchPut("tubes",TB);await batchPut("repl",RP);
   toast("Starter set-up loaded");render();}
-async function importCalor(){if(!needDb())return;const o=calorSat();if(!o){toast("No CALOR SAT register in this browser");return;}
+async function importCalor(){if(!needDb())return;const o=calorSat();if(!o){toast("No CALOR SAT register found: read the CALOR Drive folder or files first");return;}
   const T=[],SA=[],EQ=[];let te=Math.max(0,...S.tcs.map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1])),sa=Math.max(0,...S.sats.map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1])),tt=Math.max(0,...S.eq.map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1]));
   const map={};const eqId=(ident,kind,extra)=>{if(!ident)return "";const ex=[...S.eq,...EQ].find(q=>q.ident.trim().toUpperCase()===ident.trim().toUpperCase());if(ex)return ex.id;
     const q=fillEq({id:"TT-"+String(++tt).padStart(4,"0"),kind,ident,...extra});EQ.push(q);return q.id;};

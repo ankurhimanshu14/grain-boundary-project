@@ -291,7 +291,7 @@ function showDoc(){
   fetch("docs/"+p).then(r=>r.ok?r.text():Promise.reject()).then(x=>{if($("#docview")&&S.docSel===p)$("#docview").innerHTML=md(x);})
     .catch(()=>{if($("#docview"))$("#docview").innerHTML=`<p class="banner warn">This document is not embedded in this build and could not be loaded from docs/${esc(p)}.</p>`;});
 }
-const calorOrg=()=>{try{const o=JSON.parse(localStorage.getItem("org-reg")||"null");return o&&Array.isArray(o.positions)&&Array.isArray(o.people)?o:null;}catch(e){return null;}};
+const calorOrg=()=>{try{const o=MWS.calor.get("org-reg");return o&&Array.isArray(o.positions)&&Array.isArray(o.people)?o:null;}catch(e){return null;}};
 function vData(){
   const co=calorOrg(),n=S.positions.length+S.people.length;
   return `<h2>Data</h2><div class="grid2">
@@ -299,7 +299,8 @@ function vData(){
     <div class="row"><button class="pri" data-export>Export JSON</button><button data-csv>People CSV</button></div>
     <div class="row w" style="margin-top:10px"><label class="f"><span>Import a JSON export</span><input type="file" id="impfile" accept=".json,application/json"></label></div>
     ${S.imp?`<div class="banner" style="margin-top:8px">${esc(S.imp.msg)}<div class="row" style="margin-top:6px"><button class="pri" data-imp="merge">Merge (add and update)</button><button class="danger" data-imp="replace">Replace everything</button><button data-imp="cancel">Cancel</button></div></div>`:""}</div>
-  <div class="panel"><h3>From the CALOR HT organization page</h3><p class="small muted">${co?`CALOR (this browser) holds ${plural(co.positions.length,"position")} and ${plural(co.people.length,"person","people")}. Importing copies them here with their numbers, job descriptions, qualification entries and the chart approval; records with the same number are updated.`:"No CALOR HT organization in this browser."}</p>
+  ${MWS.calor.panel(["org-reg"])}
+  <div class="panel"><h3>From the CALOR HT organization page</h3><p class="small muted">${co?`CALOR (${esc(MWS.calor.where("org-reg"))}) holds ${plural(co.positions.length,"position")} and ${plural(co.people.length,"person","people")}. Importing copies them here with their numbers, job descriptions, qualification entries and the chart approval; records with the same number are updated.`:"No CALOR HT organization found. Read the CALOR Drive folder or files above, or open this application in the browser where CALOR runs."}</p>
     <button class="w" data-calor ${co?"":"disabled"}>Import from CALOR</button></div>
   <div class="panel"><h3>Starter set-up</h3><p class="small muted">Director, Quality Manager, HT Manager (the heat treat person, with a qualified deputy), HT Engineer, Production Manager, Maintenance Head and Shift supervisor, approved job descriptions and chart; all marked "(example)".</p><button class="w" data-std ${n?"disabled":""}>Load starter set-up</button>${n?`<p class="small muted">Only on an empty module.</p>`:""}</div>
   <div class="panel"><h3>Clear all</h3><p class="small muted">Deletes every position, person, the chart approval and the settings of this module. Type <b>CLEAR ALL</b> to enable.</p>
@@ -445,7 +446,7 @@ async function stdOps(){if(!needDb())return;if(S.positions.length||S.people.leng
   await batchPut("people",P);await batchPut("positions",Q);
   S.chart={rev:2,apprDate:d(120),appr:"Director (example)",dirty:false,log:[{d:d(400),t:"Revision 1 approved by Director (example)"},{d:d(120),t:"Revision 2 approved by Director (example)"}]};await dbSet("config","chart",S.chart);
   toast("Starter set-up loaded");render();}
-async function importCalor(){if(!needDb())return;const o=calorOrg();if(!o){toast("No CALOR HT organization in this browser");return;}
+async function importCalor(){if(!needDb())return;const o=calorOrg();if(!o){toast("No CALOR HT organization found: read the CALOR Drive folder or files first");return;}
   const P=o.people.filter(p=>p&&ID_RE.test(String(p.id||""))).map(p=>fillPer({...p,log:[...(p.log||[]),{d:today(),t:"Imported from CALOR"}]}));
   const Q=o.positions.filter(p=>p&&ID_RE.test(String(p.id||""))).map(p=>{const x=fillPos({...p,log:[...(p.log||[]),{d:today(),t:"Imported from CALOR"}]});delete x.key;delete x.qa;return x;});
   await batchPut("people",P);await batchPut("positions",Q);

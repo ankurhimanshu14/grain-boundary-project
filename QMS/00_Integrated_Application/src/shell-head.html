@@ -69,5 +69,60 @@ document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest
 (function(){let t=null;try{t=localStorage.getItem("mws-theme");}catch(e){}if(t)document.documentElement.dataset.theme=t;
   document.getElementById("themeBtn").addEventListener("click",()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
     r.dataset.theme=dark?"light":"dark";try{localStorage.setItem("mws-theme",r.dataset.theme);}catch(e){}});})();
+/* ---------- shell: CALOR data for the "Import from CALOR" buttons ----------
+   CALOR keeps its registers in the browser (localStorage) and, when linked, as one JSON file per register in a Google Drive folder
+   (<key>.json = {format "CALOR data", key, deleted, raw, data}) with a daily full backup in backup/ (calor-backup-<day>.json = {suite "CALOR", data{key: text}}).
+   This application can read that folder (Chrome / Edge), files picked from it or downloaded from Google Drive, a CALOR backup, the SAT page's own export,
+   or the CALOR registers of this browser. What was read is kept under its own key (mws-calor-src); CALOR's own keys are never written. */
+(function(){
+  const LK="mws-calor-src",NEED={"org-reg":"HT organization","psr-reg":"Process specifications","prod-reg":"Daily production","tsat-pdca":"SAT register"};
+  let SRC=null;try{SRC=JSON.parse(localStorage.getItem(LK)||"null");}catch(e){SRC=null;}
+  const parse=v=>{if(v==null)return null;if(typeof v!=="string")return v;try{return JSON.parse(v);}catch(e){return null;}};
+  const fromLocal=k=>{try{return parse(localStorage.getItem(k));}catch(e){return null;}};
+  /* the registers in one JSON file: a per-register file, a full backup, or the SAT page's export */
+  function readObj(o,name){const out={};if(!o||typeof o!=="object")return out;
+    if(o.format==="CALOR data"&&o.key){if(!o.deleted&&o.data!=null)out[o.key]=o.raw?parse(String(o.data)):o.data;return out;}
+    if(o.data&&typeof o.data==="object"&&(o.suite==="CALOR"||/backup/i.test(name||""))){Object.entries(o.data).forEach(([k,v])=>{const x=parse(v);if(x!=null)out[k]=x;});return out;}
+    if(Array.isArray(o.sensors)&&Array.isArray(o.cycles))out["tsat-pdca"]=o;
+    return out;}
+  function keep(keys,from){SRC={at:new Date().toISOString(),from,keys};
+    try{localStorage.setItem(LK,JSON.stringify(SRC));SRC.saved=true;}catch(e){SRC.saved=false;}
+    if(typeof MWS!=="undefined")MWS.toast(`CALOR data read: ${Object.keys(keys).length} register${Object.keys(keys).length===1?"":"s"} from ${from}`);
+    window.dispatchEvent(new HashChangeEvent("hashchange"));}
+  async function readFiles(files){const keys={};let n=0;
+    for(const f of files){if(!/\.json$/i.test(f.name))continue;try{Object.assign(keys,readObj(JSON.parse(await f.text()),f.name));n++;}catch(e){}}
+    if(!Object.keys(keys).length){MWS.toast("No CALOR register found in the file(s) chosen.");return;}
+    keep({...(SRC&&SRC.keys||{}),...keys},`${n} file${n===1?"":"s"}`);}
+  /* the Drive folder: <key>.json files; without them the latest backup in backup/ */
+  async function readFolder(){if(!window.showDirectoryPicker){MWS.toast("This browser cannot open a folder: choose the files instead (Chrome or Edge can open the folder).");return;}
+    let dir;try{dir=await window.showDirectoryPicker({mode:"read"});}catch(e){return;}
+    const keys={};const files=[];
+    try{for await(const [n,h] of dir.entries())if(h.kind==="file"&&/\.json$/i.test(n))files.push([n,h]);
+      for(const [n,h] of files){try{const o=JSON.parse(await (await h.getFile()).text());if(o&&o.format==="CALOR data")Object.assign(keys,readObj(o,n));}catch(e){}}
+      if(!Object.keys(keys).length){let bd=null;try{bd=await dir.getDirectoryHandle("backup");}catch(e){}
+        const pool=bd?[]:files;if(bd)for await(const [n,h] of bd.entries())if(h.kind==="file")pool.push([n,h]);
+        const b=pool.filter(([n])=>/^calor-backup-\d{4}-\d{2}-\d{2}\.json$/i.test(n)).sort((x,y)=>x[0]<y[0]?1:-1)[0];
+        if(b)Object.assign(keys,readObj(JSON.parse(await (await b[1].getFile()).text()),b[0]));}}
+    catch(e){MWS.toast("The folder could not be read: "+(e.message||e));return;}
+    if(!Object.keys(keys).length){MWS.toast(`No CALOR data in the folder "${dir.name}": choose the CALOR Drive folder (the one with calor-manifest.json).`);return;}
+    keep(keys,`the folder "${dir.name}"`);}
+  window.MWS_CALOR={
+    /* a CALOR register: from the data read (folder / files), else from this browser */
+    get:k=>SRC&&SRC.keys&&SRC.keys[k]!=null?SRC.keys[k]:fromLocal(k),
+    where:k=>SRC&&SRC.keys&&SRC.keys[k]!=null?SRC.from:fromLocal(k)!=null?"this browser":"",
+    /* the panel every module shows on its Data view; `keys` = the registers that module imports */
+    panel:(keys,note)=>{const esc=v=>String(v??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+      const rows=(keys||Object.keys(NEED)).map(k=>{const w=MWS_CALOR.where(k);return `<li>${esc(NEED[k]||k)}: ${w?`<b>found</b> <span class="muted">(${esc(w)})</span>`:`<span class="muted">not found</span>`}</li>`;}).join("");
+      return `<div class="panel"><h3>CALOR data</h3><p class="small muted">CALOR's registers are read from its Google Drive folder (the one with <code>calor-manifest.json</code>; Chrome or Edge, with Google Drive for Desktop), from JSON files picked from that folder or downloaded from drive.google.com (the register files such as <code>org-reg.json</code>, or a <code>calor-backup-….json</code>), or from CALOR in this browser.${note?" "+esc(note):""}</p>
+        <ul class="small">${rows}</ul>
+        <div class="row"><button class="w" data-calor-folder>Choose the CALOR Drive folder</button><label class="btn w" style="cursor:pointer">Choose CALOR file(s)<input type="file" id="calorfiles" accept=".json,application/json" multiple hidden></label>${SRC?`<button data-calor-forget>Forget the data read</button>`:""}</div>
+        ${SRC?`<p class="small muted" style="margin-top:6px">Read ${esc(new Date(SRC.at).toLocaleString())} from ${esc(SRC.from)}${SRC.saved===false?" (too large to keep: read again after reloading)":""}.</p>`:""}</div>`;},
+    readFiles,readFolder,
+    forget:()=>{SRC=null;try{localStorage.removeItem(LK);}catch(e){}window.dispatchEvent(new HashChangeEvent("hashchange"));}};
+  document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-calor-folder],[data-calor-forget]");if(!b)return;
+    if(b.hasAttribute("data-calor-folder"))readFolder();else MWS_CALOR.forget();});
+  document.addEventListener("change",e=>{if(e.target&&e.target.id==="calorfiles"&&e.target.files.length){const f=[...e.target.files];e.target.value="";readFiles(f);}});
+})();
+MWS.calor=window.MWS_CALOR;
 const useCap=n=>{try{return window.claude&&window.claude.use?Promise.resolve(window.claude.use(n)).catch(()=>null):Promise.resolve(null);}catch(e){return Promise.resolve(null);}};
 </script>

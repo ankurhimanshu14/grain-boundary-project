@@ -13,5 +13,5 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | Qualification `qual` | heat treat experience = dated heat treat entries + service here since joining (when ticked), overlaps once; metallurgical education = years of entries marked metallurgical; met when ≥ 5 years or both together ≥ 5 with both > 0 |
 | HTSA 1.1 `assess` | heat treat position defined and filled, dedicated, full-time, on site, in the approved chart, approved job description with education / knowledge / minimum years, holder qualified, deputy as a note; score needs immediate action (no position, vacant, holder below the minimum), not satisfactory, satisfactory |
 | Link to SPEC | `MWS.org.authorized()` (holder and deputy of the heat treat position and of authorized positions) is the Specifications module's list of approvers |
-| Data | export / import JSON, people CSV, import from CALOR (`org-reg`), starter set-up, clear all |
+| Data | export / import JSON, people CSV, import from CALOR (`org-reg`, read from the CALOR Drive folder, files picked or downloaded from Google Drive, or this browser: `MWS.calor`), starter set-up, clear all |
 | Not here (CALOR only) | HTSA 1.17 key functions (primary / backup, key function list) |

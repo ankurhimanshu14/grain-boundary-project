@@ -38,7 +38,7 @@ The same module is also built natively in the form of the MWSPL Integrated Appli
 | Added | **Record review (no change)** on the Review view: date, reviewer, note; it restarts the periodic review of the revision in force (the gap of WI-SPEC-03 §1.3 / F-SPEC-04 is closed in this module) |
 | Job card | the revision in force with a **temperature–time sketch** below the specification (`profileSvg`): set value per zone with its tolerance band over the time in each zone (positions × push), the quench (dip) / controlled cooling / transfer between the chambers, and the cooling after exit; time axis from loading, total = time through the line. Ramps and cooling curves are schematic, not measured |
 | Delete | armed button (second click confirms), never a browser dialog; only never-approved drafts |
-| Data | export / import JSON (merge or replace), CSV of the register, **Import from CALOR** (reads `psr-reg` in the same browser), starter set-up (three example specifications), clear all (type CLEAR ALL) |
+| Data | export / import JSON (merge or replace), CSV of the register, **Import from CALOR** (the CALOR Drive folder, files picked or downloaded from Google Drive, or CALOR in this browser: `MWS.calor`; reads `psr-reg` in the same browser), starter set-up (three example specifications), clear all (type CLEAR ALL) |
 | Links | reads CALOR's `org-reg` (authorized names) and `prod-reg` (active parts) in the same browser when present |
 | API | `MWS.spec.stats()`, `summary()`, `inForce()`, `closeModal()` (used by the Overview) |
 | Test hook | `window.__SPECM` (`S`, `eff`, `calc`, `missing`, `assess16`, `review`, `kp`) |

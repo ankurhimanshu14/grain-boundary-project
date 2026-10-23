@@ -20,7 +20,7 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | Protection tubes `tubeState` | not in the PM schedule (no material / interval), never checked, check overdue, replacement interval passed, last check worn / cracked (open until "Replaced"); PM schedule approved (rev, approver, date), changes after approval mark it changed, review every 365 days |
 | Element life `lifeOf` | 365 days after installation (setting, 0 = off) |
 | HTSA 3.3 `assess33` | the five bullets of the question plus element life; score needs immediate action (nothing registered, or a control TC failed / never SAT checked), not satisfactory (any item not met), satisfactory |
-| Data | export / import JSON, register and SAT CSV, import from the CALOR SAT register (`tsat-pdca`: thermocouples, SATs with their readings, test equipment), starter set-up, clear all |
+| Data | export / import JSON, register and SAT CSV, import from the CALOR SAT register (from the CALOR Drive folder, Google Drive files or this browser, `MWS.calor`; `tsat-pdca`: thermocouples, SATs with their readings, test equipment), starter set-up, clear all |
 | API | `MWS.tc.stats()`, `summary()`, `closeModal()` (Overview) |
 | Test hook | `window.__TCM` |
 
