@@ -16,7 +16,7 @@
 
 | Step | Action | Who |
 |---|---|---|
-| 2.1 | Take a test instrument and a test thermocouple whose calibration is in date (Application → Test equipment). Note their corrections at the test temperature. | Technician |
+| 2.1 | Take a test instrument and a test thermocouple whose calibration is in date (Application → Test equipment). Their corrections at the test temperature come from the calibration observations on their certificates (correction = − error, interpolated between the calibration points; F-TC-04): the application fills them in when the equipment is chosen and flags a typed correction that differs by more than 0.1 °C. | Technician |
 | 2.2 | The furnace runs at a normal set point and is stable (no set value change in the last 30 minutes). | Technician |
 | 2.3 | Insert the test thermocouple next to the tip of the thermocouple under test (CQI-9 P3.3; distance to confirm against the copy). | Technician |
 | 2.4 | **Type K or E test thermocouple:** measure and record the insertion depth in mm. When the test thermocouple was used before, insert it at least as deep as its deepest earlier use (P3.1.3.3, site rule); the application shows the earlier depth. | Technician |
