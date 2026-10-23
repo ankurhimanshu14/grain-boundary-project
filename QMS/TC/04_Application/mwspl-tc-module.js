@@ -403,9 +403,9 @@ function vRepl(){
     ${unk?`<p class="small muted">${plural(unk,"thermocouple")} without an installation date: enter it so the replacement can be tracked.</p>`:""}</div>
   <div class="panel"><h3>Replacement history</h3>${L.length||legacy.length?`<div class="tw"><table><thead><tr><th>Record</th><th>Date</th><th>Thermocouple</th><th>Removed element</th><th>Fitted element</th><th>Reason</th><th>Found by SAT</th><th>Verification SAT</th><th>By</th></tr></thead><tbody>${L.map(r=>{const v=verifySat(r),n=tcById(r.newTc)||tcById(r.oldTc),m=replMissing(r),life=isDate(r.oldInstalled)&&isDate(r.date)?Math.round((new Date(r.date)-new Date(r.oldInstalled))/864e5):null;
       return `<tr class="click" data-replrec="${esc(r.id)}"><td class="mono">${esc(r.id)}${m.length?`<br>${pill("warn",m.length+" missing")}`:""}</td><td>${fmtD(r.date)}${r.time?`<br><span class="small muted">${esc(r.time)}</span>`:""}</td><td><b>${esc(tcName(n))}</b></td>
-      <td class="mono">${esc(r.oldSerial||"—")}${life!=null?`<br><span class="small muted">in service ${life} d</span>`:""}</td><td><span class="mono">${esc(r.newSerial)}</span><br><span class="small muted">type ${esc(r.newType)}${r.cert?" · cert "+esc(r.cert):""}</span></td>
+      <td class="mono">${tcById(r.oldTc)?`<button class="link" data-tc="${esc(r.oldTc)}">${esc(r.oldSerial||"—")}</button>`:esc(r.oldSerial||"—")}${life!=null?`<br><span class="small muted">in service ${life} d</span>`:""}</td><td><span class="mono">${tcById(r.newTc)?`<button class="link" data-tc="${esc(r.newTc)}">${esc(r.newSerial)}</button>`:esc(r.newSerial)}</span><br><span class="small muted">type ${esc(r.newType)}${r.cert?" · cert "+esc(r.cert):""}</span></td>
       <td>${esc(r.reason)}${r.offset?`<br><span class="small muted">offset reset: ${esc(r.offset)}</span>`:""}${r.reason===R_MOVE?`<br>${r.tus?`<span class="small muted">TUS: ${esc(r.tus)}</span>`:pill("warn","TUS decision missing")}`:""}</td>
-      <td>${r.satRef?`<a href="#sat" data-sat="${esc(r.satRef)}">${esc(r.satRef)}</a>`:"—"}</td><td>${v?`<a href="#sat" data-sat="${esc(v.id)}">${esc(v.id)}</a> ${fmtD(v.date)}<br>${resPill(v)}`:r.newTc?pill("bad","SAT required"):pill("","element not registered")}</td><td>${esc(r.by)}</td></tr>`;}).join("")}
+      <td>${r.satRef?`<a href="#sat" data-sat="${esc(r.satRef)}">${esc(r.satRef)}</a>`:"—"}</td><td>${v?`<a href="#sat" data-sat="${esc(v.id)}">${esc(v.id)}</a> ${fmtD(v.date)}<br>${resPill(v)}`:!r.newTc?pill("","fitted element not registered"):(tcById(r.newTc)||{}).status==="removed"?pill("warn","Removed before its SAT")+(S.repl.find(y=>y.oldTc===r.newTc)?`<br><span class="small muted">${esc(S.repl.find(y=>y.oldTc===r.newTc).id)}</span>`:""):pill("bad","SAT required")}</td><td>${esc(r.by)}</td></tr>`;}).join("")}
       ${legacy.map(e=>{const n=tcById(e.replacedBy);return `<tr class="click" data-tc="${esc(e.id)}"><td class="small muted">no record</td><td>${fmtD(e.removed)}</td><td><b>${esc(tcName(e))}</b></td><td class="mono">${esc(e.serial)}</td><td class="mono">${esc(n?n.serial:"—")}</td><td>${esc(e.reason)}</td><td>—</td><td>${n?(satsOf(n.id).some(x=>validSat(x)&&x.date>=e.removed)?pill("ok","SAT done"):pill("bad","SAT required")):"—"}</td><td></td></tr>`;}).join("")}</tbody></table></div>`:`<p class="muted">No replacement recorded.</p>`}
     <p class="small muted" style="margin-top:6px">Record a replacement from the thermocouple (Replace element…) or from the due list. Every replacement needs the controller offset decision, a TUS decision for a relocation or immersion-depth change, and a SAT of the fitted element before use.</p></div>`;}
 function vRules(){
@@ -480,6 +480,17 @@ const sheet=(title,body,foot)=>`<div class="row between"><h2>${title}</h2><butto
 const msg=(t,ok)=>{if(!S.modal)return;S.modal.msg=t?`<span style="color:var(--${ok?"ok":"bad"})">${esc(t)}</span>`:"";const el=$("#mmsg");if(el)el.innerHTML=S.modal.msg;};
 const opts=a=>Object.fromEntries(a.map(x=>[x,x]));
 function tcModal(id){const e=tcById(id);openModal({kind:"tc",ed:e?clone(e):fillTc({furnace:furnaces()[0]||"",tube:{checkDays:String(C().tubeCheckDays),replDays:String(C().tubeReplDays)}}),msg:""});}
+/* the replacement links of an element: what it replaced, what replaced it, and every element that has been at this position */
+function posLinks(e){
+  const rIn=S.repl.find(r=>r.newTc===e.id),rOut=S.repl.find(r=>r.oldTc===e.id),prev=rIn?tcById(rIn.oldTc):S.tcs.find(x=>x.replacedBy===e.id),next=tcById(e.replacedBy)||(rOut?tcById(rOut.newTc):null);
+  const H=S.tcs.filter(x=>x.furnace===e.furnace&&x.chamber===e.chamber&&tcNo(x.tag)!=null&&tcNo(x.tag)===tcNo(e.tag)).sort((a,b)=>(a.installed||"")<(b.installed||"")?-1:(a.installed||"")>(b.installed||"")?1:a.status==="inuse"?1:-1);
+  const el=x=>x?`<button class="link" data-tc="${esc(x.id)}">${esc(x.serial||x.id)}</button>`:"—",rec=r=>r?` <button class="link" data-replrec="${esc(r.id)}">${esc(r.id)}</button>`:"";
+  const lines=[];
+  if(prev||rIn)lines.push(`Fitted ${fmtD(rIn?rIn.date:e.installed)}, replacing ${prev?el(prev):esc(rIn.oldSerial||"?")}${rIn?` (${esc(rIn.reason)})`+rec(rIn):""}.`);
+  if(e.status==="removed")lines.push(`Removed ${fmtD(e.removed)} · ${esc(e.reason||"no reason recorded")} · replaced by ${next?el(next):rOut?esc(rOut.newSerial):"—"}${rec(rOut)}.`);
+  return `${lines.length?`<p class="banner" style="margin-top:10px">${lines.join("<br>")}</p>`:""}
+  ${H.length>1?`<fieldset><legend>Elements at ${esc(e.furnace)} ${esc(e.chamber)} ${esc(e.tag)}</legend><div class="tw"><table><thead><tr><th>Element</th><th>Installed</th><th>Removed</th><th>Reason</th><th>Record</th></tr></thead><tbody>${H.map(x=>{const r=S.repl.find(y=>y.oldTc===x.id);
+    return `<tr><td>${x.id===e.id?`<b>${esc(x.serial||x.id)}</b> (this one)`:el(x)} ${x.status==="inuse"?pill("ok","In use"):""}</td><td>${fmtD(x.installed)}</td><td>${x.status==="removed"?fmtD(x.removed):"—"}</td><td>${esc(x.reason)}</td><td>${rec(r)}</td></tr>`;}).join("")}</tbody></table></div></fieldset>`:""}`;}
 function DRAW_TC(){
   const e=S.modal.ed,known=S.tcs.find(x=>x.id===e.id),[lo,hi]=useRange(e),ci=calIssues(e),rem=e.status==="removed",L=known?satsOf(e.id):[],T=known?tubesOf(e.id):[];
   const body=`<p class="muted">${known?pill(...TSTAT[e.status]):pill("warn","New")} ${e.tag?esc(wallOf(e.tag)):""}${known&&e.status==="inuse"?" "+satPill(e,1)+" "+tubePill(e,1):""}</p>
@@ -491,7 +502,7 @@ function DRAW_TC(){
     <p class="small ${ci.length?"":"muted"}" style="margin-top:6px">${ci.length?pill("bad","Issue")+" "+esc(ci.join(" · ")):`Accuracy required: ±${fx(limAt(e.type,false,hi),1)} °C at ${hi??"?"} °C (type ${esc(e.type)}). Range of use ${lo??"?"}–${hi??"?"} °C.`}</p></fieldset>
   <fieldset><legend>Protection tube (PM schedule)</legend><div class="fields">${mf("tube.mat","Tube material",{req:1,dis:rem,ph:"e.g. Inconel 600, ceramic C799"})}${mf("tube.installed","Tube installed",{type:"date",dis:rem})}${mf("tube.checkDays","Check every (days)",{num:1,req:1,dis:rem})}${mf("tube.replDays","Replace after (days, 0 = on condition)",{num:1,dis:rem})}</div></fieldset>
   ${mf("notes","Notes",{area:2,wide:1})}
-  ${rem?`<p class="banner" style="margin-top:10px">Removed ${fmtD(e.removed)} · ${esc(e.reason)}${e.replacedBy?` · replaced by ${esc((tcById(e.replacedBy)||{}).serial||e.replacedBy)}`:""}</p>`:""}
+  ${known?posLinks(e):""}
   ${L.length?`<fieldset><legend>SATs</legend><ul class="small">${L.map(r=>`<li><a href="#sat" data-sat="${esc(r.id)}">${esc(r.id)}</a> ${fmtD(r.date)} · ${resPill(r)}</li>`).join("")}</ul></fieldset>`:""}
   ${T.length?`<fieldset><legend>Tube checks</legend><ul class="small">${T.slice(0,10).map(t=>`<li>${fmtD(t.date)} · ${esc((TRES[t.res]||["",t.res])[1])} · ${esc(t.by)}${t.note?" · "+esc(t.note):""}</li>`).join("")}</ul></fieldset>`:""}
   ${e.log.length?`<details style="margin-top:10px"><summary class="small">Log (${e.log.length})</summary><ul class="small">${e.log.slice().reverse().map(l=>`<li>${fmtD(l.d)} · ${esc(l.t)}</li>`).join("")}</ul></details>`:""}`;
@@ -504,7 +515,7 @@ function DRAW_REPL(){const m=S.modal,o=tcById(m.id),F=o?S.sats.filter(r=>r.tc===
   const sel=(id,L,cur,blank)=>`<select id="${id}">${blank?`<option value="">— select —</option>`:""}${L.map(x=>`<option ${cur===x?"selected":""}>${esc(x)}</option>`).join("")}</select>`;
   return sheet(`Replace element · ${esc(tcName(o))}`,`<p class="muted">Removed element ${esc(o?o.serial:"")} (type ${esc(o?o.type:"")}, installed ${fmtD(o&&o.installed)}). The old element is kept as removed with its reason; the fitted element takes the same position, needs its calibration certificate now and shows "SAT due after replacement" until its SAT.</p>
   <div class="fields"><label class="f req"><span>Replaced on</span><input type="date" id="rp-date" value="${v("date")}"></label><label class="f"><span>Time</span><input type="time" id="rp-time" value="${v("time")}"></label>
-  <label class="f req wide"><span>Reason</span>${sel("rp-reason",REASONS,m.reason)}</label>
+  <label class="f req wide"><span>Reason</span>${sel("rp-reason",REASONS,m.reason,1)}</label>
   ${F.length?`<label class="f wide"><span>Found by the failed SAT</span><select id="rp-sat"><option value="">— none —</option>${F.map(r=>`<option value="${esc(r.id)}" ${m.satRef===r.id?"selected":""}>${esc(r.id)} · ${fmtD(r.date)} · ${fx(satEval(r).diff)} °C</option>`).join("")}</select></label>`:""}
   <label class="f req"><span>Fitted element serial / batch no.</span><input id="rp-serial" value="${v("serial")}"></label><label class="f req"><span>Type</span>${sel("rp-type",TYPES,m.type||(o?o.type:"K"))}</label>
   <label class="f req"><span>Certificate no.</span><input id="rp-cert" value="${v("cert")}"></label><label class="f req"><span>Calibration date</span><input type="date" id="rp-cdate" value="${v("cdate")}"></label>
@@ -514,14 +525,14 @@ function DRAW_REPL(){const m=S.modal,o=tcById(m.id),F=o?S.sats.filter(r=>r.tc===
   <label class="f req"><span>Replaced by</span><input id="rp-by" value="${v("by")}"></label><label class="f wide"><span>Notes</span><input id="rp-notes" value="${v("notes")}"></label>
   <label class="chk wide"><input type="checkbox" id="rp-tube" ${m.tube?"checked":""}> The protection tube was replaced too</label></div>`,`<button class="pri w" data-save-repl>Replace</button><button data-close>Cancel</button>`);}
 function DRAW_REPLREC(){const E=S.modal.ed,v=verifySat(E),miss=replMissing(E);
-  return sheet(`${esc(E.id)} · ${esc(tcName(tcById(E.newTc)||tcById(E.oldTc)))}`,`<p class="muted">${esc(E.oldSerial||"?")} → ${esc(E.newSerial)} · ${fmtD(E.date)}${E.time?" "+esc(E.time):""} · verification SAT: ${v?esc(v.id)+" "+fmtD(v.date):"not yet"}</p>
+  return sheet(`${esc(E.id)} · ${esc(tcName(tcById(E.newTc)||tcById(E.oldTc)))}`,`<p class="muted">Removed ${tcById(E.oldTc)?`<button class="link" data-tc="${esc(E.oldTc)}">${esc(E.oldSerial||"?")}</button>`:esc(E.oldSerial||"?")} → fitted ${tcById(E.newTc)?`<button class="link" data-tc="${esc(E.newTc)}">${esc(E.newSerial)}</button>`:esc(E.newSerial)+" (not registered)"} · ${fmtD(E.date)}${E.time?" "+esc(E.time):""} · verification SAT: ${v?`<button class="link" data-sat="${esc(v.id)}">${esc(v.id)}</button> `+fmtD(v.date):(tcById(E.newTc)||{}).status==="removed"?"none (removed before its SAT)":"not yet"}</p>
   <div class="fields">${mf("reason","Reason",{opts:opts(REASONS)})}${mf("offset","Controller offset reset",{opts:opts(OFFSET),blank:1,req:1})}${E.reason===R_MOVE?mf("tus","TUS decision",{opts:opts(TUSDEC),blank:1,req:1}):""}
   ${mf("by","Replaced by",{req:1})}${mf("cert","Certificate no. of the fitted element")}${mf("notes","Notes",{area:2,wide:1})}</div>
   ${miss.length?`<p class="banner warn" style="margin-top:8px">Missing: ${esc(miss.join(" · "))}</p>`:""}
   ${E.log.length?`<details style="margin-top:10px"><summary class="small">Log (${E.log.length})</summary><ul class="small">${E.log.slice().reverse().map(l=>`<li>${fmtD(l.d)} · ${esc(l.t)}</li>`).join("")}</ul></details>`:""}`,
   `<button class="pri w" data-save-replrec>Save</button><button data-close>Close</button>`);}
 function openRepl(id,reason){const o=tcById(id);if(!o)return;const F=S.sats.filter(r=>r.tc===o.id&&satEval(r).res==="fail"&&!S.repl.some(x=>x.satRef===r.id)).sort((a,b)=>a.date<b.date?1:-1);
-  openModal({kind:"repl",id,date:today(),reason:reason||(F.length?R_SAT:lifeOf(o).st==="over"||lifeOf(o).st==="soon"?R_LIFE:R_SAT),satRef:F.length?F[0].id:"",type:o.type,lo:o.cal.lo,hi:o.cal.hi,msg:""});}
+  openModal({kind:"repl",id,date:today(),reason:reason||(F.length?R_SAT:lifeOf(o).st==="over"||lifeOf(o).st==="soon"?R_LIFE:""),satRef:F.length?F[0].id:"",type:o.type,lo:o.cal.lo,hi:o.cal.hi,msg:""});}
 function eqModal(id){const q=eqById(id);openModal({kind:"eq",ed:q?clone(q):fillEq({}),msg:""});}
 function DRAW_EQ(){const q=S.modal.ed,known=S.eq.find(x=>x.id===q.id),i=eqIssues(q),used=S.sats.some(r=>r.testTc===q.id||r.instr===q.id);
   return sheet(esc(known?q.ident:"Add test equipment"),`<div class="fields">${mf("kind","Kind",{opts:{testtc:"Test thermocouple",instr:"Test instrument"}})}${mf("ident","Ident (as marked)",{req:1})}${q.kind==="testtc"?mf("type","Type",{opts:opts(TYPES)}):""}
@@ -622,7 +633,8 @@ async function saveTc(){const e=fillTc(S.modal.ed),known=S.tcs.find(x=>x.id===e.
 const RPF={date:"rp-date",time:"rp-time",reason:"rp-reason",satRef:"rp-sat",serial:"rp-serial",type:"rp-type",cert:"rp-cert",cdate:"rp-cdate",lo:"rp-lo",hi:"rp-hi",err:"rp-err",offset:"rp-offset",tus:"rp-tus",by:"rp-by",notes:"rp-notes"};
 const rpKeep=()=>{const m=S.modal;Object.entries(RPF).forEach(([k,id])=>{const el=$("#"+id);if(el)m[k]=el.value;});const t=$("#rp-tube");if(t)m.tube=t.checked;};
 async function replaceTc(){rpKeep();const m=S.modal,old=clone(tcById(m.id));
-  const miss=[!isDate(m.date)&&"date",!txt(m.serial)&&"fitted element serial",!txt(m.cert)&&"certificate",!isDate(m.cdate)&&"calibration date",(num(m.lo)==null||num(m.hi)==null)&&"calibrated range",num(m.err)==null&&"largest error",!m.offset&&"controller offset reset",m.reason===R_MOVE&&!m.tus&&"TUS decision",!txt(m.by)&&"replaced by",m.offset===OFFSET[2]&&!txt(m.notes)&&"why the offset was not reset (notes)"].filter(Boolean);
+  const F=S.sats.filter(r=>r.tc===old.id&&satEval(r).res==="fail");
+  const miss=[!isDate(m.date)&&"date",!m.reason&&"reason",m.reason===R_SAT&&F.length&&!m.satRef&&"the failed SAT that found it",!txt(m.serial)&&"fitted element serial",!txt(m.cert)&&"certificate",!isDate(m.cdate)&&"calibration date",(num(m.lo)==null||num(m.hi)==null)&&"calibrated range",num(m.err)==null&&"largest error",!m.offset&&"controller offset reset",m.reason===R_MOVE&&!m.tus&&"TUS decision",!txt(m.by)&&"replaced by",m.offset===OFFSET[2]&&!txt(m.notes)&&"why the offset was not reset (notes)"].filter(Boolean);
   if(miss.length){msg("Missing: "+miss.join(", ")+".");return;}
   if(m.date>today()){msg("Not in the future.");return;}if(m.cdate>m.date){msg("The fitted element must be calibrated before it is put into use.");return;}
   const n=fillTc({...clone(old),id:nextCode("TE",S.tcs),serial:txt(m.serial),type:m.type||old.type,installed:m.date,status:"inuse",removed:"",reason:"",replacedBy:"",log:[],
@@ -703,11 +715,21 @@ async function importCalor(){if(!needDb())return;const o=calorSat();if(!o){toast
       instr:eqId(p.instr,"instr",{calDue:p.instrCalDue||""}),testTc:eqId(p.testTc,"testtc",{type:"K",cert:p.testTcCert||"",calDue:p.testTcCalDue||"",uses0:String(p.testTcUses||0)}),
       rd:(dd.readings||[]).map(r=>({f:String(r.f??""),t:String(r.t??"")})),fRdg:String(mean(R.map(r=>+r.f))),tRdg:String(mean(R.map(r=>+r.t))),instrCorr:String(dd.instrCorr??""),tcCorr:String(dd.tcCorr??""),
       appr:c.check&&c.check.by?{by:c.check.by,date:c.check.date||""}:{by:"",date:""},notes:`CALOR ${c.id}, ${R.length} readings`,log:[{d:today(),t:"Imported from CALOR "+c.id}]}));});
-  /* CALOR's replacement history: the fitted element is the registered one when its serial matches; the removed element is kept as text */
+  /* CALOR's replacement history: per thermocouple position, oldest first, each removed element becomes a removed element record linked to the
+     one fitted after it (the last one to the registered element when its serial matches), and the imported SATs go to the element in place on their date */
   const RP=[];let tr=Math.max(0,...S.repl.map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1]));const satMap={};SA.forEach(x=>{const m=String(x.notes).match(/CALOR (\S+),/);if(m)satMap[m[1]]=x.id;});
-  (o.repl||[]).forEach(r=>{if(S.repl.some(x=>String(x.notes).includes("CALOR "+r.id)))return;const tid=map[r.sensor],te2=[...S.tcs,...T].find(x=>x.id===tid);
-    RP.push(fillRepl({id:"TR-"+String(++tr).padStart(4,"0"),oldTc:"",newTc:te2&&txt(te2.serial)===txt(r.newSerial)?tid:"",date:r.date||"",time:r.time||"",oldSerial:r.oldSerial||"",oldInstalled:r.oldInstalled||"",newSerial:r.newSerial||"",
-      newType:r.newType||"K",cert:r.cert||"",reason:REASONS.includes(r.reason)?r.reason:"Other",offset:r.offset||"",tus:r.tus||"",satRef:satMap[r.satRef]||"",by:r.by||"",notes:`CALOR ${r.id}${r.notes?": "+r.notes:""}`,log:[{d:today(),t:"Imported from CALOR "+r.id}]}));});
+  const bySensor={};(o.repl||[]).filter(r=>!S.repl.some(x=>String(x.notes).includes("CALOR "+r.id))).forEach(r=>(bySensor[r.sensor]=bySensor[r.sensor]||[]).push(r));
+  Object.entries(bySensor).forEach(([sid,L])=>{const tid=map[sid],cur=[...S.tcs,...T].find(x=>x.id===tid);if(!cur)return;
+    L.sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1);
+    const olds=L.map(r=>{const ex=S.tcs.find(x=>x.status==="removed"&&x.furnace===cur.furnace&&x.chamber===cur.chamber&&tcNo(x.tag)===tcNo(cur.tag)&&txt(x.serial)&&txt(x.serial)===txt(r.oldSerial));if(ex)return ex;
+      const e=fillTc({...clone(cur),id:"TE-"+String(++te).padStart(4,"0"),serial:r.oldSerial||"",installed:r.oldInstalled||"",status:"removed",removed:r.date||"",reason:REASONS.includes(r.reason)?r.reason:"Other",replacedBy:"",
+        cal:{cert:"",lab:"",date:"",lo:"",hi:"",maxErr:""},notes:"Removed element from the CALOR replacement history",log:[{d:today(),t:"Imported from CALOR "+r.id}]});T.push(e);return e;});
+    L.forEach((r,i)=>{const nextTc=i+1<L.length?(txt(olds[i+1].serial)===txt(r.newSerial)?olds[i+1].id:""):(txt(cur.serial)===txt(r.newSerial)?cur.id:"");
+      if(nextTc&&!olds[i].replacedBy)olds[i].replacedBy=nextTc;
+      RP.push(fillRepl({id:"TR-"+String(++tr).padStart(4,"0"),oldTc:olds[i].id,newTc:nextTc,date:r.date||"",time:r.time||"",oldSerial:r.oldSerial||"",oldInstalled:r.oldInstalled||"",newSerial:r.newSerial||"",
+        newType:r.newType||"K",cert:r.cert||"",reason:REASONS.includes(r.reason)?r.reason:"Other",offset:r.offset||"",tus:r.tus||"",satRef:satMap[r.satRef]||"",by:r.by||"",notes:`CALOR ${r.id}${r.notes?": "+r.notes:""}`,log:[{d:today(),t:"Imported from CALOR "+r.id}]}));});
+    /* the imported SATs of this position belong to the element in place on the test day */
+    SA.filter(x=>x.tc===tid).forEach(x=>{const i=L.findIndex(r=>x.date<r.date);if(i>=0)x.tc=olds[i].id;});});
   await batchPut("eq",EQ);await batchPut("tcs",T);await batchPut("sats",SA);await batchPut("repl",RP);if(T.length)await markPm("Thermocouples imported from CALOR");
   toast(`${plural(T.length,"thermocouple")}, ${plural(SA.length,"SAT")} and ${plural(EQ.length,"test item")} imported from CALOR`);}
 function armedDelete(b,fn,lbl){if(b.classList.contains("armed")){fn();return;}b.classList.add("armed");const t=b.textContent;b.textContent=lbl||"Confirm delete";setTimeout(()=>{if(b.isConnected){b.classList.remove("armed");b.textContent=t;}},4000);}
@@ -760,6 +782,7 @@ onDoc("click",e=>{
         msg(`${n} furnace readings filled from ${res.file}${n<res.vals.length?` · ${res.vals.length-n} not in the record: type them`:""}.`,1);};
       if(r.rd.some((x,i)=>x.f!==""&&res.vals[i]!=null&&String(res.vals[i])!==x.f))armedDelete(b,go,"Confirm: replace the typed furnace readings");else go();return;}
     if(d.replrec){const x=S.repl.find(y=>y.id===d.replrec);if(x)openModal({kind:"replrec",ed:clone(x),msg:""});return;}
+    if(d.tc&&!d.save){e.preventDefault();tcModal(d.tc);return;}
     if(d.rdseries!==undefined){const r=S.modal.ed;r.rd=[];if(num(r.fRdg)!=null||num(r.tRdg)!=null)r.rd.push({f:r.fRdg,t:r.tRdg});r.fRdg="";r.tRdg="";padRd(r);redraw();return;}
     if(d.rdpaste!==undefined){const L=pasteRd(S.modal.paste);if(!L.length){msg("No lines with two numbers found.");return;}const r=S.modal.ed;r.rd=L;padRd(r);S.modal.paste="";redraw();msg(plural(L.length,"reading")+" filled"+(L.length<nRd()?` · ${nRd()-L.length} still missing`:""),1);return;}
     if(d.rdclear!==undefined){armedDelete(b,()=>{S.modal.ed.rd=[];padRd(S.modal.ed);redraw();});return;}
