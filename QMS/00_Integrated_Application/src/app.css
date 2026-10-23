@@ -157,3 +157,20 @@ legend{font-family:var(--f-display);font-weight:600;font-size:15px;padding:0 6px
 /* temperature–time sketch on the job card */
 figure.prof{margin:6px 0 10px}figure.prof svg{width:100%;height:auto;display:block;max-width:900px}
 @media print{figure.prof{break-inside:avoid}}
+/* organization chart: nested lists with connectors */
+.orgtree{padding:12px;min-width:max-content}
+.orgtree ul{display:flex;justify-content:center;gap:0;padding-top:16px;position:relative;margin:0;padding-left:0;list-style:none}
+.orgtree>ul{padding-top:0}
+.orgtree li{position:relative;padding:16px 6px 0;text-align:center;list-style:none}
+.orgtree li::before,.orgtree li::after{content:"";position:absolute;top:0;right:50%;width:50%;height:16px;border-top:1px solid var(--line)}
+.orgtree li::after{right:auto;left:50%;border-left:1px solid var(--line)}
+.orgtree li:only-child::before,.orgtree li:only-child::after{display:none}.orgtree li:only-child{padding-top:0}
+.orgtree li:first-child::before,.orgtree li:last-child::after{border:0}
+.orgtree li:last-child::before{border-right:1px solid var(--line);border-radius:0 4px 0 0}.orgtree li:first-child::after{border-radius:4px 0 0 0}
+.orgtree ul ul::before{content:"";position:absolute;top:0;left:50%;height:16px;border-left:1px solid var(--line)}
+.orgtree>ul>li{padding-top:0}.orgtree>ul>li::before,.orgtree>ul>li::after{display:none}
+.orgtree .node{display:inline-flex;flex-direction:column;gap:2px;align-items:center;min-width:130px;max-width:190px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);font:inherit;cursor:pointer;white-space:normal}
+.orgtree .node:hover{border-color:var(--accent)}
+.orgtree .node.ht{border:2px solid var(--accent);background:var(--accent-2)}
+.orgtree .node.vac{border-style:dashed;color:var(--muted)}
+@media print{.orgtree .node{break-inside:avoid}}

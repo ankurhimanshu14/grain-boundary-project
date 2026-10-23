@@ -105,6 +105,7 @@ function calc(s){
 }
 /* who may approve: the HT organization in this browser (holder / deputy of the HT position and of positions marked authorized), else Settings */
 function authList(){
+  if(MWS.org&&MWS.org.hasData()){const L=MWS.org.authorized();return {src:"HT organization module",list:L};}
   try{const o=JSON.parse(localStorage.getItem("org-reg")||"null");
     if(o&&Array.isArray(o.positions)&&Array.isArray(o.people)){const nm=id=>(o.people.find(p=>p.id===id)||{}).name;const L=[];
       o.positions.filter(p=>p.ht||p.specAuth).forEach(p=>[p.holder,p.deputy].forEach(id=>{const n=nm(id);if(n&&!L.some(x=>x.name===n))L.push({name:n,position:p.title||""});}));
@@ -320,7 +321,7 @@ function vSpecs(){
 function vAuth(){
   const A=authList(),c=C();
   return `<div class="grid2"><div class="panel"><h3>Authorized to approve process specifications</h3>
-    <p class="small muted">Source now: <b>${esc(A.src)}</b>. In a browser where CALOR's HT organization page holds positions, its holder and deputy of the heat treat position and of positions marked "authorized" are used; otherwise the names below.</p>
+    <p class="small muted">Source now: <b>${esc(A.src)}</b>. When the HT organization module (or CALOR's HT organization page in this browser) holds positions, the holder and deputy of the heat treat position and of positions marked "authorized" are used; otherwise the names below.</p>
     ${A.list.length?`<ul class="issues">${A.list.map(a=>`<li>${esc(a.name)}${a.position?` <span class="muted">(${esc(a.position)})</span>`:""}</li>`).join("")}</ul>`:`<p class="banner bad">Nobody is authorized: no specification can be approved.</p>`}
     <label class="f" style="margin-top:10px"><span>Authorized names (one per line), used when no HT organization is found</span><textarea data-cfg="auth" rows="4">${esc(c.auth)}</textarea></label></div>
   <div class="panel"><h3>Processes and quench per furnace</h3>
