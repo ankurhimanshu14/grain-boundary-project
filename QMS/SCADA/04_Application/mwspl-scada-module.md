@@ -14,6 +14,7 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | Gate `revMissing` | furnace and chamber, review time after the data and not in the future, qualified reviewer, every condition answered (reaction: action, owner, disposition for product; closing: verification, not "on hold") |
 | Interval `cstat` / `gaps19` | due `maxHrs` (24) after the last review per chamber in scope; gaps in `covDays` (30) |
 | HTSA 1.9 `assess19` | qualified reviewers, procedure named, intervals, reviews complete, conditions answered, reactions closed; score nia / ns / s |
+| Load & analyse (report) | layout of the CALOR SCADA report: verdict, six KPI tiles, furnace layout with TC status, zone cards (left / right wall, Ppk), zone trends on one scale with out-of-tolerance readings marked, response to set value changes, hourly deviation heatmap, spread per TC (p5–p95), excursion log, product affected time windows, findings, data-integrity checks; "Record the review (C)" opens the HTSA 1.9 review |
 | Records | `reviews`, `config/settings`; shared store prefix `scada-`, else `localStorage` `mws-scada-local-v1` |
 | API | `MWS.scada.stats()`, `summary()`, `closeModal()`; uses `MWS.spec.inForce()`, `MWS.tc.chamber()`, `MWS.org.qualified()` |
 | Not here | 8D problem solving and the record-level PDCA of the CALOR SCADA review |

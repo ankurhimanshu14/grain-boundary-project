@@ -175,26 +175,37 @@ function analyze(D){
       if(r.raw[k]!=null&&r.raw[k]!==0){if(r.raw[k]===runV){}else{if(runV!=null&&rows[i-1].t-runFrom>=o.stuck*60000)stuck.push({from:runFrom,to:rows[i-1].t,v:runV});runV=r.raw[k];runFrom=r.t;}}
       if(v==null||sp==null)return;const d=v-sp;n++;D_.push(d);if(Math.abs(d)<=tolAt(k,sp)){inn++;}});
     if(runV!=null&&rows[N-1].t-runFrom>=o.stuck*60000)stuck.push({from:runFrom,to:rows[N-1].t,v:runV});
-    return {k,tag:tcTag(k),zone:zoneOf(k),wall:wallOf(k),offline:offline[k],n,inn,pct:n?100*inn/n:null,mean:mean(D_),sd:sd(D_),min:D_.length?Math.min(...D_):null,max:D_.length?Math.max(...D_):null,spikes,outR,settled,stuck};});
+    const so=D_.slice().sort((a,b)=>a-b),q=p=>so.length?so[Math.min(so.length-1,Math.floor(p*so.length))]:null,m_=mean(D_),s_=sd(D_),tl=tolAt(k,median(rows.map(r=>r.sp[k]))??0);
+    return {k,tag:tcTag(k),zone:zoneOf(k),wall:wallOf(k),offline:offline[k],n,inn,pct:n?100*inn/n:null,mean:m_,sd:s_,min:D_.length?Math.min(...D_):null,max:D_.length?Math.max(...D_):null,p5:q(.05),p95:q(.95),
+      ppk:m_!=null&&s_?Math.min(tl-m_,m_+tl)/(3*s_):null,spikes,outR,settled,stuck};});
   /* excursions: judged readings outside tolerance, runs closer than `merge` min joined */
   const exc=[];
   K6.forEach(k=>{let cur=null;rows.forEach((r,i)=>{const v=ev[i][k],sp=r.sp[k];if(v==null||sp==null)return;const d=v-sp,out=Math.abs(d)>tolAt(k,sp);
-    if(out){if(cur&&r.t-cur.to<=o.merge*60000){cur.to=r.t;cur.n++;if(Math.abs(d)>Math.abs(cur.max))cur.max=d;if(affects(ft,zoneOf(k),sp))cur.aff=true;cur.sps.add(sp);}
-      else{if(cur)exc.push(cur);cur={k,z:zoneOf(k),from:r.t,to:r.t,n:1,max:d,aff:affects(ft,zoneOf(k),sp),sps:new Set([sp])};}}});if(cur)exc.push(cur);});
+    if(out){if(cur&&r.t-cur.to<=o.merge*60000){cur.to=r.t;cur.n++;if(Math.abs(d)>Math.abs(cur.max)){cur.max=d;cur.ext={v,sp,t:r.t};}if(affects(ft,zoneOf(k),sp))cur.aff=true;cur.sps.add(sp);}
+      else{if(cur)exc.push(cur);cur={k,z:zoneOf(k),from:r.t,to:r.t,n:1,max:d,ext:{v,sp,t:r.t},aff:affects(ft,zoneOf(k),sp),sps:new Set([sp])};}}});if(cur)exc.push(cur);});
   const X=exc.filter(e=>e.n>=o.persist).map(e=>({...e,sps:[...e.sps]}));
   /* incidents per zone: the excursions of the zone's two thermocouples joined */
   const inc=[];[0,1,2].forEach(z=>{const L=X.filter(e=>e.z===z).sort((a,b)=>a.from-b.from);let c=null;
-    L.forEach(e=>{if(c&&e.from-c.to<=o.merge*60000){c.to=Math.max(c.to,e.to);c.tcs.add(e.k);if(Math.abs(e.max)>Math.abs(c.max))c.max=e.max;c.aff=c.aff||e.aff;e.sps.forEach(s=>c.sps.add(s));}
-      else{if(c)inc.push(c);c={z,from:e.from,to:e.to,tcs:new Set([e.k]),max:e.max,aff:e.aff,sps:new Set(e.sps)};}});if(c)inc.push(c);});
-  const incidents=inc.map(c=>({z:c.z,from:c.from,to:c.to,min:(c.to-c.from)/60000+step,tcs:[...c.tcs].map(tcTag),max:c.max,aff:c.aff,sps:[...c.sps],trays:traysOf(D.chamber,c.z)}));
+    L.forEach(e=>{if(c&&e.from-c.to<=o.merge*60000){c.to=Math.max(c.to,e.to);c.tcs.add(e.k);if(Math.abs(e.max)>Math.abs(c.max)){c.max=e.max;c.ext={...e.ext,k:e.k};}c.aff=c.aff||e.aff;e.sps.forEach(s=>c.sps.add(s));}
+      else{if(c)inc.push(c);c={z,from:e.from,to:e.to,tcs:new Set([e.k]),max:e.max,ext:{...e.ext,k:e.k},aff:e.aff,sps:new Set(e.sps)};}});if(c)inc.push(c);});
+  /* time out = readings of the incident window in which either wall was outside tolerance */
+  const outIn=(z,a,b)=>rows.reduce((s,r,i)=>s+(r.t>=a&&r.t<=b&&[z*2,z*2+1].some(k=>ev[i][k]!=null&&r.sp[k]!=null&&Math.abs(ev[i][k]-r.sp[k])>tolAt(k,r.sp[k]))?1:0),0)*step;
+  const incidents=inc.map(c=>{const ks=[...c.tcs],L=ks.filter(isLeft),Rt=ks.filter(k=>!isLeft(k));
+    return {z:c.z,from:c.from,to:c.to,min:(c.to-c.from)/60000+step,outMin:outIn(c.z,c.from,c.to),tcs:ks.sort().map(tcTag),walls:L.length&&Rt.length?"Both walls":L.length?"Left wall only":"Right wall only",
+      dir:c.max<0?"Low":"High",max:c.max,ext:{v:c.ext.v,sp:c.ext.sp,t:c.ext.t,tag:tcTag(c.ext.k)},aff:c.aff,sps:[...c.sps],proc:[...new Set([...c.sps].map(s=>procAt(ft,s)))].join(" / "),trays:traysOf(D.chamber,c.z)};});
   /* wall difference per zone: left − right */
-  const walls=[0,1,2].map(z=>{const L=z*2+1,Rr=z*2,d=[];ev.forEach(e=>{if(e[L]!=null&&e[Rr]!=null)d.push(e[L]-e[Rr]);});return {z,mean:mean(d),n:d.length};});
+  const walls=[0,1,2].map(z=>{const L=z*2+1,Rr=z*2,d=[];let mx=null,mt=null;ev.forEach((e,i)=>{if(e[L]!=null&&e[Rr]!=null){const x=e[L]-e[Rr];d.push(x);if(mx==null||Math.abs(x)>Math.abs(mx)){mx=x;mt=rows[i].t;}}});return {z,mean:mean(d),n:d.length,max:mx,maxAt:mt};});
+  /* worst deviation, hourly mean deviation per thermocouple, overall share in tolerance */
+  let worst=null;rows.forEach((r,i)=>K6.forEach(k=>{const v=ev[i][k],sp=r.sp[k];if(v==null||sp==null)return;const d=v-sp;if(!worst||Math.abs(d)>Math.abs(worst.d))worst={d,k,v,sp,t:r.t};}));
+  const h0=Math.floor(rows[0].t/3600000)*3600000,hours=[];for(let h=h0;h<=rows[N-1].t;h+=3600000)hours.push(h);
+  const hourly=K6.map(k=>hours.map(h=>{const d=[];rows.forEach((r,i)=>{if(r.t>=h&&r.t<h+3600000&&ev[i][k]!=null&&r.sp[k]!=null)d.push(ev[i][k]-r.sp[k]);});return d.length?mean(d):null;}));
+  const nAll=tcs.reduce((s,x)=>s+x.n,0),inAll=tcs.reduce((s,x)=>s+x.inn,0),expected=Math.round((rows[N-1].t-rows[0].t)/60000/step)+1;
   const gaps=[];for(let i=1;i<N;i++){const m=(rows[i].t-rows[i-1].t)/60000;if(m>o.gap*step)gaps.push({from:rows[i-1].t,to:rows[i].t,min:m});}
   /* the 10-minute trend kept with the review */
   const B=new Map();rows.forEach(r=>{const b=Math.floor(r.t/600000)*600000;if(!B.has(b))B.set(b,[]);B.get(b).push(r);});
   const trend=[...B.entries()].map(([b,L])=>[b/60000,...K6.map(k=>{const v=L.map(r=>r.pv[k]).filter(x=>x!=null);return v.length?Math.round(mean(v)*10)/10:null;}),...K6.map(k=>L.at(-1).sp[k]),K6.reduce((m,k)=>m|(L.some(r=>r.tr[k])?1<<k:0),0)]);
   const verdict=incidents.some(i=>i.aff)||offline.some((x,k)=>x)?"rej":X.length||gaps.length||tcs.some(t=>t.outR||t.stuck.length)?"cond":"acc";
-  return {ft,from:rows[0].t,to:rows[N-1].t,n:N,step,levels,tolDef,specs:Object.entries(specs).map(([k,v])=>({z:+k.split("|")[0],sp:+k.split("|")[1],spec:v})),rows,ev,trans,tcs,exc:X,incidents,walls,gaps,trend,verdict};}
+  return {ft,from:rows[0].t,to:rows[N-1].t,n:N,step,levels,tolDef,specs:Object.entries(specs).map(([k,v])=>({z:+k.split("|")[0],sp:+k.split("|")[1],spec:v})),rows,ev,trans,tcs,exc:X,incidents,walls,gaps,trend,verdict,worst,hours,hourly,pctAll:nAll?100*inAll/nAll:null,expected,settledAll:tcs.reduce((s,x)=>s+x.settled,0)};}
 function runCur(){const D=S.cur;if(!D)return;D.A=analyze(D);D.O=findings(D,D.A);}
 /* findings; those with a key are the out-of-control conditions the reviewer must answer (HTSA 1.9 detection and reaction) */
 function findings(D,A){
@@ -337,11 +348,11 @@ function render(){
 
 /* 10. charts: one per zone, both thermocouples (left wall blue, right wall orange), the set value with its tolerance band, settling shaded */
 let CID=0;
-function zoneChart(z,T,P,SP,ST,tol,incs,h){
-  const id="zc"+(++CID),W=720,H=h||220,L=46,Rr=10,Tp=12,B=26,k1=z*2+1,k0=z*2,n=T.length;if(n<2)return "";
+function zoneChart(z,T,P,SP,ST,tol,incs,h,fix,dots){
+  const id="zc"+(++CID),W=fix?1150:720,H=h||220,L=46,Rr=10,Tp=12,B=26,k1=z*2+1,k0=z*2,n=T.length;if(n<2)return "";
   const vals=[...P[k1],...P[k0],...SP[k1].map(v=>v==null?null:v+tol),...SP[k1].map(v=>v==null?null:v-tol)].filter(v=>v!=null);
   if(!vals.length)return `<p class="small muted">Zone ${z+1}: no readings.</p>`;
-  let y0=Math.max(VMIN,Math.floor((Math.min(...vals)-5)/10)*10),y1=Math.min(VMAX,Math.ceil((Math.max(...vals)+5)/10)*10);if(y1-y0<20){y1=y0+20;}
+  let y0=fix?fix[0]:Math.max(VMIN,Math.floor((Math.min(...vals)-5)/10)*10),y1=fix?fix[1]:Math.min(VMAX,Math.ceil((Math.max(...vals)+5)/10)*10);if(y1-y0<20){y1=y0+20;}
   const t0=T[0],t1=T[n-1],xs=t=>L+(t-t0)/(t1-t0)*(W-L-Rr),ys=v=>Tp+(1-(v-y0)/(y1-y0))*(H-Tp-B);
   const g=[],yst=(y1-y0)>120?50:(y1-y0)>60?20:10;
   for(let v=Math.ceil(y0/yst)*yst;v<=y1;v+=yst)g.push(`<line x1="${L}" x2="${W-Rr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)"/><text x="${L-5}" y="${ys(v)+4}" text-anchor="end" class="ax">${v}</text>`);
@@ -354,11 +365,15 @@ function zoneChart(z,T,P,SP,ST,tol,incs,h){
   const pl=k=>{const seg=[];let cur=[];T.forEach((t,i)=>{const v=P[k][i];if(v==null){if(cur.length)seg.push(cur);cur=[];}else cur.push(`${xs(t).toFixed(1)},${ys(Math.min(y1,Math.max(y0,v))).toFixed(1)}`);});if(cur.length)seg.push(cur);
     return seg.map(c=>`<polyline points="${c.join(" ")}" fill="none" stroke="var(--s${isLeft(k)?1:2})" stroke-width="2" stroke-linejoin="round"/>`).join("");};
   g.push(pl(k0),pl(k1));
+  if(dots)[k0,k1].forEach(k=>(dots[k]||[]).forEach(([t,v])=>g.push(`<circle cx="${xs(t).toFixed(1)}" cy="${ys(Math.min(y1,Math.max(y0,v))).toFixed(1)}" r="1.8" fill="var(--bad)"/>`)));
   S.charts[id]={T,P,SP,z,xs,L,W,Rr};
-  return `<figure class="zc"><figcaption><b>Zone ${z+1}</b> <span class="lg"><i style="background:var(--s1)"></i>${tcTag(k1)} left wall</span><span class="lg"><i style="background:var(--s2)"></i>${tcTag(k0)} right wall</span><span class="lg"><i class="dash"></i>set value ± tolerance</span></figcaption>
+  return `<figure class="zc"><figcaption><b>Zone ${z+1}</b> <span class="lg"><i style="background:var(--s1)"></i>${tcTag(k1)} left wall</span><span class="lg"><i style="background:var(--s2)"></i>${tcTag(k0)} right wall</span><span class="lg"><i class="dash"></i>set value ± tolerance</span>${dots?`<span class="lg"><i class="dot"></i>out of tolerance</span><span class="lg"><i class="sq"></i>settling (not judged)</span>`:""}</figcaption>
     <div class="zcw"><svg viewBox="0 0 ${W} ${H}" data-zc="${id}" role="img" aria-label="Zone ${z+1} temperature, ${tcTag(k1)} and ${tcTag(k0)} against the set value">${g.join("")}<line class="xh" x1="0" x2="0" y1="${Tp}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" visibility="hidden"/></svg><div class="ztip" hidden></div></div></figure>`;}
+/* the loaded record: every zone on the same time axis and the same temperature scale, out-of-tolerance readings as red points */
 const chartsOfCur=D=>{const A=D.A,T=A.rows.map(r=>r.t),P=K6.map(k=>A.rows.map(r=>r.pv[k])),SP=K6.map(k=>A.rows.map(r=>r.sp[k])),ST=A.rows.map(r=>K6.reduce((m,k)=>m|(r.tr[k]?1<<k:0),0));
-  return [0,1,2].map(z=>zoneChart(z,T,P,SP,ST,A.tolDef,A.incidents)).join("");};
+  const all=[...P.flat(),...SP.flat().filter(v=>v!=null).flatMap(v=>[v-A.tolDef,v+A.tolDef])].filter(v=>v!=null),fix=[Math.max(VMIN,Math.floor((Math.min(...all)-5)/20)*20),Math.min(VMAX,Math.ceil((Math.max(...all)+5)/20)*20)];
+  const dots=K6.map(k=>A.rows.map((r,i)=>[r.t,A.ev[i][k],r.sp[k]]).filter(([t,v,sp])=>v!=null&&sp!=null&&Math.abs(v-sp)>A.tolDef).map(([t,v])=>[t,v]));
+  return [0,1,2].map(z=>zoneChart(z,T,P,SP,ST,A.tolDef,[],250,fix,dots)).join("");};
 const chartsOfRev=r=>{if(!r.trend.length)return "";const T=r.trend.map(x=>x[0]*60000),P=K6.map(k=>r.trend.map(x=>x[1+k])),SP=K6.map(k=>r.trend.map(x=>x[7+k])),ST=r.trend.map(x=>x[13]);
   return [0,1,2].map(z=>zoneChart(z,T,P,SP,ST,r.tolDef||10,r.incidents,170)).join("");};
 onDoc("mousemove",e=>{const svg=e.target.closest&&e.target.closest("svg[data-zc]");if(!svg)return;const c=S.charts[svg.dataset.zc];if(!c)return;
@@ -387,29 +402,92 @@ function vDash(){
       return `<td>${cPill(c)}${c.last?`<br><span class="small muted">last ${esc(c.last.idle?"not running":VERD[c.last.verdict]?.[1]||"")} · ${fDT(fromLocal(c.last.at))} · ${esc(c.last.by)}</span>`:""}<br><button class="w link" data-idle="${esc(fk)}">Record "not running"</button></td>`;}).join("")}</tr>`).join("")}</tbody></table></div></div>
   ${A.I.some(i=>i.lvl==="crit"||i.lvl==="warn")?`<div class="panel"><h3>Needs attention</h3><ul class="issues">${A.I.filter(i=>i.lvl==="crit"||i.lvl==="warn").map(i=>`<li><a href="#htsa">${esc(i.req)}</a>: ${esc(i.ev)} ${pill(i.lvl==="crit"?"bad":"warn",i.lvl==="crit"?"Action":"Attention")}</li>`).join("")}</ul></div>`:""}`;
 }
+/* the analysis page: the report of CALOR's SCADA review, inside the module's PDCA (D: load and analyse → C: the review record) */
+const n0=v=>v==null?"—":Math.round(v).toLocaleString("en-IN");
+const sec=(h,p,body,cls)=>`<section class="panel rp ${cls||""}"><div class="sec-head"><h3>${h}</h3>${p?`<p>${p}</p>`:""}</div>${body}</section>`;
+const tcLvl=t=>t.offline?"bad":t.pct==null?"":t.pct>=100?"ok":t.pct>=95?"warn":"bad";
+const tcWord=t=>t.offline?"offline":t.pct==null?"no data":t.pct>=100?"in control":t.pct>=95?"watch":"out";
+const spSeq=A=>{const s=[];A.rows.forEach(r=>{const v=r.sp[0]??r.sp.find(x=>x!=null);if(v!=null&&s.at(-1)!==v)s.push(v);});return s;};
+function layoutSvg(D,A){
+  const P=pos(D.chamber==="Tempering"?C().posT:C().posH),tot=P.reduce((a,b)=>a+b,0)||12,W=900,L=90,Rr=90,bw=(W-L-Rr)/tot,y0=78,h=90;
+  const g=[`<text x="${L-14}" y="${y0+h/2}" text-anchor="end" class="lb">Charge</text><text x="${L-14}" y="${y0+h/2+16}" text-anchor="end" class="ax">→</text><text x="${W-Rr+14}" y="${y0+h/2}" class="lb">Discharge</text><text x="${W-Rr+14}" y="${y0+h/2+16}" class="ax">→</text>`,
+    `<rect x="${L}" y="${y0}" width="${W-L-Rr}" height="${h}" rx="6" fill="var(--sunk)" stroke="var(--muted)" stroke-width="1.5"/><text x="${L+8}" y="${y0+13}" class="ax">LEFT WALL</text><text x="${L+8}" y="${y0+h-5}" class="ax">RIGHT WALL</text>`];
+  let p=0;P.forEach((n,z)=>{const x0=L+p*bw,x1=x0+n*bw,mid=(x0+x1)/2,[l,r]=[A.tcs[z*2+1],A.tcs[z*2]];
+    if(z)g.push(`<line x1="${x0}" x2="${x0}" y1="${y0-6}" y2="${y0+h+6}" stroke="var(--muted)" stroke-dasharray="4 3"/>`);
+    for(let i=0;i<n;i++)g.push(`<rect x="${x0+i*bw+4}" y="${y0+20}" width="${bw-8}" height="${h-40}" rx="3" fill="var(--panel)" stroke="var(--line)"/><text x="${x0+i*bw+bw/2}" y="${y0+h/2+4}" text-anchor="middle" class="ax">${p+i+1}</text>`);
+    const dot=(t,y)=>`<circle cx="${mid}" cy="${y}" r="7" fill="var(--${tcLvl(t)==="ok"?"ok":tcLvl(t)==="warn"?"warn":"bad"})" stroke="var(--panel)" stroke-width="2"/>`;
+    g.push(`<text x="${mid}" y="16" text-anchor="middle" class="lb">Zone ${z+1}</text><text x="${mid}" y="32" text-anchor="middle" class="ax">positions ${p+1}–${p+n}</text>`,
+      `<text x="${mid}" y="54" text-anchor="middle" class="vl">${l.tag} avg ${sgn(l.mean)} °C · ${tcWord(l)}</text>`,dot(l,y0),dot(r,y0+h),
+      `<text x="${mid}" y="${y0+h+30}" text-anchor="middle" class="vl">${r.tag} avg ${sgn(r.mean)} °C · ${tcWord(r)}</text>`);p+=n;});
+  return `<svg viewBox="0 0 ${W} ${y0+h+44}" class="lay" role="img" aria-label="Chamber layout with the thermocouples on each wall and their status">${g.join("")}</svg>`;}
+function zoneCard(D,A,z){const l=A.tcs[z*2+1],r=A.tcs[z*2],w=A.walls[z],inc=A.incidents.filter(i=>i.z===z),tr=traysOf(D.chamber,z),lv=[...new Set(A.levels[z*2].concat(A.levels[z*2+1]))].sort((a,b)=>a-b);
+  const row=(lab,f,cls)=>`<tr><td>${lab}</td><td class="n ${cls?cls(l):""}">${f(l)}</td><td class="n ${cls?cls(r):""}">${f(r)}</td></tr>`,pc=t=>`c-${tcLvl(t)}`;
+  return `<div class="zcard"><div class="row between"><b>Zone ${z+1}</b>${inc.length?pill(inc.some(i=>i.aff)?"bad":"warn",plural(inc.length,"excursion")):pill("ok","No excursion")}</div>
+    <p class="small muted">Set values ${spSeq({rows:A.rows.map(x=>({sp:[x.sp[z*2+1]]}))}).join(" → ")} °C · window ±${A.tolDef} °C around each set value<br>Tray positions ${tr[0]}–${tr[1]} (${tr[1]-tr[0]+1} trays)<br>Process: ${esc([...new Set(lv.map(s=>procAt(A.ft,s)))].join(" / "))}</p>
+    <table class="zt"><thead><tr><th></th><th class="n"><span class="lg"><i style="background:var(--s1)"></i>${l.tag} left</span></th><th class="n"><span class="lg"><i style="background:var(--s2)"></i>${r.tag} right</span></th></tr></thead><tbody>
+    ${row("vs setpoint",t=>sgn(t.mean),t=>Math.abs(t.mean||0)>A.tolDef?"c-bad":"")}${row("Deviation min / max, °C",t=>`${sgn(t.min)} / ${sgn(t.max)}`)}${row("Std dev of deviation, °C",t=>fx(t.sd))}
+    ${row("In tolerance",t=>t.offline?"offline":t.pct==null?"—":fx(t.pct)+" %",pc)}${row("Ppk",t=>fx(t.ppk,2),t=>t.ppk==null?"":t.ppk>=1.33?"c-ok":t.ppk>=1?"c-warn":"c-bad")}</tbody></table>
+    <p class="small" style="margin-top:6px">Wall difference avg <b class="${Math.abs(w.mean||0)>A.tolDef/2?"c-warn":""}">${sgn(w.mean)} °C</b> <span class="muted">· max ${sgn(w.max)} °C at ${fT(w.maxAt)}</span></p></div>`;}
+function heatmap(A){const cell=v=>{if(v==null)return `<td class="hm na"></td>`;const c=Math.max(-15,Math.min(15,v)),p=Math.round(Math.abs(c)/15*85);
+    return `<td class="hm ${Math.abs(v)>A.tolDef?"oot":""}" style="background:color-mix(in srgb, var(${c<0?"--s1":"--hot"}) ${p}%, var(--sunk))${p>55?";color:#fff":""}">${v>0?"+":""}${Math.round(v)}</td>`;};
+  return `<div class="tw"><table class="hmt"><thead><tr><th></th>${A.hours.map(h=>`<th>${pad(new Date(h).getUTCHours())}</th>`).join("")}</tr></thead><tbody>${K6.map(k=>`<tr><th>${tcTag(k)}</th>${A.hourly[k].map(cell).join("")}</tr>`).join("")}</tbody></table></div>
+  <p class="small muted" style="margin-top:6px"><span class="ramp"></span> −15 … +15 °C. Blue runs cold, red runs hot. Outlined cells have a mean beyond ±${A.tolDef} °C.</p>`;}
+function spreadSvg(A){const T=A.tcs.filter(t=>!t.offline&&t.n),tol=A.tolDef;if(!T.length)return "";
+  let lo=Math.min(-2*tol,...T.map(t=>t.min)),hi=Math.max(2*tol,...T.map(t=>t.max));lo=Math.floor(lo/10)*10;hi=Math.ceil(hi/10)*10;
+  const W=760,L=90,Rr=20,rh=38,H=T.length*rh+50,xs=v=>L+(v-lo)/(hi-lo)*(W-L-Rr),g=[];
+  g.push(`<rect x="${xs(-tol)}" y="8" width="${xs(tol)-xs(-tol)}" height="${T.length*rh}" fill="var(--ok-bg)"/><line x1="${xs(0)}" x2="${xs(0)}" y1="8" y2="${T.length*rh+8}" stroke="var(--muted)" stroke-dasharray="4 3"/>`);
+  const st=(hi-lo)>60?20:10;for(let v=Math.ceil(lo/st)*st;v<=hi;v+=st)g.push(`<line x1="${xs(v)}" x2="${xs(v)}" y1="8" y2="${T.length*rh+8}" stroke="var(--line)"/><text x="${xs(v)}" y="${T.length*rh+26}" text-anchor="middle" class="ax">${v>0?"+":""}${v}</text>`);
+  T.forEach((t,i)=>{const y=8+i*rh+rh/2,c=isLeft(t.k)?"var(--s1)":"var(--s2)";
+    g.push(`<text x="10" y="${y+4}" class="vl">${t.tag} <tspan class="ax">Z${t.zone+1} ${isLeft(t.k)?"L":"R"}</tspan></text><line x1="${xs(t.min)}" x2="${xs(t.max)}" y1="${y}" y2="${y}" stroke="${c}" stroke-width="2"/>`,
+      `<rect x="${xs(t.p5)}" y="${y-6}" width="${Math.max(2,xs(t.p95)-xs(t.p5))}" height="12" rx="3" fill="${c}" opacity=".45"/><circle cx="${xs(t.mean)}" cy="${y}" r="6" fill="var(--panel)" stroke="${c}" stroke-width="3"><title>${t.tag}: mean ${sgn(t.mean)} °C, 5–95 % ${sgn(t.p5)} … ${sgn(t.p95)}, min / max ${sgn(t.min)} / ${sgn(t.max)}</title></circle>`);});
+  g.push(`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle" class="ax">°C from setpoint</text>`);
+  return `<svg viewBox="0 0 ${W} ${H}" class="spr" role="img" aria-label="Spread of each thermocouple's deviation from the set value">${g.join("")}</svg>`;}
 function vLoad(){
   const D=S.cur;
-  const head=`<div class="panel"><div class="row between"><h3>SCADA record</h3><div class="row">${SAMPLE?`<button class="w" data-sample>Open the sample record</button>`:""}</div></div>
-    <p class="small muted">The SCADA export: Excel (.xlsx) or CSV with the columns Date, Time, SET-1, PV-1 … SET-6, PV-6 (TC-01 … TC-06; TC-01 / TC-02 = zone 1; odd numbers right wall, even numbers left wall). The heading ("FURNACE-2 TEMPRING …") links it to the furnace and chamber. The file stays in this browser; only the review's summary and a 10-minute trend are saved.</p>
-    <label class="f"><span>Load an export</span><input type="file" id="scfile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>
-    ${S.busy?`<p class="muted">Reading…</p>`:""}${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}</div>`;
-  if(!D||!D.A)return head;
-  const A=D.A,O=D.O,v=VERD[A.verdict],fk=D.furnace&&D.chamber?fkeyOf(D.furnace,D.chamber):"",dup=fk&&S.reviews.find(r=>r.fkey===fk&&r.from===A.from&&r.to===A.to);
+  const up=`<label class="btn pri upl">Upload SCADA export…<input type="file" id="scfile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>`;
+  if(!D||!D.A)return `<section class="panel rp"><div class="eyebrow">SCADA review · CQI-9 HTSA 1.9 · pusher furnace</div><h2 class="rt">Load a SCADA temperature record</h2>
+    <p class="muted">The SCADA export of one chamber: Excel (.xlsx) or CSV with Date, Time, SET-1 / PV-1 … SET-6 / PV-6 (TC-01 / TC-02 = zone 1 …; odd numbers right wall, even numbers left wall). The heading ("FURNACE-2 TEMPRING …") links it to the furnace and chamber. Everything is calculated in this browser; only the review's summary and a 10-minute trend are saved.</p>
+    <div class="row" style="margin-top:10px">${up}${SAMPLE?`<button class="w" data-sample>Open the sample record</button>`:""}</div>${S.busy?`<p class="muted">Reading…</p>`:""}${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}</section>`;
+  const A=D.A,O=D.O,fk=D.furnace&&D.chamber?fkeyOf(D.furnace,D.chamber):"",dup=fk&&S.reviews.find(r=>r.fkey===fk&&r.from===A.from&&r.to===A.to);
   const furnOpts=[...new Set([...String(C().furnaces).split(/[,;\s]+/).filter(Boolean),D.furnace].filter(Boolean))];
-  return `${head}
-  <div class="panel"><div class="row between"><h3>${esc(D.file)}${D.sample?" (sample record)":""}</h3><span class="verdict ${v[2]}">${v[1]}</span></div>
-    <p class="small muted">${esc(D.heading||"No heading")} · ${fDT(A.from)} – ${fDT(A.to)} · ${plural(A.n,"reading")} every ${fx(A.step)} min</p>
-    <div class="fields"><label class="f"><span>Furnace</span><select data-link="furnace"><option value="">—</option>${furnOpts.map(f=>`<option ${D.furnace===f?"selected":""}>${esc(f)}</option>`).join("")}</select></label>
+  const aff=A.incidents.filter(i=>i.aff),nCond=O.filter(o=>o.key&&(o.lvl==="crit"||o.lvl==="warn")).length,seq=spSeq(A);
+  const hero=A.verdict==="rej"?["bad","✕","Out of tolerance: reaction plan required"]:A.verdict==="cond"?["warn","!","In tolerance where it counts, with findings to review"]:["ok","✓","In control: every thermocouple within tolerance"];
+  const zt=A.incidents.reduce((s,i)=>s+i.outMin,0),wmax=A.walls.reduce((m,w)=>w.max!=null&&(m==null||Math.abs(w.max)>Math.abs(m.max))?w:m,null),hrs=(A.to-A.from)/3600000;
+  return `<section class="rp-head"><div><div class="eyebrow">SCADA review · CQI-9 HTSA 1.9 · ${esc(D.chamber||"")} chamber${D.sample?" · sample record":""}</div><h2 class="rt">${esc(D.heading||D.file)}</h2>
+      <p class="small muted">${esc(C().plant)} · Date <b>${fD(A.from)}</b>${fD(A.to)!==fD(A.from)?" – <b>"+fD(A.to)+"</b>":""} · File <b>${esc(D.file)}</b> · 6 thermocouples · 3 zones</p></div>
+    <div class="row">${up}${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the review (C)</button>`}</div></section>
+  ${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}
+  <section class="panel"><div class="fields"><label class="f"><span>Furnace</span><select data-link="furnace"><option value="">—</option>${furnOpts.map(f=>`<option ${D.furnace===f?"selected":""}>${esc(f)}</option>`).join("")}</select></label>
       <label class="f"><span>Chamber</span><select data-link="chamber"><option value="">—</option>${CH.map(c=>`<option ${D.chamber===c?"selected":""}>${c}</option>`).join("")}</select></label>
-      <div class="f wide"><span class="small muted">Process by set value</span><br><span class="small">${[...new Set(A.levels.flat())].sort((x,y)=>x-y).map(sp=>`${sp} °C: ${procAt(A.ft,sp)||"?"}`).join(" · ")}</span></div></div>
-    <div class="row" style="margin-top:10px">${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review (HTSA 1.9)</button>`}<span class="small muted">${fk?"":"Choose the furnace and chamber first."}</span></div></div>
-  <div class="panel"><h3>Findings</h3><ul class="issues">${O.map(o=>`<li>${pill(o.lvl==="crit"?"bad":o.lvl==="warn"?"warn":o.lvl==="good"?"ok":"acc",o.tag)} ${esc(o.txt)}${o.key&&(o.lvl==="crit"||o.lvl==="warn")?` <span class="small muted">· to answer in the review</span>`:""}</li>`).join("")}</ul></div>
-  <div class="panel"><h3>Thermocouples</h3><div class="tw"><table><thead><tr><th>TC</th><th>Zone · wall</th><th class="n">Judged</th><th class="n">In tolerance</th><th class="n">Mean dev.</th><th class="n">SD</th><th class="n">Min / max dev.</th><th class="n">Settling</th><th>Notes</th></tr></thead><tbody>
-    ${A.tcs.map(t=>`<tr><td><b>${t.tag}</b></td><td>${t.zone+1} · ${t.wall}</td><td class="n">${t.n}</td><td class="n">${t.offline?pill("bad","offline"):t.pct==null?"—":pill(t.pct>=100?"ok":t.pct>=95?"warn":"bad",fx(t.pct)+" %")}</td><td class="n">${sgn(t.mean)}</td><td class="n">${fx(t.sd)}</td><td class="n">${sgn(t.min)} / ${sgn(t.max)}</td><td class="n">${t.settled}</td><td class="small">${[t.outR?t.outR+" out of range":"",t.stuck.length?t.stuck.length+" stuck":"",t.spikes?t.spikes+" jumps":""].filter(Boolean).join(" · ")}</td></tr>`).join("")}</tbody></table></div>
-    <p class="small muted" style="margin-top:6px">Deviation = PV − the row's own set value. Readings after a set value change are not judged until back within tolerance for ${C().hold} readings (at most ${C().settle} min); grey on the charts. Wall difference (left − right): ${A.walls.map(w=>`zone ${w.z+1} ${sgn(w.mean)} °C`).join(", ")}.</p></div>
-  <div class="panel"><h3>Zone temperatures</h3><div class="zcs">${chartsOfCur(D)}</div></div>
-  <div class="panel"><h3>Incidents (excursions per zone)</h3>${A.incidents.length?`<div class="tw"><table><thead><tr><th>Zone</th><th>From – to</th><th class="n">Duration</th><th>Thermocouples</th><th class="n">Largest dev.</th><th>Set value</th><th>Product</th></tr></thead><tbody>${A.incidents.map(i=>`<tr><td>${i.z+1}</td><td>${fDT(i.from)} – ${fT(i.to)}</td><td class="n">${fDur(i.min)}</td><td>${i.tcs.join(", ")}</td><td class="n">${sgn(i.max)} °C</td><td>${i.sps.join(" / ")} °C</td><td>${i.aff?pill("bad",`Affected: positions ${i.trays[0]}–${i.trays[1]}`):pill("","Not counted")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">None.</p>`}
-    ${A.trans.length?`<p class="small muted" style="margin-top:8px">Set value changes: ${A.trans.filter((x,i,a)=>a.findIndex(y=>y.at===x.at&&y.to===x.to)===i).slice(0,8).map(x=>`${fT(x.at)} ${x.from}→${x.to} °C`).join(", ")}${A.trans.length>8?" …":""}.</p>`:""}</div>`;
+      <div class="f wide"><span class="small muted">Process rule</span><br><span class="small">${A.ft==="hardening"?`Hardening chamber: above ${HI_SET} °C austenitizing, trays in zones 2–3 count; zone 1 preheats; at ${HI_SET} °C or below no tray counts.`:A.ft==="tempering"?`Tempering chamber: above ${HI_SET} °C austenitizing (normalizing), at ${HI_SET} °C or below tempering / isothermal hold; trays count in every zone.`:"Choose the chamber."} Settings: <a href="#settings">P · Settings</a>.</span></div></div>
+    ${fk?"":`<p class="banner warn" style="margin-top:8px">Choose the furnace and chamber before the review.</p>`}</section>
+  <section class="hero ${hero[0]}"><span class="hi">${hero[1]}</span><div><h2>${hero[2]}</h2><p>${plural(A.incidents.length,"zone excursion")} beyond ±${A.tolDef} °C were found, ${plural(aff.length,"time window")} with trays affected. ${plural(nCond,"condition")} to answer in the review.<br>Tolerance used: set value ±${A.tolDef} °C per thermocouple${A.specs.some(s=>s.spec)?" (specification in force where it matches)":""} (set values ${seq.join(" → ")} °C).</p></div></section>
+  <div class="kpis">
+    <div class="kpi"><span class="k">Record period</span><span class="v mono">${fT(A.from)}–${fT(A.to)}</span><span class="s">${fx(hrs)} h · every ${fx(A.step*60,0)} s</span></div>
+    <div class="kpi"><span class="k">Readings</span><span class="v mono">${n0(A.n)}</span><span class="s">${fx(Math.min(100,100*A.n/A.expected))} % of expected · ${plural(A.gaps.length,"gap")}</span></div>
+    <div class="kpi"><span class="k">Readings in tolerance</span><span class="v mono c-${A.pctAll>=100?"ok":A.pctAll>=95?"warn":"bad"}">${fx(A.pctAll)}<small> %</small></span><span class="s">all ${A.tcs.filter(t=>!t.offline).length} TCs, ±${A.tolDef} °C · settling excluded</span></div>
+    <div class="kpi"><span class="k">Zone excursions</span><span class="v mono c-${A.incidents.length?(aff.length?"bad":"warn"):"ok"}">${A.incidents.length}</span><span class="s">${fDur(zt)} of zone-time out of window</span></div>
+    <div class="kpi"><span class="k">Worst deviation</span><span class="v mono c-${A.worst&&Math.abs(A.worst.d)>A.tolDef?"bad":"ok"}">${A.worst?sgn(A.worst.d):"—"}<small> °C</small></span><span class="s">${A.worst?`${tcTag(A.worst.k)} · ${A.worst.v} °C at ${fT(A.worst.t)}`:""}</span></div>
+    <div class="kpi"><span class="k">Max wall difference</span><span class="v mono c-${wmax&&Math.abs(wmax.max)>A.tolDef?"warn":"ok"}">${wmax?fx(Math.abs(wmax.max)):"—"}<small> °C</small></span><span class="s">${wmax?`Zone ${wmax.z+1} at ${fT(wmax.maxAt)}`:""}</span></div></div>
+  <p class="small muted">Settings used: tolerance ±${A.tolDef} °C · tray positions ${esc(D.chamber==="Tempering"?C().posT:C().posH)} · merge dips &lt; ${C().merge} min · settling after a set value change: until back within tolerance for ${C().hold} readings, at most ${C().settle} min (${n0(A.settledAll)} readings not judged) · valid range ${VMIN}–${VMAX} °C.</p>
+  ${sec("Furnace layout and thermocouple status","One continuous chamber; zones are control zones. Trays move one position per push from the charge end to the discharge end.",layoutSvg(D,A))}
+  ${sec("Zone summary","Left and right wall thermocouples per zone. Ppk uses the overall standard deviation against the set value ± tolerance.",`<div class="zcards">${[0,1,2].map(z=>zoneCard(D,A,z)).join("")}</div>`,"bare")}
+  ${sec("Temperature trend by zone","Same time axis and the same temperature scale on every zone, so the charts can be compared directly.",`<div class="zcs">${chartsOfCur(D)}</div>`)}
+  ${A.trans.length?sec("Response to set value changes",`A thermocouple is judged again once it is back within tolerance of the new set value for ${C().hold} readings in a row, or after ${C().settle} min at the latest. ${n0(A.settledAll)} readings were left out for this reason.${A.trans.some(x=>x.late)?` <b class="c-bad">${plural(A.trans.filter(x=>x.late).length,"thermocouple")} did not reach the new set value within ${C().settle} min.</b>`:""}`,
+    `<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Set value change</th><th>Changed at</th><th>Back in tolerance at</th><th class="n">Time to settle</th><th>Result</th></tr></thead><tbody>${A.trans.map(x=>`<tr><td><b>${tcTag(x.k)}</b> <span class="muted">Zone ${zoneOf(x.k)+1} · ${wallOf(x.k)} wall</span></td><td class="mono">${x.from} → ${x.to} °C ${x.to>x.from?"↑":"↓"}</td><td class="mono">${fT(x.at)}</td><td class="mono">${x.reached?fT(x.reached):"—"}</td><td class="n mono">${x.mins!=null?fDur(x.mins):"—"}</td><td>${x.reached?pill("ok","Reached in "+fDur(x.mins)):x.late?pill("bad","Not reached in "+fDur(C().settle)):pill("","Set value changed again")}</td></tr>`).join("")}</tbody></table></div>`):""}
+  ${sec("Hourly deviation from setpoint","Mean of (reading − setpoint) per hour, °C.",heatmap(A))}
+  ${sec("Spread of each thermocouple","Deviation from setpoint. Thin line: min to max. Bar: 5th to 95th percentile. Dot: mean. Green: the tolerance window.",spreadSvg(A))}
+  ${sec("Excursion log",`One row per zone incident: either wall beyond ±${A.tolDef} °C, with dips less than ${C().merge} min apart merged. Trays inside that zone are affected only while the process rule counts them.`,
+    A.incidents.length?`<div class="tw"><table><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Process</th><th>Start</th><th>End</th><th class="n">Span</th><th class="n">Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${A.incidents.map((i,n)=>`<tr><td>${n+1}</td><td><b>Zone ${i.z+1}</b></td><td>${i.walls} <span class="muted">${i.tcs.join(", ")}</span></td><td>${i.dir}</td><td>${esc(i.proc)}</td><td class="mono">${fT(i.from)}</td><td class="mono">${fT(i.to)}</td><td class="n mono">${fDur(i.min)}</td><td class="n mono">${fDur(i.outMin)}</td><td class="mono c-bad">${i.ext.v} °C (${sgn(i.max)}) <span class="muted">${i.ext.tag} · set ${i.ext.sp}</span></td><td>${i.aff?`Zone ${i.z+1} <span class="muted">positions ${i.trays[0]}–${i.trays[1]}</span>`:`<span class="muted">not counted</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No excursion.</p>`)}
+  ${sec("Product affected: time windows","Trays in these zone positions during these windows were outside tolerance in a zone that counts for the process. They are the product to assess in the review.",
+    aff.length?`<div class="tw"><table><thead><tr><th>Zone</th><th>Tray positions</th><th>From</th><th>To</th><th class="n">Duration</th><th class="n">Extreme</th></tr></thead><tbody>${aff.map(i=>`<tr><td>Zone ${i.z+1}</td><td>${i.trays[0]}–${i.trays[1]} of the ${esc((D.chamber||"").toLowerCase())} chamber</td><td class="mono">${fDT(i.from)}</td><td class="mono">${fDT(i.to)}</td><td class="n mono">${fDur(i.min)}</td><td class="n mono c-bad">${sgn(i.max)} °C</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No product affected.</p>`)}
+  ${sec("Findings and conditions",`The conditions marked "to answer" go into the review record (C) — each needs a reaction or the record that handles it (HTSA 1.9 detection and reaction).`,
+    `<ul class="issues">${O.map(o=>`<li>${pill(o.lvl==="crit"?"bad":o.lvl==="warn"?"warn":o.lvl==="good"?"ok":"acc",o.tag)} ${esc(o.txt)}${o.key&&(o.lvl==="crit"||o.lvl==="warn")?` <span class="small muted">· to answer in the review</span>`:""}</li>`).join("")}</ul>
+    <div class="row" style="margin-top:10px">${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review (HTSA 1.9)</button>`}</div>`)}
+  ${sec("Data-integrity checks","Counted on the raw readings (pv), not on the judged values.",`<div class="tw"><table><thead><tr><th>Check</th><th>Result</th></tr></thead><tbody>
+    <tr><td>Readings vs expected (every ${fx(A.step*60,0)} s)</td><td>${n0(A.n)} of ${n0(A.expected)}</td></tr><tr><td>Gaps longer than ${C().gap} × the step</td><td>${A.gaps.length?A.gaps.map(g=>`${fT(g.from)}–${fT(g.to)} (${fDur(g.min)})`).join(", "):"none"}</td></tr>
+    <tr><td>Thermocouples offline (0 all record)</td><td>${A.tcs.filter(t=>t.offline).map(t=>t.tag).join(", ")||"none"}</td></tr><tr><td>Readings outside ${VMIN}–${VMAX} °C (excluded)</td><td>${A.tcs.filter(t=>t.outR).map(t=>t.tag+" "+t.outR).join(", ")||"none"}</td></tr>
+    <tr><td>Stuck values (same reading ≥ ${C().stuck} min)</td><td>${A.tcs.flatMap(t=>t.stuck.map(s=>`${t.tag} ${s.v} °C ${fT(s.from)}–${fT(s.to)}`)).join(", ")||"none"}</td></tr><tr><td>Jumps larger than ${C().spike} °C between two readings</td><td>${A.tcs.filter(t=>t.spikes).map(t=>t.tag+" "+t.spikes).join(", ")||"none"}</td></tr></tbody></table></div>`)}`;
 }
 function vReviews(){
   const L=S.reviews.slice().sort((a,b)=>(fromLocal(b.at)||0)-(fromLocal(a.at)||0));

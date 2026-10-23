@@ -408,6 +408,7 @@ Targets are to be set by the user (Section 3).
 | 30 | 22-Oct | Module for HTSA 3.3 (thermocouples and protection tubes) | TC module in the integrated application; `QMS/TC/` document set |
 | 31 | 23-Oct | Module for HTSA 1.1 (heat treat organization) | ORG module in the integrated application; `QMS/ORG/` document set; SPEC approvers from it |
 | 32 | 23-Oct | Module for the SCADA review, linked to the right HTSA question (sample export 22-Oct-2026 F-02 tempering) | SCADA module (HTSA 1.9) in the integrated application; `QMS/SCADA/` document set |
+| 33 | 23-Oct | SCADA module in the CALOR SCADA review interface, keeping the PDCA structure | Load & analyse rebuilt as the CALOR report (verdict, KPIs, layout, zone cards, trends, set value response, heatmap, spread, excursion log, product windows, integrity) |
 
 ---
 
