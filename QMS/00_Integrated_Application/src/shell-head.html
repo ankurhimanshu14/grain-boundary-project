@@ -11,7 +11,7 @@
 <body>
 <header class="top"><div class="wrap">
   <div class="brand"><div class="co">Mass Wire and Steels Pvt. Ltd. · Bhiwadi</div><h1 id="apptitle">CALOR</h1></div>
-  <div class="hdr-r"><div class="ctrl" id="ctrl" aria-label="Document control"></div><button id="themeBtn" type="button" aria-label="Toggle colour theme">Theme</button></div>
+  <div class="hdr-r"><div class="ctrl" id="ctrl" aria-label="Document control"></div><button id="syncBtn" type="button" class="sync" title="Google Drive folder">This browser only</button><button id="themeBtn" type="button" aria-label="Toggle colour theme">Theme</button></div>
 </div></header>
 <nav class="sys" aria-label="Modules"><div class="wrap">
   <a href="#home" data-sys="home">Overview</a>
@@ -25,6 +25,7 @@
 <main id="main" class="wrap"></main>
 <div id="modal" hidden></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<dialog id="syncDlg" aria-label="Google Drive folder"></dialog>
 <script>
 "use strict";
 /* ---------- shell: module table, routing, theme ---------- */

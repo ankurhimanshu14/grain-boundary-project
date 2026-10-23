@@ -184,7 +184,7 @@ const NAV=[["",[["dash","Dashboard"]]],["P",[["chart","Organization chart"],["po
   ["C",[["review","HTSA 1.1"]]],["A",[["changes","Changes"]]],["",[["settings","Settings"],["rules","Rules"],["docs","Documentation"],["data","Data"]]]];
 const navHtml=()=>`<div class="wrap">${NAV.map(([p,it])=>`<div class="grp">${p?`<span class="pd">${p}</span>`:""}${it.map(([k,l])=>`<a href="#${k}" ${S.view===k?'aria-current="page"':""}>${l}</a>`).join("")}</div>`).join("")}</div>`;
 function route(){const v=(location.hash||"").slice(1);S.view=VIEWS[v]?v:"dash";}
-const banner=()=>S.dbState==="local"?`<div class="banner warn">Local mode: records are kept in this browser only. Back up from the <a href="#data">Data</a> tab.</div>`
+const banner=()=>S.dbState==="local"?`<div class="banner warn">${MWS.sync&&MWS.sync.linked()?`Records are kept in this browser and saved to the Google Drive folder <b>${esc(MWS.sync.folder())}</b>.`:`Local mode: records are kept in this browser only. Link a Google Drive folder (button at the top right) or back up from the <a href="#data">Data</a> tab.`}</div>`
   :S.dbState==="connecting"?`<div class="banner">Connecting to the record store…</div>`:S.dbState==="error"?`<div class="banner bad">The record store reported an error; changes may not be saved.</div>`:"";
 function render(){
   if(!ACTIVE()){MWS.bg();return;}

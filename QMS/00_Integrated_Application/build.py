@@ -37,6 +37,8 @@ def main():
     head = (SRC / "shell-head.html").read_text(encoding="utf-8")
     css = (SRC / "app.css").read_text(encoding="utf-8")
     html = head.replace("{{CSS}}", css)
+    # the Google Drive folder sync runs before the modules, so it sees every change of their records
+    html += "<script>\n%s</script>\n" % (SRC / "shell-sync.js").read_text(encoding="utf-8")
     docs = {}
     for code, (src, folder) in MODULES.items():
         for p in sorted((QMS / folder).rglob("*.md")):

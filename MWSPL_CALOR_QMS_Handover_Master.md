@@ -414,6 +414,7 @@ Targets are to be set by the user (Section 3).
 | 36 | 23-Oct | SAT 30-minute furnace readings pulled from the SCADA review; thermocouple replacement history monitored as in CALOR | TC module: fill from a loaded SCADA export (PV-n at each reading time); replacement register (reasons, offset, TUS decision, linked SAT, verification SAT, due list); WI-TC-01 / -02, F-TC-02 updated |
 | 37 | 23-Oct | Link of the removed thermocouple to the fitted one did not work properly | TC module: two-way links in the element and replacement dialogs and the history, position history, "removed before its SAT", CALOR import builds the removed elements and the chain, reason no longer preselected |
 | 38 | 23-Oct | CALOR data could not be imported into the CALOR Quality System from the Google Drive | Shell-level CALOR data source: the CALOR Drive folder, files picked or downloaded from Google Drive (register files or a backup), or this browser; used by every Import from CALOR |
+| 39 | 23-Oct | Save the CALOR Quality System records to Google Drive, as CALOR does | Shell-level Google Drive folder sync: one JSON file per module, saved after every change, changes from other computers read every minute, daily backups, conflict copies; header chip and dialog |
 | 38 | 23-Oct | Cannot import from the Google Drive folder | CALOR shell: a backup in the folder can be imported when linking, Drive duplicate files "<key> (1).json" are read, unreadable files are retried and named, a fresh browser no longer counts as having data |
 
 ---

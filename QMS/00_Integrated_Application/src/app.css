@@ -227,3 +227,7 @@ svg.satc text{font:11px var(--f-mono);fill:var(--muted)}
 /* APQP module: feasibility questions */
 table.fq td{vertical-align:top}table.fq select{min-width:120px}table.fq input{width:100%;min-width:160px}
 .issues button.link{text-align:left}
+/* Google Drive folder: header chip and dialog */
+button.sync{font-size:12.5px;white-space:nowrap}button.sync.ok{border-color:var(--ok);color:var(--ok)}button.sync.warn{border-color:var(--warn);color:var(--warn)}button.sync.bad{border-color:var(--bad);color:var(--bad)}
+#syncDlg{border:1px solid var(--line);border-radius:10px;padding:0;background:var(--panel);color:var(--ink);max-width:min(640px,calc(100vw - 32px));width:100%}
+#syncDlg::backdrop{background:rgba(0,0,0,.35)}#syncDlg .sheet{padding:18px}#syncDlg .row{margin-top:10px;flex-wrap:wrap}
