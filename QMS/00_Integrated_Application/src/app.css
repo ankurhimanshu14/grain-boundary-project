@@ -124,7 +124,8 @@ body.ro .w{display:none!important}
 #modal[hidden]{display:none}
 .sheet{background:var(--panel);border:1px solid var(--line);border-radius:8px;max-width:980px;margin:0 auto;padding:16px 18px}
 .sheet h2{margin-bottom:6px}
-fieldset{border:1px solid var(--line);border-radius:6px;margin:12px 0 0;padding:10px 12px}
+fieldset{border:1px solid var(--line);border-radius:6px;margin:12px 0 0;padding:10px 12px;min-width:0}
+table.obs input{width:100%;min-width:70px}table.obs td{vertical-align:middle}
 legend{font-family:var(--f-display);font-weight:600;font-size:15px;padding:0 6px}
 .sticky-foot{position:sticky;bottom:-16px;background:var(--panel);border-top:1px solid var(--line);margin:14px -18px -16px;padding:10px 18px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;align-items:center}
 .sticky-foot .msg{margin-right:auto;font-size:13px}

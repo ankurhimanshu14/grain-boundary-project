@@ -17,6 +17,7 @@
 | P | MWSPL-F-TC-01 | Thermocouple register | 00 | — | [03_Formats/MWSPL-F-TC-01_Thermocouple_Register.md](03_Formats/MWSPL-F-TC-01_Thermocouple_Register.md) |
 | C | MWSPL-F-TC-02 | SAT record | 00 | — | [03_Formats/MWSPL-F-TC-02_SAT_Record.md](03_Formats/MWSPL-F-TC-02_SAT_Record.md) |
 | P / D | MWSPL-F-TC-03 | Protection tube PM schedule and check record | 00 | — | [03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md](03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md) |
+| P | MWSPL-F-TC-04 | Test equipment calibration record | 00 | — | [03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md](03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md) |
 | — | — | Module description (application) | — | — | [04_Application/mwspl-tc-module.md](04_Application/mwspl-tc-module.md) |
 
 ### Where each requirement is met
@@ -26,14 +27,14 @@
 | Thermocouples calibrated before first use, within the range of use, meeting the P3.1 accuracy | QP-TC-01 §6.1; WI-TC-01 §2–§3; F-TC-01 | Calibration fields of each thermocouple; issue shown when the certificate is missing, dated after installation, does not cover the range of use or exceeds the accuracy |
 | Control, monitoring and recording thermocouples SAT checked per the Process Table and P3.3 | QP-TC-01 §6.2; WI-TC-02 | SAT state per thermocouple (none / ok / due soon / overdue / failed); due list |
 | Insertion depth of reused type K / E test thermocouples documented (P3.1.3.3) | WI-TC-02 §2.4; F-TC-02 | Depth required on the SAT record for a type K / E test TC; a reuse shallower than before is flagged |
-| SAT records meet P3.3.5 | WI-TC-02 §3; F-TC-02 | Record completeness gate, validity (test equipment in calibration), approval |
+| SAT records meet P3.3.5 | WI-TC-02 §3; F-TC-02; F-TC-04 | Record completeness gate, validity (test equipment in calibration), approval |
 | Protection tubes checked or replaced to a documented PM schedule | QP-TC-01 §6.3; WI-TC-03; F-TC-03 | Approved PM schedule (rev, date, approver), tube interval per thermocouple, check rounds, worn tubes open until replaced |
 
 ### First-cycle implementation checklist
 
 - [ ] Confirm the settings against the controlled CQI-9 copy: SAT interval and tolerance, accuracy tables (field and test thermocouples, base and noble metal), test TC reuse rule, element life.
 - [ ] Register every thermocouple of F-01 … F-04 (TC-01 … TC-06 per chamber, odd = right wall, even = left wall) with its certificate (WI-TC-01); import the CALOR SAT register where it exists.
-- [ ] Register the test thermocouples and test instruments with their certificates and due dates.
+- [ ] Register the test thermocouples and test instruments with their calibration record (make / model, range, least count, certificate observations with error and uncertainty, F-TC-04) and due dates.
 - [ ] Enter the protection tube material and intervals; approve the PM schedule (F-TC-03).
 - [ ] Bring every SAT and tube check up to date; close the reactions to failed SATs.
 - [ ] Check that the HTSA 3.3 panel reads Satisfactory; file the evidence print.

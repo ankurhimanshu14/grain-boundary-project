@@ -19,7 +19,7 @@ To make sure every furnace temperature is measured by a thermocouple that was ca
 ### 3. References
 
 - AIAG CQI-9 4th Edition: HTSA 3.3; Section P3.1 (thermocouples and their accuracy tables, P3.1.3.3 reuse of type K / E thermocouples); Section P3.3 (SAT, P3.3.5 records); Process Tables A and E (controlled copy).
-- MWSPL-WI-TC-01, -02, -03; MWSPL-F-TC-01, -02, -03.
+- MWSPL-WI-TC-01, -02, -03; MWSPL-F-TC-01, -02, -03, -04.
 - CALOR → PYROMETRY → SAT, TUS, Equipment.
 
 ### 4. Terms and definitions
@@ -87,6 +87,7 @@ Elements are replaced at the end of their service life (setting, default 365 day
 | Thermocouple register with certificates (F-TC-01) | Application → Thermocouples | Life of the furnace + 1 year |
 | SAT records (F-TC-02) | Application → SAT records | 3 years minimum, or as the customer requires |
 | PM schedule and tube checks (F-TC-03) | Application → PM schedule, Tube checks | 3 years |
+| Test equipment calibration records (F-TC-04) | Application → Test equipment | Life of the equipment + 3 years |
 | HTSA 3.3 evidence | Printed from the application, filed with the self-assessment | Until the next assessment |
 
 ### 8. Revision history
