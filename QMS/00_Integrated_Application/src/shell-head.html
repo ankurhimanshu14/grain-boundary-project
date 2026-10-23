@@ -16,6 +16,7 @@
 <nav class="sys" aria-label="Modules"><div class="wrap">
   <a href="#home" data-sys="home">Overview</a>
   <a href="#org/dash" data-sys="org">HT organization</a>
+  <a href="#apqp/dash" data-sys="apqp">Quality planning</a>
   <a href="#spec/dash" data-sys="spec">Specifications</a>
   <a href="#scada/dash" data-sys="scada">SCADA review</a>
   <a href="#tc/dash" data-sys="tc">Thermocouples</a>
@@ -27,11 +28,12 @@
 <script>
 "use strict";
 /* ---------- shell: module table, routing, theme ---------- */
-const MODS=["org","spec","scada","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
+const MODS=["org","apqp","spec","scada","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
 const today0=()=>{const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}-${d.getFullYear()}`;};
 const SYS={
   home:{t:"CALOR · Heat treat quality system",ctrl:()=>`<div><b>Standard</b>AIAG CQI-9 4th Ed.</div><div><b>Scope</b>Pusher furnaces F-01 … F-04</div><div><b>Records</b><span id="dbstate">—</span></div><div><b>Date</b>${today0()}</div>`},
   org:{t:"Heat treat organization",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-ORG-01</div><div><b>Standard</b>CQI-9 · HTSA 1.1</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
+  apqp:{t:"Advanced quality planning",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-APQP-01</div><div><b>Standard</b>CQI-9 · HTSA 1.2</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   spec:{t:"Process specifications",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SPEC-01</div><div><b>Standard</b>CQI-9 · HTSA 1.6</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   scada:{t:"SCADA temperature review",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SCADA-01</div><div><b>Standard</b>CQI-9 · HTSA 1.9</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   tc:{t:"Thermocouples & protection tubes",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TC-01</div><div><b>Standard</b>CQI-9 · HTSA 3.3</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`}
@@ -45,7 +47,8 @@ const MWS={
     set hash(v){location.hash="#"+mod+"/"+String(v||"").replace(/^#/,"");},
     get href(){return location.href;},reload(){location.reload();}};},
   /* a module's data changed while another page is shown: refresh the Overview */
-  bg(){if(MWS.app==="home"&&typeof renderHome==="function"){clearTimeout(MWS._bg);MWS._bg=setTimeout(renderHome,120);}},
+  bg(){if(MWS.app==="home"&&typeof renderHome==="function"){clearTimeout(MWS._bg);MWS._bg=setTimeout(renderHome,120);}
+    else{const m=MWS[MWS.app];if(m&&m.refresh){clearTimeout(MWS._bg);MWS._bg=setTimeout(m.refresh,150);}}},
   toast(t){const el=document.getElementById("toast");el.textContent=t;el.classList.add("on");clearTimeout(MWS._t);MWS._t=setTimeout(()=>el.classList.remove("on"),2600);}
 };
 function shellRoute(){

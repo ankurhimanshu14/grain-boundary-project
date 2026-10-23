@@ -224,3 +224,6 @@ svg.lay .lb,.zcw svg .lb{font:600 12.5px var(--f-body);fill:var(--ink)}svg.lay .
 svg.satc{width:100%;height:auto;display:block;max-width:720px;margin:8px 0}
 svg.satc text{font:11px var(--f-mono);fill:var(--muted)}
 .rdp td,.rdp th{padding:2px 6px;font-size:11px}
+/* APQP module: feasibility questions */
+table.fq td{vertical-align:top}table.fq select{min-width:120px}table.fq input{width:100%;min-width:160px}
+.issues button.link{text-align:left}
