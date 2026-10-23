@@ -893,11 +893,23 @@ function idb(mode,fn){ return new Promise((res,rej)=>{ const o=indexedDB.open("c
 const hGet=()=>idb("readonly",s=>s.get("dir")).catch(()=>null), hPut=h=>idb("readwrite",s=>s.put(h,"dir")), hDel=()=>idb("readwrite",s=>s.delete("dir")).catch(()=>{});
 const perm=async(h,ask)=>{ try{ if(!h.queryPermission) return "granted"; const o={mode:"readwrite"}; const p=await h.queryPermission(o); return p==="granted"||!ask?p:await h.requestPermission(o); }catch(e){ return "denied"; } };
 async function writeJSON(dir,name,obj){ const fh=await dir.getFileHandle(name,{create:true}), w=await fh.createWritable(); await w.write(JSON.stringify(obj,null,1)); await w.close(); return (await fh.getFile()).lastModified; }
-/* read a key's file: null = no file, {same} = not changed since `mod`, {bad} = not readable (e.g. Drive still writing it) */
+/* read a key's file: null = no file, {same} = not changed since `mod`, {bad} = not readable (e.g. Drive still writing or downloading it).
+   Google Drive keeps a second copy as "<key> (1).json" when two computers created the file before it was synced: every copy is read
+   and the one saved last counts (CALOR writes only <key>.json). */
+const DUPS=[" (1)"," (2)"," (3)"];
+async function fileOf(dir,name){ try{ return await (await dir.getFileHandle(name)).getFile(); }catch(e){ if(e.name==="NotFoundError"||e.name==="TypeError") return null; throw e; } }
 async function readKey(dir,k,mod){
-  let fh; try{ fh=await dir.getFileHandle(k+".json"); }catch(e){ if(e.name==="NotFoundError"||e.name==="TypeError") return null; throw e; }
-  const f=await fh.getFile(); if(mod!=null&&f.lastModified===mod) return {same:true,mod};
-  try{ const env=JSON.parse(await f.text()); if(!env||env.key!==k||typeof env.stamp!=="string") return {bad:true}; return {env,mod:f.lastModified}; }catch(e){ return {bad:true}; }
+  const main=await fileOf(dir,k+".json"), dups=[];
+  for(const d of DUPS){ const f=await fileOf(dir,k+d+".json").catch(()=>null); if(f) dups.push(f); }
+  if(!main&&!dups.length) return null;
+  if(main&&!dups.length&&mod!=null&&main.lastModified===mod) return {same:true,mod};
+  let best=null,bad=false;
+  for(const f of [main,...dups].filter(Boolean)){
+    try{ const env=JSON.parse(await f.text()); if(!env||env.key!==k||typeof env.stamp!=="string"){ if(f===main) bad=true; continue; }
+      if(!best||String(env.saved||"")>String(best.env.saved||"")) best={env,mod:f.lastModified,file:f.name}; }
+    catch(e){ if(f===main) bad=true; }
+  }
+  return best&&!(bad&&best.file===k+".json")?best:bad?{bad:true}:best;
 }
 const pagesOf=keys=>MODS.filter(m=>m.keys.some(k=>keys.includes(k))).map(m=>m.page);
 /* data changed on another computer: reload the pages holding it (a page with a dialog open waits until it is closed) */
@@ -1026,24 +1038,51 @@ function drawSync(){
   el.innerHTML=h;
 }
 /* link a folder: an empty folder gets this browser's data; a folder with data replaces this browser's (or the other way round, asked) */
+/* keys that are only bookkeeping (not data the user entered): a fresh browser has them, so they do not count as "this browser has data" */
+const BOOK=["sr2-mig"];
+/* the newest CALOR backup in the folder (its root or backup/): {name, saved, by, data} */
+async function findBackup(h){
+  const cand=[];
+  const scan=async(dir,pre)=>{ for await(const [n,x] of dir.entries()) if(x.kind==="file"&&/^(calor-backup|before-link).*\.json$/i.test(n)) cand.push({dir,n,pre}); };
+  await scan(h,""); try{ await scan(await h.getDirectoryHandle("backup"),"backup/"); }catch(e){}
+  let best=null;
+  for(const c of cand){ try{ const o=JSON.parse(await (await (await c.dir.getFileHandle(c.n)).getFile()).text());
+    if(o&&o.data&&typeof o.data==="object"&&Object.keys(o.data).some(k=>k in KEYS)&&(!best||String(o.saved||"")>String(best.saved||""))) best={name:c.pre+c.n,saved:o.saved||"",by:o.by||"",data:o.data}; }catch(e){} }
+  return best;
+}
 async function link(){
   let h; try{ h=await showDirectoryPicker({id:"calor-data",mode:"readwrite"}); }catch(e){ if(e.name!=="AbortError") $("#dmsg").textContent="The folder could not be opened: "+e.message; return; }
   if(await perm(h,true)!=="granted"){ $("#dmsg").textContent="CALOR needs permission to read and write the folder."; return; }
   const name=prompt("Name of this computer (written into the files as who saved them):",SY.pc||"PC-"+Math.random().toString(36).slice(2,6).toUpperCase());
   if(name==null) return;
-  const remote={}; let latest=null;
-  try{ for(const k of DKEYS){ const r=await readKey(h,k,null); if(r&&r.bad) throw new Error(k+".json is not readable"); if(r&&!r.env.deleted){ remote[k]=r; if(!latest||r.env.saved>latest.env.saved) latest=r; } } }
+  $("#dmsg").textContent="Reading the folder…";
+  const remote={}; let latest=null, bad=[];
+  const readAll=async keys=>{ const left=[]; for(const k of keys){ let r; try{ r=await readKey(h,k,null); }catch(e){ r={bad:true}; }
+    if(r&&r.bad){ left.push(k); continue; } if(r&&!r.env.deleted){ remote[k]=r; if(!latest||r.env.saved>latest.env.saved) latest=r; } } return left; };
+  try{ bad=await readAll(DKEYS); if(bad.length){ await new Promise(r=>setTimeout(r,2000)); bad=await readAll(bad); } }
   catch(e){ $("#dmsg").textContent="The folder could not be read: "+e.message; return; }
-  const local=DKEYS.filter(k=>localStorage.getItem(k)!=null), rk=Object.keys(remote);
-  const go=async use=>{ LINKING=null; await doLink(h,name.trim()||"PC",use,remote); };
-  if(!rk.length) return go("here");
+  if(bad.length){ $("#dmsg").textContent=`These files in the folder could not be read: ${bad.map(k=>k+".json").join(", ")}. Google Drive may still be downloading them: make the folder available offline (right-click → Offline access → Available offline), wait until Drive shows it synced, then link again. Nothing was changed.`; return; }
+  $("#dmsg").textContent="";
+  const local=DKEYS.filter(k=>!BOOK.includes(k)&&localStorage.getItem(k)!=null), rk=Object.keys(remote).filter(k=>!BOOK.includes(k));
+  const go=async(use,bk)=>{ LINKING=null; await doLink(h,name.trim()||"PC",use,remote,bk); };
+  const list=keys=>keys.map(k=>esc((KEYS[k]||k).split(" (")[0].split(":")[0])).join(", ");
+  if(!rk.length){
+    const bk=await findBackup(h).catch(()=>null);
+    if(!bk) return go("here");
+    const bkeys=Object.keys(bk.data).filter(k=>k in KEYS&&!LOCAL_ONLY(k)&&!BOOK.includes(k));
+    LINKING={h};
+    $("#dsync").innerHTML=`<div class="choice"><p><b>The folder has no CALOR registers yet, but it holds the backup <code>${esc(bk.name)}</code></b> (saved ${esc(hm(bk.saved)||"—")}${bk.by?" by "+esc(bk.by):""}: ${list(bkeys)}).${local.length?` This browser has: ${list(local)}.`:""} Import the backup, or start the folder with this browser's data?</p>
+      <div class="btns"><button class="nb pri" id="lkBackup">Import the backup</button><button class="nb" id="lkHere">Start with this browser's data</button><button class="nb" id="lkCancel">Cancel</button></div></div>`;
+    $("#lkBackup").onclick=()=>go("backup",bk); $("#lkHere").onclick=()=>go("here"); $("#lkCancel").onclick=()=>{ LINKING=null; drawSync(); };
+    return;
+  }
   if(!local.length) return go("folder");
   LINKING={h};
-  $("#dsync").innerHTML=`<div class="choice"><p><b>Both have CALOR data.</b> The folder <b>${esc(h.name)}</b> has ${rk.length} register${rk.length>1?"s":""} (last saved ${esc(hm(latest.env.saved))} by ${esc(latest.env.by||"?")}); this browser has ${local.length}. Which should CALOR use? The other one is saved first as a full backup in <code>backup/</code>.</p>
+  $("#dsync").innerHTML=`<div class="choice"><p><b>Both have CALOR data.</b> The folder <b>${esc(h.name)}</b> has ${rk.length} register${rk.length>1?"s":""} (last saved ${esc(hm(latest.env.saved))} by ${esc(latest.env.by||"?")}: ${list(rk)}); this browser has ${local.length} (${list(local)}). Which should CALOR use? The other one is saved first as a full backup in <code>backup/</code>.</p>
     <div class="btns"><button class="nb pri" id="lkFolder">Use the folder's data</button><button class="nb" id="lkHere">Upload this browser's data to the folder</button><button class="nb" id="lkCancel">Cancel</button></div></div>`;
   $("#lkFolder").onclick=()=>go("folder"); $("#lkHere").onclick=()=>go("here"); $("#lkCancel").onclick=()=>{ LINKING=null; drawSync(); };
 }
-async function doLink(h,name,use,remote){
+async function doLink(h,name,use,remote,bk){
   try{
     SY.pc=name; SY.base={}; SY.dirty={}; SY.conflicts=[]; SY.backup=""; DIR=h; DIRH=h;
     const bd=await h.getDirectoryHandle("backup",{create:true}), t=fileTime();
@@ -1051,13 +1090,18 @@ async function doLink(h,name,use,remote){
       const data={}; DKEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; });
       if(Object.keys(data).length) await writeJSON(bd,`before-link_${t}_${safe(name)}.json`,{suite:"CALOR",saved:new Date().toISOString(),by:name,note:"this browser's data before the folder was linked",data});
       DKEYS.forEach(k=>{ if(remote[k]) applyRemote(k,remote[k]); else rawSet(k,null); });
+    }else if(use==="backup"){
+      /* the folder holds only a backup: it becomes this browser's data and is written to the folder as the registers */
+      const data={}; DKEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!=null) data[k]=v; });
+      if(Object.keys(data).length) await writeJSON(bd,`before-link_${t}_${safe(name)}.json`,{suite:"CALOR",saved:new Date().toISOString(),by:name,note:"this browser's data before the backup was imported",data});
+      DKEYS.forEach(k=>{ const v=bk.data[k]; rawSet(k,v==null?null:typeof v==="string"?v:JSON.stringify(v)); if(v!=null) SY.dirty[k]=1; });
     }else{
       const data={}; Object.keys(remote).forEach(k=>data[k]=fromEnv(remote[k].env));
       if(Object.keys(data).length) await writeJSON(bd,`before-link_${t}_folder.json`,{suite:"CALOR",saved:new Date().toISOString(),by:name,note:"the folder's data before this browser's data was uploaded",data});
       DKEYS.forEach(k=>{ if(remote[k]) SY.base[k]={st:remote[k].env.stamp,mod:remote[k].mod}; if(localStorage.getItem(k)!=null||remote[k]) SY.dirty[k]=1; });
     }
     await hPut(h); saveSY();
-    if(use==="here") await flush();
+    if(use==="here"||use==="backup") await flush();
     location.reload();
   }catch(e){ $("#dmsg").textContent="Linking failed: "+e.message; }
 }

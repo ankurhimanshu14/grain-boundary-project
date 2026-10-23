@@ -413,6 +413,7 @@ Targets are to be set by the user (Section 3).
 | 35 | 23-Oct | Module for HTSA 1.2 (advanced quality planning) | APQP module in the integrated application: procedure approval, feasibility studies per part / part family, planning outputs and release, parts coverage, HTSA 1.2; `QMS/APQP/` document set |
 | 36 | 23-Oct | SAT 30-minute furnace readings pulled from the SCADA review; thermocouple replacement history monitored as in CALOR | TC module: fill from a loaded SCADA export (PV-n at each reading time); replacement register (reasons, offset, TUS decision, linked SAT, verification SAT, due list); WI-TC-01 / -02, F-TC-02 updated |
 | 37 | 23-Oct | Link of the removed thermocouple to the fitted one did not work properly | TC module: two-way links in the element and replacement dialogs and the history, position history, "removed before its SAT", CALOR import builds the removed elements and the chain, reason no longer preselected |
+| 38 | 23-Oct | Cannot import from the Google Drive folder | CALOR shell: a backup in the folder can be imported when linking, Drive duplicate files "<key> (1).json" are read, unreadable files are retried and named, a fresh browser no longer counts as having data |
 
 ---
 
