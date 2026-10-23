@@ -12,8 +12,17 @@ SRC = HERE / "src"
 OUT = HERE / "calor-quality-system.html"
 # module code -> (module source, document folder under QMS/)
 MODULES = {"org": (QMS / "ORG/04_Application/mwspl-org-module.js", "ORG"),
+           "scada": (QMS / "SCADA/04_Application/mwspl-scada-module.js", "SCADA"),
            "spec": (QMS / "SPEC/04_Application/mwspl-spec-module.js", "SPEC"),
            "tc": (QMS / "TC/04_Application/mwspl-tc-module.js", "TC")}
+
+def body(src):
+    """The module source; a module may embed its sample data (04_Application/sample.json) at /*@SAMPLE@*/null."""
+    text = src.read_text(encoding="utf-8")
+    sample = src.parent / "sample.json"
+    if "/*@SAMPLE@*/null" in text and sample.exists():
+        text = text.replace("/*@SAMPLE@*/null", sample.read_text(encoding="utf-8").replace("</", "<\\/"), 1)
+    return text
 
 def wrap(code, src):
     """Each module runs in its own scope; its listeners only act while it is the open module."""
@@ -21,7 +30,7 @@ def wrap(code, src):
             "const ACTIVE=()=>MWS.app===%s;\n"
             "const onDoc=(t,f)=>document.addEventListener(t,e=>{if(ACTIVE())return f(e);});\n"
             "const onWin=(t,f)=>window.addEventListener(t,e=>{if(ACTIVE())return f(e);});\n"
-            "%s\n})(MWS.loc(%s));\n</script>\n") % (code, json.dumps(code), src.read_text(encoding="utf-8"), json.dumps(code))
+            "%s\n})(MWS.loc(%s));\n</script>\n") % (code, json.dumps(code), body(src), json.dumps(code))
 
 def main():
     head = (SRC / "shell-head.html").read_text(encoding="utf-8")

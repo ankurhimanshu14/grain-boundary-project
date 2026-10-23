@@ -662,6 +662,9 @@ onWin("hashchange",()=>{route();S.pending=false;render();window.scrollTo(0,0);})
 
 /* 12. integration API */
 MWS.tc={closeModal,
+  /* the thermocouples of a chamber with their SAT, life and tube state (used by the SCADA review) */
+  chamber:(f,ch)=>inUse().filter(e=>e.furnace===f&&e.chamber===ch).map(e=>{const s=satState(e),l=lifeOf(e),t=tubeState(e);return {tag:e.tag,no:tcNo(e.tag),use:e.use,sat:s.st,satTxt:s.txt,satDue:s.due||"",life:l.st,lifeDue:l.due||"",tube:t.st,tubeTxt:t.txt};}),
+  hasData:()=>S.tcs.length>0,
   stats:()=>{const k=kp();return {db:S.dbState,...k,label:SCORE[k.score][1],cls:SCORE[k.score][0]};},
   summary:()=>{const k=kp();return `${plural(k.inUse,"thermocouple")} in use, ${k.satOk} of ${k.satNeed} with a SAT in date, HTSA 3.3 ${SCORE[k.score][1].toLowerCase()}.`;}};
 window.__TCM={S,calIssues,satEval,satMissing,depthIssues,satState,tubeState,lifeOf,assess33,kp,eqIssues};

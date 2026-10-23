@@ -193,6 +193,7 @@ Rules: if a page's default list (`DEF_DOCS`, `DEF_PROC`) changes numbers, change
 | `MWSPL.md`, `CLAUDE.md`, this note | — | Plant facts, technical description, handover | 19–22-Oct-2026 |
 | `documents/builders/` | — | Builder scripts of every Word / Excel document | 22-Oct-2026 |
 | `QMS/SPEC/` (pilot module set) | HTSA 1.6, Process Tables A / E | Master list, MWSPL-QP-SPEC-01, WI-SPEC-01 … 03, F-SPEC-01 … 05 (KPI), module description | 22-Oct-2026 |
+| `QMS/SCADA/` + SCADA module of the integrated application | HTSA 1.9 (feeds 1.8; uses 1.6, 3.3, 1.1) | Master list, MWSPL-QP-SCADA-01, WI-SCADA-01 / 02, F-SCADA-01, module description; SCADA export analysis, second-level review record, reactions, coverage per chamber | 23-Oct-2026 |
 | `QMS/ORG/` + ORG module of the integrated application | HTSA 1.1 | Master list, MWSPL-QP-ORG-01, WI-ORG-01 / 02, F-ORG-01 … 03, module description; positions, job descriptions, organization chart approval, qualification records | 23-Oct-2026 |
 | `QMS/TC/` + TC module of the integrated application | HTSA 3.3, P3.1, P3.3 | Master list, MWSPL-QP-TC-01, WI-TC-01 … 03, F-TC-01 … 03, module description; thermocouple register, SAT records, test equipment, tube PM schedule and checks | 22-Oct-2026 |
 | `QMS/00_Integrated_Application/` (pilot application) | HTSA 1.6 | `calor-quality-system.html`: Overview + native SPEC module in the IATF integrated-application UI/UX (built by `build.py` from `src/` and `QMS/SPEC/04_Application/mwspl-spec-module.js`) | 22-Oct-2026 |
@@ -406,6 +407,7 @@ Targets are to be set by the user (Section 3).
 | 29 | 22-Oct | Temperature–time sketch on the job card | SPEC module job card |
 | 30 | 22-Oct | Module for HTSA 3.3 (thermocouples and protection tubes) | TC module in the integrated application; `QMS/TC/` document set |
 | 31 | 23-Oct | Module for HTSA 1.1 (heat treat organization) | ORG module in the integrated application; `QMS/ORG/` document set; SPEC approvers from it |
+| 32 | 23-Oct | Module for the SCADA review, linked to the right HTSA question (sample export 22-Oct-2026 F-02 tempering) | SCADA module (HTSA 1.9) in the integrated application; `QMS/SCADA/` document set |
 
 ---
 

@@ -535,6 +535,8 @@ onWin("hashchange",()=>{route();S.pending=false;render();window.scrollTo(0,0);})
 
 /* 12. integration API */
 MWS.org={closeModal,authorized,
+  /* people whose heat treat qualification meets the HTSA 1.1 minimum (used by the SCADA review for qualified reviewers) */
+  qualified:()=>S.people.filter(p=>qual(p).qualified).map(p=>({name:p.name,position:heldBy(p.id).map(x=>x.title).join(", "),why:qual(p).path})),
   hasData:()=>S.positions.length>0,
   stats:()=>{const A=assess();return {db:S.dbState,score:A.score,label:SCORE[A.score][1],cls:SCORE[A.score][0],crit:A.crit,person:A.per?A.per.name:"",qualified:!!(A.q&&A.q.qualified),ht:A.q?A.q.ht:0,
     deputy:A.p?pname(A.p.deputy):"",chart:S.chart.rev,chartOk:isDate(S.chart.apprDate)&&!S.chart.dirty,positions:S.positions.length,people:S.people.length};},
