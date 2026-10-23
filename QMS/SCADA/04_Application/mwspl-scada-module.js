@@ -133,12 +133,25 @@ async function loadFile(file){
     if(/\.csv$/i.test(file.name))books=readCsv(new TextDecoder().decode(buf));else books=await readXlsx(buf);
     let D=null,last=null;for(const b of books){try{D=parseAOA(b.aoa,file.name);break;}catch(e){last=e;}}
     if(!D)throw last||new Error("No SCADA table was found in the file.");
-    S.cur=D;runCur();}
+    S.cur=D;keepRec(D);runCur();}
   catch(e){S.err=e.message||String(e);S.cur=null;}
-  S.busy=false;render();}
+  S.busy=false;render();return S.cur;}
+/* the records loaded in this session (not stored): the Thermocouples module takes SAT furnace readings from them */
+const LOADED=[];
+function keepRec(D){const i=LOADED.findIndex(x=>x.file===D.file&&x.furnace===D.furnace&&x.chamber===D.chamber);if(i>=0)LOADED.splice(i,1);LOADED.unshift(D);LOADED.length=Math.min(LOADED.length,8);}
+/* PV of TC-n of a chamber at the given times (UTC-naive ms): the nearest row within half the logging step, from a loaded record covering the times */
+function pvAt(f,ch,n,times){
+  const k=n-1,C=LOADED.filter(D=>D.furnace===f&&D.chamber===ch&&K6.includes(k));
+  if(!C.length)return {ok:false,why:LOADED.length?`No SCADA record of ${f} ${ch} is loaded (loaded: ${LOADED.map(D=>`${D.furnace||"?"} ${D.chamber||"?"}`).join(", ")}).`:"No SCADA record is loaded in this session."};
+  const t0=Math.min(...times),t1=Math.max(...times),D=C.find(D=>D.rows[0].t<=t1&&D.rows.at(-1).t>=t0);
+  if(!D)return {ok:false,why:`The loaded ${f} ${ch} record${C.length>1?"s cover":" covers"} ${C.map(D=>fmtT(D.rows[0].t)+" – "+fmtT(D.rows.at(-1).t)).join("; ")}, not the SAT time.`};
+  const R=D.rows,dt=R.slice(1,Math.min(R.length,200)).map((r,i)=>r.t-R[i].t).filter(x=>x>0).sort((a,b)=>a-b),step=dt.length?dt[dt.length>>1]:60000;
+  let j=0;const vals=times.map(t=>{while(j<R.length-1&&Math.abs(R[j+1].t-t)<=Math.abs(R[j].t-t))j++;const r=R[j];if(Math.abs(r.t-t)>step/2)return null;const v=r.raw[k];return v!=null&&v>=VMIN&&v<=VMAX?v:null;});
+  return {ok:true,file:D.file,sample:!!D.sample,heading:D.heading,vals,step:step/60000};}
+const fmtT=ms=>{const d=new Date(ms);return `${pad(d.getUTCDate())}-${MON[d.getUTCMonth()]} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;};
 function loadSample(){if(!SAMPLE)return;const d0=Date.UTC(+SAMPLE.date.slice(0,4),+SAMPLE.date.slice(5,7)-1,+SAMPLE.date.slice(8,10));
   S.cur={file:SAMPLE.file,heading:SAMPLE.heading,furnace:"F-02",chamber:"Tempering",sample:true,rows:SAMPLE.rows.map(r=>({t:d0+r[0]*1000,spRaw:K6.map(k=>r[1+2*k]),raw:K6.map(k=>r[2+2*k])}))};
-  runCur();if(location.hash!=="#load")location.hash="load";else render();}
+  keepRec(S.cur);runCur();if(location.hash!=="#load")location.hash="load";else render();}
 
 /* 6. analysis */
 const ftypeOf=ch=>ch==="Hardening"?"hardening":ch==="Tempering"?"tempering":"";
@@ -230,7 +243,7 @@ function findings(D,A){
   /* pyrometry of the chamber on the record day (Thermocouples module) */
   if(MWS.tc&&MWS.tc.chamber&&D.furnace&&D.chamber){const L=MWS.tc.chamber(D.furnace,D.chamber);
     if(!L.length)add("info","Pyrometry",`No thermocouple of ${D.furnace} ${D.chamber.toLowerCase()} chamber is registered in the Thermocouples module.`,"");
-    L.forEach(x=>{if(["fail","none","overdue"].includes(x.sat))add(x.sat==="fail"?"crit":"warn","Pyrometry",`${x.tag}: ${x.satTxt} (Thermocouples module).`,`sat:${x.tag}`);
+    L.forEach(x=>{if(["fail","none","overdue","repl"].includes(x.sat))add(x.sat==="fail"?"crit":"warn","Pyrometry",`${x.tag}: ${x.satTxt} (Thermocouples module).`,`sat:${x.tag}`);
       if(x.life==="over")add("warn","Pyrometry",`${x.tag}: element past its service life.`,`life:${x.tag}`);});}
   if(!O.some(o=>o.lvl==="crit"||o.lvl==="warn"))add("good","Record","Every thermocouple within tolerance, no data problem.","");
   return O;}
@@ -675,6 +688,10 @@ onWin("hashchange",()=>{route();S.pending=false;render();window.scrollTo(0,0);})
 
 /* 15. integration API */
 MWS.scada={closeModal,
+  /* SAT furnace readings (Thermocouples module): the records loaded this session, a file to load, the PV of TC-n at given times */
+  loaded:()=>LOADED.map(D=>({file:D.file,furnace:D.furnace,chamber:D.chamber,from:D.rows[0].t,to:D.rows.at(-1).t,sample:!!D.sample})),
+  load:file=>loadFile(file).then(D=>D?{ok:true,file:D.file,furnace:D.furnace,chamber:D.chamber}:{ok:false,why:S.err}),
+  pvAt,
   stats:()=>{const A=assess19(),st=A.st;return {db:S.dbState,score:A.score,label:SCORE[A.score][1],cls:SCORE[A.score][0],crit:A.crit,chambers:st.length,ok:st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length,
     never:st.filter(x=>x.c.st==="none").length,overdue:st.filter(x=>x.c.st==="overdue").length,open:S.reviews.reduce((a,r)=>a+openLines(r).length,0),reviews:S.reviews.length};},
   summary:()=>{const A=assess19(),st=A.st;return `${st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length} of ${st.length} chambers reviewed within ${C().maxHrs} h, ${plural(S.reviews.length,"review")} recorded; HTSA 1.9 ${SCORE[A.score][1].toLowerCase()}.`;}};

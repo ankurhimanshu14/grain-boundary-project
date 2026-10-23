@@ -411,6 +411,7 @@ Targets are to be set by the user (Section 3).
 | 33 | 23-Oct | SCADA module in the CALOR SCADA review interface, keeping the PDCA structure | Load & analyse rebuilt as the CALOR report (verdict, KPIs, layout, zone cards, trends, set value response, heatmap, spread, excursion log, product windows, integrity) |
 | 34 | 23-Oct | SAT data to record 30 minutes of temperature for each SAT | TC module: 30 furnace / test pairs per SAT (1 per min), mean difference, chart, readings printed and in a CSV; WI-TC-02, F-TC-02 updated |
 | 35 | 23-Oct | Module for HTSA 1.2 (advanced quality planning) | APQP module in the integrated application: procedure approval, feasibility studies per part / part family, planning outputs and release, parts coverage, HTSA 1.2; `QMS/APQP/` document set |
+| 36 | 23-Oct | SAT 30-minute furnace readings pulled from the SCADA review; thermocouple replacement history monitored as in CALOR | TC module: fill from a loaded SCADA export (PV-n at each reading time); replacement register (reasons, offset, TUS decision, linked SAT, verification SAT, due list); WI-TC-01 / -02, F-TC-02 updated |
 
 ---
 
