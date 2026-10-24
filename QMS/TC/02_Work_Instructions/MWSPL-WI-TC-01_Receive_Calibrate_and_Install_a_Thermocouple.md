@@ -10,8 +10,8 @@
 
 | Step | Action | Who |
 |---|---|---|
-| 1.1 | Check the type (K), size and length against the order and the furnace position. | Store / maintenance |
-| 1.2 | Check the calibration certificate: serial or batch no., calibrated range covering the range of use (hardening 700–960 °C, tempering 500–900 °C), largest error within the accuracy shown in the application. | Maintenance technician |
+| 1.1 | Check the type, tolerance class, sheath, diameter, length and hot junction against the order and the default thermocouple specification of the chamber (Application → Default TC specifications). | Store / maintenance |
+| 1.2 | Check the calibration certificate: serial or batch no., calibrated range covering the range of use (the chamber's default in Default TC specifications, e.g. hardening 700–960 °C, tempering 500–900 °C), largest error within the accuracy shown in the application. | Maintenance technician |
 | 1.3 | No certificate, or a certificate that does not meet 1.2: do not issue the element; return it or have it calibrated. | Maintenance Head |
 
 ### 2. Registering

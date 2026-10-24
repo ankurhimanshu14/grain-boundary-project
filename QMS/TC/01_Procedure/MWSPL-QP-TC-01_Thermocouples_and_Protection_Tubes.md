@@ -58,6 +58,10 @@ To make sure every furnace temperature is measured by a thermocouple that was ca
    ACT   failed SAT: cause, action, product impact, re-SAT; replace worn tubes and old elements
 ```
 
+#### 6.0 Default thermocouple specification
+
+The HT Manager and the Maintenance Head keep a default specification per chamber (Application → Default TC specifications): type, use, make / supplier, tolerance class, sheath material and diameter, length, insertion depth, hot junction, calibration laboratory and calibrated range, range of use, protection tube material, tube check interval and tube life. Every new thermocouple is ordered and registered to it; a replacement keeps the specification of the thermocouple it replaces. A thermocouple that differs is listed on that page (information for the review, not a CQI-9 finding).
+
 #### 6.1 Calibration before first use (P3.1)
 
 1. Every element is bought with a calibration certificate covering at least its range of use, giving the largest error. The error must be within the accuracy of the P3.1 table for its type and use (application setting, confirm against the copy).
