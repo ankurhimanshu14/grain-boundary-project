@@ -218,6 +218,27 @@ svg.lay .lb,.zcw svg .lb{font:600 12.5px var(--f-body);fill:var(--ink)}svg.lay .
 .hmt td.hm{min-width:34px;text-align:center;padding:4px 2px;border-radius:3px;border:2px solid transparent}.hmt td.hm.oot{border-color:var(--ink)}.hmt td.na{background:none}
 .ramp{display:inline-block;width:120px;height:8px;border-radius:4px;vertical-align:middle;background:linear-gradient(90deg,var(--s1),var(--sunk),var(--hot))}
 @media print{.rp-head .row,.upl{display:none}.hero,.kpi,.zcard{break-inside:avoid}}
+/* SCADA review: CALOR's findings cards, statistics, Pareto and management summary */
+.rp .obs{display:flex;flex-direction:column}.rp .ob{display:grid;grid-template-columns:120px 1fr;gap:4px 16px;padding:10px 0;border-top:1px solid var(--line)}.rp .ob:first-child{border-top:0;padding-top:0}
+.rp .ob p{margin:0;color:var(--ink)}.rp .ob p.act{margin-top:4px;color:var(--muted)}.rp .ob p.act b{color:var(--ink)}
+.rp .checks .ob{grid-template-columns:120px 220px 1fr}
+@media (max-width:640px){.rp .ob,.rp .checks .ob{grid-template-columns:1fr}}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px;margin-top:6px}.stat-grid h4,.rp h4{margin:0 0 6px;font-size:14px}
+table.stat td:first-child{color:var(--muted);white-space:nowrap}table.stat th,table.stat td.n{white-space:nowrap}table.stat td.n,table.stat th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+table.stat .lg{display:inline-flex;align-items:center;gap:5px}table.stat .lg i{display:inline-block;width:12px;height:3px;border-radius:2px}
+h4.setgrp{margin:16px 0 8px;padding:6px 10px;background:var(--sunk);border-left:4px solid var(--accent);border-radius:3px;font-size:14px}h4.setgrp .muted{font-weight:400}
+svg.mc{width:100%;height:auto;display:block}svg.mc .lb,svg.spr .lb{font:600 12px var(--f-body);fill:var(--ink)}svg.mc .ax{font:9.5px var(--f-mono);fill:var(--muted)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr));gap:12px}
+table.heat{border-collapse:separate;border-spacing:2px;font:12px var(--f-mono);width:100%;table-layout:fixed}table.heat th{font-weight:500;color:var(--muted);padding:0 1px;overflow:hidden}
+table.heat th.rl{text-align:left;width:64px;white-space:nowrap;text-transform:none}table.heat td{height:26px;text-align:center;border-radius:3px;overflow:hidden;font-size:11px}
+.mgmt{border-top:4px solid var(--accent)}.mg-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px}.mg-h{font-size:20px;margin:2px 0}
+.mg-status{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:130px;padding:8px 14px;border-radius:6px;font-weight:600;font-size:13px;color:#fff}
+.mg-status span{font:600 20px var(--f-display);letter-spacing:.08em}.mg-status.crit{background:var(--bad)}.mg-status.warn{background:var(--warn)}.mg-status.good{background:var(--ok)}
+:root .mg-status{color:var(--panel)}
+.mg-bottom{font-size:15.5px;line-height:1.45;margin:12px 0 14px;font-weight:500}.mg-sub{margin:18px 0 8px!important;font-size:15px!important}.mg-dec{margin:0;padding-left:20px}.mg-dec li{margin:3px 0}
+.signoff{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--muted)}.signoff b{color:var(--ink)}
+.rp.foot ul{margin:6px 0 0;padding-left:18px;color:var(--muted)}.rp.foot li{margin:3px 0}
+@media print{.mgmt,.stat-grid>div,.trc,.two>section{break-inside:avoid}}
 /* TC module: SAT readings series */
 .rdw{max-height:380px;overflow:auto}
 .rdt td{padding:3px 6px}.rdt input{width:100%;min-width:72px;font-family:var(--f-mono)}
