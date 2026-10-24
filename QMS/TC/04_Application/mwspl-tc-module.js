@@ -37,14 +37,15 @@ const JUNCTION={ungrounded:"Ungrounded (insulated)",grounded:"Grounded",exposed:
 const TDF=[["type","Thermocouple type",opts0(TYPES)],["use","Use",USE],["make","Make / supplier",""],["cls","Tolerance class",""],["sheath","Sheath material / construction",""],["dia","Sheath diameter (mm)","num"],
   ["length","Length (mm)","num"],["depth","Insertion depth (mm)","num"],["junction","Hot junction",JUNCTION],["calLab","Calibration laboratory",""],["calLo","Calibrated from °C","num"],["calHi","Calibrated to °C","num"],
   ["useLo","Range of use from °C","num"],["useHi","Range of use to °C","num"],["tubeMat","Protection tube material",""],["tubeCheckDays","Tube check every (days)","num"],["tubeReplDays","Tube life: replace the thermocouple after (days, 0 = on condition)","num"]];
-/* the specification library: specs[{id TS-nn, name, ...TDF}] and the default per chamber defSpec{Hardening, Tempering};
+/* the specification library: specs[{id TS-nn, name, ...TDF}], entered by the user (no default per chamber, nothing created automatically);
    settings saved before it had one default per chamber (tdef), earlier still the range of use and tube intervals as single settings */
 const fillSpec=o=>({id:"",name:"",...Object.fromEntries(TDF.map(([k])=>[k,""])),...(o||{})});
 function fixCfg(c){c=c||{};const T={};CH.forEach(ch=>{const r=rng(ch==="Tempering"?c.rangeT:c.rangeH);
     T[ch]={...DEF.tdef[ch],...(r[0]!=null?{useLo:String(r[0]),useHi:String(r[1])}:{}),...(c.tubeCheckDays!=null?{tubeCheckDays:String(c.tubeCheckDays)}:{}),...(c.tubeReplDays!=null?{tubeReplDays:String(c.tubeReplDays)}:{}),...((c.tdef&&c.tdef[ch])||{})};});
   const o={...DEF,...c};delete o.id;delete o.tdef;
-  if(!Array.isArray(c.specs)||!c.specs.length){o.specs=[fillSpec({id:"TS-01",name:"Hardening chamber standard",...T.Hardening}),fillSpec({id:"TS-02",name:"Tempering chamber standard",...T.Tempering})];o.defSpec={Hardening:"TS-01",Tempering:"TS-02"};}
-  else{o.specs=c.specs.map(fillSpec);o.defSpec={...(c.defSpec||{})};CH.forEach(ch=>{if(!o.specs.some(x=>x.id===o.defSpec[ch]))o.defSpec[ch]=o.specs[0].id;});}
+  o.specs=Array.isArray(c.specs)?c.specs.map(fillSpec):[];delete o.defSpec;
+  /* the user cleared the list for a fresh entry (the per-chamber defaults were removed): the specifications saved before are dropped once */
+  if(!c.specFresh){o.specs=[];o.specFresh=1;}
   return o;}
 const SETF=[["plant","Plant","text"],["furnaces","Furnaces (comma separated)","text"],
   ["satDays","SAT interval for control / monitoring / recording TCs (days, Process Table)","number"],["satTol","SAT tolerance ± °C (P3.3)","number"],["warnPct","SAT warning at % of the tolerance","number"],["satMin","SAT: minutes of readings per test","number"],["satStep","SAT: minutes between readings","number"],["satStab","SAT: largest furnace range during the test (°C)","number"],
@@ -94,18 +95,20 @@ const C=()=>S.cfg;
 const specs=()=>C().specs||[];
 const specById=id=>specs().find(x=>x.id===id)||null;
 const spName=t=>t?`${t.id} · ${t.name}`:"—";
-/* the default specification of a chamber */
-const TD=ch=>specById((C().defSpec||{})[ch==="Tempering"?"Tempering":"Hardening"])||fillSpec({id:"",name:"(built-in default)",...DEF.tdef[ch==="Tempering"?"Tempering":"Hardening"]});
-/* the specification a thermocouple follows: its own (specId), else the default of its chamber */
-const specOf=e=>specById(e.specId)||TD(e.chamber);
+/* the built-in values of a chamber: only the range of use of a thermocouple with neither its own range nor a specification */
+const TD=ch=>fillSpec({id:"",name:"(built-in)",...DEF.tdef[ch==="Tempering"?"Tempering":"Hardening"]});
+/* the specification a thermocouple follows (null when it is not set to one) */
+const specOf=e=>specById(e.specId);
 const defRange=ch=>{const t=TD(ch);return [num(t.useLo),num(t.useHi)];};
-/* a new thermocouple filled with a specification (default: the chamber's; the range of use stays blank = the specification's) */
+/* a thermocouple filled with a specification (the range of use stays blank = the specification's) */
 const fromSpec=(t,ch,o)=>{const b=fillTc({chamber:ch,specId:t.id,type:t.type,use:t.use,sheath:t.sheath,spec:{make:t.make,cls:t.cls,dia:t.dia,length:t.length,depth:t.depth,junction:t.junction},
   cal:{lab:t.calLab,lo:t.calLo,hi:t.calHi},tube:{mat:t.tubeMat,checkDays:t.tubeCheckDays,replDays:t.tubeReplDays}});o=o||{};
   return fillTc({...b,...o,spec:{...b.spec,...(o.spec||{})},cal:{...b.cal,...(o.cal||{})},tube:{...b.tube,...(o.tube||{})}});};
-const fromDef=(ch,o)=>fromSpec(TD(ch),ch,o);
+/* a new thermocouple without a specification: type K, control, the default tube intervals; the specification is chosen in its dialog */
+const fromDef=(ch,o)=>{o=o||{};const b=fillTc({chamber:ch,type:"K",use:"control",tube:{checkDays:String(DEF.tubeCheckDays),replDays:String(DEF.tubeReplDays)}});
+  return fillTc({...b,...o,spec:{...b.spec,...(o.spec||{})},cal:{...b.cal,...(o.cal||{})},tube:{...b.tube,...(o.tube||{})}});};
 /* where an element differs from the specification it follows (information, not a CQI-9 finding) */
-function specDiff(e){const t=specOf(e),L=[],cmp=(v,dv,l)=>{if(String(dv||"").trim()&&String(v||"").trim()&&String(v).trim().toLowerCase()!==String(dv).trim().toLowerCase())L.push(`${l} ${v} (default ${dv})`);};
+function specDiff(e){const t=specOf(e);if(!t)return [];const L=[],cmp=(v,dv,l)=>{if(String(dv||"").trim()&&String(v||"").trim()&&String(v).trim().toLowerCase()!==String(dv).trim().toLowerCase())L.push(`${l} ${v} (default ${dv})`);};
   cmp(e.type,t.type,"type");cmp(e.sheath,t.sheath,"sheath");cmp(e.spec.cls,t.cls,"class");cmp(e.spec.dia,t.dia,"diameter");cmp(e.spec.length,t.length,"length");cmp(e.spec.depth,t.depth,"insertion depth");
   cmp(JUNCTION[e.spec.junction]||e.spec.junction,JUNCTION[t.junction]||t.junction,"junction");cmp(e.tube.mat,t.tubeMat,"tube");return L;}
 
@@ -158,7 +161,7 @@ const tcName=e=>e?`${e.furnace} ${e.chamber[0]} ${e.tag||"?"}`:"—";
 const tcById=id=>S.tcs.find(x=>x.id===id);
 const eqById=id=>S.eq.find(x=>x.id===id);
 const inUse=()=>S.tcs.filter(e=>e.status==="inuse");
-const useRange=e=>{const t=specOf(e),a=num(t.useLo),b=num(t.useHi);return [num(e.useLo)??a,num(e.useHi)??b];};
+const useRange=e=>{const t=specOf(e)||TD(e.chamber),a=num(t.useLo),b=num(t.useHi);return [num(e.useLo)??a,num(e.useHi)??b];};
 const isBase=t=>BASE.includes(t);
 const limAt=(type,test,T)=>{const c=C(),q=acc(test?(isBase(type)?c.accTestBase:c.accTestNoble):(isBase(type)?c.accFieldBase:c.accFieldNoble));return Math.max(q.a,(q.p/100)*Math.abs(T||0));};
 
@@ -419,29 +422,29 @@ function vTcs(){
       <td>${e.status==="inuse"?satPill(e):"—"}</td><td>${e.status==="inuse"?tubePill(e):"—"}</td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No thermocouple matches the filter.</p></div>`}`;
 }
 /* the thermocouple specification library: named specifications, a default per chamber (fills every new thermocouple), the register updated to a chosen one */
-/* deleting a specification: not the default of a chamber (choose another default first); thermocouples that follow it go back to their chamber's default */
-const specDefOf=id=>CH.filter(ch=>(C().defSpec||{})[ch]===id);
-const delBtn=(t,big)=>{const d=specDefOf(t.id);return d.length?`<button class="${big?"w":"link"}" disabled title="Default for the ${esc(d.join(" and ").toLowerCase())} chamber: choose another default first">Delete</button>`
-  :`<button class="${big?"danger w":"link c-bad"}" data-del-tspec="${esc(t.id)}">Delete</button>`;};
-async function delTspec(id){if(!needDb())return;const t=specById(id);if(!t||specDefOf(id).length)return;
-  const U=S.tcs.filter(e=>e.specId===id);
-  for(const e of U){const x=clone(e);x.specId="";await put("tcs",x,`Specification ${spName(t)} deleted: follows the ${e.chamber.toLowerCase()} chamber default`);}
-  S.cfg.specs=specs().filter(x=>x.id!==id);await saveCfg();toast(`${id} deleted`+(U.length?` · ${plural(U.length,"thermocouple")} now follow their chamber default`:""));if(S.modal&&S.modal.kind==="tspec")closeModal();render();}
-function vTspec(){const L=specs(),use=id=>inUse().filter(e=>e.specId===id).length,dflt=id=>CH.filter(ch=>(C().defSpec||{})[ch]===id);
+/* deleting a specification: thermocouples set to it keep their values and are no longer set to a specification (logged) */
+const delBtn=(t,big)=>`<button class="${big?"danger w":"link c-bad"}" data-del-tspec="${esc(t.id)}">Delete</button>`;
+async function unlinkSpec(ids,why){const U=S.tcs.filter(e=>ids.includes(e.specId));for(const e of U){const x=clone(e);const t=specById(e.specId);x.specId="";await put("tcs",x,`${why} ${spName(t)}: no longer set to a specification`);}return U.length;}
+async function delTspec(id){if(!needDb())return;const t=specById(id);if(!t)return;
+  const n=await unlinkSpec([id],"Deleted specification");
+  S.cfg.specs=specs().filter(x=>x.id!==id);await saveCfg();toast(`${id} deleted`+(n?` · ${plural(n,"thermocouple")} no longer set to a specification`:""));if(S.modal&&S.modal.kind==="tspec")closeModal();render();}
+/* clearing the whole list for a fresh entry: numbering starts again at TS-01 */
+async function clearTspecs(){if(!needDb())return;const ids=specs().map(x=>x.id);const n=await unlinkSpec(ids,"Cleared specification");
+  S.cfg.specs=[];await saveCfg();toast(`${plural(ids.length,"specification")} cleared`+(n?` · ${plural(n,"thermocouple")} no longer set to a specification`:""));render();}
+function vTspec(){const L=specs(),use=id=>inUse().filter(e=>e.specId===id).length;
   const D=inUse().map(e=>({e,d:specDiff(e)})).filter(x=>x.d.length),none=inUse().filter(e=>!specById(e.specId));
-  return `<div class="row between"><h2>Thermocouple specifications</h2><div class="row"><button class="pri w" data-spec-new>New specification</button><button class="w" data-tdapply>Update the register to a specification…</button></div></div>
-  <p class="muted">Save each thermocouple specification the plant uses (type, construction, calibration, range of use, protection tube). The default of each chamber fills every new thermocouple (register, CALOR import); a replacement keeps the removed thermocouple's specification. A thermocouple follows the specification it is set to (its range of use unless it has its own). "Update the register…" applies a chosen specification to the thermocouples you pick.</p>
-  <div class="panel"><h3>Default per chamber</h3><div class="fields">${CH.map(ch=>`<label class="f"><span>${ch} chamber</span><select id="ds-${ch}" data-defspec="${ch}">${L.map(t=>`<option value="${esc(t.id)}" ${(C().defSpec||{})[ch]===t.id?"selected":""}>${esc(spName(t))}</option>`).join("")}</select></label>`).join("")}</div></div>
-  <div class="tw"><table><thead><tr><th>Specification</th><th>Type / use</th><th>Construction</th><th>Range of use °C</th><th>Calibrated °C</th><th>Protection tube</th><th>Default for</th><th class="n">In use</th><th></th></tr></thead><tbody>${L.map(t=>`<tr class="click" data-spec-open="${esc(t.id)}"><td><b>${esc(t.id)}</b><br>${esc(t.name)}</td>
+  return `<div class="row between"><h2>Thermocouple specifications</h2><div class="row"><button class="pri w" data-spec-new>New specification</button>${L.length?`<button class="w" data-tdapply>Update the register to a specification…</button><button class="danger w" data-spec-clear>Clear all specifications</button>`:""}</div></div>
+  <p class="muted">Save each thermocouple specification the plant uses (type, construction, calibration, range of use, protection tube). Set a thermocouple to one in its dialog ("Fill the fields from this specification") or for many at once with "Update the register…"; a replacement keeps the removed thermocouple's specification. A thermocouple follows the range of use of its specification unless it has its own.</p>
+  ${L.length?`<div class="tw"><table><thead><tr><th>Specification</th><th>Type / use</th><th>Construction</th><th>Range of use °C</th><th>Calibrated °C</th><th>Protection tube</th><th class="n">In use</th><th></th></tr></thead><tbody>${L.map(t=>`<tr class="click" data-spec-open="${esc(t.id)}"><td><b>${esc(t.id)}</b><br>${esc(t.name)}</td>
     <td>${esc(t.type)} · ${esc(USE[t.use]||t.use)}</td><td class="small">${esc([t.make,t.cls,t.sheath,t.dia&&"Ø "+t.dia+" mm",t.length&&t.length+" mm long",t.depth&&"insertion "+t.depth+" mm",JUNCTION[t.junction]].filter(Boolean).join(" · "))}</td>
     <td>${esc(t.useLo)}–${esc(t.useHi)}</td><td>${esc(t.calLo)}–${esc(t.calHi)}</td><td class="small">${esc(t.tubeMat)}<br>check ${esc(t.tubeCheckDays)} d · life ${esc(t.tubeReplDays||"—")} d</td>
-    <td>${dflt(t.id).map(c=>pill("ok",c)).join(" ")||"—"}</td><td class="n">${use(t.id)}</td><td style="white-space:nowrap"><button class="link" data-tdapply="${esc(t.id)}">Apply…</button> ${delBtn(t)}</td></tr>`).join("")}</tbody></table></div>
+    <td class="n">${use(t.id)}</td><td style="white-space:nowrap"><button class="link" data-tdapply="${esc(t.id)}">Apply…</button> ${delBtn(t)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty"><p>No thermocouple specifications yet. Add each one the plant uses with "New specification".</p></div>`}
   <div class="panel"><div class="row between"><h3>Thermocouples in use that differ from their specification</h3></div>
-    ${none.length?`<p class="small">${pill("warn",plural(none.length,"thermocouple"))} in use not set to a specification (they are compared with the default of their chamber): ${esc(none.slice(0,12).map(tcName).join(", "))}${none.length>12?" …":""}. Set them with "Update the register to a specification…".</p>`:""}
+    ${none.length?`<p class="small">${pill("warn",plural(none.length,"thermocouple"))} in use not set to a specification: ${esc(none.slice(0,12).map(tcName).join(", "))}${none.length>12?" …":""}. Set them in their dialog or with "Update the register to a specification…".</p>`:""}
     ${D.length?`<ul class="issues">${D.map(({e,d})=>`<li><a href="#tspec" data-tc="${esc(e.id)}">${esc(tcName(e))}</a> (${esc(spName(specOf(e)))}): ${esc(d.join(" · "))}</li>`).join("")}</ul>`
     :`<p class="muted">None: every thermocouple in use matches its specification (fields left blank are not compared).</p>`}</div>`;}
 function specModal(id,copy){const t=specById(id);let ed=t?clone(t):fillSpec({...DEF.tdef.Hardening,name:""});if(copy){ed.id="";ed.name=t.name+" (copy)";}openModal({kind:"tspec",ed,msg:""});}
-function DRAW_TSPEC(){const t=S.modal.ed,known=specById(t.id),used=known&&S.tcs.some(e=>e.specId===t.id),dflt=known&&CH.some(ch=>(C().defSpec||{})[ch]===t.id);
+function DRAW_TSPEC(){const t=S.modal.ed,known=specById(t.id),used=known&&S.tcs.some(e=>e.specId===t.id);
   return sheet(esc(known?t.id+" · "+t.name:"New thermocouple specification"),`<div class="fields">${mf("name","Name (e.g. Hardening, type K, 6 mm MI, Inconel 600)",{req:1,wide:1})}
     ${TDF.map(([k,l,kind])=>mf(k,l,kind&&typeof kind==="object"?{opts:kind}:{num:kind==="num"})).join("")}</div>
     ${used?`<p class="small muted" style="margin-top:8px">${plural(S.tcs.filter(e=>e.specId===t.id).length,"thermocouple")} follow this specification; changing it does not change them until you update the register.</p>`:""}`,
@@ -450,11 +453,11 @@ async function saveTspec(){if(!needDb())return;const t=fillSpec(S.modal.ed);t.na
   if(!t.name){msg("Enter a name.");return;}if(specs().some(x=>x.id!==t.id&&x.name.toLowerCase()===t.name.toLowerCase())){msg("Another specification has that name.");return;}
   const a=num(t.useLo),b=num(t.useHi),c=num(t.calLo),h=num(t.calHi);
   if(a==null||b==null||a>=b){msg("Enter the range of use (from below to).");return;}if(c!=null&&h!=null&&(c>=h||c>a||h<b)){msg("The range of use must lie inside the calibrated range.");return;}
-  if(!t.id){const n=Math.max(0,...specs().map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1]));t.id="TS-"+String(n+1).padStart(2,"0");}
+  if(!t.id){const n=Math.max(0,...specs().map(x=>+(x.id.match(/(\d+)$/)||[0,0])[1]));t.id="TS-"+String(n+1).padStart(2,"0");
+    /* a thermocouple still carrying this number from a cleared list is not set to the new specification */
+    for(const e of S.tcs.filter(e=>e.specId===t.id)){const x=clone(e);x.specId="";await put("tcs",x,`Earlier specification ${t.id} (cleared): no longer set to a specification`);}}
   const L=specs().filter(x=>x.id!==t.id);const i=specs().findIndex(x=>x.id===t.id);if(i<0)L.push(t);else L.splice(i,0,t);
-  S.cfg.specs=L;syncRange();await saveCfg();closeModal();render();}
-/* the settings rangeH / rangeT follow the chamber defaults (read by older code and exports) */
-const syncRange=()=>{const h=TD("Hardening"),t=TD("Tempering");S.cfg.rangeH=`${h.useLo}-${h.useHi}`;S.cfg.rangeT=`${t.useLo}-${t.useHi}`;};
+  S.cfg.specs=L;await saveCfg();closeModal();render();}
 function vPm(){
   const c=C(),p=S.pm,pr=pmReview(),U=inUse();
   return `<div class="panel"><div class="row between"><h3>Protection tube preventive maintenance schedule</h3><div class="row"><button class="pri w" data-pmappr>${isDate(p.apprDate)?"Re-approve the schedule":"Approve the schedule"}</button><button data-pmprint>Print schedule</button></div></div>
@@ -553,12 +556,12 @@ function vRepl(){
     <p class="small muted" style="margin-top:6px">Record a replacement from the thermocouple (Replace thermocouple…) or from the due list. Every replacement needs the controller offset decision, a TUS decision for a relocation or immersion-depth change, and a SAT of the fitted element before use.</p></div>`;}
 function vRules(){
   const c=C();
-  const R=[["Calibration (P3.1)","Each thermocouple needs a calibration certificate dated on or before its installation, a calibrated range covering its range of use (hardening chamber "+defRange("Hardening").join("–")+" °C, tempering chamber "+defRange("Tempering").join("–")+" °C from the chamber default specification (TC specifications), unless set on the thermocouple or its own specification) and a largest error within ± the greater of "+c.accFieldBase.replace("|"," °C or ")+" % (base metal) / "+c.accFieldNoble.replace("|"," °C or ")+" % (noble metal) at the top of the range. Test TCs: "+c.accTestBase.replace("|"," °C or ")+" % / "+c.accTestNoble.replace("|"," °C or ")+" %."],
+  const R=[["Calibration (P3.1)","Each thermocouple needs a calibration certificate dated on or before its installation, a calibrated range covering its range of use (from its specification in TC specifications, or set on the thermocouple) and a largest error within ± the greater of "+c.accFieldBase.replace("|"," °C or ")+" % (base metal) / "+c.accFieldNoble.replace("|"," °C or ")+" % (noble metal) at the top of the range. Test TCs: "+c.accTestBase.replace("|"," °C or ")+" % / "+c.accTestNoble.replace("|"," °C or ")+" %."],
     ["SAT (P3.3)","Control, monitoring and recording thermocouples: a passing SAT after installation and then every "+c.satDays+" days. Each SAT records "+c.satMin+" minutes of furnace / test readings, one every "+c.satStep+" min ("+nRd()+" pairs); difference = mean over the readings of furnace − (test + instrument correction + test TC correction); a reading outside the tolerance turns a pass into a warning, a furnace range above "+c.satStab+" °C is flagged; fail beyond ±"+c.satTol+" °C, warning beyond "+c.warnPct+" % of it. A failed SAT stays failed until a later passing SAT (or the replacement's SAT)."],
     ["Valid SAT","Test instrument and test thermocouple identified and in calibration on the test day; for a type K / E test TC the insertion depth recorded"+(c.reuseDeeper!=="no"?", and a reused one not shallower than its deepest earlier use":"")+(+c.maxUses>0?"; not more than "+c.maxUses+" uses":"")+"."],
     ["SAT record (P3.3.5)","Thermocouple tested, date and start time, set point, test instrument and test TC with calibration, the "+c.satMin+"-minute series of furnace and test readings, both corrections, difference, result, technician, approval by name and date. Incomplete records count against HTSA 3.3."],
     ["Failed SAT","Cause, corrective action, product impact, owner and date, then a passing re-SAT (after adjustment or replacement)."],
-    ["Protection tubes","Each thermocouple in use has a tube material and a check interval and optionally a tube life (from the specification of each thermocouple, TC specifications; chamber defaults: hardening "+TD("Hardening").tubeCheckDays+" / "+TD("Hardening").tubeReplDays+" days, tempering "+TD("Tempering").tubeCheckDays+" / "+TD("Tempering").tubeReplDays+" days); the schedule is approved and reviewed every "+c.pmReviewDays+" days. Element and tube form one assembly: they are installed and replaced together, so the tube's installation date is the element's. A worn or cracked tube, or a tube past its replacement interval, stays open until the thermocouple is replaced (reason \"Protection tube failure\" or service life); the new assembly starts its check interval on the replacement date."],
+    ["Protection tubes","Each thermocouple in use has a tube material and a check interval and optionally a tube life (from the specification of each thermocouple, TC specifications; a new thermocouple without one gets a check every "+DEF.tubeCheckDays+" days and a tube life of "+DEF.tubeReplDays+" days); the schedule is approved and reviewed every "+c.pmReviewDays+" days. Element and tube form one assembly: they are installed and replaced together, so the tube's installation date is the element's. A worn or cracked tube, or a tube past its replacement interval, stays open until the thermocouple is replaced (reason \"Protection tube failure\" or service life); the new assembly starts its check interval on the replacement date."],
     ["Element life","Sensing elements in use longer than "+c.lifeDays+" days are due for replacement (site schedule); the due list shows them."],
     ["Replacement","Element and protection tube are replaced together. Recorded with the date, the reason (SAT failure, service life, drift, damage, open circuit, exposure, TUS failure, tube failure, wrong type, relocation / immersion change, other), the removed and fitted element, the calibration certificate of the fitted one, the controller offset decision, the TUS decision for a relocation or immersion change, who replaced it and the failed SAT that found it. The old element is kept as removed. The fitted element shows \"SAT due after replacement\" until a valid SAT on or after the replacement date. A failed SAT whose action is \"Replace the thermocouple\" closes only with a replacement record linked to it."],
     ["Furnace readings from SCADA","The SAT dialog can fill the furnace readings from a SCADA export loaded in the SCADA review (this session): the PV of the thermocouple's column (TC-n → PV-n) of that furnace and chamber at each reading time, the nearest row within half the logging step. Readings outside 500–1000 °C or not in the record stay empty. The source file is kept on the SAT record."],
@@ -639,11 +642,11 @@ function DRAW_TC(){
   const e=S.modal.ed,known=S.tcs.find(x=>x.id===e.id),[lo,hi]=useRange(e),ci=calIssues(e),rem=e.status==="removed",L=known?satsOf(e.id):[],T=known?tubesOf(e.id):[];
   const body=`<p class="muted">${known?pill(...TSTAT[e.status]):pill("warn","New")} ${e.tag?esc(wallOf(e.tag)):""}${known&&e.status==="inuse"?" "+satPill(e,1)+" "+tubePill(e,1):""}</p>
   <fieldset><legend>Position</legend><div class="fields">${mf("furnace","Furnace",{opts:opts(furnaces()),req:1,dis:rem})}${mf("chamber","Chamber",{opts:opts(CH),dis:rem})}${mf("tag","Tag (TC-01 … TC-06)",{req:1,dis:rem,ph:"TC-01"})}${mf("zone","Zone (blank = from the tag)",{num:1,dis:rem})}
-    ${mf("use","Use",{opts:USE,dis:rem})}${mf("useLo","Range of use from °C",{num:1,ph:String(num(specOf(e).useLo)??""),dis:rem})}${mf("useHi","to °C",{num:1,ph:String(num(specOf(e).useHi)??""),dis:rem})}</div></fieldset>
+    ${mf("use","Use",{opts:USE,dis:rem})}${mf("useLo","Range of use from °C",{num:1,ph:String(num((specOf(e)||TD(e.chamber)).useLo)??""),dis:rem})}${mf("useHi","to °C",{num:1,ph:String(num((specOf(e)||TD(e.chamber)).useHi)??""),dis:rem})}</div></fieldset>
   <fieldset><legend>Sensing element</legend><div class="fields">${mf("type","Type",{opts:opts(TYPES),dis:rem})}${mf("serial","Serial / batch no.",{req:1,dis:rem})}${mf("sheath","Sheath material / construction",{dis:rem})}${mf("installed","Installed (first use)",{type:"date",req:1,dis:rem})}
     ${mf("spec.make","Make / supplier",{dis:rem})}${mf("spec.cls","Tolerance class",{dis:rem})}${mf("spec.dia","Sheath diameter (mm)",{num:1,dis:rem})}${mf("spec.length","Length (mm)",{num:1,dis:rem})}${mf("spec.depth","Insertion depth (mm)",{num:1,dis:rem})}${mf("spec.junction","Hot junction",{opts:JUNCTION,blank:1,dis:rem})}</div>
     <div class="row" style="margin-top:8px;align-items:flex-end;gap:8px">${mf("specId","Specification (TC specifications)",{opts:Object.fromEntries(specs().map(t=>[t.id,spName(t)])),blank:1,dis:rem})}${rem?"":`<button class="w" data-tcfill>Fill the fields from this specification</button>`}</div>
-    ${specDiff(e).length?`<p class="small muted" style="margin-top:6px">Differs from ${e.specId?"its":"the chamber's default"} <a href="#tspec">specification</a> ${esc(spName(specOf(e)))}: ${esc(specDiff(e).join(" · "))}.</p>`:""}</fieldset>
+    ${specDiff(e).length?`<p class="small muted" style="margin-top:6px">Differs from its <a href="#tspec">specification</a> ${esc(spName(specOf(e)))}: ${esc(specDiff(e).join(" · "))}.</p>`:""}</fieldset>
   <fieldset><legend>Calibration before first use (P3.1)</legend><div class="fields">${mf("cal.cert","Certificate no.",{req:1,dis:rem})}${mf("cal.lab","Laboratory / supplier",{dis:rem})}${mf("cal.date","Calibration date",{type:"date",req:1,dis:rem})}
     ${mf("cal.lo","Calibrated from °C",{num:1,req:1,dis:rem})}${mf("cal.hi","to °C",{num:1,req:1,dis:rem})}${mf("cal.maxErr","Largest error on the certificate ± °C",{num:1,req:1,dis:rem})}</div>
     <p class="small ${ci.length?"":"muted"}" style="margin-top:6px">${ci.length?pill("bad","Issue")+" "+esc(ci.join(" · ")):`Accuracy required: ±${fx(limAt(e.type,false,hi),1)} °C at ${hi??"?"} °C (type ${esc(e.type)}). Range of use ${lo??"?"}–${hi??"?"} °C.`}</p></fieldset>
@@ -814,9 +817,8 @@ function tdPlan(m){const t=specById(m.spec),out=[];if(!t)return out;tdTargets(m)
       if(k!=="useLo"&&k!=="useHi"&&!want.trim())return;if(cur.trim()===want.trim())return;if(m.mode==="fill"&&cur.trim()&&k!=="useLo"&&k!=="useHi")return;
       ch.push({k,path,l,from:cur,to:want});});
     if(ch.length)out.push({e,ch,x:!!m.x[e.id]});});return out;}
-function tdApplyModal(id){const t=specById(id)||specById((C().defSpec||{}).Hardening)||specs()[0];if(!t){toast("Save a specification first");return;}
-  const ch=CH.filter(c=>(C().defSpec||{})[c]===t.id);
-  openModal({kind:"tdapply",spec:t.id,ch:ch.length?ch:[...CH],fu:[...furnaces()],x:{},mode:"all",f:Object.fromEntries(Object.keys(TDMAP).map(k=>[k,!TD_CERT.includes(k)])),msg:""});}
+function tdApplyModal(id){const t=specById(id)||specs()[0];if(!t){toast("Save a specification first");return;}
+  openModal({kind:"tdapply",spec:t.id,ch:[...CH],fu:[...furnaces()],x:{},mode:"all",f:Object.fromEntries(Object.keys(TDMAP).map(k=>[k,!TD_CERT.includes(k)])),msg:""});}
 function DRAW_TDAPPLY(){const m=S.modal,t=specById(m.spec),P=tdPlan(m),go=P.filter(x=>!x.x),n=go.reduce((a,x)=>a+x.ch.length,0),v=(c,x)=>c.k==="specId"?(x?spName(specById(x)):"(none)"):x===""?"(blank)":x;
   return sheet("Update the register to a specification",`<p class="muted">The thermocouples <b>in use</b> you pick get the chosen specification: they are set to follow it and the chosen fields take its values. Removed and spare elements are not changed. Each change is written in the thermocouple's log.</p>
   <div class="fields"><label class="f wide"><span>Specification</span><select id="tda-spec" data-tda-spec>${specs().map(x=>`<option value="${esc(x.id)}" ${x.id===m.spec?"selected":""}>${esc(spName(x))}</option>`).join("")}</select></label></div>
@@ -989,7 +991,7 @@ onDoc("click",e=>{
     if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.tdaGo!==undefined){tdApply();return;}
     if(d.tdaAll!==undefined){S.modal.x={};redraw();return;}if(d.tdaNone!==undefined){tdPlan(S.modal).forEach(x=>S.modal.x[x.e.id]=true);redraw();return;}
     if(d.saveTspec!==undefined){saveTspec();return;}if(d.copyTspec!==undefined){specModal(S.modal.ed.id,1);return;}if(d.tdapply!==undefined){tdApplyModal(d.tdapply);return;}
-    if(d.delTspec!==undefined){const id=d.delTspec||S.modal.ed.id,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC → default`:"Confirm delete");return;}
+    if(d.delTspec!==undefined){const id=d.delTspec||S.modal.ed.id,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC unlinked`:"Confirm delete");return;}
     if(d.tcfill!==undefined){const t=specById(S.modal.ed.specId);if(!t){msg("Choose a specification first.");return;}const o=S.modal.ed;
       S.modal.ed=fromSpec(t,o.chamber,{...o,type:t.type,use:t.use,sheath:t.sheath,useLo:"",useHi:"",spec:{make:t.make,cls:t.cls,dia:t.dia,length:t.length,depth:t.depth,junction:t.junction},
         cal:{...o.cal,lab:o.cal.lab||t.calLab,lo:o.cal.lo||t.calLo,hi:o.cal.hi||t.calHi},tube:{...o.tube,mat:t.tubeMat,checkDays:t.tubeCheckDays,replDays:t.tubeReplDays}});
@@ -1039,7 +1041,8 @@ onDoc("click",e=>{
   if(d.std!==undefined){stdOps();return;}
   if(d.tdapply!==undefined){tdApplyModal(d.tdapply);return;}
   if(d.specNew!==undefined){specModal(null);return;}
-  if(d.delTspec){const id=d.delTspec,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC → default`:"Confirm delete");return;}
+  if(d.specClear!==undefined){const n=S.tcs.filter(e=>specById(e.specId)).length;armedDelete(b,clearTspecs,`Confirm: clear ${specs().length}`+(n?` · ${n} TC unlinked`:""));return;}
+  if(d.delTspec){const id=d.delTspec,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC unlinked`:"Confirm delete");return;}
   if(d.specOpen){specModal(d.specOpen);return;}
   if(d.saveCfg!==undefined){document.querySelectorAll("[data-cfg]").forEach(i=>{const k=i.dataset.cfg,t=(SETF.find(x=>x[0]===k)||[])[2];S.cfg[k]=t==="number"?(num(i.value)??DEF[k]):i.value;});saveCfg();return;}
   if(d.doc){S.docSel=d.doc;render();return;}
@@ -1063,7 +1066,6 @@ onDoc("input",e=>{const el=e.target;
   if(el.dataset.filt==="q"){S.filt.q=el.value;clearTimeout(S._ft);S._ft=setTimeout(()=>{render();const i=$("[data-filt=q]");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250);}
 });
 onDoc("change",e=>{const el=e.target;
-  if(el.dataset.defspec){if(!needDb())return;S.cfg.defSpec={...(C().defSpec||{}),[el.dataset.defspec]:el.value};syncRange();saveCfg().then(render);return;}
   if(S.modal&&S.modal.kind==="tdapply"&&(el.dataset.tdaCh||el.dataset.tdaMode||el.dataset.tdaF||el.dataset.tdaFu||el.dataset.tdaX||el.dataset.tdaSpec!==undefined)){const m=S.modal;
     if(el.dataset.tdaSpec!==undefined){m.spec=el.value;m.x={};}
     if(el.dataset.tdaFu)m.fu=furnaces().filter(f=>f===el.dataset.tdaFu?el.checked:m.fu.includes(f));
