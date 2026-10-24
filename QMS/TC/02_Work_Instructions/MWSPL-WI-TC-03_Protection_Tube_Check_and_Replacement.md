@@ -26,6 +26,6 @@ At the check interval of each thermocouple in the approved PM schedule (Applicat
 
 | Step | Action | Who |
 |---|---|---|
-| 3.1 | Replace the thermocouple: new element and new tube of the scheduled material (or the approved alternative) together. Record it in Application → Element replacements (reason "Protection tube failure" for a worn / cracked tube, service life for the tube life); enter the tube material fitted. The new assembly's check interval and tube life start on the replacement date. | Technician |
+| 3.1 | Replace the thermocouple: new element and new tube of the scheduled material (or the approved alternative) together. Record it in Application → Thermocouple replacements (reason "Protection tube failure" for a worn / cracked tube, service life for the tube life); enter the tube material fitted. The new assembly's check interval and tube life start on the replacement date. | Technician |
 | 3.2 | Run a SAT of the new element before product (WI-TC-02). | Technician |
 | 3.3 | A change of material or interval goes into the PM schedule; the Maintenance Head re-approves it. | Maintenance Head |

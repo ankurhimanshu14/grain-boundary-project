@@ -36,6 +36,6 @@
 | Step | Action | Who |
 |---|---|---|
 | 4.1 | Inform the HT Engineer at once; hold the product of the zone back to the last passing SAT until assessed. | Technician |
-| 4.2 | Find the cause (element drift, wiring, instrument); correct (adjust offset, replace element per WI-TC-01). | Technician / Maintenance Head |
+| 4.2 | Find the cause (element drift, wiring, instrument); correct (adjust offset, replace the thermocouple per WI-TC-01). | Technician / Maintenance Head |
 | 4.3 | Record cause, action, product impact, owner and date on the SAT record. | HT Engineer |
 | 4.4 | Run a re-SAT; the failure stays open until a passing SAT (or the replacement's SAT) is recorded. | Technician |

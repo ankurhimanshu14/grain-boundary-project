@@ -8,7 +8,7 @@
 
 ### 1. Schedule (approved by the Maintenance Head, reviewed yearly)
 
-Element and protection tube are installed and replaced together (one assembly): "Tube installed" is the element's installation date, and a tube to replace means replacing the thermocouple (Element replacements).
+Element and protection tube are installed and replaced together (one assembly): "Tube installed" is the element's installation date, and a tube to replace means replacing the thermocouple (Thermocouple replacements).
 
 | Thermocouple | Tube material | Tube installed (with the element) | Check every (days) | Tube life: replace TC after (days) | Next check | Replace by |
 |---|---|---|---|---|---|---|
