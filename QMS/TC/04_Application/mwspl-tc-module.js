@@ -1110,6 +1110,11 @@ MWS.tc={closeModal,
   /* the thermocouples of a chamber with their SAT, life and tube state (used by the SCADA review) */
   chamber:(f,ch)=>inUse().filter(e=>e.furnace===f&&e.chamber===ch).map(e=>{const s=satState(e),l=lifeOf(e),t=tubeState(e);return {tag:e.tag,no:tcNo(e.tag),use:e.use,sat:s.st,satTxt:s.txt,satDue:s.due||"",life:l.st,lifeDue:l.due||"",tube:t.st,tubeTxt:t.txt};}),
   hasData:()=>S.tcs.length>0,
+  /* SAT difference over time per thermocouple position (Trend analysis, HTSA 1.8): valid SATs of every element that has been there */
+  satSeries:()=>{const P={};S.tcs.filter(e=>needSat(e)&&tcNo(e.tag)!=null).forEach(e=>{const k=`${e.furnace}|${e.chamber}|${String(tcNo(e.tag)).padStart(2,"0")}`;(P[k]=P[k]||[]).push(e);});
+    return Object.entries(P).sort((a,b)=>a[0]<b[0]?-1:1).map(([k,E])=>{const ids=new Set(E.map(e=>e.id)),by=Object.fromEntries(E.map(e=>[e.id,e]));
+      const pts=S.sats.filter(r=>ids.has(r.tc)&&validSat(r)).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1).map(r=>({d:r.date,v:satEval(r).diff,note:`${r.id} · element ${(by[r.tc]||{}).serial||r.tc}`})).filter(x=>x.v!=null);
+      const [f,ch,no]=k.split("|");return {key:k,furnace:f,chamber:ch,no:+no,name:`${f} ${ch} TC-${no}`,tol:+C().satTol,pts};});},
   stats:()=>{const k=kp();return {db:S.dbState,...k,label:SCORE[k.score][1],cls:SCORE[k.score][0]};},
   summary:()=>{const k=kp();return `${plural(k.inUse,"thermocouple")} in use, ${k.satOk} of ${k.satNeed} with a SAT in date, HTSA 3.3 ${SCORE[k.score][1].toLowerCase()}.`;}};
 window.__TCM={S,fixCfg,specOf,nRd,readingsOf,rdTime,pasteRd,calIssues,satEval,satMissing,depthIssues,satState,tubeState,lifeOf,assess33,kp,eqIssues};

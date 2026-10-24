@@ -1301,6 +1301,9 @@ MWS.scada={closeModal,
   loaded:()=>LOADED.map(D=>({file:D.file,furnace:D.furnace,chamber:D.chamber,from:D.rows[0].t,to:D.rows.at(-1).t,sample:!!D.sample})),
   load:file=>loadFile(file).then(D=>D?{ok:true,file:D.file,furnace:D.furnace,chamber:D.chamber}:{ok:false,why:S.err}),
   pvAt,
+  /* the reviewed records over time (Trend analysis, HTSA 1.8): one entry per review with data, oldest first */
+  history:()=>S.reviews.filter(r=>!r.idle&&!r.sample&&r.from!=null&&Array.isArray(r.tcs)).sort((a,b)=>a.from-b.from).map(r=>({id:r.id,furnace:r.furnace,chamber:r.chamber,day:new Date(r.from).toISOString().slice(0,10),from:r.from,to:r.to,tol:r.tolDef,
+    tcs:r.tcs.map(t=>t?{k:t.k,tag:t.tag,offline:!!t.offline,n:t.n,pct:t.pct,mean:t.mean,sd:t.sd}:null)})),
   stats:()=>{const A=assess19(),st=A.st;return {db:S.dbState,score:A.score,label:SCORE[A.score][1],cls:SCORE[A.score][0],crit:A.crit,chambers:st.length,ok:st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length,
     never:st.filter(x=>x.c.st==="none").length,overdue:st.filter(x=>x.c.st==="overdue").length,open:S.reviews.reduce((a,r)=>a+openLines(r).length,0),reviews:S.reviews.length,pdOpen:S.pdca.filter(r=>r.stage!=="closed").length,pdOverdue:S.pdca.reduce((n,r)=>n+pdOverdue(r).length,0),e8Open:S.e8.filter(d=>d.stage!=="closed").length};},
   summary:()=>{const A=assess19(),st=A.st;return `${st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length} of ${st.length} chambers reviewed within ${C().maxHrs} h, ${plural(S.reviews.length,"review")} recorded; HTSA 1.9 ${SCORE[A.score][1].toLowerCase()}.`;}};
