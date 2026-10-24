@@ -282,6 +282,30 @@ nav.jump button{white-space:nowrap;font-size:13px;padding:4px 12px;border-radius
 :is(.rp,.fold) .pill.ok::before{content:"✓";background:var(--ok)}:is(.rp,.fold) .pill.warn::before{content:"!";background:var(--warn)}
 :is(.rp,.fold) .pill.bad::before{content:"✕";background:var(--bad)}:is(.rp,.fold) .pill.acc::before{content:"i";background:var(--muted)}
 @media print{nav.jump,details.aset,.linkp,.noprint,section.drop{display:none!important}.anchor{display:block}}
+/* SCADA review: the management summary as a dashboard (printed on its own: #mprint, A4 landscape) */
+.mdash{border-top:4px solid var(--accent)}.md-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px}.md-h{font:600 24px var(--f-display);margin:2px 0}
+.md-side{display:flex;flex-direction:column;align-items:flex-end;gap:8px}.md-bottom{font-size:15.5px;line-height:1.45;margin:10px 0 14px;font-weight:500}
+.md-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}@media (max-width:900px){.md-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}@media (max-width:520px){.md-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.md-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.md-grid .wide{grid-column:1/-1}@media (max-width:900px){.md-grid{grid-template-columns:minmax(0,1fr)}}
+.md-card{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--panel);min-width:0}.md-card h4,.md-sub{font:600 15px var(--f-display);margin:0 0 8px;letter-spacing:.01em}.md-sub{margin:16px 0 8px}.md-foot{margin:12px 0 0}@media screen{.md-foot{display:none}}
+.mzs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}@media (max-width:600px){.mzs{grid-template-columns:minmax(0,1fr)}}
+.mz{border:1px solid var(--line);border-top:4px solid var(--ok);border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;min-width:0}.mz.warn{border-top-color:var(--warn)}.mz.bad{border-top-color:var(--bad)}
+.mz-h{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}.mz-v{display:grid;grid-template-columns:1fr 1fr;gap:6px}.mz-v>div{display:flex;flex-direction:column;min-width:0}
+.mz-v .k{font:500 10.5px var(--f-mono);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.mz-v .v{font:600 20px var(--f-mono)}.mz-v .v small{font-size:11px;color:var(--muted)}.mz-v .s{font-size:11px;color:var(--muted)}
+.mz-f{font-size:12px;display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:6px}
+ol.md-acts{margin:0;padding-left:20px}ol.md-acts li{margin:0 0 8px}ol.md-acts li>div{margin:1px 0}
+.md-roles{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}@media (max-width:1000px){.md-roles{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:520px){.md-roles{grid-template-columns:minmax(0,1fr)}}
+.md-role{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12.5px;background:var(--sunk)}.md-role b{font:600 14px var(--f-display)}.md-role p{margin:4px 0 0}.md-role .ask span{font:600 10.5px var(--f-mono);text-transform:uppercase;color:var(--accent);margin-right:4px}
+.mdash .signoff{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media screen{#mprint{display:none}}
+@page mland{size:A4 landscape;margin:9mm}
+@media print{body.mprintmode>*:not(#mprint){display:none!important}body.mprintmode{background:#fff}
+  #mprint{display:block;page:mland;--bg:#fff;--panel:#fff;--sunk:#f1f3f1;--ink:#1a2026;--muted:#5a6570;--line:#c9cfcb;--accent:#1d5b78;--accent-2:#e1edf2;--on-accent:#fff;--ok:#1f7a45;--ok-bg:#dff1e5;--warn:#8a5a00;--warn-bg:#fbefd5;--bad:#b02a2a;--bad-bg:#f8dede;--s1:#2a78d6;--s2:#eb6834;--hot:#e34948;color:var(--ink);font-size:11px}
+  #mprint .mdash{border:0;border-top:4px solid var(--accent);padding:6px 0 0;break-inside:auto}#mprint .md-kpis{grid-template-columns:repeat(6,minmax(0,1fr))}#mprint .md-grid{display:block;font-size:0}#mprint .md-grid>.md-card{display:inline-block;vertical-align:top;width:calc(50% - 4px);font-size:11px;margin:0 0 8px}#mprint .md-grid>.md-card:nth-child(odd){margin-right:8px}#mprint .md-grid>.wide{display:block;width:auto;margin-right:0}#mprint table.heat th.rl{width:58px;font-size:9.5px}#mprint .mz-f .muted{font-size:10.5px}#mprint .mzs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #mprint .md-roles{grid-template-columns:repeat(5,minmax(0,1fr))}#mprint .md-card,#mprint .md-role,#mprint .mz,#mprint .kpi{break-inside:avoid}#mprint .kpi .v{font-size:19px}#mprint .md-h{font-size:20px}#mprint .md-bottom{font-size:13px;margin:6px 0 10px}
+  #mprint .md-p2{break-before:page}#mprint .mz>.small{display:none}#mprint .md-top p.small{margin:0}#mprint .md-top .eyebrow{font-size:9.5px}#mprint .mz-f{padding-top:3px}#mprint .md-card h4{margin-bottom:4px}#mprint .md-card>p.small{margin:0 0 4px}#mprint table.heat td{height:18px;font-size:9.5px}#mprint .md-p2>.md-grid{margin-top:0}#mprint .md-card svg.spr{width:100%;height:170px;margin:0}#mprint .mz{gap:3px;padding:6px 8px}#mprint .md-kpis .kpi{padding:6px 10px}#mprint .md-roles,#mprint .signoff{break-inside:avoid}#mprint .md-sub{break-after:avoid;margin:10px 0 6px}#mprint .md-role{padding:6px 8px;font-size:10.5px}#mprint ol.md-acts li{margin-bottom:5px}
+  #mprint .signoff div{min-height:62px}#mprint .md-foot{margin-top:10px}#mprint .mz-v .v{font-size:17px}#mprint .md-card{padding:8px 10px}#mprint .md-grid{gap:8px;margin-top:8px}
+  #mprint .mg-status{-webkit-print-color-adjust:exact;print-color-adjust:exact}#mprint table.heat td,#mprint .pill,#mprint svg{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 /* TC module: SAT readings series */
 .rdw{max-height:380px;overflow:auto}
 .rdt td{padding:3px 6px}.rdt input{width:100%;min-width:72px;font-family:var(--f-mono)}
