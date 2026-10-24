@@ -247,6 +247,19 @@ table.heat th.rl{text-align:left;width:64px;white-space:nowrap;text-transform:no
 .signoff{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.signoff div{border:1px solid var(--line);border-radius:4px;padding:10px 12px;min-height:80px;display:flex;flex-direction:column;justify-content:space-between;font-size:12px;color:var(--muted)}.signoff b{color:var(--ink)}
 .rp.foot ul{margin:6px 0 0;padding-left:18px;color:var(--muted)}.rp.foot li{margin:3px 0}
 @media print{.mgmt,.stat-grid>div,.trc,.two>section{break-inside:avoid}}
+/* SCADA review: the action review (PDCA) and the 8D (CALOR's review system) */
+.pdc{margin-top:12px}.pd-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.pd-steps{display:flex;gap:4px;flex-wrap:wrap}.pd-steps span{font:600 12px var(--f-body);padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.pd-steps span.done{background:var(--accent-2);color:var(--accent);border-color:var(--accent-2)}.pd-steps span.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}.pd-steps span.on.ok{background:var(--ok);border-color:var(--ok)}
+.pd-item{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:6px;padding:10px 12px;margin:10px 0;background:var(--panel)}.pd-item.bad{border-left-color:var(--bad)}.pd-item.warn{border-left-color:var(--warn)}
+.pd-item h3{font-size:14.5px;margin:0 0 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pd-item h4,.pdc h4{margin:8px 0 0;font-size:13px;color:var(--accent)}
+.pd-item .sug{margin:6px 0 8px;font-size:13px}.pd-docs{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}.pd-docs label{display:inline-flex;gap:5px;align-items:center}
+.d8box{background:var(--sunk);border-radius:6px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pd-foot{margin-top:12px;justify-content:flex-end;gap:8px;flex-wrap:wrap}.pd-foot .msg{flex:1 1 240px;color:var(--bad);font-size:13px}
+.pd-low{margin:10px 0}.pd-low summary{cursor:pointer;margin-bottom:6px}
+.d8-steps{display:flex;gap:3px;flex-wrap:wrap;align-items:center}.d8-steps button{padding:3px 9px;font:600 12px var(--f-mono);border-radius:4px;color:var(--muted)}
+.d8-steps button.done{background:var(--accent-2);color:var(--accent);border-color:var(--accent-2)}.d8-steps button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}.d8-steps button.view{outline:2px solid var(--ink);outline-offset:1px}.d8-steps button:disabled{opacity:.45;cursor:default}
+.pdc textarea{width:100%}
 /* TC module: SAT readings series */
 .rdw{max-height:380px;overflow:auto}
 .rdt td{padding:3px 6px}.rdt input{width:100%;min-width:72px;font-family:var(--f-mono)}
@@ -1731,7 +1744,7 @@ const wallOf=k=>isLeft(k)?"left":"right";
 const zoneOf=k=>Math.floor(k/2);
 
 /* 4. state */
-const S={view:"dash",db:null,dbState:"connecting",canWrite:true,dl:null,reviews:[],cfg:{...DEF},docSel:DOCS[0][0],imp:null,modal:null,pending:false,unsub:[],q:{},
+const S={view:"dash",db:null,dbState:"connecting",canWrite:true,dl:null,reviews:[],pdca:[],e8:[],pdCur:null,e8Cur:null,e8View:null,pdMsg:"",e8Msg:"",cfg:{...DEF},docSel:DOCS[0][0],imp:null,modal:null,pending:false,unsub:[],q:{},
   cur:null,err:"",busy:false,charts:{}};
 const C=()=>S.cfg;
 
@@ -2207,6 +2220,7 @@ async function saveCfg(){if(!needDb())return;try{await dbSet("config","settings"
 function startStore(store,state){
   S.unsub.forEach(u=>{try{u();}catch(e){}});S.db=store;S.dbState=state;
   S.unsub=[store.sub("reviews",L=>{S.reviews=L.map(fillRev).sort((a,b)=>a.id<b.id?-1:1);safeRender();}),
+    store.sub("pdca",L=>{S.pdca=L.sort((a,b)=>a.id<b.id?-1:1);safeRender();}),store.sub("e8",L=>{S.e8=L.sort((a,b)=>a.id<b.id?-1:1);safeRender();}),
     store.sub("config",L=>{const c=L.find(x=>x.id==="settings");S.cfg={...DEF,...(c||{})};delete S.cfg.id;if(S.cur)runCur();safeRender();})];
   render();
 }
@@ -2218,7 +2232,7 @@ onDoc("focusout",()=>setTimeout(()=>{if(S.pending&&!S.modal){const a=document.ac
 
 /* 9. navigation */
 const NAV=[["",[["dash","Dashboard"]]],["P",[["settings","Settings & reviewers"]]],["D",[["load","Load & analyse"]]],
-  ["C",[["reviews","Reviews"],["htsa","HTSA 1.9"],["hist","History"]]],["A",[["act","Reactions"]]],["",[["rules","Rules"],["docs","Documentation"],["data","Data"]]]];
+  ["C",[["reviews","Reviews"],["htsa","HTSA 1.9"],["hist","History"]]],["A",[["act","Reactions"],["pdca","Action review"],["e8","8D"]]],["",[["rules","Rules"],["docs","Documentation"],["data","Data"]]]];
 const navHtml=()=>`<div class="wrap">${NAV.map(([p,it])=>`<div class="grp">${p?`<span class="pd">${p}</span>`:""}${it.map(([k,l])=>`<a href="#${k}" ${S.view===k?'aria-current="page"':""}>${l}</a>`).join("")}</div>`).join("")}</div>`;
 function route(){const v=(location.hash||"").slice(1);S.view=VIEWS[v]?v:"dash";}
 const banner=()=>S.dbState==="local"?`<div class="banner warn">${MWS.sync&&MWS.sync.linked()?`Records are kept in this browser and saved to the Google Drive folder <b>${esc(MWS.sync.folder())}</b>.`:`Local mode: records are kept in this browser only. Link a Google Drive folder (button at the top right) or back up from the <a href="#data">Data</a> tab.`}</div>`
@@ -2281,7 +2295,9 @@ function vDash(){
     <a class="tile ${sc[0]}" href="#htsa"><span class="k">HTSA 1.9</span><span class="v" style="font-size:20px;padding:6px 0">${sc[1]}</span><span class="small muted">${plural(A.crit,"item")} not met</span></a>
     <a class="tile ${ok===st.length?"ok":"bad"}" href="#htsa"><span class="k">Chambers reviewed within ${C().maxHrs} h</span><span class="v">${ok}/${st.length}</span><span class="small muted">${st.filter(x=>x.c.st==="none").length} never · ${st.filter(x=>x.c.st==="overdue").length} overdue</span></a>
     <a class="tile ${op?"warn":"ok"}" href="#act"><span class="k">Reactions open</span><span class="v">${op}</span><span class="small muted">${S.reviews.reduce((a,r)=>a+openLines(r).filter(f=>r.lines[f.key].disp==="held").length,0)} with product on hold</span></a>
-    <a class="tile ${last?VERD[last.verdict]?.[0]||"":""}" href="#reviews"><span class="k">Latest review</span><span class="v" style="font-size:20px;padding:6px 0">${last?esc(last.idle?"Not running":VERD[last.verdict]?.[1]||"—"):"—"}</span><span class="small muted">${last?esc(fkName(last.fkey))+" · "+fD(last.from):"none"}</span></a></div>
+    <a class="tile ${last?VERD[last.verdict]?.[0]||"":""}" href="#reviews"><span class="k">Latest review</span><span class="v" style="font-size:20px;padding:6px 0">${last?esc(last.idle?"Not running":VERD[last.verdict]?.[1]||"—"):"—"}</span><span class="small muted">${last?esc(fkName(last.fkey))+" · "+fD(last.from):"none"}</span></a>
+    ${(()=>{const P=S.pdca.filter(r=>r.stage!=="closed"),od=S.pdca.reduce((n,r)=>n+pdOverdue(r).length,0);return `<a class="tile ${od?"bad":P.length?"warn":"ok"}" href="#pdca"><span class="k">Action reviews open</span><span class="v">${P.length}</span><span class="small muted">${plural(od,"action")} overdue</span></a>`;})()}
+    ${(()=>{const L=S.e8.filter(d=>d.stage!=="closed"),bad=L.filter(d=>e8Late(d)||e8ContainLate(d)).length;return `<a class="tile ${bad?"bad":L.length?"warn":"ok"}" href="#e8"><span class="k">8Ds open</span><span class="v">${L.length}</span><span class="small muted">${bad} past target or containment late</span></a>`;})()}</div>
   <div class="pdca"><div><span class="ph">P</span><br>Qualified reviewers, the review procedure, tolerances and the chambers in scope.</div><div><span class="ph">D</span><br>Export the SCADA log of each chamber; load and analyse it against the set values and specifications.</div><div><span class="ph">C</span><br>Second-level review within ${C().maxHrs} h by a qualified reviewer: every out-of-control condition answered.</div><div><span class="ph">A</span><br>Reactions with product disposition, closed with verification; repeated problems to 8D / CAPA.</div></div>
   <div class="panel"><div class="row between"><h3>Chambers</h3><a class="btn pri" href="#load">Load a record</a></div><div class="tw"><table><thead><tr><th>Furnace</th>${CH.map(c=>`<th>${c} chamber</th>`).join("")}</tr></thead><tbody>
     ${[...new Set(scope().map(fk=>fk.split("|")[0]))].map(f=>`<tr><td><b>${esc(f)}</b></td>${CH.map(ch=>{const fk=fkeyOf(f,ch);if(!scope().includes(fk))return `<td class="muted small">not in scope</td>`;const c=cstat(fk);
@@ -2371,7 +2387,7 @@ function vLoad(){
   ${paretoSection(A)}
   ${sec("Findings and conditions",`The conditions marked "to answer" go into the review record (C) — each needs a reaction or the record that handles it (HTSA 1.9 detection and reaction).`,
     `<div class="obs">${O.map(o=>`<div class="ob"><div>${pill(o.lvl==="crit"?"bad":o.lvl==="warn"?"warn":o.lvl==="good"?"ok":"acc",o.tag)}</div><div><p class="ot">${esc(o.txt)}${o.key&&(o.lvl==="crit"||o.lvl==="warn")?` <span class="pill acc">to answer in the review</span>`:""}</p>${o.act?`<p class="act"><b>Action:</b> ${esc(o.act)}</p>`:""}</div></div>`).join("")}</div>
-    <div class="row" style="margin-top:10px">${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review (HTSA 1.9)</button>`}</div>`)}
+    <div class="row" style="margin-top:10px">${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review (HTSA 1.9)</button>`}${(()=>{const R=pdForCur();return R?`<button data-pdopen="${esc(R.id)}">Open its action review ${esc(R.id)} (${PD_NM[R.stage]})</button>`:`<button class="w" data-pdact="start" ${fk?"":"disabled"}>Start the action review (PDCA)</button>`;})()}</div>`)}
   ${sec("Data-integrity checks","What the record itself says about monitoring quality (counted on the raw readings, not on the judged values).",`<div class="obs checks">${integrity(A).map(([l,n,t])=>`<div class="ob"><div>${pill(l==="good"?"ok":l==="warn"?"warn":"acc",l==="good"?"Pass":l==="warn"?"Review":"Info")}</div><b>${esc(n)}</b><p>${esc(t)}</p></div>`).join("")}</div>`)}
   ${mgmtSection(D,A,O)}
   <section class="panel rp foot"><b>How the numbers are worked out</b><ul class="small">
@@ -2453,7 +2469,7 @@ function vData(){const n=S.reviews.length;
   <div class="panel"><h3>Starter set-up</h3><p class="small muted">Example reviewers (marked "(example)") in Settings, and the sample record (F-02 tempering chamber, 22-Oct-2026) opened for analysis. Nothing else is created.</p><button class="w" data-std>Load starter set-up</button></div>
   <div class="panel"><h3>Clear all</h3><p class="small muted">Deletes every review and the settings of this module. Type <b>CLEAR ALL</b> to enable.</p>
     <div class="row w"><input id="clrtxt" placeholder="CLEAR ALL" style="max-width:180px"><button class="danger" data-clear>Clear all</button></div></div></div>`;}
-const VIEWS={dash:vDash,load:vLoad,reviews:vReviews,htsa:vHtsa,hist:vHist,act:vAct,settings:vSettings,rules:vRules,docs:vDocs,data:vData};
+const VIEWS={dash:vDash,pdca:vPdca,e8:vE8,load:vLoad,reviews:vReviews,htsa:vHtsa,hist:vHist,act:vAct,settings:vSettings,rules:vRules,docs:vDocs,data:vData};
 
 /* 12. modal: the review record */
 function openModal(m){S.modal=m;$("#modal").hidden=false;redraw();}
@@ -2515,19 +2531,328 @@ async function download(name,text,type){
   if(S.dl){try{await S.dl.save({filename:name,data:new Blob([text],{type})});return;}catch(e){if(e&&e.code==="declined")return;}}
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
 const stamp=()=>toLocal(nowMs()).slice(0,10);
-const exportJson=()=>download(`mws-scada-${stamp()}.json`,JSON.stringify({app:"mws-scada-manager",v:1,saved:new Date().toISOString(),reviews:S.reviews,config:S.cfg},null,1),"application/json");
+const exportJson=()=>download(`mws-scada-${stamp()}.json`,JSON.stringify({app:"mws-scada-manager",v:1,saved:new Date().toISOString(),reviews:S.reviews,pdca:S.pdca,e8:S.e8,config:S.cfg},null,1),"application/json");
 const csvQ=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
 const csv=()=>download(`mws-scada-reviews-${stamp()}.csv`,"﻿"+[["Review","Furnace","Chamber","Data from","Data to","Result","Reviewed","Reviewer","Conditions","Open reactions","Status",...K6.map(k=>tcTag(k)+" % in tol")],
   ...S.reviews.map(r=>[r.id,r.furnace,r.chamber,fDT(r.from),fDT(r.to),r.idle?"not running":VERD[r.verdict]?.[1]||"",String(r.at).replace("T"," "),r.by,conds(r).length,openLines(r).length,RST[revStatus(r)][1],...K6.map(k=>r.tcs[k]?(r.tcs[k].offline?"offline":r.tcs[k].pct):"")])].map(x=>x.map(csvQ).join(",")).join("\r\n"),"text/csv");
 function readImport(f){f.text().then(t=>{let o;try{o=JSON.parse(t);}catch(e){toast("Not a JSON file");return;}
   if(!o||o.app!=="mws-scada-manager"||!Array.isArray(o.reviews)){toast("Not an export of this module");return;}
-  const L=o.reviews.filter(x=>x&&ID_RE.test(String(x.id||""))).map(fillRev);S.imp={reviews:L,config:o.config||null,msg:`${f.name}: ${plural(L.length,"review")}.`};render();});}
+  const L=o.reviews.filter(x=>x&&ID_RE.test(String(x.id||""))).map(fillRev);const ok=x=>x&&ID_RE.test(String(x.id||"")),P=(o.pdca||[]).filter(ok),E=(o.e8||[]).filter(ok);S.imp={reviews:L,pdca:P,e8:E,config:o.config||null,msg:`${f.name}: ${plural(L.length,"review")}, ${plural(P.length,"action review")}, ${plural(E.length,"8D")}.`};render();});}
 async function doImport(mode){if(!S.imp||!needDb())return;const I=S.imp;S.imp=null;
   if(mode==="replace")for(const x of S.reviews)if(!I.reviews.some(y=>y.id===x.id))await dbDel("reviews",x.id);
+  if(mode==="replace"){for(const x of S.pdca)if(!I.pdca.some(y=>y.id===x.id))await dbDel("pdca",x.id);for(const x of S.e8)if(!I.e8.some(y=>y.id===x.id))await dbDel("e8",x.id);}
   for(let i=0;i<I.reviews.length;i+=8)await Promise.all(I.reviews.slice(i,i+8).map(o=>dbSet("reviews",o.id,o)));
+  for(const [c,L] of [["pdca",I.pdca],["e8",I.e8]])for(let i=0;i<L.length;i+=8)await Promise.all(L.slice(i,i+8).map(o=>dbSet(c,o.id,o)));
   if(I.config){const c={...DEF,...I.config};delete c.id;await dbSet("config","settings",c);}toast("Imported ("+mode+")");render();}
 async function clearAll(){if(($("#clrtxt")||{}).value!=="CLEAR ALL"){toast("Type CLEAR ALL to clear");return;}if(!needDb())return;
-  for(const x of S.reviews)await dbDel("reviews",x.id);await dbDel("config","settings");toast("All SCADA review data cleared");}
+  for(const x of S.reviews)await dbDel("reviews",x.id);for(const x of S.pdca)await dbDel("pdca",x.id);for(const x of S.e8)await dbDel("e8",x.id);await dbDel("config","settings");toast("All SCADA review data cleared");}
+
+/* 13b. the action review (PDCA) and 8D problem solving, copied from CALOR's SCADA review: the analysis suggests the actions,
+   the reviewer decides the reaction plan (Plan), records what was done (Do), verifies the effect (Check) and standardises (Act);
+   product-affecting and repeated problems are solved with an 8D. Reviews and 8Ds of the sample record stay in memory only. */
+const PD_ST=["plan","do","check","act","closed"],PD_NM={plan:"Plan",do:"Do",check:"Check",act:"Act",closed:"Closed"};
+const ROLES=["Director","Maintenance Head","Production Manager","HT Manager","Quality Manager"];
+const DISPO=["Released after hardness / microstructure verification","Re-heat-treated and verified","Scrapped","Released under customer concession","Still on hold"];
+const PDOCS=["Control plan","PFMEA","Work instruction","Process table / recipe","SCADA alarm limits","Maintenance plan","Training","No document change needed"];
+const PRDAYS={P0:0,A:1,B:7,C:30},TAGOWN={Pyrometry:"Maintenance Head",Settling:"HT Manager",Uniformity:"Maintenance Head",Specification:"HT Manager"};
+const PD_TOP=["P0","A"],S8={repDays:2,repWin:30,containDays:1,targetDays:30};
+const todayISO=()=>toLocal(nowMs()).slice(0,10);
+const addDay=(d,n)=>toLocal(fromLocal(d)+n*864e5).slice(0,10);
+const dIso=d=>d?fD(fromLocal(d)):"—";
+const lns=v=>String(v||"").split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
+const roleOf=s=>ROLES.find(r=>String(s||"").includes(r))||"HT Manager";
+const prLv=p=>(PR[p]||["acc"])[0];
+let PD_MEM=[],E8_MEM=[];
+const pdAll=()=>S.pdca.concat(PD_MEM),pdGet=id=>pdAll().find(r=>r.id===id);
+const e8All=()=>S.e8.concat(E8_MEM),e8Get=id=>id?e8All().find(d=>d.id===id)||null:null;
+const pdAct=R=>R.items.filter(i=>i.dec&&i.dec!=="none");
+const recKeyOf=D=>`${fkeyOf(D.furnace,D.chamber)}|${D.A.from}|${D.A.to}`;
+const pdForCur=()=>S.cur&&S.cur.A&&S.cur.furnace&&S.cur.chamber?pdAll().find(r=>r.key===recKeyOf(S.cur)):null;
+const pdLog=(R,t)=>R.log.push({d:todayISO(),t});
+const e8Log=(d,t)=>d.log.push({d:todayISO(),t});
+const e8Closed=id=>{const d=e8Get(id);return !!d&&d.stage==="closed";};
+const pdOverdue=R=>R.stage==="closed"?[]:R.items.filter(i=>i.dec&&i.dec!=="none"&&i.due&&i.due<todayISO()&&(i.dec==="8d"?!e8Closed(i.d8):!i.doneDate));
+async function pdSave(R){if(R.example)return true;if(!needDb())return false;try{await dbSet("pdca",R.id,R);return true;}catch(e){toast("Not saved: "+errMsg(e));return false;}}
+async function e8Save(d){if(d.src.example)return true;if(!needDb())return false;try{await dbSet("e8",d.id,d);return true;}catch(e){toast("Not saved: "+errMsg(e));return false;}}
+const nextId=(L,p)=>p+String(maxNo(L)+1).padStart(4,"0");
+/* a repeated problem: the same thermocouple below 100 % in tolerance in S8.repDays or more earlier reviewed records of the chamber within S8.repWin days */
+function repeatOf(k,fkey,from){if(k==null)return 0;
+  return S.reviews.filter(r=>r.fkey===fkey&&!r.idle&&r.from!=null&&r.from<from&&r.from>=from-S8.repWin*864e5&&r.tcs[k]&&!r.tcs[k].offline&&r.tcs[k].pct!=null&&r.tcs[k].pct<99.95).length;}
+function need8d(i,fkey,from){if(i.pr==="P0"||i.product)return "product was affected";
+  const n=repeatOf(i.k,fkey,from);return n>=S8.repDays?`repeated: the same thermocouple was out of tolerance in ${plural(n,"earlier record")} within ${S8.repWin} days`:"";}
+/* suggested actions = the priority list (Pareto order, with owners) + the findings it does not cover; only P0 and A are actioned */
+function pdItems(A,O){const items=[];
+  A.priority.filter(r=>r.issue!=="No issues").forEach(r=>items.push({pr:r.pr,src:"Priority list",issue:r.issue,detail:[r.impact&&r.impact!=="—"?"Impact: "+r.impact:"",r.cause&&r.cause!=="—"?"Cause: "+r.cause:""].filter(Boolean).join(" · "),
+    suggested:r.action,sugOwner:roleOf(r.owner),sugDays:PRDAYS[r.pr]??7,when:r.when||"",k:r.k??null,base:r.k!=null&&A.tcs[r.k]?A.tcs[r.k].pct:A.pctAll,product:r.pr==="P0"&&/hold the affected trays/i.test(r.action)}));
+  O.filter(o=>(o.lvl==="crit"||o.lvl==="warn")&&TAGOWN[o.tag]).forEach(o=>items.push({pr:o.lvl==="crit"?"A":"B",src:"Finding · "+o.tag,issue:o.txt,detail:"",suggested:o.act||"",sugOwner:TAGOWN[o.tag],sugDays:o.lvl==="crit"?1:7,when:"",k:null,base:A.pctAll,tag:o.tag}));
+  return items;}
+function pdSplit(A,O){const all=pdItems(A,O),top=all.filter(i=>PD_TOP.includes(i.pr));top.forEach((i,n)=>i.id="A"+(n+1));
+  const ord={B:0,C:1},low=all.filter(i=>!PD_TOP.includes(i.pr)).map((i,n)=>({i,n})).sort((a,b)=>(ord[a.i.pr]??2)-(ord[b.i.pr]??2)||a.n-b.n).map(({i})=>({pr:i.pr,src:i.src,issue:i.issue,detail:i.detail||"",suggested:i.suggested,sugOwner:i.sugOwner,when:i.when||`within ${plural(i.sugDays,"day")}`}));
+  return {top,low};}
+async function pdStart(){const D=S.cur;if(!D||!D.A||!D.furnace||!D.chamber)return;if(!D.sample&&!needDb())return;const A=D.A,sp=pdSplit(A,D.O);
+  const R={id:nextId(pdAll(),"RV-"),key:recKeyOf(D),fkey:fkeyOf(D.furnace,D.chamber),furnace:D.furnace,chamber:D.chamber,from:A.from,to:A.to,file:D.file,example:!!D.sample,created:todayISO(),stage:"plan",cycle:1,tol:A.tolDef,
+    items:sp.top,low:sp.low,docs:[],log:[],wins:windows(A).map((w,n)=>({no:"W"+(n+1),from:w.from,to:w.to,zones:w.zones}))};
+  R.items.forEach(i=>{const w=need8d(i,R.fkey,A.from);if(w){i.need8d=w;i.dec="8d";i.owner=i.sugOwner;i.due=addDay(todayISO(),S8.targetDays);}});
+  const p0=R.items.filter(i=>i.dec==="8d"&&i.pr==="P0");p0.slice(1).forEach(i=>i.join=p0[0].id); /* the P0 issues of one record are one problem: one 8D */
+  pdLog(R,`Review started: ${plural(R.items.length,"top-priority action")} (P0 / A); ${plural(R.low.length,"lower-priority issue")} listed, not actioned`);
+  if(R.example)PD_MEM.push(R);else if(!await pdSave(R))return;
+  S.pdCur=R.id;S.pdMsg="";location.hash="#pdca";render();}
+function pdMissing(R){const m=[];
+  if(R.stage==="plan"){R.items.forEach(i=>{if(!i.dec)return m.push(i.id+" decision");
+      if(i.dec==="none"){if(i.product)m.push(i.id+": product containment cannot be skipped");if(!txt(i.plan))m.push(i.id+" reason for no action");}
+      else if(i.dec==="8d"&&i.join){const j=R.items.find(x=>x.id===i.join);if(!j||j.dec!=="8d"||j.join)m.push(i.id+": the 8D it joins ("+i.join+") is not an 8D of its own");}
+      else if(i.dec==="8d"){if(!txt(i.leader))m.push(i.id+" 8D team leader");if(!i.owner)m.push(i.id+" 8D champion");if(!i.due)m.push(i.id+" 8D target date");}
+      else{if(i.need8d)m.push(i.id+": an 8D is required ("+i.need8d+")");if(!txt(i.plan))m.push(i.id+" reaction plan");if(!i.owner)m.push(i.id+" owner");if(!i.due)m.push(i.id+" due date");}});
+    if(!txt(R.planBy))m.push("reaction plan decided by");}
+  else if(R.stage==="do"){pdAct(R).forEach(i=>{if(i.dec==="8d"){const d=e8Get(i.d8);if(!d)m.push(i.id+": its 8D is missing");else if(E8_ST.indexOf(d.stage)<E8_ST.indexOf("d7"))m.push(`${i.id}: ${d.id} is at ${E8_NM[d.stage]} (D6 must be complete)`);return;}
+      if(!i.doneDate)m.push(i.id+" date done");if(!txt(i.doneNote))m.push(i.id+" what was done");
+      if(i.product&&!i.dispo)m.push(i.id+" product disposition");else if(i.product&&i.dispo===DISPO[4])m.push(i.id+": product is still on hold");});}
+  else if(R.stage==="check"){pdAct(R).forEach(i=>{if(i.dec==="8d"&&!e8Closed(i.d8))m.push(`${i.id}: ${i.d8||"its 8D"} is not closed (D8)`);if(!i.res)m.push(i.id+" effective?");if(!txt(i.evid))m.push(i.id+" evidence");});
+    if(!txt(R.checkBy))m.push("verified by");}
+  else if(R.stage==="act"){if(pdAct(R).some(i=>i.res==="not"))m.push("re-plan the actions that were not effective (button below)");
+    if(!(R.docs||[]).length)m.push("standardisation (documents updated, or none needed)");if(!txt(R.apprBy))m.push("approved by");if(!R.apprRole)m.push("approver role");}
+  return m;}
+async function pdAdvance(R){const m=pdMissing(R);if(m.length)return "Still needed: "+m.join(", ")+".";
+  R.stage=PD_ST[PD_ST.indexOf(R.stage)+1];
+  if(R.stage==="do"){for(const x of R.items.filter(x=>x.dec==="8d"&&!x.join&&!e8Get(x.d8))){const d=e8FromItem(R,x);pdLog(R,`${x.id}: ${d.id} opened`);await e8Save(d);}
+    for(const x of R.items.filter(x=>x.dec==="8d"&&x.join&&!e8Get(x.d8))){const j=R.items.find(y=>y.id===x.join),d=j&&e8Get(j.d8);if(!d)continue;
+      x.d8=d.id;d.src.item+=", "+x.id;d.d2.what+=" + "+x.issue;e8Log(d,`${x.id} of review ${R.id} joined: ${x.issue}`);pdLog(R,`${x.id}: solved in ${d.id} with ${j.id}`);await e8Save(d);}}
+  const dk={do:"doDate",check:"checkDate",act:"actDate",closed:"closedDate"}[R.stage];if(dk&&!R[dk])R[dk]=todayISO();
+  pdLog(R,{do:"Reaction plan decided by "+R.planBy+" → Do",check:"Actions done → Check",act:"Effect verified by "+R.checkBy+" → Act",closed:"Approved by "+R.apprBy+" ("+R.apprRole+"); review closed"}[R.stage]);
+  await pdSave(R);return "";}
+/* not effective → back to Plan for those actions only; the earlier attempt is kept in the item history */
+function pdReplan(R){const not=pdAct(R).filter(i=>i.res==="not");if(!not.length)return;
+  not.filter(i=>i.dec==="8d").forEach(i=>{i.hist8=(i.hist8||[]).concat(i.d8||[]);delete i.d8;delete i.leader;});
+  R.items.forEach(i=>delete i.replan);
+  not.forEach(i=>{(i.hist=i.hist||[]).push({cycle:R.cycle,plan:i.plan,owner:i.owner,done:i.doneNote,evid:i.evid});["dec","plan","owner","due","doneDate","doneBy","doneNote","dispo","res","evid","join"].forEach(k=>delete i[k]);i.replan=true;});
+  (R.past=R.past||[]).push({cycle:R.cycle,planBy:R.planBy||"",doDate:R.doDate||"",checkBy:R.checkBy||"",checkDate:R.checkDate||"",notEffective:not.map(i=>i.id)});
+  R.cycle++;R.stage="plan";["planBy","checkBy","doDate","checkDate","actDate"].forEach(k=>delete R[k]);
+  pdLog(R,`${plural(not.length,"action")} not effective → Plan again (cycle ${R.cycle})`);}
+/* evidence for Check: later reviewed records of the same chamber (HTSA 1.9 reviews hold the in-tolerance % per thermocouple) */
+function pdEvidence(fkey,to,k,base){
+  const later=S.reviews.filter(r=>r.fkey===fkey&&!r.idle&&r.from!=null&&r.from>to).sort((a,b)=>a.from-b.from).slice(0,5),fmt=v=>v==null?"—":fx(v)+" %";
+  if(!later.length)return `No later record of ${fkName(fkey)} has been reviewed yet. Load and review the following days' exports to verify the effect.`;
+  return later.map(r=>{const v=k!=null?(r.tcs[k]&&r.tcs[k].pct):(()=>{const t=r.tcs.filter(x=>x&&!x.offline&&x.pct!=null);return t.length?t.reduce((a,x)=>a+x.pct,0)/t.length:null;})();
+    return `${fD(r.from)} (${r.id}): ${k!=null?tcTag(k):"all TCs"} ${fmt(v)} within tolerance`;}).join("; ")+(base!=null?` (this record: ${fmt(base)}).`:".");}
+
+/* 8D */
+const E8_ST=["d1","d2","d3","d4","d5","d6","d7","d8","closed"];
+const E8_NM={d1:"D1 Team",d2:"D2 Problem",d3:"D3 Containment",d4:"D4 Root cause",d5:"D5 Corrective actions",d6:"D6 Implement & validate",d7:"D7 Prevent recurrence",d8:"D8 Close & recognise",closed:"Closed"};
+const E8_TIP={
+  d1:"Form a small cross-functional team with the process knowledge (heat treatment, maintenance, quality, production) and a champion who can give it time and resources.",
+  d2:"Describe the problem in measurable terms (5W2H) and what it is / is not, so that the cause can be found by comparison. Filled in from the SCADA analysis: check and complete it.",
+  d3:"Protect the customer now: identify, segregate and decide the suspect product, and keep the process safe until the permanent action works. The suspect product is the affected time windows of the record (and the batches in the furnace then).",
+  d4:"Find the root cause of the occurrence (why it happened) and of the escape (why it was not detected or stopped earlier). Use the 6M and the 5 Whys, then verify the cause with data (e.g. turn it on and off, compare with the SCADA trend, SAT / TUS results).",
+  d5:"Choose permanent corrective actions for the occurrence and for the escape, and verify before implementing that they will remove the cause without side effects.",
+  d6:"Implement the actions and validate with data from later records that the problem is gone (in-tolerance % of the thermocouple / zone, no repeat). Then remove the containment. Not effective → back to D4.",
+  d7:"Prevent recurrence: update the PFMEA, control plan, work instructions, SCADA alarm limits and maintenance plan, and apply the fix to the other furnaces and chambers where the same can happen.",
+  d8:"Close the 8D, recognise the team and file the lessons learned."};
+const M6=["Man","Machine","Method","Material","Measurement","Environment"];
+const e8Si=d=>E8_ST.indexOf(d.stage);
+function e8Blank(src,title){return {id:nextId(e8All(),"8D-"),title:title||"",created:todayISO(),stage:"d1",src,target:addDay(todayISO(),S8.targetDays),
+  d1:{leader:"",champion:"",members:"",date:todayISO()},d2:{what:"",where:"",when:"",who:"",how:"",howMuch:"",why:"",isnot:""},
+  d3:{action:"",suspect:"",qty:"",disp:"",owner:"",date:"",verify:""},d4:{m:{},why:["","","","",""],root:"",ewhy:["","",""],escape:"",verify:""},
+  d5:{occ:"",esc:"",owner:"",due:"",verify:""},d6:{date:"",by:"",valid:"",res:"",removed:""},d7:{docs:[],horiz:"",lessons:"",ref:""},d8:{recog:"",by:"",role:"",date:""},log:[]};}
+const winTxt=w=>`${w.no} ${fD(w.from).slice(0,6)} ${fT(w.from)} – ${fT(w.to)} (zone ${w.zones.join(", ")})`;
+/* an 8D opened from a review item: the problem description and the suspect product come from the analysis */
+function e8FromItem(R,i){const where=`${fkName(R.fkey)}${i.k!=null?` · ${tcTag(i.k)} zone ${zoneOf(i.k)+1}, ${wallOf(i.k)} wall`:""}`;
+  const d=e8Blank({rv:R.id,item:i.id,fkey:R.fkey,furnace:R.furnace,chamber:R.chamber,from:R.from,to:R.to,k:i.k,tol:R.tol,file:R.file,example:!!R.example,pr:i.pr},i.issue);
+  d.target=i.due||d.target;d.d1.leader=i.leader||"";d.d1.champion=i.owner||"";const wins=R.wins||[];
+  Object.assign(d.d2,{what:i.issue,where,when:`${fDT(R.from)} – ${fDT(R.to)}${i.when?" · "+i.when:""}`,who:`SCADA action review ${R.id}`,how:`SCADA export ${R.file}, analysed against the set value ± ${R.tol} °C`,
+    howMuch:[i.detail||"",i.product&&wins.length?`${plural(wins.length,"affected window")}: ${wins.map(winTxt).join("; ")}`:""].filter(Boolean).join(" · "),
+    why:`Temperature outside the set value ± ${R.tol} °C (CQI-9 process table / process specification tolerance)`});
+  if(i.product&&wins.length)d.d3.suspect=`Trays in the affected zones during ${wins.map(winTxt).join("; ")}`;
+  if(i.plan)d.d2.isnot="Notes from the review: "+i.plan;
+  e8Log(d,`Opened from review ${R.id} (${i.id}${i.need8d?", 8D required: "+i.need8d:""})`);
+  if(R.example)E8_MEM.push(d);else S.e8.push(d);i.d8=d.id;return d;}
+async function e8Manual(){const D=S.cur,A=D&&D.A,ex=!!(D&&D.sample);if(!ex&&!needDb())return;
+  const src=A&&D.furnace&&D.chamber?{rv:"",item:"",fkey:fkeyOf(D.furnace,D.chamber),furnace:D.furnace,chamber:D.chamber,from:A.from,to:A.to,k:null,tol:A.tolDef,file:D.file,example:ex,pr:""}:{rv:"",item:"",fkey:"",furnace:"",chamber:"",from:null,to:null,k:null,tol:null,file:"",example:false,pr:""};
+  const d=e8Blank(src,"");e8Log(d,"Opened by hand"+(src.fkey?` (record ${fkName(src.fkey)} ${fD(src.from)})`:""));
+  if(src.example)E8_MEM.push(d);else if(!await e8Save(d))return;
+  S.e8Cur=d.id;S.e8View=null;S.e8Msg="";location.hash="#e8";render();}
+/* gate of each discipline */
+function e8Missing(d,st){st=st||d.stage;const m=[],need=(v,l)=>{if(!txt(v))m.push(l);};
+  if(st==="d1"){need(d.title,"problem title");need(d.d1.leader,"team leader");need(d.d1.champion,"champion");if(lns(d.d1.members).length<2)m.push("at least two team members");}
+  if(st==="d2")["what","where","when","howMuch","why"].forEach((k,j)=>need(d.d2[k],["what","where","when","how much / extent","why it is a problem"][j]));
+  if(st==="d3"){need(d.d3.action,"containment action");if(d.src.pr==="P0")need(d.d3.suspect,"suspect product");if(!d.d3.disp)m.push("product disposition");need(d.d3.owner,"owner");need(d.d3.date,"date implemented");need(d.d3.verify,"how the containment was verified");}
+  if(st==="d4"){if(!M6.some(k=>txt(d.d4.m[k])))m.push("at least one cause in the 6M");if(d.d4.why.filter(x=>txt(x)).length<3)m.push("at least three Whys");need(d.d4.root,"root cause of the occurrence");
+    if(!d.d4.ewhy.some(x=>txt(x)))m.push("why it was not detected (escape Why)");need(d.d4.escape,"escape point");need(d.d4.verify,"how the root cause was verified");}
+  if(st==="d5"){need(d.d5.occ,"corrective action for the occurrence");need(d.d5.esc,"corrective action for the escape");need(d.d5.owner,"owner");need(d.d5.due,"target date");need(d.d5.verify,"verification before implementing");}
+  if(st==="d6"){need(d.d6.date,"date implemented");need(d.d6.by,"implemented by");need(d.d6.valid,"validation evidence");if(!d.d6.res)m.push("effective?");
+    else if(d.d6.res==="not")m.push("the action was not effective: go back to D4 (button below)");
+    if(d.d3.disp===DISPO[4])m.push("the suspect product is still on hold (D3 disposition)");need(d.d6.removed,"containment removed (date or note)");}
+  if(st==="d7"){if(!(d.d7.docs||[]).length)m.push("documents updated (or none needed)");need(d.d7.horiz,"other furnaces / chambers checked");need(d.d7.lessons,"lessons learned");}
+  if(st==="d8"){need(d.d8.by,"closed by");if(!d.d8.role)m.push("role");}
+  return m;}
+async function e8Advance(d){const m=e8Missing(d);if(m.length)return "Still needed for "+E8_NM[d.stage]+": "+m.join(", ")+".";
+  const from=d.stage;d.stage=E8_ST[e8Si(d)+1];S.e8View=null;if(d.stage==="closed"){d.d8.date=todayISO();d.closed=todayISO();}
+  e8Log(d,`${E8_NM[from]} complete → ${E8_NM[d.stage]}`);await e8Save(d);
+  /* the review item follows its 8D: D6 done = the action is done; closed = the result for Check */
+  const R=d.src.rv&&pdGet(d.src.rv),its=R?R.items.filter(x=>x.d8===d.id):[];
+  its.forEach(i=>{if(e8Si(d)>=E8_ST.indexOf("d7")){i.doneDate=d.d6.date;i.doneBy=d.d6.by;i.doneNote=`${d.id}: ${d.d5.occ}${d.d5.esc?" · escape: "+d.d5.esc:""}`;if(i.product)i.dispo=d.d3.disp;}
+    if(d.stage==="closed"){i.res="effective";i.evid=`${d.id} closed ${dIso(d.closed)}: ${d.d6.valid}`;pdLog(R,`${i.id}: ${d.id} closed`);}});
+  if(R&&its.length)await pdSave(R);return "";}
+function e8Back(d){d.d6.res="";d.stage="d4";S.e8View=null;(d.past=d.past||[]).push({root:d.d4.root,occ:d.d5.occ,esc:d.d5.esc,valid:d.d6.valid,date:todayISO()});e8Log(d,"D6: the corrective action was not effective → back to D4");}
+const e8Late=d=>d.stage!=="closed"&&d.target&&d.target<todayISO();
+const e8ContainLate=d=>e8Si(d)<=E8_ST.indexOf("d3")&&addDay(d.created,S8.containDays)<todayISO();
+const e8Evidence=d=>d.src.fkey?pdEvidence(d.src.fkey,d.src.to,d.src.k,null):"Load and review the following days' SCADA exports to validate the effect.";
+
+/* views: the action review and the 8D */
+const pdSel=(attr,id,v,opts,ro,ph="— select —")=>`<select data-${attr}="${esc(id)}"${ro?" disabled":""}><option value="">${ph}</option>${opts.map(o=>{const [val,lab]=Array.isArray(o)?o:[o,o];return `<option value="${esc(val)}" ${String(v||"")===String(val)?"selected":""}>${esc(lab)}</option>`;}).join("")}</select>`;
+const pdInp=(attr,id,v,ro,type="text")=>`<input type="${type}" data-${attr}="${esc(id)}" value="${esc(v||"")}"${ro?" disabled":""}>`;
+const pdArea=(attr,id,v,ro)=>`<textarea rows="2" data-${attr}="${esc(id)}"${ro?" disabled":""}>${esc(v||"")}</textarea>`;
+const FL=(lab,ctl,req,wide)=>`<label class="f${req?" req":""}${wide?" wide":""}"><span>${lab}</span>${ctl}</label>`;
+const steps=(L,si,closed)=>`<div class="pd-steps">${L.map((s,i)=>`<span class="${i<si?"done":i===si?"on":""}">${s}</span>`).join("")}${closed?`<span class="on ok">Closed</span>`:""}</div>`;
+function e8ItemBox(i){const d=e8Get(i.d8);
+  if(!d)return `<div class="wide d8box small">An 8D is opened for this issue when the plan is confirmed (Plan → Do).</div>`;
+  return `<div class="wide d8box"><b>${esc(d.id)}</b> ${pill(d.stage==="closed"?"ok":e8Late(d)?"bad":"warn",E8_NM[d.stage])} <span class="small muted">leader ${esc(d.d1.leader||"—")} · target ${esc(dIso(d.target))}</span>${e8ContainLate(d)?" "+pill("bad","Containment late"):""}
+    <button class="link" data-e8open="${esc(d.id)}">Open the 8D</button></div>`;}
+function vPdca(){
+  const recR=pdForCur(),R=S.pdCur&&pdGet(S.pdCur)||recR,h=[],today=todayISO();
+  h.push(`<h2>Action review (PDCA)</h2><p class="muted">The analysis suggests the actions; the reviewer decides the reaction plan (Plan), records what was done (Do), verifies the effect with later records (Check) and standardises (Act). Only the top priorities become actions: P0 (product) and A (the vital few of the Pareto, critical findings); B and C are listed with the review. Product-affecting and repeated problems are solved with an 8D. The HTSA 1.9 review record (C) answers each condition; it can name this review as the record that handles it.</p>`);
+  const D=S.cur;
+  if(D&&D.A&&!recR){const ok=D.furnace&&D.chamber,sp=pdSplit(D.A,D.O);h.push(`<div class="panel row between"><span>No action review for the loaded record (${esc(D.furnace&&D.chamber?fkName(fkeyOf(D.furnace,D.chamber)):"furnace / chamber not chosen")}, ${fD(D.A.from)}). The analysis suggests <b>${sp.top.length}</b> top-priority action(s) (P0 / A)${sp.low.length?`; ${sp.low.length} lower-priority issue(s) (B / C) will be listed, not actioned`:""}.${D.sample?" A review of the sample record is not saved.":""}</span><button class="pri w" data-pdact="start" ${ok?"":"disabled"}>Start review (Plan)</button></div>`);}
+  else if(!D&&!R)h.push(`<div class="empty"><p>Load a SCADA record to start its action review, or open an earlier review from the register below.</p><a class="btn pri" href="#load">Load a record</a></div>`);
+  if(R){const si=PD_ST.indexOf(R.stage),closed=R.stage==="closed",od=pdOverdue(R).length,dr=S.reviews.find(x=>x.fkey===R.fkey&&x.from===R.from&&x.to===R.to),ro=!S.canWrite&&!R.example;
+    h.push(`<section class="panel pdc"><div class="pd-head"><div><b>${esc(R.id)}</b> · ${esc(fkName(R.fkey))} · ${fDT(R.from)} – ${fDT(R.to)} · <span class="muted">${esc(R.file)}${R.example?" · sample record, not saved":""}</span>${R.cycle>1?` · cycle ${R.cycle}`:""}${od?" "+pill("bad",od+" overdue"):""}
+      ${dr?` · <button class="link" data-rev="${esc(dr.id)}">HTSA 1.9 review ${esc(dr.id)}</button>`:""}${D&&D.A&&R.key!==recKeyOf(D)?` <span class="small muted">(not the record loaded)</span>`:""}</div>${steps(PD_ST.slice(0,4).map(s=>PD_NM[s]),si,closed)}</div>`);
+    if(!R.items.length)h.push(`<p class="empty">${R.low&&R.low.length?"No top-priority issue (P0 product or priority A) in this record, so there is nothing to action.":"The analysis found no issue that needs an action in this record."} Confirm the review in each stage.</p>`);
+    R.items.forEach(i=>{const p=`it:${i.id}:`,doIt=i.dec&&i.dec!=="none",lock=R.cycle>1&&!i.replan;
+      const roPlan=ro||R.stage!=="plan"||lock,roDo=ro||R.stage!=="do"||lock,roCheck=ro||R.stage!=="check"||lock,overdue=doIt&&i.due&&!i.doneDate&&i.due<today&&!closed;
+      const own=R.items.filter(x=>x!==i&&x.dec==="8d"&&!x.join&&R.items.indexOf(x)<R.items.indexOf(i));
+      h.push(`<div class="pd-item ${prLv(i.pr)}"><h3>${pill(prLv(i.pr),i.pr==="P0"?"P0 product":"Priority "+i.pr)} <span>${esc(i.id)} · ${esc(i.issue)}</span> ${i.replan?pill("warn","Re-planned"):""}${overdue?pill("bad","Overdue"):""}</h3>
+        <p class="small muted">${esc(i.src)}${i.detail?" · "+esc(i.detail):""}</p>
+        <p class="sug"><b>Suggested action:</b> ${esc(i.suggested)} <span class="muted">· suggested owner ${esc(i.sugOwner)} · ${esc(i.when||("within "+plural(i.sugDays,"day")))}</span></p>
+        <div class="fields"><h4 class="wide">Plan: reaction plan decided by the reviewer</h4>
+          ${i.need8d?`<p class="wide small"><b>8D required:</b> ${esc(i.need8d)}.</p>`:""}
+          ${FL("Decision",pdSel("pd",p+"dec",i.dec,[["8d","Solve with an 8D"],...(i.need8d?[]:[["adopt","Simple action: adopt the suggestion"],["modify","Simple action: changed"]]),...(i.product||i.need8d?[]:[["none","No action needed"]])],roPlan),true)}
+          ${i.dec==="8d"&&(own.length||i.join)?FL("8D",pdSel("pd",p+"join",i.join,own.map(x=>[x.id,"Same 8D as "+x.id]),roPlan,"Its own 8D")):""}
+          ${i.dec==="8d"&&i.join?`<p class="wide small muted">Solved in the same 8D as ${esc(i.join)}: team, champion and target come from it.</p>`:i.dec==="8d"?FL("8D team leader",pdInp("pd",p+"leader",i.leader,roPlan),true)+FL("8D champion (role)",pdSel("pd",p+"owner",i.owner,ROLES,roPlan),true)+FL("8D target closure",pdInp("pd",p+"due",i.due,roPlan,"date"),true)+FL("Notes for the 8D team (optional)",pdArea("pd",p+"plan",i.plan,roPlan),false,true)
+            :FL("Owner",pdSel("pd",p+"owner",i.owner,ROLES,roPlan||!doIt),doIt)+FL("Due date",pdInp("pd",p+"due",i.due,roPlan||!doIt,"date"),doIt)+FL(i.dec==="none"?"Reason why no action is needed":"Reaction plan",pdArea("pd",p+"plan",i.plan,roPlan),true,true)}
+          ${(i.hist8||[]).length?`<p class="wide small muted">Earlier 8D${i.hist8.length>1?"s":""} not effective: ${esc(i.hist8.join(", "))}</p>`:""}
+          ${i.dec==="8d"&&si>=1?e8ItemBox(i):""}
+          ${(i.hist||[]).map(x=>`<p class="wide small muted">Cycle ${x.cycle}: “${esc(x.plan)}” (${esc(x.owner||"")}) was not effective — ${esc(x.evid||"")}</p>`).join("")}
+          ${si>=1&&doIt&&i.dec!=="8d"?`<h4 class="wide">Do: what was done</h4>${FL("Date done",pdInp("pd",p+"doneDate",i.doneDate,roDo,"date"),true)}${FL("Done by",pdInp("pd",p+"doneBy",i.doneBy,roDo))}${i.product?FL("Product disposition",pdSel("pd",p+"dispo",i.dispo,DISPO,roDo),true):""}${FL("What was done",pdArea("pd",p+"doneNote",i.doneNote,roDo),true,true)}`:""}
+          ${si>=2&&doIt?`<h4 class="wide">Check: was it effective?</h4>${FL("Result",pdSel("pd",p+"res",i.res,[["effective","Effective"],["not","Not effective"]],roCheck),true)}${FL("Evidence",pdArea("pd",p+"evid",i.evid,roCheck),true,true)}
+            ${!roCheck?(i.dec==="8d"&&e8Closed(i.d8)?`<p class="wide small"><span class="muted">From ${esc(i.d8)} (D6 validation): ${esc(e8Get(i.d8).d6.valid)}</span> <button class="link" data-pdact="ev8:${esc(i.id)}">Use the 8D result</button></p>`:`<p class="wide small"><span class="muted">Suggested evidence: ${esc(pdEvidence(R.fkey,R.to,i.k,i.base))}</span> <button class="link" data-pdact="ev:${esc(i.id)}">Use this</button></p>`):""}`:""}
+        </div></div>`);});
+    if(R.low&&R.low.length)h.push(`<details class="pd-low"><summary><b>Lower priority (B / C): ${plural(R.low.length,"issue")}</b> <span class="muted">· listed with the review, not taken for action</span></summary>
+      <div class="tw"><table><thead><tr><th>Priority</th><th>Issue found</th><th>Suggested action</th><th>Owner</th><th>Timing</th></tr></thead><tbody>${R.low.map(x=>`<tr><td>${pill(prLv(x.pr),"Priority "+x.pr)}</td><td>${esc(x.issue)}${x.detail?`<br><span class="small muted">${esc(x.detail)}</span>`:""}</td><td>${esc(x.suggested||"")}</td><td>${esc(x.sugOwner||"")}</td><td>${esc(x.when||"")}</td></tr>`).join("")}</tbody></table></div></details>`);
+    h.push(`<div class="fields" style="margin-top:12px">${FL("Reaction plan decided by",pdInp("pd","rv:planBy",R.planBy,ro||R.stage!=="plan"),true)}${si>=2?FL("Effect verified by",pdInp("pd","rv:checkBy",R.checkBy,ro||R.stage!=="check"),true):""}
+      ${si>=3?`<h4 class="wide">Act: standardise and approve</h4><div class="wide pd-docs">${PDOCS.map(x=>`<label><input type="checkbox" data-pd="doc:${esc(x)}" ${(R.docs||[]).includes(x)?"checked":""}${ro||R.stage!=="act"?" disabled":""}> ${esc(x)}</label>`).join("")}</div>
+        ${FL("Lessons learned / what was standardised",pdArea("pd","rv:lessons",R.lessons,ro||R.stage!=="act"),false,true)}${FL("Approved by",pdInp("pd","rv:apprBy",R.apprBy,ro||R.stage!=="act"),true)}${FL("Role",pdSel("pd","rv:apprRole",R.apprRole,["Quality Manager","HT Manager","Director"],ro||R.stage!=="act"),true)}`:""}</div>
+      ${!closed&&pdMissing(R).length?`<p class="small muted" style="margin-top:8px">To complete ${PD_NM[R.stage]}: ${esc(pdMissing(R).join(", "))}.</p>`:""}
+      ${R.log.length?`<details style="margin-top:8px"><summary class="small muted">History (${R.log.length})</summary><ul class="small">${R.log.map(x=>`<li>${esc(dIso(x.d))} — ${esc(x.t)}</li>`).join("")}</ul></details>`:""}
+      <div class="row pd-foot"><span class="msg">${esc(S.pdMsg||"")}</span><button data-pdact="print">Print / PDF</button>
+        ${R.stage==="plan"&&R.cycle===1&&!ro?`<button class="danger w" data-pdact="delete">Delete review</button>`:""}
+        ${R.stage==="act"&&!ro&&pdAct(R).some(i=>i.res==="not")?`<button class="w" data-pdact="replan">Re-plan actions that were not effective</button>`:""}
+        ${closed||ro?"":`<button class="pri w" data-pdact="advance">${{plan:"Confirm reaction plan → Do",do:"Actions done → Check",check:"Effect verified → Act",act:"Approve and close"}[R.stage]}</button>`}</div></section>`);}
+  const all=pdAll().slice().sort((a,b)=>(b.from||0)-(a.from||0)||(a.id<b.id?1:-1));
+  h.push(`<h3 style="margin-top:18px">Review register</h3>${all.length?`<div class="tw"><table><thead><tr><th>Review</th><th>Chamber</th><th>Record</th><th>Stage</th><th class="n">Actions</th><th class="n">Overdue</th><th>8Ds</th></tr></thead><tbody>${all.map(x=>`<tr class="click" data-pdopen="${esc(x.id)}"><td class="mono"><b>${esc(x.id)}</b>${x.example?' <span class="small muted">sample</span>':""}${R&&R.id===x.id?' <span class="small muted">open</span>':""}</td><td>${esc(fkName(x.fkey))}</td><td>${fD(x.from)}</td>
+    <td>${pill(x.stage==="closed"?"ok":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<b class="c-bad">${pdOverdue(x).length}</b>`:"0"}</td><td class="small">${esc([...new Set(x.items.map(i=>i.d8).filter(Boolean))].join(", "))}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No action review yet.</p>`}`);
+  return h.join("");}
+function vE8(){
+  const d=e8Get(S.e8Cur),h=[`<div class="row between"><h2>8D problem solving</h2><button class="w" data-e8act="new">New 8D (problem not from a review)</button></div>
+    <p class="muted">One 8D per problem: opened from the action review when the plan is confirmed (product affected, or a repeated problem), or by hand. Each discipline has its gate; the review item follows its 8D (D6 done = the action is done, closed = the result for Check).</p>`];
+  if(d){const si=e8Si(d),closed=d.stage==="closed",view=S.e8View&&E8_ST.indexOf(S.e8View)<=si?S.e8View:(closed?"d8":d.stage),vi=E8_ST.indexOf(view),ro=closed||(!S.canWrite&&!d.src.example);
+    const P=(path,v,type)=>pdInp("e8",path,v,ro,type),T=(path,v)=>pdArea("e8",path,v,ro),Se=(path,v,opts)=>pdSel("e8",path,v,opts,ro);
+    const src=d.src.rv?`from review ${esc(d.src.rv)} · ${esc(d.src.item)}`:"opened by hand";
+    h.push(`<section class="panel pdc"><div class="pd-head"><div><b>${esc(d.id)}</b> · ${esc(d.title||"(no title yet)")} · <span class="muted">${esc(d.src.fkey?fkName(d.src.fkey):"no record")}${d.src.from!=null?" · "+fD(d.src.from):""} · ${src}${d.src.example?" · sample record, not saved":""}</span>
+        ${e8Late(d)?" "+pill("bad","Past target "+dIso(d.target)):""}${e8ContainLate(d)?" "+pill("bad","Containment not complete within "+plural(S8.containDays,"day")):""}</div>
+      <div class="d8-steps">${E8_ST.slice(0,8).map((s,j)=>`<button data-e8act="view:${s}" class="${j<si?"done":j===si?"on":""} ${s===view?"view":""}" ${j>si?"disabled":""} title="${esc(E8_NM[s])}">D${j+1}</button>`).join("")}${closed?pill("ok","Closed "+dIso(d.closed)):""}</div></div>`);
+    let f="";
+    if(view==="d1")f=FL("Problem title",P("title",d.title),true,true)+FL("Team leader",P("d1.leader",d.d1.leader),true)+FL("Champion (role)",Se("d1.champion",d.d1.champion,ROLES),true)+FL("Team formed",P("d1.date",d.d1.date,"date"))+FL("Target closure",P("target",d.target,"date"),true)+FL("Team members (one per line, with function)",T("d1.members",d.d1.members),true,true);
+    if(view==="d2")f=FL("What: the problem, in measurable terms",T("d2.what",d.d2.what),true,true)+FL("Where: furnace, chamber, zone, thermocouple",P("d2.where",d.d2.where),true)+FL("When: date and time",P("d2.when",d.d2.when),true)+FL("Who found it",P("d2.who",d.d2.who))+FL("How it was found",P("d2.how",d.d2.how))
+      +FL("How much: extent, windows, trays",T("d2.howMuch",d.d2.howMuch),true,true)+FL("Why it is a problem: the requirement",P("d2.why",d.d2.why),true,true)+FL("Is / is not: where and when it happens and where / when it does not (other zones, walls, set values, days)",T("d2.isnot",d.d2.isnot),false,true);
+    if(view==="d3")f=FL("Suspect product (time windows, zones, batches)",T("d3.suspect",d.d3.suspect),d.src.pr==="P0",true)+FL("Quantity (trays / pcs / kg)",P("d3.qty",d.d3.qty))+FL("Product disposition",Se("d3.disp",d.d3.disp,DISPO),true)
+      +FL("Containment action (segregate, hold, 100 % check, process safeguard)",T("d3.action",d.d3.action),true,true)+FL("Owner",P("d3.owner",d.d3.owner),true)+FL("Date implemented",P("d3.date",d.d3.date,"date"),true)+FL("How the containment was verified (e.g. hardness / microstructure of the suspect trays)",T("d3.verify",d.d3.verify),true,true);
+    if(view==="d4")f=`<p class="wide"><b class="small">6M: possible causes (Ishikawa)</b></p>`+M6.map(k=>FL(k,P("d4.m."+k,d.d4.m[k]))).join("")
+      +`<p class="wide"><b class="small">5 Whys: occurrence (why did it happen?)</b></p>${d.d4.why.map((w,j)=>FL("Why "+(j+1),P("d4.why."+j,w))).join("")}`+FL("Root cause of the occurrence",T("d4.root",d.d4.root),true,true)
+      +`<p class="wide"><b class="small">Escape: why was it not detected or stopped earlier?</b></p>${d.d4.ewhy.map((w,j)=>FL("Why "+(j+1),P("d4.ewhy."+j,w))).join("")}`
+      +FL("Escape point (the control that should have caught it)",P("d4.escape",d.d4.escape),true,true)+FL("How the root cause was verified (data, trial, SAT / TUS, SCADA trend)",T("d4.verify",d.d4.verify),true,true)
+      +((d.past||[]).length?`<p class="wide small muted">Earlier root causes that did not hold: ${d.past.map(x=>`“${esc(x.root)}” (${esc(dIso(x.date))})`).join("; ")}</p>`:"");
+    if(view==="d5")f=FL("Permanent corrective action for the occurrence",T("d5.occ",d.d5.occ),true,true)+FL("Permanent corrective action for the escape (detection)",T("d5.esc",d.d5.esc),true,true)+FL("Owner",P("d5.owner",d.d5.owner),true)+FL("Target date",P("d5.due",d.d5.due,"date"),true)+FL("Verified before implementing (will it remove the cause, any side effects?)",T("d5.verify",d.d5.verify),true,true);
+    if(view==="d6")f=FL("Date implemented",P("d6.date",d.d6.date,"date"),true)+FL("Implemented by",P("d6.by",d.d6.by),true)+FL("Effective?",Se("d6.res",d.d6.res,[["effective","Effective"],["not","Not effective"]]),true)+FL("Validation evidence (later records: in-tolerance %, no repeat)",T("d6.valid",d.d6.valid),true,true)
+      +(ro?"":`<p class="wide small"><span class="muted">From later reviewed records: ${esc(e8Evidence(d))}</span> <button class="link" data-e8act="ev">Use this</button></p>`)+FL("Containment removed (date or note)",P("d6.removed",d.d6.removed),true,true);
+    if(view==="d7")f=`<div class="wide pd-docs">${PDOCS.map(x=>`<label><input type="checkbox" data-e8="d7.docs:${esc(x)}" ${(d.d7.docs||[]).includes(x)?"checked":""}${ro?" disabled":""}> ${esc(x)}</label>`).join("")}</div>`
+      +FL("Document references (e.g. PFMEA rev, WI no.)",P("d7.ref",d.d7.ref),false,true)+FL("Other furnaces / chambers where the same can happen: checked and action taken",T("d7.horiz",d.d7.horiz),true,true)+FL("Lessons learned",T("d7.lessons",d.d7.lessons),true,true);
+    if(view==="d8")f=FL("Team recognition",T("d8.recog",d.d8.recog),false,true)+FL("Closed by",P("d8.by",d.d8.by),true)+FL("Role",Se("d8.role",d.d8.role,["Quality Manager","HT Manager","Director"]),true);
+    const miss=e8Missing(d,view);
+    h.push(`<h3>${esc(E8_NM[view])}</h3><p class="small muted">${esc(E8_TIP[view])}</p><div class="fields">${f}</div>
+      ${!ro&&vi<si?`<p class="small muted" style="margin-top:6px">Completed step: changes are kept and logged.</p>`:""}${!ro&&view===d.stage&&miss.length?`<p class="small muted" style="margin-top:6px">To complete: ${esc(miss.join(", "))}.</p>`:""}
+      ${d.log.length?`<details style="margin-top:8px"><summary class="small muted">History (${d.log.length})</summary><ul class="small">${d.log.map(x=>`<li>${esc(dIso(x.d))} — ${esc(x.t)}</li>`).join("")}</ul></details>`:""}
+      <div class="row pd-foot"><span class="msg">${esc(S.e8Msg||"")}</span><button data-e8act="print">Print / PDF</button>
+        ${d.src.rv&&pdGet(d.src.rv)?`<button data-pdopen="${esc(d.src.rv)}">Open review ${esc(d.src.rv)}</button>`:""}
+        ${!closed&&!ro&&si<=1&&!d.src.rv?`<button class="danger w" data-e8act="delete">Delete 8D</button>`:""}
+        ${d.stage==="d6"&&d.d6.res==="not"&&!ro?`<button class="w" data-e8act="back">Not effective → back to D4</button>`:""}
+        <button data-e8act="close">Close the form</button>
+        ${closed||ro?"":`<button class="pri w" data-e8act="advance">${d.stage==="d8"?"Close the 8D":E8_NM[d.stage].slice(0,2)+" complete → "+E8_NM[E8_ST[si+1]].slice(0,2)}</button>`}</div></section>`);}
+  const all=e8All().slice().sort((a,b)=>a.id<b.id?1:-1);
+  h.push(`<h3 style="margin-top:18px">8D register</h3>${all.length?`<div class="tw"><table><thead><tr><th>8D</th><th>Problem</th><th>Chamber · record</th><th>From</th><th>Discipline</th><th>Target</th></tr></thead><tbody>${all.map(x=>`<tr class="click" data-e8open="${esc(x.id)}">
+      <td class="mono"><b>${esc(x.id)}</b>${x.src.example?' <span class="small muted">sample</span>':""}${d&&d.id===x.id?' <span class="small muted">open</span>':""}</td><td>${esc(x.title||"—")}</td><td>${esc(x.src.fkey?fkName(x.src.fkey):"—")}${x.src.from!=null?`<br><span class="small muted">${fD(x.src.from)}</span>`:""}</td>
+      <td>${x.src.rv?esc(x.src.rv)+" · "+esc(x.src.item):'<span class="muted">by hand</span>'}</td><td>${pill(x.stage==="closed"?"ok":e8Late(x)?"bad":"warn",E8_NM[x.stage])}${e8ContainLate(x)?" "+pill("bad","Containment late"):""}</td><td>${esc(dIso(x.target))}</td></tr>`).join("")}</tbody></table></div>`
+    :`<div class="empty"><p>No 8D yet. An 8D is opened from the action review when the plan is confirmed, or by hand with "New 8D".</p></div>`}`);
+  return h.join("");}
+/* printable records (Print → Save as PDF) */
+function pdHtml(R){const row=(a,b)=>`<tr><th>${a}</th><td>${b}</td></tr>`;
+  return `${pHead("SCADA action review (PDCA) · CQI-9 HTSA 1.9 reaction")}<h2>${esc(R.id)} · ${esc(fkName(R.fkey))}</h2>
+  <table>${row("Record",`${fDT(R.from)} – ${fDT(R.to)} · ${esc(R.file)}${R.example?" (sample)":""}`)}${row("Stage",PD_NM[R.stage]+(R.cycle>1?" · cycle "+R.cycle:""))}${row("Tolerance","set value ± "+R.tol+" °C")}${row("Plan decided by",esc(R.planBy||"—"))}${row("Effect verified by",esc(R.checkBy||"—"))}${row("Approved by",esc((R.apprBy||"—")+(R.apprRole?" ("+R.apprRole+")":"")))}${row("Documents standardised",esc((R.docs||[]).join(", ")||"—"))}${row("Lessons learned",esc(R.lessons||"—"))}</table>
+  <h3>Actions (P0 / A)</h3><table><thead><tr><th>#</th><th>Issue</th><th>Decision · plan</th><th>Owner · due</th><th>Do</th><th>Check</th></tr></thead><tbody>${R.items.map(i=>`<tr><td>${esc(i.id)}<br>${esc(i.pr)}</td><td>${esc(i.issue)}<br><span class="small">Suggested: ${esc(i.suggested)}</span></td>
+    <td>${esc({"8d":"8D","adopt":"Adopt","modify":"Changed","none":"No action"}[i.dec]||"—")}${i.d8?" "+esc(i.d8):""}${i.join?" (same 8D as "+esc(i.join)+")":""}<br>${esc(i.plan||"")}</td><td>${esc(i.owner||"—")}<br>${esc(dIso(i.due))}</td>
+    <td>${i.doneDate?esc(dIso(i.doneDate))+" "+esc(i.doneBy||"")+"<br>":""}${esc(i.doneNote||"")}${i.dispo?"<br>Product: "+esc(i.dispo):""}</td><td>${esc({effective:"Effective",not:"Not effective"}[i.res]||"—")}<br>${esc(i.evid||"")}</td></tr>`).join("")||`<tr><td colspan="6">No top-priority action.</td></tr>`}</tbody></table>
+  ${R.low&&R.low.length?`<h3>Lower priority (B / C): listed, not actioned</h3><table><tbody>${R.low.map(x=>`<tr><td>${esc(x.pr)}</td><td>${esc(x.issue)}</td><td>${esc(x.suggested)}</td><td>${esc(x.sugOwner)}</td></tr>`).join("")}</tbody></table>`:""}
+  ${(R.past||[]).length?`<h3>Earlier cycles</h3><ul>${R.past.map(c=>`<li>Cycle ${c.cycle}: plan by ${esc(c.planBy)}, verified by ${esc(c.checkBy)} (${esc(dIso(c.checkDate))}); not effective: ${esc(c.notEffective.join(", "))}</li>`).join("")}</ul>`:""}
+  <h3>History</h3><ul class="small">${R.log.map(x=>`<li>${esc(dIso(x.d))} — ${esc(x.t)}</li>`).join("")}</ul>
+  <div class="signoff">${["Plan decided by","Effect verified by","Approved by"].map(r=>`<div><b>${r}</b><span>Name / signature / date</span></div>`).join("")}</div>`;}
+function e8Html(d){const row=(a,b)=>`<tr><th>${a}</th><td>${esc(b||"—")}</td></tr>`,sec_=(t,b)=>`<h3>${t}</h3><table>${b}</table>`;
+  return `${pHead("8D report · SCADA temperature review")}<h2>${esc(d.id)} · ${esc(d.title||"")}</h2>
+  <table>${row("Chamber · record",(d.src.fkey?fkName(d.src.fkey):"—")+(d.src.from!=null?" · "+fDT(d.src.from)+" – "+fDT(d.src.to):""))}${row("Source",d.src.rv?`Review ${d.src.rv} · ${d.src.item}`:"Opened by hand")}${row("Discipline",E8_NM[d.stage])}${row("Opened · target",dIso(d.created)+" · "+dIso(d.target))}</table>
+  ${sec_("D1 Team",row("Leader",d.d1.leader)+row("Champion",d.d1.champion)+row("Members",d.d1.members)+row("Formed",dIso(d.d1.date)))}
+  ${sec_("D2 Problem description",row("What",d.d2.what)+row("Where",d.d2.where)+row("When",d.d2.when)+row("Who",d.d2.who)+row("How",d.d2.how)+row("How much",d.d2.howMuch)+row("Why it is a problem",d.d2.why)+row("Is / is not",d.d2.isnot))}
+  ${sec_("D3 Containment",row("Suspect product",d.d3.suspect)+row("Quantity",d.d3.qty)+row("Disposition",d.d3.disp)+row("Action",d.d3.action)+row("Owner · date",d.d3.owner+" · "+dIso(d.d3.date))+row("Verification",d.d3.verify))}
+  ${sec_("D4 Root cause",M6.filter(k=>txt(d.d4.m[k])).map(k=>row(k,d.d4.m[k])).join("")+d.d4.why.map((w,j)=>w?row("Why "+(j+1),w):"").join("")+row("Root cause",d.d4.root)+d.d4.ewhy.map((w,j)=>w?row("Escape why "+(j+1),w):"").join("")+row("Escape point",d.d4.escape)+row("Verification",d.d4.verify))}
+  ${sec_("D5 Permanent corrective actions",row("Occurrence",d.d5.occ)+row("Escape",d.d5.esc)+row("Owner · target",d.d5.owner+" · "+dIso(d.d5.due))+row("Verified before implementing",d.d5.verify))}
+  ${sec_("D6 Implement and validate",row("Implemented",dIso(d.d6.date)+" · "+d.d6.by)+row("Validation",d.d6.valid)+row("Effective",{effective:"Effective",not:"Not effective"}[d.d6.res]||"")+row("Containment removed",d.d6.removed))}
+  ${sec_("D7 Prevent recurrence",row("Documents",(d.d7.docs||[]).join(", "))+row("References",d.d7.ref)+row("Other furnaces / chambers",d.d7.horiz)+row("Lessons learned",d.d7.lessons))}
+  ${sec_("D8 Closure",row("Recognition",d.d8.recog)+row("Closed by",d.d8.by+(d.d8.role?" ("+d.d8.role+")":""))+row("Closed",dIso(d.closed)))}
+  <h3>History</h3><ul class="small">${d.log.map(x=>`<li>${esc(dIso(x.d))} — ${esc(x.t)}</li>`).join("")}</ul>
+  <div class="signoff">${["Team leader","Champion","Closed by"].map(r=>`<div><b>${r}</b><span>Name / signature / date</span></div>`).join("")}</div>`;}
+/* wiring of the review and 8D (main page, not the modal) */
+function setPath(o,path,v){const ks=path.split(".");let x=o;for(let i=0;i<ks.length-1;i++)x=x[ks[i]]=x[ks[i]]??{};x[ks.at(-1)]=v;}
+onDoc("click",async e=>{const b=e.target.closest("button,tr.click");if(!b||b.closest("#modal"))return;const d=b.dataset;
+  if(d.pdopen){S.pdCur=d.pdopen;S.pdMsg="";if(location.hash!=="#pdca")location.hash="#pdca";else render();return;}
+  if(d.e8open){S.e8Cur=d.e8open;S.e8View=null;S.e8Msg="";if(location.hash!=="#e8")location.hash="#e8";else render();return;}
+  if(d.pdact){const a=d.pdact;if(a==="start"){pdStart();return;}
+    const R=pdGet(S.pdCur)||pdForCur();if(!R)return;S.pdCur=R.id;
+    if(a==="print"){openModal({kind:"print",title:"SCADA action review "+R.id,html:()=>pdHtml(R)});return;}
+    if(a==="advance"){S.pdMsg=await pdAdvance(R);render();return;}
+    if(a==="replan"){pdReplan(R);await pdSave(R);S.pdMsg="";render();return;}
+    if(a==="delete"){armedDelete(b,async()=>{for(const i of R.items){const x=e8Get(i.d8);if(x&&x.stage==="d1"){if(x.src.example)E8_MEM.splice(E8_MEM.indexOf(x),1);else await dbDel("e8",x.id);}}
+      if(R.example)PD_MEM.splice(PD_MEM.indexOf(R),1);else await dbDel("pdca",R.id);S.pdCur=null;toast(R.id+" deleted");render();});return;}
+    const m=a.match(/^(ev8?):(.+)$/);if(m){const i=R.items.find(x=>x.id===m[2]);if(!i)return;i.evid=m[1]==="ev8"?`${i.d8} (D6 validation): ${e8Get(i.d8).d6.valid}`:pdEvidence(R.fkey,R.to,i.k,i.base);await pdSave(R);render();}
+    return;}
+  if(d.e8act){const a=d.e8act;if(a==="new"){e8Manual();return;}const x=e8Get(S.e8Cur);if(!x)return;
+    if(a==="close"){S.e8Cur=null;render();return;}
+    if(a.startsWith("view:")){S.e8View=a.slice(5);render();return;}
+    if(a==="print"){openModal({kind:"print",title:"8D report "+x.id,html:()=>e8Html(x)});return;}
+    if(a==="advance"){S.e8Msg=await e8Advance(x);render();return;}
+    if(a==="back"){e8Back(x);await e8Save(x);render();return;}
+    if(a==="ev"){x.d6.valid=e8Evidence(x);await e8Save(x);render();return;}
+    if(a==="delete"){armedDelete(b,async()=>{if(x.src.example)E8_MEM.splice(E8_MEM.indexOf(x),1);else await dbDel("e8",x.id);S.e8Cur=null;toast(x.id+" deleted");render();});return;}}
+});
+onDoc("change",async e=>{const el=e.target;if(el.closest("#modal"))return;
+  if(el.dataset.pd){const R=pdGet(S.pdCur)||pdForCur();if(!R)return;const k=el.dataset.pd,v=el.type==="checkbox"?el.checked:el.value;
+    if(k.startsWith("doc:")){const n=k.slice(4);R.docs=(R.docs||[]).filter(x=>x!==n);if(v)R.docs.push(n);}
+    else if(k.startsWith("rv:"))R[k.slice(3)]=v;
+    else{const [,id,f]=k.split(":"),i=R.items.find(x=>x.id===id);if(!i)return;i[f]=v;
+      if(f==="dec"){if(v!=="8d")delete i.join;if(v&&v!=="none"&&!i.owner)i.owner=i.sugOwner;if(v&&v!=="none"&&!i.due)i.due=addDay(todayISO(),v==="8d"?S8.targetDays:i.sugDays);if(v==="adopt"&&!txt(i.plan))i.plan=i.suggested;}}
+    await pdSave(R);if(el.tagName==="SELECT"||el.type==="checkbox")render();return;}
+  if(el.dataset.e8){const x=e8Get(S.e8Cur);if(!x)return;const k=el.dataset.e8,v=el.type==="checkbox"?el.checked:el.value;
+    if(k.startsWith("d7.docs:")){const n=k.slice(8);x.d7.docs=(x.d7.docs||[]).filter(y=>y!==n);if(v)x.d7.docs.push(n);}
+    else{const ks=k.split(".");if(ks[1]==="why"||ks[1]==="ewhy")x.d4[ks[1]][+ks[2]]=v;else setPath(x,k,v);}
+    if(e8Si(x)>E8_ST.indexOf(k.split(".")[0])&&/^d\d/.test(k))e8Log(x,`${E8_NM[k.split(".")[0]]||k} changed after completion`);
+    await e8Save(x);if(el.tagName==="SELECT"||el.type==="checkbox")render();}
+});
 
 /* 14. wiring */
 onDoc("click",e=>{
@@ -2573,9 +2898,9 @@ MWS.scada={closeModal,
   load:file=>loadFile(file).then(D=>D?{ok:true,file:D.file,furnace:D.furnace,chamber:D.chamber}:{ok:false,why:S.err}),
   pvAt,
   stats:()=>{const A=assess19(),st=A.st;return {db:S.dbState,score:A.score,label:SCORE[A.score][1],cls:SCORE[A.score][0],crit:A.crit,chambers:st.length,ok:st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length,
-    never:st.filter(x=>x.c.st==="none").length,overdue:st.filter(x=>x.c.st==="overdue").length,open:S.reviews.reduce((a,r)=>a+openLines(r).length,0),reviews:S.reviews.length};},
+    never:st.filter(x=>x.c.st==="none").length,overdue:st.filter(x=>x.c.st==="overdue").length,open:S.reviews.reduce((a,r)=>a+openLines(r).length,0),reviews:S.reviews.length,pdOpen:S.pdca.filter(r=>r.stage!=="closed").length,pdOverdue:S.pdca.reduce((n,r)=>n+pdOverdue(r).length,0),e8Open:S.e8.filter(d=>d.stage!=="closed").length};},
   summary:()=>{const A=assess19(),st=A.st;return `${st.filter(x=>x.c.st==="ok"||x.c.st==="soon").length} of ${st.length} chambers reviewed within ${C().maxHrs} h, ${plural(S.reviews.length,"review")} recorded; HTSA 1.9 ${SCORE[A.score][1].toLowerCase()}.`;}};
-window.__SCM={S,analyze,findings,parseAOA,readXlsx,assess19,revMissing,cstat,reviewers,loadSample};
+window.__SCM={S,analyze,findings,parseAOA,readXlsx,assess19,revMissing,cstat,reviewers,loadSample,pdAll,e8All,pdSplit,pdMissing,e8Missing,need8d,repeatOf,S8};
 
 /* 16. boot */
 async function boot(){
