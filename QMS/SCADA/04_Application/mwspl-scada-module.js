@@ -298,12 +298,13 @@ function statistics(A){
     const m=mean(d),s_=sd(d),r=lag1(d),neff=r!=null?Math.min(N,Math.max(2,N*(1-r)/(1+r))):N,ci=1.96*s_/Math.sqrt(neff);return {z,N,mean:m,sd:s_,neff,lo:m-ci,hi:m+ci,sig:m-ci>0||m+ci<0};});
   return {groups,per,corr,walls,multi:groups.length>1};}
 function statInterpret(A){const St=A.stats,out=[];
-  St.per.forEach(s=>{const nm=`${tcTag(s.k)} (zone ${zoneOf(s.k)+1}, ${wallOf(s.k)} wall)`+(St.multi?` at set value ${s.sp} °C`:"");if(s.ppk==null)return;
+  St.per.forEach(s=>{const nm=`${tcTag(s.k)} (zone ${zoneOf(s.k)+1}, ${wallOf(s.k)} wall)`+(St.multi?` at set value ${s.sp} °C`:""),n0_=out.length;if(s.ppk==null)return;
     if(s.ppk>=1.33)out.push({lvl:"good",txt:`${nm}: capable over the record (Ppk ${fx(s.ppk,2)}).`});
     else if(s.cpk!=null&&s.cpk>=1.33&&s.ppk<1)out.push({lvl:"warn",txt:`${nm}: short-term variation is small (Cpk ${fx(s.cpk,2)}) but the day-long picture is not (Ppk ${fx(s.ppk,2)}). Shifts and dips over the day, not minute-to-minute noise, cause the problem: look for load, push or burner events.`});
     else if(s.pp!=null&&s.pp>=1.33&&s.ppk<1)out.push({lvl:"warn",txt:`${nm}: the spread would fit the window (Pp ${fx(s.pp,2)}) but the mean sits ${fx(Math.abs(s.mean-s.sp))} °C ${s.mean<s.sp?"below":"above"} the set value (Ppk ${fx(s.ppk,2)}). Re-centring this wall would fix most of it.`});
     else out.push({lvl:s.ppk<1?"crit":"warn",txt:`${nm}: ${s.ppk<1?"not capable":"marginal"} (Pp ${fx(s.pp,2)}, Ppk ${fx(s.ppk,2)}); expected ${fx(s.expOut)} % out of tolerance, observed ${fx(s.obsOut)} %.`});
-    if(Math.abs(s.driftTot)>s.tol/2&&s.r2d>0.1)out.push({lvl:"warn",txt:`${nm}: drifts ${sgn(s.driftTot)} °C over the record (${sgn(s.slope)} °C/h, R² ${fx(s.r2d,2)}).`});});
+    if(Math.abs(s.driftTot)>s.tol/2&&s.r2d>0.1)out.push({lvl:"warn",txt:`${nm}: drifts ${sgn(s.driftTot)} °C over the record (${sgn(s.slope)} °C/h, R² ${fx(s.r2d,2)}).`});
+    for(let x=n0_;x<out.length;x++)out[x].sp=s.sp;});
   if(St.multi)out.unshift({lvl:"info",txt:`More than one set value in the record (${St.groups.map(g=>g.sp).join(", ")} °C). Statistics, capability and charts are calculated separately for each set value, each against its own limits.`});
   const r1=St.per.map(s=>s.r1ac).filter(v=>v!=null);if(r1.length&&Math.min(...r1)>0.5)out.push({lvl:"info",txt:`Readings are strongly autocorrelated (lag-1 r ${fx(Math.min(...r1),2)}–${fx(Math.max(...r1),2)}): each reading mostly repeats the last. Confidence intervals use an effective sample size, and control limits from the moving range will flag many points: treat the rule counts as a comparison between thermocouples.`});
   const nn=St.per.filter(s=>s.ad&&s.ad.p<0.05);if(nn.length)out.push({lvl:"info",txt:`The distribution is not normal for ${[...new Set(nn.map(s=>tcTag(s.k)))].join(", ")} (Anderson–Darling p < 0.05). Capability indices are estimates; the observed % out of tolerance is the figure to trust.`});
@@ -316,7 +317,7 @@ const tcHead=k=>`<span class="lg"><i style="background:var(--s${isLeft(k)?1:2})"
 function histSvg(s,multi){const W=340,H=190,l=34,r=10,t0=38,b=26,lo=s.g.sc.lo,hi=s.g.sc.hi,bw=Math.max(1,Math.round((hi-lo)/36)),nb=Math.ceil((hi-lo)/bw),cnt=new Array(nb).fill(0);
   s.y.forEach(v=>{cnt[Math.min(nb-1,Math.max(0,Math.floor((v-lo)/bw)))]++;});const pdf=x=>s.sd>0?s.N*bw*Math.exp(-0.5*((x-s.mean)/s.sd)**2)/(s.sd*Math.sqrt(2*Math.PI)):0,ym=Math.max(...cnt,pdf(s.mean))*1.08||1;
   const X=v=>l+(v-lo)/(hi-lo)*(W-l-r),Y=c=>H-b-(c/ym)*(H-b-t0),col=`var(--s${isLeft(s.k)?1:2})`;
-  let g=`<text x="${l}" y="14" class="lb">${tcTag(s.k)} · zone ${zoneOf(s.k)+1} ${wallOf(s.k)}${multi?` · set ${s.sp}`:""}</text><rect x="${X(s.LSL)}" y="${t0}" width="${X(s.USL)-X(s.LSL)}" height="${H-b-t0}" fill="var(--band)"/>`;
+  let g=`<text x="${l}" y="14" class="lb">${tcTag(s.k)} · zone ${zoneOf(s.k)+1} ${wallOf(s.k)}${multi?` · set ${s.sp}`:""}</text><rect x="${X(s.LSL)}" y="${t0}" width="${X(s.USL)-X(s.LSL)}" height="${H-b-t0}" fill="var(--okband)"/>`;
   cnt.forEach((c,i)=>{if(!c)return;const x=X(lo+i*bw);g+=`<rect x="${(x+0.5).toFixed(1)}" y="${Y(c).toFixed(1)}" width="${Math.max(1,X(lo+(i+1)*bw)-x-1).toFixed(1)}" height="${(H-b-Y(c)).toFixed(1)}" fill="${col}" opacity=".75"><title>${lo+i*bw}–${lo+(i+1)*bw} °C: ${c} readings</title></rect>`;});
   let p="";for(let x=lo;x<=hi;x+=(hi-lo)/120)p+=(p?"L":"M")+X(x).toFixed(1)+" "+Y(pdf(x)).toFixed(1);g+=`<path d="${p}" fill="none" stroke="var(--muted)" stroke-width="1.25"/>`;
   [[s.LSL,"LSL"],[s.USL,"USL"]].forEach(([v,lb])=>g+=`<line x1="${X(v)}" x2="${X(v)}" y1="${t0}" y2="${H-b}" stroke="var(--ok)" stroke-dasharray="3 3"/><text x="${X(v)}" y="${t0-3}" text-anchor="middle" class="ax" fill="var(--ok)">${lb}</text>`);
@@ -325,7 +326,7 @@ function histSvg(s,multi){const W=340,H=190,l=34,r=10,t0=38,b=26,lo=s.g.sc.lo,hi
   g+=`<text x="${l}" y="28" class="ax">x̄ ${fx(s.mean)} · σ ${fx(s.sd)} · Ppk ${fx(s.ppk,2)}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" class="mc" role="img" aria-label="${tcTag(s.k)} histogram">${g}</svg>`;}
 function ichartSvg(s,A,multi){const W=340,H=190,l=34,r=10,t0=38,b=22,lo=s.g.sc.lo,hi=s.g.sc.hi,T0=A.from,T1=A.to,X=t=>l+(t-T0)/Math.max(1,T1-T0)*(W-l-r),Y=v=>t0+(hi-v)/(hi-lo)*(H-b-t0),col=`var(--s${isLeft(s.k)?1:2})`;
-  let g=`<text x="${l}" y="14" class="lb">${tcTag(s.k)} · zone ${zoneOf(s.k)+1} ${wallOf(s.k)}${multi?` · set ${s.sp}`:""}</text><rect x="${l}" y="${Y(s.USL)}" width="${W-l-r}" height="${Y(s.LSL)-Y(s.USL)}" fill="var(--band)"/>`;
+  let g=`<text x="${l}" y="14" class="lb">${tcTag(s.k)} · zone ${zoneOf(s.k)+1} ${wallOf(s.k)}${multi?` · set ${s.sp}`:""}</text><rect x="${l}" y="${Y(s.USL)}" width="${W-l-r}" height="${Y(s.LSL)-Y(s.USL)}" fill="var(--okband)"/>`;
   for(let v=lo;v<=hi;v+=s.g.sc.step)g+=`<line x1="${l}" x2="${W-r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${l-4}" y="${Y(v)+3}" text-anchor="end" class="ax">${v}</text>`;
   let d="";s.y.forEach((v,i)=>{d+=(i&&s.t[i]-s.t[i-1]<=2*A.step*60000?"L":"M")+X(s.t[i]).toFixed(1)+" "+Y(v).toFixed(1);});
   g+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="1"/><line x1="${l}" x2="${W-r}" y1="${Y(s.mean)}" y2="${Y(s.mean)}" stroke="var(--ink)" stroke-width="1.25"/>`;
@@ -335,20 +336,22 @@ function ichartSvg(s,A,multi){const W=340,H=190,l=34,r=10,t0=38,b=22,lo=s.g.sc.l
   g+=`<text x="${l}" y="28" class="ax">UCL ${fx(s.UCL)} · LCL ${fx(s.LCL)} · ${s.r1} beyond</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" class="mc" role="img" aria-label="${tcTag(s.k)} individuals control chart">${g}</svg>`;}
 const div=(v,lim)=>{const c=Math.max(-1,Math.min(1,v/lim)),p=Math.round(Math.abs(c)*88);return `background:color-mix(in srgb, var(${c<0?"--s1":"--hot"}) ${p}%, var(--sunk))${p>55?";color:#fff":""}`;};
-function statSection(A){const St=A.stats,G=St.groups,multi=St.multi;if(!G.length)return "";
+function statSection(A){const St=A.stats,GA=St.groups,multi=St.multi;if(!GA.length)return "";
+  const big=GA.reduce((m,g)=>g.n>m.n?g:m,GA[0]),cur=GA.find(g=>g.sp===S.statSp)||big,G=[cur];
+  const pick=multi?`<div class="segs" role="group" aria-label="Set value">${GA.map(g=>`<button data-statsp="${g.sp}" aria-pressed="${g===cur}">${g.sp} °C <span class="muted">${n0(g.n)} readings · ${fT(g.first)}–${fT(g.last)}</span></button>`).join("")}</div>`:"";
   const f2=v=>fx(v,2),pv=a=>!a?"—":a.p<0.001?"< 0.001":fx(a.p,3),cc=v=>v==null?"":v>=1.33?"c-ok":v>=1?"c-warn":"c-bad";
   const tb=(P,rows)=>`<div class="tw"><table class="stat"><thead><tr><th></th>${P.map(s=>`<th class="n">${tcHead(s.k)}</th>`).join("")}</tr></thead><tbody>${rows.map(([lab,fn,cls])=>`<tr><td>${lab}</td>${P.map(s=>`<td class="n ${cls?cls(s):""}">${fn(s)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  const gh=g=>multi?`<h4 class="setgrp">Set value ${g.sp} °C${procAt(A.ft,g.sp)?" · "+esc(procAt(A.ft,g.sp)):""} <span class="muted">· ${n0(g.n)} readings · ${fT(g.first)}–${fT(g.last)}</span></h4>`:"";
+  const gh=g=>false?`<h4 class="setgrp">Set value ${g.sp} °C${procAt(A.ft,g.sp)?" · "+esc(procAt(A.ft,g.sp)):""} <span class="muted">· ${n0(g.n)} readings · ${fT(g.first)}–${fT(g.last)}</span></h4>`:"";
   const blocks=G.map(g=>`${gh(g)}<div class="stat-grid"><div><h4>Descriptive statistics</h4>${tb(g.per,[["Set value, °C",s=>s.sp],["Readings (n)",s=>n0(s.N)],["Mean, °C",s=>fx(s.mean)],["95 % CI of mean, °C",s=>"± "+fx(s.ci)],["Median, °C",s=>fx(s.median)],["Std dev overall, °C",s=>fx(s.sd)],["Std dev within (MR̄/1.128), °C",s=>fx(s.sw)],["Min / max, °C",s=>fx(s.min,0)+" / "+fx(s.max,0)],["Range, °C",s=>fx(s.range,0)],["P5 / P95, °C",s=>fx(s.p5,0)+" / "+fx(s.p95,0)],["Skewness",s=>f2(s.skew)],["Excess kurtosis",s=>f2(s.kurt)],["Normality (Anderson–Darling p)",s=>pv(s.ad)],["Lag-1 autocorrelation",s=>f2(s.r1ac)],["Effective n",s=>fx(s.neff,0)],["Drift, °C/h (R²)",s=>`${sgn(s.slope)} (${f2(s.r2d)})`]])}</div>
     <div><h4>Process capability</h4>${tb(g.per,[["LSL / USL, °C",s=>fx(s.LSL,0)+" / "+fx(s.USL,0)],["Cp (within)",s=>f2(s.cp),s=>cc(s.cp)],["Cpk (within)",s=>f2(s.cpk),s=>cc(s.cpk)],["Pp (overall)",s=>f2(s.pp),s=>cc(s.pp)],["Ppk (overall)",s=>f2(s.ppk),s=>cc(s.ppk)],["Expected out of tolerance, %",s=>fx(s.expOut)],["Observed out of tolerance, %",s=>fx(s.obsOut),s=>s.obsOut>5?"c-bad":s.obsOut>1?"c-warn":"c-ok"]])}
     <h4 style="margin-top:14px">Individuals control chart (I-MR)</h4>${tb(g.per,[["Centre line (mean), °C",s=>fx(s.mean)],["UCL / LCL, °C",s=>s.UCL==null?"—":fx(s.UCL)+" / "+fx(s.LCL)],["MR̄ / UCL MR, °C",s=>s.mrBar==null?"—":fx(s.mrBar)+" / "+fx(s.uclMR)],["Rule 1: points beyond 3σ",s=>s.r1,s=>s.r1?"c-bad":"c-ok"],["Rule 2: runs of 9 on one side",s=>s.r2,s=>s.r2?"c-warn":"c-ok"],["Rule 3: trends of 6 up or down",s=>s.r3,s=>s.r3?"c-warn":"c-ok"]])}</div></div>`).join("");
   const minis=fn=>G.map(g=>`${gh(g)}<div class="mini-grid">${g.per.map(s=>`<div class="trc">${fn(s)}</div>`).join("")}</div>`).join("");
   const corr=`<div class="tw"><table class="heat"><thead><tr><th></th>${K6.map(k=>`<th>${tcTag(k)}</th>`).join("")}</tr></thead><tbody>${St.corr.map((row,i)=>`<tr><th class="rl">${tcTag(i)}</th>${row.map((c,j)=>c==null?"<td></td>":`<td style="${div(c,1)}" title="${tcTag(i)} vs ${tcTag(j)}: r = ${fx(c,2)}">${i===j?"1":fx(c,2)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   const walls=`<div class="tw"><table><thead><tr><th>Zone</th><th class="n">Mean left − right, °C</th><th class="n">SD, °C</th><th class="n">95 % CI (effective n)</th><th>Result</th></tr></thead><tbody>${St.walls.map(w=>`<tr><td><b>Zone ${w.z+1}</b></td><td class="n">${w.N?sgn(w.mean):"—"}</td><td class="n">${w.N?fx(w.sd):"—"}</td><td class="n">${w.N?`${sgn(w.lo)} to ${sgn(w.hi)} (n<sub>eff</sub> ${fx(w.neff,0)})`:"—"}</td><td>${!w.N?pill("acc","Not assessed: one wall has no valid reading"):w.sig?pill(Math.abs(w.mean)>A.tolDef/2?"warn":"acc",w.mean<0?"Left wall colder":"Right wall colder"):pill("ok","No systematic difference")}</td></tr>`).join("")}</tbody></table></div>`;
-  return `${sec("Statistical analysis of the process",`Per-thermocouple statistics for the whole record${multi?", split by set value":""}, without the readings taken while settling to a set value. Specification limits are the set value ± its tolerance. The figures are for comparing thermocouples and days; SCADA readings are time-correlated, so this is not a formal capability study.`,
-    `<div class="obs" style="margin-bottom:14px">${statInterpret(A).map(o=>`<div class="ob"><div>${pill(LVP[o.lvl][0],LVP[o.lvl][1])}</div><p>${esc(o.txt)}</p></div>`).join("")}</div>${blocks}<p class="small muted">Rating: ≥ 1.33 capable, 1.00–1.33 marginal, &lt; 1.00 not capable. Cp / Cpk show the short-term (reading-to-reading) capability; Pp / Ppk include every shift over the record.</p>`)}
-  ${sec("Distribution of readings",`Histogram of each thermocouple on a common scale${multi?" for each set value":""}, with the fitted normal curve (overall σ), the mean and the specification limits.`,minis(s=>histSvg(s,multi)))}
-  ${sec("Individuals control charts",`Every judged reading in time order with the centre line, the control limits (mean ± 3σ within, red dashed) and the specification limits (blue band). Red points break rule 1 (beyond 3σ). Common scale on all charts${multi?" of the same set value; the line breaks where the thermocouple ran at another set value":""}.`,minis(s=>ichartSvg(s,A,multi)))}
+  return `${sec("Statistical analysis of the process",`Per-thermocouple statistics for the whole record${multi?`, one set value at a time (${GA.length} set values: choose one)`:""}, without the readings taken while settling to a set value. Specification limits are the set value ± its tolerance. The figures are for comparing thermocouples and days; SCADA readings are time-correlated, so this is not a formal capability study.`,
+    `${pick}<div class="obs" style="margin-bottom:14px">${statInterpret(A).filter(o=>o.sp==null||o.sp===cur.sp).map(o=>`<div class="ob"><div>${pill(LVP[o.lvl][0],LVP[o.lvl][1])}</div><p>${esc(o.txt)}</p></div>`).join("")}</div>${blocks}<p class="small muted">Rating: ≥ 1.33 capable, 1.00–1.33 marginal, &lt; 1.00 not capable. Cp / Cpk show the short-term (reading-to-reading) capability; Pp / Ppk include every shift over the record.</p>`)}
+  ${sec("Distribution of readings",`Histogram of each thermocouple on a common scale${multi?" for each set value":""}, with the fitted normal curve (overall σ), the mean and the specification limits.`,pick+minis(s=>histSvg(s,multi)))}
+  ${sec("Individuals control charts",`Every judged reading in time order with the centre line, the control limits (mean ± 3σ within, red dashed) and the specification limits (green band). Red points break rule 1 (beyond 3σ). Common scale on all charts${multi?" of the same set value; the line breaks where the thermocouple ran at another set value":""}.`,pick+minis(s=>ichartSvg(s,A,multi)))}
   <div class="two">${sec("Correlation between thermocouples","Pearson r of the deviation from the set value, for readings taken at the same time. Close to +1: the two move together; near 0: independent.",corr)}
   ${sec("Left–right wall difference","Is one wall systematically colder? The confidence interval uses an effective sample size that allows for autocorrelation.",walls)}</div>`;}
 /* Pareto: exposure = degrees beyond the tolerance window × minutes, summed per cause */
@@ -550,8 +553,8 @@ function safeRender(){
 onDoc("focusout",()=>setTimeout(()=>{if(S.pending&&!S.modal){const a=document.activeElement;if(!(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))){S.pending=false;render();}}},0));
 
 /* 9. navigation */
-const NAV=[["",[["dash","Dashboard"]]],["P",[["settings","Settings & reviewers"]]],["D",[["load","Load & analyse"]]],
-  ["C",[["reviews","Reviews"],["htsa","HTSA 1.9"],["hist","History"]]],["A",[["act","Reactions"],["pdca","Action review"],["e8","8D"]]],["",[["rules","Rules"],["docs","Documentation"],["data","Data"]]]];
+const NAV=[["",[["dash","Dashboard"]]],["P",[["settings","Settings"]]],["D",[["load","Analyse a record"]]],
+  ["C",[["reviews","Reviews"],["htsa","HTSA 1.9"],["hist","History"]]],["A",[["act","Reactions"],["pdca","PDCA reviews"],["e8","8D"]]],["",[["rules","Rules"],["docs","Docs"],["data","Data"]]]];
 const navHtml=()=>`<div class="wrap">${NAV.map(([p,it])=>`<div class="grp">${p?`<span class="pd">${p}</span>`:""}${it.map(([k,l])=>`<a href="#${k}" ${S.view===k?'aria-current="page"':""}>${l}</a>`).join("")}</div>`).join("")}</div>`;
 function route(){const v=(location.hash||"").slice(1);S.view=VIEWS[v]?v:"dash";}
 const banner=()=>S.dbState==="local"?`<div class="banner warn">${MWS.sync&&MWS.sync.linked()?`Records are kept in this browser and saved to the Google Drive folder <b>${esc(MWS.sync.folder())}</b>.`:`Local mode: records are kept in this browser only. Link a Google Drive folder (button at the top right) or back up from the <a href="#data">Data</a> tab.`}</div>`
@@ -567,32 +570,36 @@ function render(){
 
 /* 10. charts: one per zone, both thermocouples (left wall blue, right wall orange), the set value with its tolerance band, settling shaded */
 let CID=0;
-function zoneChart(z,T,P,SP,ST,tol,incs,h,fix,dots){
-  const id="zc"+(++CID),W=fix?1150:720,H=h||220,L=46,Rr=10,Tp=12,B=26,k1=z*2+1,k0=z*2,n=T.length;if(n<2)return "";
+function zoneChart(z,T,P,SP,ST,tol,incs,h,fix,dots,cap){
+  const id="zc"+(++CID),W=fix?1150:720,H=h||220,L=fix?62:46,Rr=12,Tp=12,B=26,k1=z*2+1,k0=z*2,n=T.length;if(n<2)return "";
   const vals=[...P[k1],...P[k0],...SP[k1].map(v=>v==null?null:v+tol),...SP[k1].map(v=>v==null?null:v-tol)].filter(v=>v!=null);
   if(!vals.length)return `<p class="small muted">Zone ${z+1}: no readings.</p>`;
   let y0=fix?fix[0]:Math.max(VMIN,Math.floor((Math.min(...vals)-5)/10)*10),y1=fix?fix[1]:Math.min(VMAX,Math.ceil((Math.max(...vals)+5)/10)*10);if(y1-y0<20){y1=y0+20;}
   const t0=T[0],t1=T[n-1],xs=t=>L+(t-t0)/(t1-t0)*(W-L-Rr),ys=v=>Tp+(1-(v-y0)/(y1-y0))*(H-Tp-B);
-  const g=[],yst=(y1-y0)>120?50:(y1-y0)>60?20:10;
-  for(let v=Math.ceil(y0/yst)*yst;v<=y1;v+=yst)g.push(`<line x1="${L}" x2="${W-Rr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)"/><text x="${L-5}" y="${ys(v)+4}" text-anchor="end" class="ax">${v}</text>`);
-  const hr=(t1-t0)>12*3600000?4:(t1-t0)>4*3600000?2:1;for(let t=Math.ceil(t0/(hr*3600000))*hr*3600000;t<=t1;t+=hr*3600000)g.push(`<text x="${xs(t)}" y="${H-8}" text-anchor="middle" class="ax">${fT(t)}</text>`);
+  const g=[],yst=(y1-y0)>240?50:(y1-y0)>100?20:10;
+  for(let v=Math.ceil(y0/yst)*yst;v<=y1;v+=yst)g.push(`<line x1="${L}" x2="${W-Rr}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--line)" stroke-opacity=".7"/><text x="${L-6}" y="${ys(v)+4}" text-anchor="end" class="ax">${v}${fix?" °C":""}</text>`);
+  const span=t1-t0,hr=span>36*3600000?6:span>12*3600000?2:span>4*3600000?1:0.5,ticks=[];for(let t=Math.ceil(t0/(hr*3600000))*hr*3600000;t<=t1;t+=hr*3600000)ticks.push(t);
+  if(fix){if(!ticks.length||xs(ticks[0])-xs(t0)>40)ticks.unshift(t0);if(xs(t1)-xs(ticks.at(-1))>40)ticks.push(t1);}
+  ticks.forEach(t=>g.push(`<line x1="${xs(t)}" x2="${xs(t)}" y1="${Tp}" y2="${H-B}" stroke="var(--line)" stroke-opacity=".55"/><text x="${xs(t)}" y="${H-8}" text-anchor="${t===t1?"end":t===t0?"start":"middle"}" class="ax">${fT(t)}</text>`));
+  g.push(`<rect x="${L}" y="${Tp}" width="${W-L-Rr}" height="${H-Tp-B}" fill="none" stroke="var(--line)"/>`);
   incs.filter(i=>i.z===z).forEach(i=>g.push(`<rect x="${xs(i.from)}" y="${Tp}" width="${Math.max(2,xs(i.to)-xs(i.from))}" height="${H-Tp-B}" fill="${i.aff?"var(--bad-bg)":"var(--warn-bg)"}"/>`));
   let s=null;for(let i=0;i<=n;i++){const on=i<n&&ST[i]&&(ST[i]&((1<<k0)|(1<<k1)));if(on&&s==null)s=i;if(!on&&s!=null){g.push(`<rect x="${xs(T[s])}" y="${Tp}" width="${Math.max(1,xs(T[Math.min(i,n-1)])-xs(T[s]))}" height="${H-Tp-B}" fill="var(--settle)"/>`);s=null;}}
   /* tolerance band around the set value (zone's left TC set value) */
   const band=[],line=[];T.forEach((t,i)=>{const sp=SP[k1][i]??SP[k0][i];if(sp!=null){band.push([xs(t),ys(Math.min(y1,sp+tol)),ys(Math.max(y0,sp-tol))]);line.push(`${xs(t).toFixed(1)},${ys(sp).toFixed(1)}`);}});
-  if(band.length)g.push(`<polygon points="${band.map(b=>b[0].toFixed(1)+","+b[1].toFixed(1)).join(" ")} ${band.slice().reverse().map(b=>b[0].toFixed(1)+","+b[2].toFixed(1)).join(" ")}" fill="var(--band)"/><polyline points="${line.join(" ")}" fill="none" stroke="var(--muted)" stroke-dasharray="4 3"/>`);
+  if(band.length)g.push(`<polygon points="${band.map(b=>b[0].toFixed(1)+","+b[1].toFixed(1)).join(" ")} ${band.slice().reverse().map(b=>b[0].toFixed(1)+","+b[2].toFixed(1)).join(" ")}" fill="${fix?"var(--okband)":"var(--band)"}"/><polyline points="${line.join(" ")}" fill="none" stroke="var(--muted)" stroke-dasharray="4 3"/>`);
   const pl=k=>{const seg=[];let cur=[];T.forEach((t,i)=>{const v=P[k][i];if(v==null){if(cur.length)seg.push(cur);cur=[];}else cur.push(`${xs(t).toFixed(1)},${ys(Math.min(y1,Math.max(y0,v))).toFixed(1)}`);});if(cur.length)seg.push(cur);
     return seg.map(c=>`<polyline points="${c.join(" ")}" fill="none" stroke="var(--s${isLeft(k)?1:2})" stroke-width="2" stroke-linejoin="round"/>`).join("");};
   g.push(pl(k0),pl(k1));
   if(dots)[k0,k1].forEach(k=>(dots[k]||[]).forEach(([t,v])=>g.push(`<circle cx="${xs(t).toFixed(1)}" cy="${ys(Math.min(y1,Math.max(y0,v))).toFixed(1)}" r="1.8" fill="var(--bad)"/>`)));
   S.charts[id]={T,P,SP,z,xs,L,W,Rr};
-  return `<figure class="zc"><figcaption><b>Zone ${z+1}</b> <span class="lg"><i style="background:var(--s1)"></i>${tcTag(k1)} left wall</span><span class="lg"><i style="background:var(--s2)"></i>${tcTag(k0)} right wall</span><span class="lg"><i class="dash"></i>set value ± tolerance</span>${dots?`<span class="lg"><i class="dot"></i>out of tolerance</span><span class="lg"><i class="sq"></i>settling (not judged)</span>`:""}</figcaption>
+  return `<figure class="zc">${cap?`<figcaption><b>Zone ${z+1}</b> <span class="muted">${cap}</span></figcaption>`:`<figcaption><b>Zone ${z+1}</b> <span class="lg"><i style="background:var(--s1)"></i>${tcTag(k1)} left wall</span><span class="lg"><i style="background:var(--s2)"></i>${tcTag(k0)} right wall</span><span class="lg"><i class="dash"></i>set value ± tolerance</span>${dots?`<span class="lg"><i class="dot"></i>out of tolerance</span><span class="lg"><i class="sq"></i>settling (not judged)</span>`:""}</figcaption>`}
     <div class="zcw"><svg viewBox="0 0 ${W} ${H}" data-zc="${id}" role="img" aria-label="Zone ${z+1} temperature, ${tcTag(k1)} and ${tcTag(k0)} against the set value">${g.join("")}<line class="xh" x1="0" x2="0" y1="${Tp}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" visibility="hidden"/></svg><div class="ztip" hidden></div></div></figure>`;}
 /* the loaded record: every zone on the same time axis and the same temperature scale, out-of-tolerance readings as red points */
 const chartsOfCur=D=>{const A=D.A,T=A.rows.map(r=>r.t),P=K6.map(k=>A.rows.map(r=>r.pv[k])),SP=K6.map(k=>A.rows.map(r=>r.sp[k])),ST=A.rows.map(r=>K6.reduce((m,k)=>m|(r.tr[k]?1<<k:0),0));
-  const all=[...P.flat(),...SP.flat().filter(v=>v!=null).flatMap(v=>[v-A.tolDef,v+A.tolDef])].filter(v=>v!=null),fix=[Math.max(VMIN,Math.floor((Math.min(...all)-5)/20)*20),Math.min(VMAX,Math.ceil((Math.max(...all)+5)/20)*20)];
+  const all=[...P.flat(),...SP.flat().filter(v=>v!=null).flatMap(v=>[v-A.tolDef,v+A.tolDef])].filter(v=>v!=null),fix=[Math.max(VMIN,Math.floor((Math.min(...all)-5)/10)*10),Math.min(VMAX,Math.ceil((Math.max(...all)+5)/10)*10)];
   const dots=K6.map(k=>A.rows.map((r,i)=>[r.t,A.ev[i][k],r.sp[k]]).filter(([t,v,sp])=>v!=null&&sp!=null&&Math.abs(v-sp)>A.tolDef).map(([t,v])=>[t,v]));
-  return [0,1,2].map(z=>zoneChart(z,T,P,SP,ST,A.tolDef,[],250,fix,dots)).join("");};
+  return [0,1,2].map(z=>{const lv=[...new Set(A.levels[z*2].concat(A.levels[z*2+1]))].sort((a,b)=>a-b),tr=traysOf(D.chamber,z);
+    return zoneChart(z,T,P,SP,ST,A.tolDef,[],270,fix,dots,`${tcTag(z*2+1)} left · ${tcTag(z*2)} right · ${lv.length>1?"set values "+spSeq({rows:A.rows.map(x=>({sp:[x.sp[z*2+1]??x.sp[z*2]]}))}).join(" → "):"set value "+(lv[0]??"—")} °C · ${tr[1]-tr[0]+1} trays (positions ${tr[0]}–${tr[1]})`);}).join("");};
 const chartsOfRev=r=>{if(!r.trend.length)return "";const T=r.trend.map(x=>x[0]*60000),P=K6.map(k=>r.trend.map(x=>x[1+k])),SP=K6.map(k=>r.trend.map(x=>x[7+k])),ST=r.trend.map(x=>x[13]);
   return [0,1,2].map(z=>zoneChart(z,T,P,SP,ST,r.tolDef||10,r.incidents,170)).join("");};
 onDoc("mousemove",e=>{const svg=e.target.closest&&e.target.closest("svg[data-zc]");if(!svg)return;const c=S.charts[svg.dataset.zc];if(!c)return;
@@ -663,59 +670,102 @@ function spreadSvg(A){const T=A.tcs.filter(t=>!t.offline&&t.n),tol=A.tolDef;if(!
       `<rect x="${xs(t.p5)}" y="${y-6}" width="${Math.max(2,xs(t.p95)-xs(t.p5))}" height="12" rx="3" fill="${c}" opacity=".45"/><circle cx="${xs(t.mean)}" cy="${y}" r="6" fill="var(--panel)" stroke="${c}" stroke-width="3"><title>${t.tag}: mean ${sgn(t.mean)} °C, 5–95 % ${sgn(t.p5)} … ${sgn(t.p95)}, min / max ${sgn(t.min)} / ${sgn(t.max)}</title></circle>`);});
   g.push(`<text x="${(L+W-Rr)/2}" y="${H-4}" text-anchor="middle" class="ax">°C from setpoint</text>`);
   return `<svg viewBox="0 0 ${W} ${H}" class="spr" role="img" aria-label="Spread of each thermocouple's deviation from the set value">${g.join("")}</svg>`;}
+/* the record page: CALOR's one-page SCADA review (settings, report, review cards) inside the module's PDCA */
+const ASET=[["tol","Tolerance ± °C"],["merge","Merge dips less than, min apart"],["persist","Min. readings for an event"],["settle","Max. settling after set change, min"],["hold","Back in tolerance for, readings"],
+  ["posH","Hardening chamber: tray positions per zone"],["posT","Tempering chamber: tray positions per zone"]];
+const ASET2=[["spike","A jump larger than (°C) is a spike"],["stuck","The same reading for (min) is stuck"],["gap","A step longer than × the usual step is a gap"]];
+let FOLD={};try{FOLD=JSON.parse(localStorage.getItem("mws-scada-fold")||"{}")||{};}catch(e){FOLD={};}
+const foldSave=()=>{try{localStorage.setItem("mws-scada-fold",JSON.stringify(FOLD));}catch(e){}};
+const card=(id,title,sum,body,openDef)=>`<details class="panel fold" id="${id}" data-fold="${id}" ${(FOLD[id]??openDef)?"open":""}><summary><span class="fh">${title}</span><span class="fsum">${sum}</span></summary><div class="fbody">${body}</div></details>`;
+function setPanel(open){const c=C(),ro=!S.canWrite;
+  return `<details class="panel aset" data-fold="aset" ${(FOLD.aset??open)?"open":""}><summary><b>Analysis settings</b> <span class="small muted">tolerance ±${esc(c.tol)} °C (unless a specification in force sets it) · merge ${esc(c.merge)} min · settling ≤ ${esc(c.settle)} min · trays ${esc(c.posH)} / ${esc(c.posT)}</span></summary>
+    <div class="fields" style="margin-top:10px">${ASET.map(([k,l])=>`<label class="f"><span>${esc(l)}</span><input data-acfg="${k}" value="${esc(c[k])}" ${ro?"disabled":""}></label>`).join("")}</div>
+    <details style="margin-top:8px"><summary class="small">Data-integrity thresholds</summary><div class="fields" style="margin-top:8px">${ASET2.map(([k,l])=>`<label class="f"><span>${esc(l)}</span><input data-acfg="${k}" value="${esc(c[k])}" ${ro?"disabled":""}></label>`).join("")}</div></details>
+    <p class="small muted" style="margin-top:8px">The record is recalculated at once; the settings are saved for everyone (P · <a href="#settings">Settings</a> has the review interval and the reviewers). Drop a SCADA export anywhere on this page. Everything is calculated in this browser; the file is not uploaded.</p></details>`;}
+function prodWindows(D,A){const W=windows(A),inc=A.incidents;
+  if(!W.length)return `<p class="muted">No product affected: no excursion in a zone that counts for the process.</p>`;
+  return `<div class="tw"><table><thead><tr><th>Window</th><th>From</th><th>To</th><th class="n">Duration</th><th>Zones and tray positions affected</th><th>Incidents (excursion log #)</th><th class="n">Extreme</th></tr></thead><tbody>${W.map((w,n)=>{
+    const L=inc.map((i,x)=>({i,x})).filter(({i})=>i.aff&&i.from>=w.from&&i.to<=w.to),mx=L.reduce((m,{i})=>Math.abs(i.max)>Math.abs(m)?i.max:m,0);
+    return `<tr><td class="mono"><b>W${n+1}</b></td><td class="mono">${fDT(w.from)}</td><td class="mono">${fDT(w.to)}</td><td class="n mono">${fDur(w.min)}</td><td>${w.zones.map(z=>{const t=traysOf(D.chamber,z-1);return `Zone ${z} <span class="muted">pos. ${t[0]}–${t[1]}</span>`;}).join("<br>")}</td>
+      <td class="mono small">${L.slice(0,8).map(({x})=>x+1).join(", ")}${L.length>8?` … (${L.length})`:""}</td><td class="n mono c-bad">${sgn(mx)} °C</td></tr>`;}).join("")}</tbody></table></div>
+    <p class="small muted" style="margin-top:6px">Any tray that was inside a listed zone at any moment of a window was exposed to out-of-tolerance temperature. Use the production report (time each tray entered and left the zone) to find the trays to hold.</p>`;}
+function excLog(A){return A.incidents.length?`<div class="tw"><table><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Process</th><th>Start</th><th>End</th><th class="n">Span</th><th class="n">Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${A.incidents.map((i,n)=>`<tr><td>${n+1}</td><td><b>Zone ${i.z+1}</b></td><td>${i.walls} <span class="muted">${i.tcs.join(", ")}</span></td><td>${i.dir}</td><td>${esc(i.proc)}</td><td class="mono">${fT(i.from)}</td><td class="mono">${fT(i.to)}</td><td class="n mono">${fDur(i.min)}</td><td class="n mono">${fDur(i.outMin)}</td><td class="mono"><span class="c-bad">${i.ext.v} °C (${sgn(i.max)})</span> <span class="muted">${i.ext.tag} · set ${i.ext.sp}</span></td><td>${i.aff?`Zone ${i.z+1} <span class="muted">positions ${i.trays[0]}–${i.trays[1]}</span>`:`<span class="muted">not counted</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No excursion.</p>`;}
+const excText=A=>["#\tZone\tWalls\tDirection\tStart\tEnd\tSpan\tTime out\tExtreme °C\tDeviation\tTC\tTrays affected",...A.incidents.map((i,n)=>[n+1,"Zone "+(i.z+1),i.walls,i.dir,fDT(i.from),fDT(i.to),fDur(i.min),fDur(i.outMin),i.ext.v,sgn(i.max),i.ext.tag,i.aff?`positions ${i.trays[0]}-${i.trays[1]}`:"not counted"].join("\t"))].join("\n");
+function reviewCards(D,A,fk,dup){const R=pdForCur(),ro=!S.canWrite;
+  const m=dup?revMissing(dup):[],st=dup?RST[revStatus(dup)]:null;
+  const c1=card("c-rev",`<span class="ph">C</span> Second-level review (HTSA 1.9)`,dup?`${pill(st[0],st[1])} ${esc(dup.id)} · ${esc(dup.by||"no reviewer")} · ${esc(String(dup.at||"").replace("T"," "))}`:pill("warn","Not recorded yet"),
+    `<p class="muted">The record of the qualified reviewer's check: every out-of-control condition of this record answered with a reaction or the record that handles it (an action review RV-…, an 8D, an alarm record), within ${C().maxHrs} h.</p>
+    ${dup?`${m.length?`<p class="small"><b>To complete:</b> ${esc(m.join(" · "))}</p>`:""}<div class="row"><button class="pri" data-rev="${esc(dup.id)}">Open review ${esc(dup.id)}</button></div>`:`<div class="row"><button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review</button>${fk?"":`<span class="small muted">Choose the furnace and chamber first.</span>`}</div>`}`,!dup);
+  const sp=pdSplit(A,D.O),od=R?pdOverdue(R).length:0;
+  const c2=card("c-pdca",`<span class="ph">A</span> Action review (PDCA) with 8D problem solving`,R?`${pill(R.stage==="closed"?"ok":"warn",PD_NM[R.stage]+(R.cycle>1?" · cycle "+R.cycle:""))} ${esc(R.id)} · ${plural(pdAct(R).length,"action")}${od?" · "+pill("bad",od+" overdue"):""}`:`${plural(sp.top.length,"top-priority issue")} suggested`,
+    `<div class="method"><div><b>PDCA: the review</b><span>Plan the reaction, Do it, Check the effect with later records, Act: standardise and approve. Only P0 (product) and A (the vital few) become actions; B / C are listed.</span></div><div><b>8D: the problem</b><span>Product affected or a repeated problem: team, containment, root cause with 6M and 5 Whys, permanent action, validation, prevention.</span></div><div><b>Simple action</b><span>For issues that need no root-cause analysis: owner, due date, done, checked.</span></div></div>
+    ${R?pdCard(R,D):`<div class="row between" style="margin-top:10px"><span>No action review for this record yet. The analysis suggests <b>${sp.top.length}</b> top-priority action(s) (P0 / A)${sp.low.length?`; ${sp.low.length} lower-priority issue(s) (B / C) will be listed, not actioned`:""}.${D.sample?" A review of the sample record is not saved.":""}</span><button class="pri w" data-pdact="start" ${fk?"":"disabled"}>Start review (Plan)</button></div>`}`,true);
+  const d=e8Get(S.e8Cur),mine=d&&R&&d.src.rv===R.id?d:null,L=R?[...new Set(R.items.map(i=>i.d8).filter(Boolean))].map(e8Get).filter(Boolean):[];
+  const c3=L.length||mine?card("c-e8",`8D problem solving`,L.map(x=>`${esc(x.id)} ${pill(x.stage==="closed"?"ok":e8Late(x)?"bad":"warn",E8_NM[x.stage])}`).join(" · "),
+    mine?e8Card(mine):`<p class="muted">Open an 8D from its action above (Open the 8D) to work through D1–D8 here, or use the <a href="#e8">8D register</a>.</p>`,true):"";
+  return c1+c2+c3;}
 function vLoad(){
   const D=S.cur;
   const up=`<label class="btn pri upl">Upload SCADA export…<input type="file" id="scfile" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"></label>`;
-  if(!D||!D.A)return `<section class="panel rp"><div class="eyebrow">SCADA review · CQI-9 HTSA 1.9 · pusher furnace</div><h2 class="rt">Load a SCADA temperature record</h2>
-    <p class="muted">The SCADA export of one chamber: Excel (.xlsx) or CSV with Date, Time, SET-1 / PV-1 … SET-6 / PV-6 (TC-01 / TC-02 = zone 1 …; odd numbers right wall, even numbers left wall). The heading ("FURNACE-2 TEMPRING …") links it to the furnace and chamber. Everything is calculated in this browser; only the review's summary and a 10-minute trend are saved.</p>
-    <div class="row" style="margin-top:10px">${up}${SAMPLE?`<button class="w" data-sample>Open the sample record</button>`:""}</div>${S.busy?`<p class="muted">Reading…</p>`:""}${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}</section>`;
+  if(!D||!D.A)return `<section class="rp-head"><div><div class="eyebrow">SCADA review · CQI-9 HTSA 1.9 · PDCA review · 8D problem solving</div><h2 class="rt">Furnace temperature review</h2></div><div class="row">${up}</div></section>
+    ${setPanel(true)}
+    <section class="drop rp"><div class="eyebrow">Daily record</div><h3>Upload the SCADA export of one chamber</h3>
+    <p>Choose the Excel (.xlsx) or CSV file exported from SCADA, or drag it onto this page: Date, Time, SET-1 / PV-1 … SET-6 / PV-6 (TC-01 / TC-02 = zone 1 …; odd numbers right wall, even numbers left wall). The heading ("FURNACE-2 TEMPRING …") links it to the furnace and chamber. The report is built in this browser and the file is not sent anywhere; only the review's summary and a 10-minute trend are saved.</p>
+    <div class="row" style="margin-top:12px">${up}${SAMPLE?`<button class="link" data-sample>or open the sample record (F-02 tempering chamber, 22-Oct-2026)</button>`:""}</div>${S.busy?`<p class="muted">Reading…</p>`:""}${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}</section>`;
   const A=D.A,O=D.O,fk=D.furnace&&D.chamber?fkeyOf(D.furnace,D.chamber):"",dup=fk&&S.reviews.find(r=>r.fkey===fk&&r.from===A.from&&r.to===A.to);
   const furnOpts=[...new Set([...String(C().furnaces).split(/[,;\s]+/).filter(Boolean),D.furnace].filter(Boolean))];
-  const aff=A.incidents.filter(i=>i.aff),nCond=O.filter(o=>o.key&&(o.lvl==="crit"||o.lvl==="warn")).length,seq=spSeq(A);
-  const hero=A.verdict==="rej"?["bad","✕","Out of tolerance: reaction plan required"]:A.verdict==="cond"?["warn","!","In tolerance where it counts, with findings to review"]:["ok","✓","In control: every thermocouple within tolerance"];
+  const aff=A.incidents.filter(i=>i.aff),W=windows(A),nCond=O.filter(o=>o.key&&(o.lvl==="crit"||o.lvl==="warn")).length,nWarn=O.filter(o=>o.lvl==="warn").length,seq=spSeq(A);
+  const hero=A.verdict==="rej"?["bad","✕","Out of tolerance: reaction plan required"]:A.incidents.length?["warn","!","Variation found, no trays affected"]:A.verdict==="cond"?["warn","!","Within tolerance, with items to review"]:["ok","✓","Process record conforms"];
   const zt=A.incidents.reduce((s,i)=>s+i.outMin,0),wmax=A.walls.reduce((m,w)=>w.max!=null&&(m==null||Math.abs(w.max)>Math.abs(m.max))?w:m,null),hrs=(A.to-A.from)/3600000;
+  const JUMP=[["r-sum","Summary"],["r-trend","Trends"],["r-exc","Excursions & product"],["r-stat","Statistics"],["r-pri","Priority"],["r-find","Findings"],["r-mgmt","Management"],["r-rev","Review"]];
+  const rv=dup?RST[revStatus(dup)]:null,R=pdForCur();
   return `<section class="rp-head"><div><div class="eyebrow">SCADA review · CQI-9 HTSA 1.9 · ${esc(D.chamber||"")} chamber${D.sample?" · sample record":""}</div><h2 class="rt">${esc(D.heading||D.file)}</h2>
       <p class="small muted">${esc(C().plant)} · Date <b>${fD(A.from)}</b>${fD(A.to)!==fD(A.from)?" – <b>"+fD(A.to)+"</b>":""} · File <b>${esc(D.file)}</b> · 6 thermocouples · 3 zones</p></div>
-    <div class="row">${up}${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the review (C)</button>`}</div></section>
+    <div class="row"><button data-copyexc>Copy excursion log</button>${up}<button data-rprint>Print / PDF</button></div></section>
   ${S.err?`<p class="banner bad">${esc(S.err)}</p>`:""}
-  <section class="panel"><div class="fields"><label class="f"><span>Furnace</span><select data-link="furnace"><option value="">—</option>${furnOpts.map(f=>`<option ${D.furnace===f?"selected":""}>${esc(f)}</option>`).join("")}</select></label>
+  <section class="panel linkp"><div class="fields"><label class="f"><span>Furnace</span><select data-link="furnace"><option value="">—</option>${furnOpts.map(f=>`<option ${D.furnace===f?"selected":""}>${esc(f)}</option>`).join("")}</select></label>
       <label class="f"><span>Chamber</span><select data-link="chamber"><option value="">—</option>${CH.map(c=>`<option ${D.chamber===c?"selected":""}>${c}</option>`).join("")}</select></label>
-      <div class="f wide"><span class="small muted">Process rule</span><br><span class="small">${A.ft==="hardening"?`Hardening chamber: above ${HI_SET} °C austenitizing, trays in zones 2–3 count; zone 1 preheats; at ${HI_SET} °C or below no tray counts.`:A.ft==="tempering"?`Tempering chamber: above ${HI_SET} °C austenitizing (normalizing), at ${HI_SET} °C or below tempering / isothermal hold; trays count in every zone.`:"Choose the chamber."} Settings: <a href="#settings">P · Settings</a>.</span></div></div>
+      <div class="f wide2"><span class="small muted">Process rule</span><span class="small">${A.ft==="hardening"?`Hardening chamber: above ${HI_SET} °C austenitizing, trays in zones 2–3 count; zone 1 preheats; at ${HI_SET} °C or below no tray counts.`:A.ft==="tempering"?`Tempering chamber: above ${HI_SET} °C austenitizing (normalizing), at ${HI_SET} °C or below tempering / isothermal hold; trays count in every zone.`:"Choose the chamber."}</span></div>
+      <div class="f"><span class="small muted">Review of this record</span><span>${dup?`<button class="link" data-rev="${esc(dup.id)}">${esc(dup.id)}</button> ${pill(rv[0],rv[1])}`:pill("warn","C not recorded")} ${R?`<button class="link" data-jump="r-rev">${esc(R.id)}</button> ${pill(R.stage==="closed"?"ok":"warn",PD_NM[R.stage])}`:""}</span></div></div>
     ${fk?"":`<p class="banner warn" style="margin-top:8px">Choose the furnace and chamber before the review.</p>`}</section>
-  <section class="hero ${hero[0]}"><span class="hi">${hero[1]}</span><div><h2>${hero[2]}</h2><p>${plural(A.incidents.length,"zone excursion")} beyond ±${A.tolDef} °C were found, ${plural(windows(A).length,"time window")} with trays affected. ${plural(nCond,"condition")} to answer in the review.<br>Tolerance used: set value ±${A.tolDef} °C per thermocouple${A.specs.some(s=>s.spec)?" (specification in force where it matches)":""} (set values ${seq.join(" → ")} °C).</p></div></section>
+  ${setPanel(false)}
+  <nav class="jump" aria-label="Sections of the report">${JUMP.map(([id,l])=>`<button data-jump="${id}">${l}</button>`).join("")}</nav>
+  <div id="r-sum" class="anchor stack">
+  <section class="hero ${hero[0]}"><span class="hi">${hero[1]}</span><div><h2>${hero[2]}</h2><p>${plural(A.incidents.length,"zone excursion")} beyond the tolerance${W.length?`, ${plural(W.length,"time window")} with trays affected`:""}. ${plural(nCond,"condition")} to answer in the review${nWarn?`, ${plural(nWarn,"item")} to look at`:""}.<br>Tolerance used: set value ±${A.tolDef} °C per thermocouple${A.specs.some(s=>s.spec)?" (the specification in force where it matches)":""} · set values ${seq.join(" → ")} °C.</p></div></section>
   <div class="kpis">
     <div class="kpi"><span class="k">Record period</span><span class="v mono">${fT(A.from)}–${fT(A.to)}</span><span class="s">${fx(hrs)} h · every ${fx(A.step*60,0)} s</span></div>
     <div class="kpi"><span class="k">Readings</span><span class="v mono">${n0(A.n)}</span><span class="s">${fx(Math.min(100,100*A.n/A.expected))} % of expected · ${plural(A.gaps.length,"gap")}</span></div>
-    <div class="kpi"><span class="k">Readings in tolerance</span><span class="v mono c-${A.pctAll>=100?"ok":A.pctAll>=95?"warn":"bad"}">${fx(A.pctAll)}<small> %</small></span><span class="s">all ${A.tcs.filter(t=>!t.offline).length} TCs, ±${A.tolDef} °C · settling excluded</span></div>
-    <div class="kpi"><span class="k">Zone excursions</span><span class="v mono c-${A.incidents.length?(aff.length?"bad":"warn"):"ok"}">${A.incidents.length}</span><span class="s">${fDur(zt)} of zone-time out of window</span></div>
+    <div class="kpi"><span class="k">Readings in tolerance</span><span class="v mono c-${A.pctAll>=99?"ok":A.pctAll>=95?"warn":"bad"}">${fx(A.pctAll)}<small> %</small></span><span class="s">all ${A.tcs.filter(t=>!t.offline).length} TCs · settling excluded</span></div>
+    <div class="kpi"><span class="k">Zone excursions</span><span class="v mono c-${A.incidents.length?(aff.length?"bad":"warn"):"ok"}">${A.incidents.length}</span><span class="s">${A.incidents.length?fDur(zt)+" of zone-time out of window":"none"}</span></div>
     <div class="kpi"><span class="k">Worst deviation</span><span class="v mono c-${A.worst&&Math.abs(A.worst.d)>A.tolDef?"bad":"ok"}">${A.worst?sgn(A.worst.d):"—"}<small> °C</small></span><span class="s">${A.worst?`${tcTag(A.worst.k)} · ${A.worst.v} °C at ${fT(A.worst.t)}`:""}</span></div>
     <div class="kpi"><span class="k">Max wall difference</span><span class="v mono c-${wmax&&Math.abs(wmax.max)>A.tolDef?"warn":"ok"}">${wmax?fx(Math.abs(wmax.max)):"—"}<small> °C</small></span><span class="s">${wmax?`Zone ${wmax.z+1} at ${fT(wmax.maxAt)}`:""}</span></div></div>
-  <p class="small muted">Settings used: tolerance ±${A.tolDef} °C · tray positions ${esc(D.chamber==="Tempering"?C().posT:C().posH)} · merge dips &lt; ${C().merge} min · settling after a set value change: until back within tolerance for ${C().hold} readings, at most ${C().settle} min (${n0(A.settledAll)} readings not judged) · valid range ${VMIN}–${VMAX} °C.</p>
-  ${sec("Furnace layout and thermocouple status","One continuous chamber; zones are control zones. Trays move one position per push from the charge end to the discharge end.",layoutSvg(D,A))}
-  ${sec("Zone summary","Left and right wall thermocouples per zone. Ppk uses the overall standard deviation against the set value ± tolerance.",`<div class="zcards">${[0,1,2].map(z=>zoneCard(D,A,z)).join("")}</div>`,"bare")}
-  ${sec("Temperature trend by zone","Same time axis and the same temperature scale on every zone, so the charts can be compared directly.",`<div class="zcs">${chartsOfCur(D)}</div>`)}
+  <p class="small muted setl">Settings used: tolerance ±${A.tolDef} °C · tray positions ${esc(D.chamber==="Tempering"?C().posT:C().posH)} · merge dips &lt; ${C().merge} min · settling after a set value change: until back within tolerance for ${C().hold} readings, at most ${C().settle} min (${n0(A.settledAll)} readings not judged) · valid range ${VMIN}–${VMAX} °C · ${A.ft||"chamber not chosen"}.</p>
+  ${sec("Furnace layout and thermocouple status","One continuous chamber with no partition between zones. Zones are control zones; trays move one position per push from the charge end to the discharge end.",layoutSvg(D,A))}
+  ${sec("Zone summary","Left and right wall thermocouples per zone. Ppk uses the overall standard deviation against the set value ± tolerance; see the statistical analysis for Cp, Cpk and control-chart results.",`<div class="zcards">${[0,1,2].map(z=>zoneCard(D,A,z)).join("")}</div>`,"bare")}</div>
+  <div id="r-trend" class="anchor stack">
+  ${sec("Temperature trend by zone",`Same time axis and the same temperature scale on every zone, so the charts can be compared directly. <span class="lgs"><span class="lg"><i style="background:var(--s1)"></i>Left wall</span><span class="lg"><i style="background:var(--s2)"></i>Right wall</span><span class="lg"><i class="dash"></i>Set value</span><span class="lg"><i class="bandk"></i>± tolerance</span><span class="lg"><i class="dot"></i>Out of tolerance</span><span class="lg"><i class="sq"></i>Settling (not judged)</span></span>`,`<div class="zcs">${chartsOfCur(D)}</div>`)}
   ${A.trans.length?sec("Response to set value changes",`A thermocouple is judged again once it is back within tolerance of the new set value for ${C().hold} readings in a row, or after ${C().settle} min at the latest. ${n0(A.settledAll)} readings were left out for this reason.${A.trans.some(x=>x.late)?` <b class="c-bad">${plural(A.trans.filter(x=>x.late).length,"thermocouple")} did not reach the new set value within ${C().settle} min.</b>`:""}`,
     `<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Set value change</th><th>Changed at</th><th>Back in tolerance at</th><th class="n">Time to settle</th><th>Result</th></tr></thead><tbody>${A.trans.map(x=>`<tr><td><b>${tcTag(x.k)}</b> <span class="muted">Zone ${zoneOf(x.k)+1} · ${wallOf(x.k)} wall</span></td><td class="mono">${x.from} → ${x.to} °C ${x.to>x.from?"↑":"↓"}</td><td class="mono">${fT(x.at)}</td><td class="mono">${x.reached?fT(x.reached):"—"}</td><td class="n mono">${x.mins!=null?fDur(x.mins):"—"}</td><td>${x.reached?pill("ok","Reached in "+fDur(x.mins)):x.late?pill("bad","Not reached in "+fDur(C().settle)):pill("","Set value changed again")}</td></tr>`).join("")}</tbody></table></div>`):""}
-  ${sec("Hourly deviation from setpoint","Mean of (reading − setpoint) per hour, °C.",heatmap(A))}
-  ${sec("Spread of each thermocouple","Deviation from setpoint. Thin line: min to max. Bar: 5th to 95th percentile. Dot: mean. Green: the tolerance window.",spreadSvg(A))}
-  ${sec("Excursion log",`One row per zone incident: either wall beyond ±${A.tolDef} °C, with dips less than ${C().merge} min apart merged. Trays inside that zone are affected only while the process rule counts them.`,
-    A.incidents.length?`<div class="tw"><table><thead><tr><th>#</th><th>Zone</th><th>Walls out</th><th>Direction</th><th>Process</th><th>Start</th><th>End</th><th class="n">Span</th><th class="n">Time out</th><th>Extreme</th><th>Trays affected</th></tr></thead><tbody>${A.incidents.map((i,n)=>`<tr><td>${n+1}</td><td><b>Zone ${i.z+1}</b></td><td>${i.walls} <span class="muted">${i.tcs.join(", ")}</span></td><td>${i.dir}</td><td>${esc(i.proc)}</td><td class="mono">${fT(i.from)}</td><td class="mono">${fT(i.to)}</td><td class="n mono">${fDur(i.min)}</td><td class="n mono">${fDur(i.outMin)}</td><td class="mono c-bad">${i.ext.v} °C (${sgn(i.max)}) <span class="muted">${i.ext.tag} · set ${i.ext.sp}</span></td><td>${i.aff?`Zone ${i.z+1} <span class="muted">positions ${i.trays[0]}–${i.trays[1]}</span>`:`<span class="muted">not counted</span>`}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No excursion.</p>`)}
-  ${sec("Product affected: time windows","Trays in these zone positions during these windows were outside tolerance in a zone that counts for the process. They are the product to assess in the review.",
-    aff.length?`<div class="tw"><table><thead><tr><th>Zone</th><th>Tray positions</th><th>From</th><th>To</th><th class="n">Duration</th><th class="n">Extreme</th></tr></thead><tbody>${aff.map(i=>`<tr><td>Zone ${i.z+1}</td><td>${i.trays[0]}–${i.trays[1]} of the ${esc((D.chamber||"").toLowerCase())} chamber</td><td class="mono">${fDT(i.from)}</td><td class="mono">${fDT(i.to)}</td><td class="n mono">${fDur(i.min)}</td><td class="n mono c-bad">${sgn(i.max)} °C</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No product affected.</p>`)}
-  ${statSection(A)}
-  ${paretoSection(A)}
-  ${sec("Findings and conditions",`The conditions marked "to answer" go into the review record (C) — each needs a reaction or the record that handles it (HTSA 1.9 detection and reaction).`,
-    `<div class="obs">${O.map(o=>`<div class="ob"><div>${pill(o.lvl==="crit"?"bad":o.lvl==="warn"?"warn":o.lvl==="good"?"ok":"acc",o.tag)}</div><div><p class="ot">${esc(o.txt)}${o.key&&(o.lvl==="crit"||o.lvl==="warn")?` <span class="pill acc">to answer in the review</span>`:""}</p>${o.act?`<p class="act"><b>Action:</b> ${esc(o.act)}</p>`:""}</div></div>`).join("")}</div>
-    <div class="row" style="margin-top:10px">${dup?`<button class="pri w" data-rev="${esc(dup.id)}">Open its review ${esc(dup.id)}</button>`:`<button class="pri w" data-startrev ${fk?"":"disabled"}>Record the second-level review (HTSA 1.9)</button>`}${(()=>{const R=pdForCur();return R?`<button data-pdopen="${esc(R.id)}">Open its action review ${esc(R.id)} (${PD_NM[R.stage]})</button>`:`<button class="w" data-pdact="start" ${fk?"":"disabled"}>Start the action review (PDCA)</button>`;})()}</div>`)}
-  ${sec("Data-integrity checks","What the record itself says about monitoring quality (counted on the raw readings, not on the judged values).",`<div class="obs checks">${integrity(A).map(([l,n,t])=>`<div class="ob"><div>${pill(l==="good"?"ok":l==="warn"?"warn":"acc",l==="good"?"Pass":l==="warn"?"Review":"Info")}</div><b>${esc(n)}</b><p>${esc(t)}</p></div>`).join("")}</div>`)}
-  ${mgmtSection(D,A,O)}
+  ${sec("Hourly deviation from set value","Mean of (reading − set value) per hour, °C.",heatmap(A))}
+  ${sec("Spread of each thermocouple","Deviation from the set value. Thin line: min to max. Bar: 5th to 95th percentile. Dot: mean. Green: the tolerance window.",spreadSvg(A))}</div>
+  <div id="r-exc" class="anchor stack">
+  ${sec("Product affected: time windows",`${A.ft==="hardening"?`Hardening chamber: above ${HI_SET} °C trays in zones 2–3 count; zone 1 preheats.`:"Tempering chamber: trays count in every zone."} Overlapping incidents that affect trays are combined into time windows.`,prodWindows(D,A))}
+  ${sec("Excursion log",`One row per zone incident: either wall beyond the tolerance, with dips less than ${C().merge} min apart merged (min. ${plural(C().persist,"reading")} out). Trays inside that zone are affected only while the process rule counts them.`,excLog(A))}</div>
+  <div id="r-stat" class="anchor stack">${statSection(A)}</div>
+  <div id="r-pri" class="anchor stack">${paretoSection(A)}</div>
+  <div id="r-find" class="anchor stack">
+  ${sec("Findings and actions",`Full detail behind the priority list. The conditions marked "to answer" go into the second-level review (C): each needs a reaction or the record that handles it (HTSA 1.9 detection and reaction).`,
+    `<div class="obs">${O.map(o=>`<div class="ob"><div>${pill(o.lvl==="crit"?"bad":o.lvl==="warn"?"warn":o.lvl==="good"?"ok":"acc",o.tag)}</div><div><p class="ot">${esc(o.txt)}${o.key&&(o.lvl==="crit"||o.lvl==="warn")?` <span class="pill acc">to answer in the review</span>`:""}</p>${o.act?`<p class="act"><b>Action:</b> ${esc(o.act)}</p>`:""}</div></div>`).join("")}</div>`)}
+  ${sec("Data-integrity checks","What the record itself says about monitoring quality (counted on the raw readings, not on the judged values).",`<div class="obs checks">${integrity(A).map(([l,n,t])=>`<div class="ob"><div>${pill(l==="good"?"ok":l==="warn"?"warn":"acc",l==="good"?"Pass":l==="warn"?"Review":"Info")}</div><b>${esc(n)}</b><p>${esc(t)}</p></div>`).join("")}</div>`)}</div>
+  <div id="r-mgmt" class="anchor stack">${mgmtSection(D,A,O)}
   <section class="panel rp foot"><b>How the numbers are worked out</b><ul class="small">
     <li>Thermocouple layout: odd numbers on the right wall, even numbers on the left: TC-01 / TC-02 = zone 1 right / left wall, TC-03 / TC-04 = zone 2, TC-05 / TC-06 = zone 3. Deviation = present value (PV) − set value (SET) of the same row.</li>
     <li>A zone excursion starts when either wall reads outside the set value ± tolerance and ends when both walls have stayed inside for more than ${C().merge} min. "Span" is start to end; "Time out" counts only the minutes actually outside the window.</li>
     <li>Capability: USL / LSL = set value ± tolerance, calculated separately for each set value (fewer than ${MINSTAT} readings at a set value are not analysed). Cp = (USL − LSL) / 6σ within, Cpk = min(USL − mean, mean − LSL) / 3σ within, with σ within = MR̄ / 1.128; Pp and Ppk use the overall standard deviation.</li>
     <li>Pareto exposure = degrees beyond the tolerance × minutes; readings when five or more thermocouples were out together count as one chamber-wide cause.</li>
     <li>After a set value change a thermocouple is not judged until it is back within tolerance for ${C().hold} readings in a row, or ${C().settle} min have passed.</li>
-    <li>Gaps are intervals of more than ${C().gap} × the normal logging interval. The tolerance comes from the specification in force for the set value, else ±${A.tolDef} °C (Settings).</li></ul></section>`;
+    <li>Gaps are intervals of more than ${C().gap} × the normal logging interval. The tolerance comes from the specification in force for the set value, else ±${A.tolDef} °C (Settings).</li></ul></section></div>
+  <div id="r-rev" class="anchor stack noprint">${reviewCards(D,A,fk,dup)}</div>`;
 }
 function vReviews(){
   const L=S.reviews.slice().sort((a,b)=>(fromLocal(b.at)||0)-(fromLocal(a.at)||0));
@@ -886,6 +936,8 @@ const pdAll=()=>S.pdca.concat(PD_MEM),pdGet=id=>pdAll().find(r=>r.id===id);
 const e8All=()=>S.e8.concat(E8_MEM),e8Get=id=>id?e8All().find(d=>d.id===id)||null:null;
 const pdAct=R=>R.items.filter(i=>i.dec&&i.dec!=="none");
 const recKeyOf=D=>`${fkeyOf(D.furnace,D.chamber)}|${D.A.from}|${D.A.to}`;
+const curPd=()=>S.view==="load"?pdForCur():(pdGet(S.pdCur)||pdForCur());
+const jumpTo=id=>setTimeout(()=>{const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});},30);
 const pdForCur=()=>S.cur&&S.cur.A&&S.cur.furnace&&S.cur.chamber?pdAll().find(r=>r.key===recKeyOf(S.cur)):null;
 const pdLog=(R,t)=>R.log.push({d:todayISO(),t});
 const e8Log=(d,t)=>d.log.push({d:todayISO(),t});
@@ -915,7 +967,7 @@ async function pdStart(){const D=S.cur;if(!D||!D.A||!D.furnace||!D.chamber)retur
   const p0=R.items.filter(i=>i.dec==="8d"&&i.pr==="P0");p0.slice(1).forEach(i=>i.join=p0[0].id); /* the P0 issues of one record are one problem: one 8D */
   pdLog(R,`Review started: ${plural(R.items.length,"top-priority action")} (P0 / A); ${plural(R.low.length,"lower-priority issue")} listed, not actioned`);
   if(R.example)PD_MEM.push(R);else if(!await pdSave(R))return;
-  S.pdCur=R.id;S.pdMsg="";location.hash="#pdca";render();}
+  S.pdCur=R.id;S.pdMsg="";if(S.view==="load"){FOLD["c-pdca"]=true;render();jumpTo("c-pdca");}else{location.hash="#pdca";render();}}
 function pdMissing(R){const m=[];
   if(R.stage==="plan"){R.items.forEach(i=>{if(!i.dec)return m.push(i.id+" decision");
       if(i.dec==="none"){if(i.product)m.push(i.id+": product containment cannot be skipped");if(!txt(i.plan))m.push(i.id+" reason for no action");}
@@ -1026,13 +1078,7 @@ function e8ItemBox(i){const d=e8Get(i.d8);
   if(!d)return `<div class="wide d8box small">An 8D is opened for this issue when the plan is confirmed (Plan → Do).</div>`;
   return `<div class="wide d8box"><b>${esc(d.id)}</b> ${pill(d.stage==="closed"?"ok":e8Late(d)?"bad":"warn",E8_NM[d.stage])} <span class="small muted">leader ${esc(d.d1.leader||"—")} · target ${esc(dIso(d.target))}</span>${e8ContainLate(d)?" "+pill("bad","Containment late"):""}
     <button class="link" data-e8open="${esc(d.id)}">Open the 8D</button></div>`;}
-function vPdca(){
-  const recR=pdForCur(),R=S.pdCur&&pdGet(S.pdCur)||recR,h=[],today=todayISO();
-  h.push(`<h2>Action review (PDCA)</h2><p class="muted">The analysis suggests the actions; the reviewer decides the reaction plan (Plan), records what was done (Do), verifies the effect with later records (Check) and standardises (Act). Only the top priorities become actions: P0 (product) and A (the vital few of the Pareto, critical findings); B and C are listed with the review. Product-affecting and repeated problems are solved with an 8D. The HTSA 1.9 review record (C) answers each condition; it can name this review as the record that handles it.</p>`);
-  const D=S.cur;
-  if(D&&D.A&&!recR){const ok=D.furnace&&D.chamber,sp=pdSplit(D.A,D.O);h.push(`<div class="panel row between"><span>No action review for the loaded record (${esc(D.furnace&&D.chamber?fkName(fkeyOf(D.furnace,D.chamber)):"furnace / chamber not chosen")}, ${fD(D.A.from)}). The analysis suggests <b>${sp.top.length}</b> top-priority action(s) (P0 / A)${sp.low.length?`; ${sp.low.length} lower-priority issue(s) (B / C) will be listed, not actioned`:""}.${D.sample?" A review of the sample record is not saved.":""}</span><button class="pri w" data-pdact="start" ${ok?"":"disabled"}>Start review (Plan)</button></div>`);}
-  else if(!D&&!R)h.push(`<div class="empty"><p>Load a SCADA record to start its action review, or open an earlier review from the register below.</p><a class="btn pri" href="#load">Load a record</a></div>`);
-  if(R){const si=PD_ST.indexOf(R.stage),closed=R.stage==="closed",od=pdOverdue(R).length,dr=S.reviews.find(x=>x.fkey===R.fkey&&x.from===R.from&&x.to===R.to),ro=!S.canWrite&&!R.example;
+function pdCard(R,D){const h=[],today=todayISO();const si=PD_ST.indexOf(R.stage),closed=R.stage==="closed",od=pdOverdue(R).length,dr=S.reviews.find(x=>x.fkey===R.fkey&&x.from===R.from&&x.to===R.to),ro=!S.canWrite&&!R.example;
     h.push(`<section class="panel pdc"><div class="pd-head"><div><b>${esc(R.id)}</b> · ${esc(fkName(R.fkey))} · ${fDT(R.from)} – ${fDT(R.to)} · <span class="muted">${esc(R.file)}${R.example?" · sample record, not saved":""}</span>${R.cycle>1?` · cycle ${R.cycle}`:""}${od?" "+pill("bad",od+" overdue"):""}
       ${dr?` · <button class="link" data-rev="${esc(dr.id)}">HTSA 1.9 review ${esc(dr.id)}</button>`:""}${D&&D.A&&R.key!==recKeyOf(D)?` <span class="small muted">(not the record loaded)</span>`:""}</div>${steps(PD_ST.slice(0,4).map(s=>PD_NM[s]),si,closed)}</div>`);
     if(!R.items.length)h.push(`<p class="empty">${R.low&&R.low.length?"No top-priority issue (P0 product or priority A) in this record, so there is nothing to action.":"The analysis found no issue that needs an action in this record."} Confirm the review in each stage.</p>`);
@@ -1065,15 +1111,20 @@ function vPdca(){
       <div class="row pd-foot"><span class="msg">${esc(S.pdMsg||"")}</span><button data-pdact="print">Print / PDF</button>
         ${R.stage==="plan"&&R.cycle===1&&!ro?`<button class="danger w" data-pdact="delete">Delete review</button>`:""}
         ${R.stage==="act"&&!ro&&pdAct(R).some(i=>i.res==="not")?`<button class="w" data-pdact="replan">Re-plan actions that were not effective</button>`:""}
-        ${closed||ro?"":`<button class="pri w" data-pdact="advance">${{plan:"Confirm reaction plan → Do",do:"Actions done → Check",check:"Effect verified → Act",act:"Approve and close"}[R.stage]}</button>`}</div></section>`);}
+        ${closed||ro?"":`<button class="pri w" data-pdact="advance">${{plan:"Confirm reaction plan → Do",do:"Actions done → Check",check:"Effect verified → Act",act:"Approve and close"}[R.stage]}</button>`}</div></section>`);
+  return h.join("");}
+function vPdca(){
+  const recR=pdForCur(),R=S.pdCur&&pdGet(S.pdCur)||recR,h=[],today=todayISO();
+  h.push(`<h2>Action review (PDCA)</h2><p class="muted">The analysis suggests the actions; the reviewer decides the reaction plan (Plan), records what was done (Do), verifies the effect with later records (Check) and standardises (Act). Only the top priorities become actions: P0 (product) and A (the vital few of the Pareto, critical findings); B and C are listed with the review. Product-affecting and repeated problems are solved with an 8D. The HTSA 1.9 review record (C) answers each condition; it can name this review as the record that handles it.</p>`);
+  const D=S.cur;
+  if(D&&D.A&&!recR){const ok=D.furnace&&D.chamber,sp=pdSplit(D.A,D.O);h.push(`<div class="panel row between"><span>No action review for the loaded record (${esc(D.furnace&&D.chamber?fkName(fkeyOf(D.furnace,D.chamber)):"furnace / chamber not chosen")}, ${fD(D.A.from)}). The analysis suggests <b>${sp.top.length}</b> top-priority action(s) (P0 / A)${sp.low.length?`; ${sp.low.length} lower-priority issue(s) (B / C) will be listed, not actioned`:""}.${D.sample?" A review of the sample record is not saved.":""}</span><button class="pri w" data-pdact="start" ${ok?"":"disabled"}>Start review (Plan)</button></div>`);}
+  else if(!D&&!R)h.push(`<div class="empty"><p>Load a SCADA record to start its action review, or open an earlier review from the register below.</p><a class="btn pri" href="#load">Load a record</a></div>`);
+  if(R)h.push(pdCard(R,D));
   const all=pdAll().slice().sort((a,b)=>(b.from||0)-(a.from||0)||(a.id<b.id?1:-1));
   h.push(`<h3 style="margin-top:18px">Review register</h3>${all.length?`<div class="tw"><table><thead><tr><th>Review</th><th>Chamber</th><th>Record</th><th>Stage</th><th class="n">Actions</th><th class="n">Overdue</th><th>8Ds</th></tr></thead><tbody>${all.map(x=>`<tr class="click" data-pdopen="${esc(x.id)}"><td class="mono"><b>${esc(x.id)}</b>${x.example?' <span class="small muted">sample</span>':""}${R&&R.id===x.id?' <span class="small muted">open</span>':""}</td><td>${esc(fkName(x.fkey))}</td><td>${fD(x.from)}</td>
     <td>${pill(x.stage==="closed"?"ok":"warn",PD_NM[x.stage]+(x.cycle>1?" · cycle "+x.cycle:""))}</td><td class="n">${pdAct(x).length} / ${x.items.length}</td><td class="n">${pdOverdue(x).length?`<b class="c-bad">${pdOverdue(x).length}</b>`:"0"}</td><td class="small">${esc([...new Set(x.items.map(i=>i.d8).filter(Boolean))].join(", "))}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No action review yet.</p>`}`);
   return h.join("");}
-function vE8(){
-  const d=e8Get(S.e8Cur),h=[`<div class="row between"><h2>8D problem solving</h2><button class="w" data-e8act="new">New 8D (problem not from a review)</button></div>
-    <p class="muted">One 8D per problem: opened from the action review when the plan is confirmed (product affected, or a repeated problem), or by hand. Each discipline has its gate; the review item follows its 8D (D6 done = the action is done, closed = the result for Check).</p>`];
-  if(d){const si=e8Si(d),closed=d.stage==="closed",view=S.e8View&&E8_ST.indexOf(S.e8View)<=si?S.e8View:(closed?"d8":d.stage),vi=E8_ST.indexOf(view),ro=closed||(!S.canWrite&&!d.src.example);
+function e8Card(d){const h=[];const si=e8Si(d),closed=d.stage==="closed",view=S.e8View&&E8_ST.indexOf(S.e8View)<=si?S.e8View:(closed?"d8":d.stage),vi=E8_ST.indexOf(view),ro=closed||(!S.canWrite&&!d.src.example);
     const P=(path,v,type)=>pdInp("e8",path,v,ro,type),T=(path,v)=>pdArea("e8",path,v,ro),Se=(path,v,opts)=>pdSel("e8",path,v,opts,ro);
     const src=d.src.rv?`from review ${esc(d.src.rv)} · ${esc(d.src.item)}`:"opened by hand";
     h.push(`<section class="panel pdc"><div class="pd-head"><div><b>${esc(d.id)}</b> · ${esc(d.title||"(no title yet)")} · <span class="muted">${esc(d.src.fkey?fkName(d.src.fkey):"no record")}${d.src.from!=null?" · "+fD(d.src.from):""} · ${src}${d.src.example?" · sample record, not saved":""}</span>
@@ -1105,7 +1156,12 @@ function vE8(){
         ${!closed&&!ro&&si<=1&&!d.src.rv?`<button class="danger w" data-e8act="delete">Delete 8D</button>`:""}
         ${d.stage==="d6"&&d.d6.res==="not"&&!ro?`<button class="w" data-e8act="back">Not effective → back to D4</button>`:""}
         <button data-e8act="close">Close the form</button>
-        ${closed||ro?"":`<button class="pri w" data-e8act="advance">${d.stage==="d8"?"Close the 8D":E8_NM[d.stage].slice(0,2)+" complete → "+E8_NM[E8_ST[si+1]].slice(0,2)}</button>`}</div></section>`);}
+        ${closed||ro?"":`<button class="pri w" data-e8act="advance">${d.stage==="d8"?"Close the 8D":E8_NM[d.stage].slice(0,2)+" complete → "+E8_NM[E8_ST[si+1]].slice(0,2)}</button>`}</div></section>`);
+  return h.join("");}
+function vE8(){
+  const d=e8Get(S.e8Cur),h=[`<div class="row between"><h2>8D problem solving</h2><button class="w" data-e8act="new">New 8D (problem not from a review)</button></div>
+    <p class="muted">One 8D per problem: opened from the action review when the plan is confirmed (product affected, or a repeated problem), or by hand. Each discipline has its gate; the review item follows its 8D (D6 done = the action is done, closed = the result for Check).</p>`];
+  if(d)h.push(e8Card(d));
   const all=e8All().slice().sort((a,b)=>a.id<b.id?1:-1);
   h.push(`<h3 style="margin-top:18px">8D register</h3>${all.length?`<div class="tw"><table><thead><tr><th>8D</th><th>Problem</th><th>Chamber · record</th><th>From</th><th>Discipline</th><th>Target</th></tr></thead><tbody>${all.map(x=>`<tr class="click" data-e8open="${esc(x.id)}">
       <td class="mono"><b>${esc(x.id)}</b>${x.src.example?' <span class="small muted">sample</span>':""}${d&&d.id===x.id?' <span class="small muted">open</span>':""}</td><td>${esc(x.title||"—")}</td><td>${esc(x.src.fkey?fkName(x.src.fkey):"—")}${x.src.from!=null?`<br><span class="small muted">${fD(x.src.from)}</span>`:""}</td>
@@ -1140,9 +1196,9 @@ function e8Html(d){const row=(a,b)=>`<tr><th>${a}</th><td>${esc(b||"—")}</td><
 function setPath(o,path,v){const ks=path.split(".");let x=o;for(let i=0;i<ks.length-1;i++)x=x[ks[i]]=x[ks[i]]??{};x[ks.at(-1)]=v;}
 onDoc("click",async e=>{const b=e.target.closest("button,tr.click");if(!b||b.closest("#modal"))return;const d=b.dataset;
   if(d.pdopen){S.pdCur=d.pdopen;S.pdMsg="";if(location.hash!=="#pdca")location.hash="#pdca";else render();return;}
-  if(d.e8open){S.e8Cur=d.e8open;S.e8View=null;S.e8Msg="";if(location.hash!=="#e8")location.hash="#e8";else render();return;}
+  if(d.e8open){S.e8Cur=d.e8open;S.e8View=null;S.e8Msg="";const x=e8Get(d.e8open),R=S.view==="load"&&pdForCur();if(R&&x&&x.src.rv===R.id){FOLD["c-e8"]=true;render();jumpTo("c-e8");return;}if(location.hash!=="#e8")location.hash="#e8";else render();return;}
   if(d.pdact){const a=d.pdact;if(a==="start"){pdStart();return;}
-    const R=pdGet(S.pdCur)||pdForCur();if(!R)return;S.pdCur=R.id;
+    const R=curPd();if(!R)return;S.pdCur=R.id;
     if(a==="print"){openModal({kind:"print",title:"SCADA action review "+R.id,html:()=>pdHtml(R)});return;}
     if(a==="advance"){S.pdMsg=await pdAdvance(R);render();return;}
     if(a==="replan"){pdReplan(R);await pdSave(R);S.pdMsg="";render();return;}
@@ -1151,7 +1207,7 @@ onDoc("click",async e=>{const b=e.target.closest("button,tr.click");if(!b||b.clo
     const m=a.match(/^(ev8?):(.+)$/);if(m){const i=R.items.find(x=>x.id===m[2]);if(!i)return;i.evid=m[1]==="ev8"?`${i.d8} (D6 validation): ${e8Get(i.d8).d6.valid}`:pdEvidence(R.fkey,R.to,i.k,i.base);await pdSave(R);render();}
     return;}
   if(d.e8act){const a=d.e8act;if(a==="new"){e8Manual();return;}const x=e8Get(S.e8Cur);if(!x)return;
-    if(a==="close"){S.e8Cur=null;render();return;}
+    if(a==="close"){S.e8Cur=null;render();if(S.view==="load")jumpTo("c-pdca");return;}
     if(a.startsWith("view:")){S.e8View=a.slice(5);render();return;}
     if(a==="print"){openModal({kind:"print",title:"8D report "+x.id,html:()=>e8Html(x)});return;}
     if(a==="advance"){S.e8Msg=await e8Advance(x);render();return;}
@@ -1160,7 +1216,7 @@ onDoc("click",async e=>{const b=e.target.closest("button,tr.click");if(!b||b.clo
     if(a==="delete"){armedDelete(b,async()=>{if(x.src.example)E8_MEM.splice(E8_MEM.indexOf(x),1);else await dbDel("e8",x.id);S.e8Cur=null;toast(x.id+" deleted");render();});return;}}
 });
 onDoc("change",async e=>{const el=e.target;if(el.closest("#modal"))return;
-  if(el.dataset.pd){const R=pdGet(S.pdCur)||pdForCur();if(!R)return;const k=el.dataset.pd,v=el.type==="checkbox"?el.checked:el.value;
+  if(el.dataset.pd){const R=curPd();if(!R)return;const k=el.dataset.pd,v=el.type==="checkbox"?el.checked:el.value;
     if(k.startsWith("doc:")){const n=k.slice(4);R.docs=(R.docs||[]).filter(x=>x!==n);if(v)R.docs.push(n);}
     else if(k.startsWith("rv:"))R[k.slice(3)]=v;
     else{const [,id,f]=k.split(":"),i=R.items.find(x=>x.id===id);if(!i)return;i[f]=v;
@@ -1172,6 +1228,21 @@ onDoc("change",async e=>{const el=e.target;if(el.closest("#modal"))return;
     if(e8Si(x)>E8_ST.indexOf(k.split(".")[0])&&/^d\d/.test(k))e8Log(x,`${E8_NM[k.split(".")[0]]||k} changed after completion`);
     await e8Save(x);if(el.tagName==="SELECT"||el.type==="checkbox")render();}
 });
+
+/* the record page: settings in place, section jumps, set value of the statistics, folded cards, print, copy, drop a file */
+let ACFG_T=null;
+onDoc("change",e=>{const el=e.target;if(!el.dataset||!el.dataset.acfg||!S.cur)return;const k=el.dataset.acfg;
+  S.cfg={...S.cfg,[k]:/^pos/.test(k)?el.value:(num(el.value)>0||(k==="persist"&&num(el.value)>=1)?num(el.value):DEF[k])};runCur();render();
+  if(S.db&&S.canWrite){clearTimeout(ACFG_T);ACFG_T=setTimeout(()=>dbSet("config","settings",S.cfg).catch(err=>toast("Settings not saved: "+errMsg(err))),600);}});
+onDoc("click",e=>{const sm=e.target.closest("summary");if(sm&&sm.parentNode.dataset&&sm.parentNode.dataset.fold){const dt=sm.parentNode;setTimeout(()=>{FOLD[dt.dataset.fold]=dt.open;foldSave();},0);return;}
+  const b=e.target.closest("button");if(!b||b.closest("#modal"))return;const d=b.dataset;
+  if(d.jump){jumpTo(d.jump);return;}
+  if(d.statsp){S.statSp=+d.statsp;render();return;}
+  if(d.rprint!==undefined){document.querySelectorAll("#main details").forEach(x=>x.dataset.wasOpen=x.open);window.print();return;}
+  if(d.copyexc!==undefined&&S.cur&&S.cur.A){const t=excText(S.cur.A);(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast("Excursion log copied: paste it into Excel"),()=>download(`excursion-log-${stamp()}.txt`,t,"text/plain"));return;}});
+onDoc("dragover",e=>{if(S.view!=="load"||!e.dataTransfer||![...e.dataTransfer.types].includes("Files"))return;e.preventDefault();document.body.classList.add("dragging");});
+onDoc("dragleave",e=>{if(!e.relatedTarget)document.body.classList.remove("dragging");});
+onDoc("drop",e=>{document.body.classList.remove("dragging");if(S.view!=="load")return;const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(!f)return;e.preventDefault();S.statSp=null;loadFile(f);});
 
 /* 14. wiring */
 onDoc("click",e=>{
@@ -1204,7 +1275,7 @@ onDoc("change",e=>{const el=e.target;
   if(S.modal&&S.modal.ed&&el.dataset.l){const i=el.dataset.l.lastIndexOf("|"),k=el.dataset.l.slice(0,i),f=el.dataset.l.slice(i+1);(S.modal.ed.lines[k]=S.modal.ed.lines[k]||{})[f]=el.value;
     if(el.tagName==="SELECT"||f==="closed")redraw();return;}
   if(el.dataset.link&&S.cur){S.cur[el.dataset.link]=el.value;runCur();render();return;}
-  if(el.id==="scfile"&&el.files[0]){loadFile(el.files[0]);el.value="";return;}
+  if(el.id==="scfile"&&el.files[0]){S.statSp=null;loadFile(el.files[0]);el.value="";return;}
   if(el.id==="impfile"&&el.files[0]){readImport(el.files[0]);el.value="";}
 });
 onDoc("keydown",e=>{if(e.key==="Escape"&&S.modal)closeModal();});

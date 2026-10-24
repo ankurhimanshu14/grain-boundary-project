@@ -223,7 +223,7 @@ svg.lay .lb,.zcw svg .lb{font:600 12.5px var(--f-body);fill:var(--ink)}svg.lay .
 .rp .ob p{margin:0;color:var(--ink)}.rp .ob p.act{margin-top:4px;color:var(--muted)}.rp .ob p.act b{color:var(--ink)}
 .rp .checks .ob{grid-template-columns:120px 220px 1fr}
 @media (max-width:640px){.rp .ob,.rp .checks .ob{grid-template-columns:1fr}}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px;margin-top:6px}.stat-grid h4,.rp h4{margin:0 0 6px;font-size:14px}
+.stat-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:6px}.stat-grid h4,.rp h4{margin:0 0 6px;font-size:14px}
 table.stat td:first-child{color:var(--muted);white-space:nowrap}table.stat th,table.stat td.n{white-space:nowrap}table.stat td.n,table.stat th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 table.stat .lg{display:inline-flex;align-items:center;gap:5px}table.stat .lg i{display:inline-block;width:12px;height:3px;border-radius:2px}
 h4.setgrp{margin:16px 0 8px;padding:6px 10px;background:var(--sunk);border-left:4px solid var(--accent);border-radius:3px;font-size:14px}h4.setgrp .muted{font-weight:400}
@@ -252,6 +252,36 @@ table.heat th.rl{text-align:left;width:64px;white-space:nowrap;text-transform:no
 .d8-steps{display:flex;gap:3px;flex-wrap:wrap;align-items:center}.d8-steps button{padding:3px 9px;font:600 12px var(--f-mono);border-radius:4px;color:var(--muted)}
 .d8-steps button.done{background:var(--accent-2);color:var(--accent);border-color:var(--accent-2)}.d8-steps button.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}.d8-steps button.view{outline:2px solid var(--ink);outline-offset:1px}.d8-steps button:disabled{opacity:.45;cursor:default}
 .pdc textarea{width:100%}
+/* SCADA review: the record page as one report (CALOR's layout): drop zone, settings, section jumps, folded review cards */
+:root{--okband:rgba(31,122,69,.11)}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--okband:rgba(111,207,151,.13)}}:root[data-theme="dark"]{--okband:rgba(111,207,151,.13)}
+section.drop{border:2px dashed var(--line);border-radius:8px;padding:22px 24px;background:var(--panel)}section.drop h3{font-size:19px;margin:4px 0 8px}section.drop p{margin:0;color:var(--muted)}
+body.dragging section.drop,body.dragging .rp-head{outline:3px dashed var(--accent);outline-offset:4px}
+details.aset>summary,details.fold>summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline}
+details.aset>summary::-webkit-details-marker,details.fold>summary::-webkit-details-marker{display:none}
+details.aset>summary::before,details.fold>summary::before{content:"▸";color:var(--muted);transition:transform .15s;display:inline-block}
+details.aset[open]>summary::before,details.fold[open]>summary::before{transform:rotate(90deg)}
+details.fold>summary .fh{font:600 17px var(--f-display)}details.fold>summary .fsum{font-size:13px;color:var(--muted);flex:1 1 300px}
+details.fold .fbody{margin-top:12px}details.fold .pdc{border:0;padding:0;margin-top:12px}
+.fold .ph{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:4px;background:var(--accent);color:var(--on-accent);font:700 12px var(--f-body);margin-right:4px;vertical-align:1px}
+.method{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}.method>div{background:var(--sunk);border-radius:6px;padding:8px 12px;font-size:13px}.method b{display:block;margin-bottom:2px}.method span{color:var(--muted)}
+nav.jump{position:sticky;top:0;z-index:5;display:flex;gap:6px;overflow-x:auto;padding:8px 2px;background:var(--bg);border-bottom:1px solid var(--line);scrollbar-width:thin}
+nav.jump button{white-space:nowrap;font-size:13px;padding:4px 12px;border-radius:999px}
+.anchor{scroll-margin-top:58px}.anchor>section,.anchor>details{scroll-margin-top:58px}
+.linkp .fields{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}.linkp .wide2{grid-column:span 2;display:flex;flex-direction:column;gap:3px}.linkp .f{display:flex;flex-direction:column;gap:3px}
+@media (max-width:640px){.linkp .wide2{grid-column:1/-1}}
+.setl{margin:-4px 0 0}
+.segs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}.segs button{font-size:13px;padding:5px 12px;border-radius:999px}.segs button .muted{font-size:12px}
+.segs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.segs button[aria-pressed="true"] .muted{color:var(--on-accent);opacity:.85}
+.lgs{display:inline-flex;flex-wrap:wrap;gap:4px 14px;margin-left:6px;vertical-align:middle}.lgs .lg{display:inline-flex;align-items:center;gap:6px;color:var(--muted);white-space:nowrap}
+.lgs .lg i{display:inline-block;width:14px;height:3px;border-radius:2px}.lgs .lg i.dash{height:0;border-top:2px dashed var(--muted);background:none}.lgs .lg i.bandk{height:10px;background:var(--okband);border:1px solid var(--ok)}
+.lgs .lg i.dot{width:7px;height:7px;border-radius:50%;background:var(--bad)}.lgs .lg i.sq{width:14px;height:10px;background:var(--settle)}
+.rp td.mono,.rp td.n,.rp th{white-space:nowrap}.rp .tw td{vertical-align:top}
+/* status pills with an icon in the report and the review cards (CALOR's chips) */
+:is(.rp,.fold,.hero) .pill.ok,:is(.rp,.fold) .pill.warn,:is(.rp,.fold) .pill.bad,:is(.rp,.fold) .pill.acc{display:inline-flex;align-items:center;gap:5px;padding-left:3px}
+:is(.rp,.fold) .pill:is(.ok,.warn,.bad,.acc)::before{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;font-size:9.5px;font-weight:700;color:var(--panel)}
+:is(.rp,.fold) .pill.ok::before{content:"✓";background:var(--ok)}:is(.rp,.fold) .pill.warn::before{content:"!";background:var(--warn)}
+:is(.rp,.fold) .pill.bad::before{content:"✕";background:var(--bad)}:is(.rp,.fold) .pill.acc::before{content:"i";background:var(--muted)}
+@media print{nav.jump,details.aset,.linkp,.noprint,section.drop{display:none!important}.anchor{display:block}}
 /* TC module: SAT readings series */
 .rdw{max-height:380px;overflow:auto}
 .rdt td{padding:3px 6px}.rdt input{width:100%;min-width:72px;font-family:var(--f-mono)}
