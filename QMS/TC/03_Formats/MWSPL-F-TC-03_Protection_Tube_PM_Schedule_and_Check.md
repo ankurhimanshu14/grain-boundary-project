@@ -8,14 +8,16 @@
 
 ### 1. Schedule (approved by the Maintenance Head, reviewed yearly)
 
-| Thermocouple | Tube material | Tube installed | Check every (days) | Replace after (days) | Next check | Replace by |
+Element and protection tube are installed and replaced together (one assembly): "Tube installed" is the element's installation date, and a tube to replace means replacing the thermocouple (Element replacements).
+
+| Thermocouple | Tube material | Tube installed (with the element) | Check every (days) | Tube life: replace TC after (days) | Next check | Replace by |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| | | | | | |
 
 Schedule rev: ____ Approved by: __________ Date: ________
 
 ### 2. Check record
 
-| Date | Thermocouple | Result (OK / worn / cracked / replaced) | New tube material | Note | Checked by |
+| Date | Thermocouple | Result (OK / worn / cracked) | Note | Checked by |
 |---|---|---|---|---|---|
 | | | | | | |

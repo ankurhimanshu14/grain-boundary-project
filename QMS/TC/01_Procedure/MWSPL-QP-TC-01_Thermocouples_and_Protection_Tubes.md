@@ -74,11 +74,11 @@ To make sure every furnace temperature is measured by a thermocouple that was ca
 #### 6.3 Protection tubes (PM schedule)
 
 1. Each thermocouple in use has a tube material, a check interval and, where set, a replacement interval (F-TC-03). The Maintenance Head approves the schedule and reviews it yearly; a change after approval needs re-approval.
-2. Tubes are checked on the interval (WI-TC-03); a worn or cracked tube is replaced before the next check, and the replacement is recorded.
+2. Tubes are checked on the interval (WI-TC-03). The element and its protection tube are one assembly: they are installed and replaced together, so the tube's installation date is the element's. A worn or cracked tube, or a tube past its replacement interval, is dealt with by replacing the thermocouple (element and tube, §6.4) before the next check.
 
 #### 6.4 Replacement of elements
 
-Elements are replaced at the end of their service life (setting, default 365 days), after a failed SAT when adjustment is not enough, on damage or tube failure. The old element is kept in the register as removed with its reason; the new one needs its certificate and a SAT before use.
+Elements are replaced at the end of their service life (setting, default 365 days), after a failed SAT when adjustment is not enough, on damage or protection tube failure (the tube is always replaced with the element). The old element is kept in the register as removed with its reason; the new one needs its certificate and a SAT before use.
 
 ### 7. Records
 
