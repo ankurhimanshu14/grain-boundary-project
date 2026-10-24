@@ -412,10 +412,10 @@ function vTspec(){const E=S.tdEd||(S.tdEd=JSON.parse(JSON.stringify({Hardening:T
     return `<label class="f" for="${id}"><span>${esc(l)}</span>${kind&&typeof kind==="object"?`<select id="${id}" data-td="${ch}.${k}">${Object.entries(kind).map(([a,b])=>`<option value="${esc(a)}" ${String(v)===a?"selected":""}>${esc(b)}</option>`).join("")}</select>`
       :`<input id="${id}" data-td="${ch}.${k}" ${kind==="num"?'inputmode="decimal"':""} value="${esc(v)}">`}</label>`;};
   const D=CH.map(ch=>({ch,L:inUse().filter(e=>e.chamber===ch).map(e=>({e,d:specDiff(e)})).filter(x=>x.d.length)}));
-  return `<div class="row between"><h2>Default thermocouple specifications</h2><div class="row"><button class="pri w" data-save-tdef>Save the default specifications</button><button data-reset-tdef>Discard changes</button></div></div>
+  return `<div class="row between"><h2>Default thermocouple specifications</h2><div class="row"><button class="pri w" data-save-tdef>Save the default specifications</button><button data-reset-tdef>Discard changes</button><button class="w" data-tdapply>Update the register to these defaults…</button></div></div>
   <p class="muted">The specification a new thermocouple gets when it is registered (Thermocouples → Register) or imported from CALOR, per chamber. A replacement keeps the removed thermocouple's specification. The range of use is the default for every thermocouple of the chamber without its own range; the tube interval and tube life are copied into each new thermocouple and so into the PM schedule. Changing a default does not change thermocouples already registered.</p>
   <div class="grid2">${CH.map(ch=>`<div class="panel"><h3>${ch} chamber</h3><div class="fields">${TDF.map(f=>fld(ch,f)).join("")}</div></div>`).join("")}</div>
-  <div class="panel"><h3>Thermocouples in use that differ from the default</h3>${D.some(x=>x.L.length)?D.filter(x=>x.L.length).map(x=>`<p class="small"><b>${x.ch}</b></p><ul class="issues">${x.L.map(({e,d})=>`<li><a href="#tspec" data-tc="${esc(e.id)}">${esc(tcName(e))}</a>: ${esc(d.join(" · "))}</li>`).join("")}</ul>`).join("")
+  <div class="panel"><div class="row between"><h3>Thermocouples in use that differ from the default</h3>${D.some(x=>x.L.length)?`<button class="w" data-tdapply>Update them…</button>`:""}</div>${D.some(x=>x.L.length)?D.filter(x=>x.L.length).map(x=>`<p class="small"><b>${x.ch}</b></p><ul class="issues">${x.L.map(({e,d})=>`<li><a href="#tspec" data-tc="${esc(e.id)}">${esc(tcName(e))}</a>: ${esc(d.join(" · "))}</li>`).join("")}</ul>`).join("")
     :`<p class="muted">None: every thermocouple in use matches the default of its chamber (fields left blank are not compared).</p>`}</div>`;}
 function vPm(){
   const c=C(),p=S.pm,pr=pmReview(),U=inUse();
@@ -758,7 +758,38 @@ function h33Print(){const A=assess33(),sc=SCORE[A.score];return `${pHead("CQI-9 
   <div class="tw"><table><thead><tr><th>Requirement</th><th>Evidence</th><th>Result</th></tr></thead><tbody>${A.I.map(i=>`<tr><td><b>${esc(i.req)}</b></td><td>${esc(i.ev)}</td><td>${esc(LV[i.lvl][1])}</td></tr>`).join("")}</tbody></table></div>
   <h3 style="margin-top:12px">Thermocouples in use</h3><div class="tw"><table><thead><tr><th>Thermocouple</th><th>Use</th><th>Certificate</th><th>Installed</th><th>Last SAT</th><th>SAT due</th><th>Tube check due</th></tr></thead><tbody>${inUse().map(e=>{const s=satState(e),t=tubeState(e);
     return `<tr><td>${esc(tcName(e))}</td><td>${esc(USE[e.use])}</td><td>${esc(e.cal.cert)}</td><td>${fmtD(e.installed)}</td><td>${s.last?esc(s.last.id)+" "+fmtD(s.last.date)+" "+fx(satEval(s.last).diff)+" °C":"—"}</td><td>${s.due?fmtD(s.due):esc(s.txt)}</td><td>${t.due?fmtD(t.due):esc(t.txt)}</td></tr>`;}).join("")}</tbody></table></div>`;}
-const DRAW={replrec:DRAW_REPLREC,tc:DRAW_TC,repl:DRAW_REPL,eq:DRAW_EQ,sat:DRAW_SAT,round:DRAW_ROUND,pmappr:DRAW_PMAPPR,print:DRAW_PRINT};
+/* updating the register to the default specification: each field of the default against the thermocouple's own value */
+const TDMAP={type:["type","Type"],use:["use","Use"],make:["spec.make","Make / supplier"],cls:["spec.cls","Tolerance class"],sheath:["sheath","Sheath"],dia:["spec.dia","Diameter"],length:["spec.length","Length"],
+  depth:["spec.depth","Insertion depth"],junction:["spec.junction","Hot junction"],calLab:["cal.lab","Calibration laboratory"],calLo:["cal.lo","Calibrated from"],calHi:["cal.hi","Calibrated to"],
+  useLo:["useLo","Range of use from"],useHi:["useHi","Range of use to"],tubeMat:["tube.mat","Tube material"],tubeCheckDays:["tube.checkDays","Tube check interval"],tubeReplDays:["tube.replDays","Tube life"]};
+/* from the certificate of each element: not updated unless chosen */
+const TD_CERT=["calLab","calLo","calHi"];
+const gp=(o,path)=>path.split(".").reduce((a,k)=>a==null?a:a[k],o);
+function tdPlan(m){const out=[];inUse().filter(e=>m.ch.includes(e.chamber)).forEach(e=>{const t=TD(e.chamber),ch=[];
+    Object.entries(TDMAP).forEach(([k,[path,l]])=>{if(!m.f[k])return;
+      /* the range of use follows the default when the thermocouple has none of its own: updating it clears the own range */
+      const want=k==="useLo"||k==="useHi"?"":String(t[k]??""),cur=String(gp(e,path)??"");
+      if(k!=="useLo"&&k!=="useHi"&&!want.trim())return;if(cur.trim()===want.trim())return;if(m.mode==="fill"&&cur.trim()&&k!=="useLo"&&k!=="useHi")return;
+      ch.push({k,path,l,from:cur,to:want});});
+    if(ch.length)out.push({e,ch});});return out;}
+function tdApplyModal(){const saved=JSON.stringify({Hardening:TD("Hardening"),Tempering:TD("Tempering")});
+  if(S.tdEd&&JSON.stringify(S.tdEd)!==saved){toast("Save the default specifications first");return;}
+  openModal({kind:"tdapply",ch:[...CH],mode:"all",f:Object.fromEntries(Object.keys(TDMAP).map(k=>[k,!TD_CERT.includes(k)])),msg:""});}
+function DRAW_TDAPPLY(){const m=S.modal,P=tdPlan(m),n=P.reduce((a,x)=>a+x.ch.length,0),v=x=>x===""?"(blank)":x;
+  return sheet("Update the register to the default specification",`<p class="muted">Every thermocouple <b>in use</b> of the chambers chosen gets the chosen fields of its chamber's default specification. Removed and spare elements are not changed. Each change is written in the thermocouple's log.</p>
+  <div class="row" style="gap:16px;flex-wrap:wrap">${CH.map(ch=>`<label class="chk"><input type="checkbox" data-tda-ch="${ch}" ${m.ch.includes(ch)?"checked":""}> ${ch} chamber</label>`).join("")}
+    <label class="chk"><input type="radio" name="tdamode" data-tda-mode="all" ${m.mode==="all"?"checked":""}> Replace values that differ</label><label class="chk"><input type="radio" name="tdamode" data-tda-mode="fill" ${m.mode==="fill"?"checked":""}> Only fill blank fields</label></div>
+  <fieldset><legend>Fields to update</legend><div class="row" style="gap:6px 16px;flex-wrap:wrap">${Object.entries(TDMAP).filter(([k])=>k!=="useHi").map(([k,[,l]])=>`<label class="chk"><input type="checkbox" data-tda-f="${k}" ${m.f[k]?"checked":""}> ${k==="useLo"?"Range of use (clear the thermocouple's own range: it follows the default)":esc(l)}${TD_CERT.includes(k)?' <span class="small muted">(from the certificate)</span>':""}</label>`).join("")}</div>
+    <p class="small muted" style="margin-top:6px">The calibration laboratory and range come from each element's certificate and are not updated unless ticked. A change of the tube material or intervals marks an approved PM schedule as changed.</p></fieldset>
+  <p style="margin-top:10px"><b>${plural(P.length,"thermocouple")}</b>, ${plural(n,"field")} to change.</p>
+  ${P.length?`<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Changes</th></tr></thead><tbody>${P.map(({e,ch})=>`<tr><td>${esc(tcName(e))}<br><span class="small muted">${esc(e.serial)}</span></td><td class="small">${ch.map(c=>`${esc(c.l)}: ${esc(v(c.from))} → <b>${esc(v(c.to))}</b>`).join("<br>")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Nothing to change: the register already matches the default specification for the fields chosen.</p>`}`,
+  `${P.length?`<button class="pri w" data-tda-go>Update ${plural(P.length,"thermocouple")}</button>`:""}<button data-close>Close</button>`);}
+async function tdApply(){if(!needDb())return;const P=tdPlan(S.modal);if(!P.length)return;let ok=0,pm=false;
+  for(const {e,ch} of P){const x=clone(e);ch.forEach(c=>{const ks=c.path.split("."),last=ks.pop();ks.reduce((a,k)=>a[k],x)[last]=c.to;if(c.path.startsWith("tube."))pm=true;});
+    if(await put("tcs",x,"Updated to the default specification: "+ch.map(c=>`${c.l} ${c.from||"(blank)"} → ${c.to||"(blank, follows the default)"}`).join("; ")))ok++;}
+  if(pm)await markPm("Thermocouples updated to the default specification (tube material / intervals)");
+  toast(`${plural(ok,"thermocouple")} updated to the default specification`);closeModal();}
+const DRAW={tdapply:DRAW_TDAPPLY,replrec:DRAW_REPLREC,tc:DRAW_TC,repl:DRAW_REPL,eq:DRAW_EQ,sat:DRAW_SAT,round:DRAW_ROUND,pmappr:DRAW_PMAPPR,print:DRAW_PRINT};
 
 /* 10. actions */
 async function saveTc(){const e=fillTc(S.modal.ed),known=S.tcs.find(x=>x.id===e.id);
@@ -910,7 +941,7 @@ onDoc("click",e=>{
   const b=e.target.closest("button,tr.click,a[data-docref],a[data-sat],a[data-tc],circle[data-sat]");if(!b)return;const d=b.dataset;
   if(b.closest("#modal")||d.close!==undefined){
     if(d.close!==undefined){closeModal();return;}
-    if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}
+    if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.tdaGo!==undefined){tdApply();return;}
     if(d.usecorr!==undefined&&S.modal.kind==="sat"){const x=satCorrs(S.modal.ed).find(y=>y.k===d.usecorr);if(x&&x.c){S.modal.ed[x.f]=String(x.c.c);redraw();}return;}
     if(d.oadd!==undefined&&S.modal.kind==="eq"){S.modal.ed.obs.push({std:"",mv:"",uuc:"",unc:""});redraw();const n=document.getElementById(`ob-${S.modal.ed.obs.length-1}-std`);if(n)n.focus();return;}
     if(d.odel!==undefined&&S.modal.kind==="eq"){S.modal.ed.obs.splice(+d.odel,1);redraw();return;}
@@ -954,6 +985,7 @@ onDoc("click",e=>{
   if(d.pmprint!==undefined){openModal({kind:"print",title:"Protection tube PM schedule",html:pmPrint});return;}
   if(d.h33!==undefined){openModal({kind:"print",title:"HTSA 3.3 evidence",html:h33Print});return;}
   if(d.std!==undefined){stdOps();return;}
+  if(d.tdapply!==undefined){tdApplyModal();return;}
   if(d.saveTdef!==undefined){if(!needDb())return;const E=S.tdEd;if(!E)return;
     const bad=CH.filter(ch=>{const a=num(E[ch].useLo),b=num(E[ch].useHi),c=num(E[ch].calLo),h=num(E[ch].calHi);return a==null||b==null||a>=b||(c!=null&&h!=null&&(c>=h||c>a||h<b));});
     if(bad.length){toast(`${bad.join(" / ")}: enter a range of use (from below to), inside the calibrated range`);return;}
@@ -982,6 +1014,11 @@ onDoc("input",e=>{const el=e.target;
   if(el.dataset.filt==="q"){S.filt.q=el.value;clearTimeout(S._ft);S._ft=setTimeout(()=>{render();const i=$("[data-filt=q]");if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250);}
 });
 onDoc("change",e=>{const el=e.target;
+  if(S.modal&&S.modal.kind==="tdapply"&&(el.dataset.tdaCh||el.dataset.tdaMode||el.dataset.tdaF)){const m=S.modal;
+    if(el.dataset.tdaCh)m.ch=CH.filter(c=>c===el.dataset.tdaCh?el.checked:m.ch.includes(c));
+    if(el.dataset.tdaMode)m.mode=el.dataset.tdaMode;
+    if(el.dataset.tdaF){m.f[el.dataset.tdaF]=el.checked;if(el.dataset.tdaF==="useLo")m.f.useHi=el.checked;}
+    redraw();return;}
   if(el.dataset.td&&S.tdEd&&el.tagName==="SELECT"){const [ch,k]=el.dataset.td.split(".");S.tdEd[ch][k]=el.value;return;}
   if(el.dataset.p==="chamber"&&S.modal&&S.modal.kind==="tc"&&!S.tcs.some(x=>x.id===S.modal.ed.id)){const o=S.modal.ed,n=fromDef(el.value,{furnace:o.furnace,tag:o.tag,zone:o.zone,serial:o.serial,installed:o.installed,notes:o.notes,cal:{cert:o.cal.cert,date:o.cal.date,maxErr:o.cal.maxErr}});
     S.modal.ed=n;redraw();return;}

@@ -60,7 +60,7 @@ To make sure every furnace temperature is measured by a thermocouple that was ca
 
 #### 6.0 Default thermocouple specification
 
-The HT Manager and the Maintenance Head keep a default specification per chamber (Application → Default TC specifications): type, use, make / supplier, tolerance class, sheath material and diameter, length, insertion depth, hot junction, calibration laboratory and calibrated range, range of use, protection tube material, tube check interval and tube life. Every new thermocouple is ordered and registered to it; a replacement keeps the specification of the thermocouple it replaces. A thermocouple that differs is listed on that page (information for the review, not a CQI-9 finding).
+The HT Manager and the Maintenance Head keep a default specification per chamber (Application → Default TC specifications): type, use, make / supplier, tolerance class, sheath material and diameter, length, insertion depth, hot junction, calibration laboratory and calibrated range, range of use, protection tube material, tube check interval and tube life. Every new thermocouple is ordered and registered to it; a replacement keeps the specification of the thermocouple it replaces. A thermocouple that differs is listed on that page (information for the review, not a CQI-9 finding). When the default is changed, the register can be brought into line with "Update the register to these defaults…" (a preview of every change; calibration data stays as on each certificate unless chosen; each change is logged on the thermocouple). Only change the register where the thermocouple fitted really matches the default.
 
 #### 6.1 Calibration before first use (P3.1)
 
