@@ -419,6 +419,14 @@ function vTcs(){
       <td>${e.status==="inuse"?satPill(e):"—"}</td><td>${e.status==="inuse"?tubePill(e):"—"}</td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No thermocouple matches the filter.</p></div>`}`;
 }
 /* the thermocouple specification library: named specifications, a default per chamber (fills every new thermocouple), the register updated to a chosen one */
+/* deleting a specification: not the default of a chamber (choose another default first); thermocouples that follow it go back to their chamber's default */
+const specDefOf=id=>CH.filter(ch=>(C().defSpec||{})[ch]===id);
+const delBtn=(t,big)=>{const d=specDefOf(t.id);return d.length?`<button class="${big?"w":"link"}" disabled title="Default for the ${esc(d.join(" and ").toLowerCase())} chamber: choose another default first">Delete</button>`
+  :`<button class="${big?"danger w":"link c-bad"}" data-del-tspec="${esc(t.id)}">Delete</button>`;};
+async function delTspec(id){if(!needDb())return;const t=specById(id);if(!t||specDefOf(id).length)return;
+  const U=S.tcs.filter(e=>e.specId===id);
+  for(const e of U){const x=clone(e);x.specId="";await put("tcs",x,`Specification ${spName(t)} deleted: follows the ${e.chamber.toLowerCase()} chamber default`);}
+  S.cfg.specs=specs().filter(x=>x.id!==id);await saveCfg();toast(`${id} deleted`+(U.length?` · ${plural(U.length,"thermocouple")} now follow their chamber default`:""));if(S.modal&&S.modal.kind==="tspec")closeModal();render();}
 function vTspec(){const L=specs(),use=id=>inUse().filter(e=>e.specId===id).length,dflt=id=>CH.filter(ch=>(C().defSpec||{})[ch]===id);
   const D=inUse().map(e=>({e,d:specDiff(e)})).filter(x=>x.d.length),none=inUse().filter(e=>!specById(e.specId));
   return `<div class="row between"><h2>Thermocouple specifications</h2><div class="row"><button class="pri w" data-spec-new>New specification</button><button class="w" data-tdapply>Update the register to a specification…</button></div></div>
@@ -427,7 +435,7 @@ function vTspec(){const L=specs(),use=id=>inUse().filter(e=>e.specId===id).lengt
   <div class="tw"><table><thead><tr><th>Specification</th><th>Type / use</th><th>Construction</th><th>Range of use °C</th><th>Calibrated °C</th><th>Protection tube</th><th>Default for</th><th class="n">In use</th><th></th></tr></thead><tbody>${L.map(t=>`<tr class="click" data-spec-open="${esc(t.id)}"><td><b>${esc(t.id)}</b><br>${esc(t.name)}</td>
     <td>${esc(t.type)} · ${esc(USE[t.use]||t.use)}</td><td class="small">${esc([t.make,t.cls,t.sheath,t.dia&&"Ø "+t.dia+" mm",t.length&&t.length+" mm long",t.depth&&"insertion "+t.depth+" mm",JUNCTION[t.junction]].filter(Boolean).join(" · "))}</td>
     <td>${esc(t.useLo)}–${esc(t.useHi)}</td><td>${esc(t.calLo)}–${esc(t.calHi)}</td><td class="small">${esc(t.tubeMat)}<br>check ${esc(t.tubeCheckDays)} d · life ${esc(t.tubeReplDays||"—")} d</td>
-    <td>${dflt(t.id).map(c=>pill("ok",c)).join(" ")||"—"}</td><td class="n">${use(t.id)}</td><td><button class="link" data-tdapply="${esc(t.id)}">Apply…</button></td></tr>`).join("")}</tbody></table></div>
+    <td>${dflt(t.id).map(c=>pill("ok",c)).join(" ")||"—"}</td><td class="n">${use(t.id)}</td><td style="white-space:nowrap"><button class="link" data-tdapply="${esc(t.id)}">Apply…</button> ${delBtn(t)}</td></tr>`).join("")}</tbody></table></div>
   <div class="panel"><div class="row between"><h3>Thermocouples in use that differ from their specification</h3></div>
     ${none.length?`<p class="small">${pill("warn",plural(none.length,"thermocouple"))} in use not set to a specification (they are compared with the default of their chamber): ${esc(none.slice(0,12).map(tcName).join(", "))}${none.length>12?" …":""}. Set them with "Update the register to a specification…".</p>`:""}
     ${D.length?`<ul class="issues">${D.map(({e,d})=>`<li><a href="#tspec" data-tc="${esc(e.id)}">${esc(tcName(e))}</a> (${esc(spName(specOf(e)))}): ${esc(d.join(" · "))}</li>`).join("")}</ul>`
@@ -437,7 +445,7 @@ function DRAW_TSPEC(){const t=S.modal.ed,known=specById(t.id),used=known&&S.tcs.
   return sheet(esc(known?t.id+" · "+t.name:"New thermocouple specification"),`<div class="fields">${mf("name","Name (e.g. Hardening, type K, 6 mm MI, Inconel 600)",{req:1,wide:1})}
     ${TDF.map(([k,l,kind])=>mf(k,l,kind&&typeof kind==="object"?{opts:kind}:{num:kind==="num"})).join("")}</div>
     ${used?`<p class="small muted" style="margin-top:8px">${plural(S.tcs.filter(e=>e.specId===t.id).length,"thermocouple")} follow this specification; changing it does not change them until you update the register.</p>`:""}`,
-    `<button class="pri w" data-save-tspec>Save</button>${known?`<button class="w" data-copy-tspec>Copy as new</button><button class="w" data-tdapply="${esc(t.id)}">Apply to the register…</button>${!used&&!dflt?`<button class="danger w" data-del-tspec>Delete</button>`:""}`:""}<button data-close>Close</button>`);}
+    `<button class="pri w" data-save-tspec>Save</button>${known?`<button class="w" data-copy-tspec>Copy as new</button><button class="w" data-tdapply="${esc(t.id)}">Apply to the register…</button>${delBtn(t,1)}`:""}<button data-close>Close</button>`);}
 async function saveTspec(){if(!needDb())return;const t=fillSpec(S.modal.ed);t.name=txt(t.name);
   if(!t.name){msg("Enter a name.");return;}if(specs().some(x=>x.id!==t.id&&x.name.toLowerCase()===t.name.toLowerCase())){msg("Another specification has that name.");return;}
   const a=num(t.useLo),b=num(t.useHi),c=num(t.calLo),h=num(t.calHi);
@@ -981,7 +989,7 @@ onDoc("click",e=>{
     if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.tdaGo!==undefined){tdApply();return;}
     if(d.tdaAll!==undefined){S.modal.x={};redraw();return;}if(d.tdaNone!==undefined){tdPlan(S.modal).forEach(x=>S.modal.x[x.e.id]=true);redraw();return;}
     if(d.saveTspec!==undefined){saveTspec();return;}if(d.copyTspec!==undefined){specModal(S.modal.ed.id,1);return;}if(d.tdapply!==undefined){tdApplyModal(d.tdapply);return;}
-    if(d.delTspec!==undefined){armedDelete(b,async()=>{const id=S.modal.ed.id;S.cfg.specs=specs().filter(x=>x.id!==id);await saveCfg();closeModal();render();});return;}
+    if(d.delTspec!==undefined){const id=d.delTspec||S.modal.ed.id,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC → default`:"Confirm delete");return;}
     if(d.tcfill!==undefined){const t=specById(S.modal.ed.specId);if(!t){msg("Choose a specification first.");return;}const o=S.modal.ed;
       S.modal.ed=fromSpec(t,o.chamber,{...o,type:t.type,use:t.use,sheath:t.sheath,useLo:"",useHi:"",spec:{make:t.make,cls:t.cls,dia:t.dia,length:t.length,depth:t.depth,junction:t.junction},
         cal:{...o.cal,lab:o.cal.lab||t.calLab,lo:o.cal.lo||t.calLo,hi:o.cal.hi||t.calHi},tube:{...o.tube,mat:t.tubeMat,checkDays:t.tubeCheckDays,replDays:t.tubeReplDays}});
@@ -1031,6 +1039,7 @@ onDoc("click",e=>{
   if(d.std!==undefined){stdOps();return;}
   if(d.tdapply!==undefined){tdApplyModal(d.tdapply);return;}
   if(d.specNew!==undefined){specModal(null);return;}
+  if(d.delTspec){const id=d.delTspec,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC → default`:"Confirm delete");return;}
   if(d.specOpen){specModal(d.specOpen);return;}
   if(d.saveCfg!==undefined){document.querySelectorAll("[data-cfg]").forEach(i=>{const k=i.dataset.cfg,t=(SETF.find(x=>x[0]===k)||[])[2];S.cfg[k]=t==="number"?(num(i.value)??DEF[k]):i.value;});saveCfg();return;}
   if(d.doc){S.docSel=d.doc;render();return;}
