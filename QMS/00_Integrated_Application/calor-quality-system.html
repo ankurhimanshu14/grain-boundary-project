@@ -1981,7 +1981,7 @@ function findings(D,A){
     add("info","Load effect",`Zone 1 is the charge end: ${both} of ${plural(z1.length,"zone 1 excursion")} involved both walls. Cold trays entering at each push pull zone 1 down; dips on both walls at once point to heat demand from the load, dips on one wall only (${z1.length-both} here) to that wall's burner or thermocouple.`,"","Compare the dip timing with the push log. If dips track pushes, review the heat input and recovery time of zone 1.");}
   /* specifications in force (Specifications module) */
   if(MWS.spec&&MWS.spec.inForce&&D.furnace&&D.chamber){const no=A.specs.filter(s=>!s.spec);
-    if(no.length)add("warn","Specification",`Set values with no ${D.chamber.toLowerCase()}-chamber specification in force for ${D.furnace}: ${[...new Set(no.map(s=>"zone "+(s.z+1)+" "+s.sp+" °C"))].join(", ")}. Default tolerance ±${A.tolDef} °C used.`,"spec","Confirm each set value matches an approved process specification for the parts run, or approve one.");
+    /* set values without a specification in force are not reported (the user's request): the default tolerance applies to them */
     const yes=A.specs.filter(s=>s.spec);if(yes.length)add("info","Specification",`Tolerance from the specification in force: ${[...new Set(yes.map(s=>`zone ${s.z+1} ${s.sp} °C → ${s.spec.id} rev ${s.spec.rev} (${s.spec.part}) ±${s.spec.tol??A.tolDef} °C`))].join("; ")}.`,"");}
   /* pyrometry of the chamber on the record day (Thermocouples module) */
   if(MWS.tc&&MWS.tc.chamber&&D.furnace&&D.chamber){const L=MWS.tc.chamber(D.furnace,D.chamber);
@@ -2212,7 +2212,7 @@ function reviewers(){const L=[];String(C().reviewers||"").split("\n").map(l=>l.t
 const isRev=n=>reviewers().some(x=>x.name.toLowerCase()===txt(n).toLowerCase());
 function fillRev(o){const d={id:"",fkey:"",furnace:"",chamber:"",file:"",heading:"",sample:false,idle:false,from:null,to:null,n:0,step:null,tolDef:10,verdict:"",tcs:[],incidents:[],findings:[],trend:[],
   at:"",by:"",lines:{},notes:"",log:[]};const x={...d,...(o||{})};if(!x.lines||typeof x.lines!=="object")x.lines={};["tcs","incidents","findings","trend","log"].forEach(k=>{if(!Array.isArray(x[k]))x[k]=[];});return x;}
-const conds=r=>r.findings.filter(f=>f.key&&(f.lvl==="crit"||f.lvl==="warn"));
+const conds=r=>r.findings.filter(f=>f.key&&f.key!=="spec"&&(f.lvl==="crit"||f.lvl==="warn")); /* "spec" = the dropped no-specification finding of reviews saved before */
 function lineMissing(f,l){const m=[];if(!l||!l.how)return ["answer"];
   if(l.how==="ref"){if(!txt(l.ref))m.push("reference");return m;}
   if(!txt(l.action))m.push("action");if(!txt(l.owner))m.push("owner");if(f.lvl==="crit"&&!l.disp)m.push("product disposition");
