@@ -261,7 +261,7 @@ function assess33(){
     "Approve the schedule (PM schedule view), check every tube due (WI-TC-03) and replace worn tubes.");
   const lo=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="over"),ls=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="soon");
   if(+C().lifeDays>0)add(`Sensing elements replaced within ${C().lifeDays} days (site schedule)`,lo.length?"crit":ls.length?"warn":"ok",
-    lo.length?lo.slice(0,6).map(x=>`${tcName(x.e)} installed ${fmtD(x.e.installed)}`).join("; "):ls.length?`${plural(ls.length,"element")} due for replacement soon.`:"No element past its life.",lo.length?"Replace the element and run a SAT before use.":"");
+    lo.length?lo.slice(0,6).map(x=>`${tcName(x.e)} installed ${fmtD(x.e.installed)}`).join("; "):ls.length?`${plural(ls.length,"element")} due for replacement soon.`:"No element past its life.",lo.length?"Replace the thermocouple (element and tube) and run a SAT before use.":"");
   const crit=I.filter(i=>i.lvl==="crit").length;
   const nia=!U.length||need.some(x=>x.e.use==="control"&&(x.s.st==="fail"||(x.s.st==="none"&&!S.sats.some(r=>r.tc===x.e.id))));
   return {I,score:nia?"nia":crit?"ns":"s",crit};}
