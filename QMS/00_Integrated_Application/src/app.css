@@ -158,7 +158,7 @@ legend{font-family:var(--f-display);font-weight:600;font-size:15px;padding:0 6px
 
 /* responsive */
 @media (max-width:860px){.grid3{grid-template-columns:1fr 1fr}.docs{grid-template-columns:1fr}}
-@media (max-width:760px){.grid2{grid-template-columns:1fr}.pdca{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.grid2{grid-template-columns:minmax(0,1fr)}.pdca{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.ctrl{grid-template-columns:repeat(2,auto)}.ctrl>div:nth-child(2){border-right:0}.grid3{grid-template-columns:1fr}.grid-in{grid-template-columns:110px repeat(3,minmax(60px,1fr))}}
 @media (max-width:520px){.brand h1{font-size:21px}.tile .v{font-size:26px}.bar{grid-template-columns:110px 1fr 34px}}
 @media print{nav.sys,nav#nav,.w,#toast,button{display:none!important}body{background:#fff}.panel,.tw{border-color:#999}}
@@ -337,3 +337,8 @@ button.sync{font-size:12.5px;white-space:nowrap}button.sync.ok{border-color:var(
 .trlg i{display:inline-block}.trlg .sw.band{width:16px;height:10px;background:var(--band);border:1px solid var(--line)}.trlg .dot{width:10px;height:10px;border-radius:50%}
 .trlg .ln{width:18px;border-top:2px dashed}.trlg .ln.warn{border-color:var(--warn)}.trlg .ln.repl{border-color:var(--s1)}
 .trsel select{width:auto;min-width:0}.trsel{gap:8px;flex-wrap:wrap}
+
+/* Quench media analysis: result trends */
+.qtrend{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel,transparent)}
+.qtrend svg{display:block;width:100%;height:auto;margin-top:4px}
+.qtrend text{font-size:10px;fill:var(--muted)}

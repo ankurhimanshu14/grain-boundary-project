@@ -16,6 +16,7 @@ MODULES = {"org": (QMS / "ORG/04_Application/mwspl-org-module.js", "ORG"),
            "scada": (QMS / "SCADA/04_Application/mwspl-scada-module.js", "SCADA"),
            "spec": (QMS / "SPEC/04_Application/mwspl-spec-module.js", "SPEC"),
            "trend": (QMS / "TREND/04_Application/mwspl-trend-module.js", "TREND"),
+           "quench": (QMS / "QUENCH/04_Application/mwspl-quench-module.js", "QUENCH"),
            "tc": (QMS / "TC/04_Application/mwspl-tc-module.js", "TC")}
 
 def body(src):

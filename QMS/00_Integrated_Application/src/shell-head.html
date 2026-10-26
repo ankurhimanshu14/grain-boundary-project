@@ -20,6 +20,7 @@
   <a href="#spec/dash" data-sys="spec">Specifications</a>
   <a href="#trend/dash" data-sys="trend">Trend analysis</a>
   <a href="#scada/dash" data-sys="scada">SCADA review</a>
+  <a href="#quench/dash" data-sys="quench">Quench media</a>
   <a href="#tc/dash" data-sys="tc">Thermocouples</a>
 </div></nav>
 <nav id="nav" aria-label="Module views" hidden></nav>
@@ -30,7 +31,7 @@
 <script>
 "use strict";
 /* ---------- shell: module table, routing, theme ---------- */
-const MODS=["org","apqp","spec","trend","scada","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
+const MODS=["org","apqp","spec","trend","scada","quench","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
 const today0=()=>{const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}-${d.getFullYear()}`;};
 const SYS={
   home:{t:"CALOR · Heat treat quality system",ctrl:()=>`<div><b>Standard</b>AIAG CQI-9 4th Ed.</div><div><b>Scope</b>Pusher furnaces F-01 … F-04</div><div><b>Records</b><span id="dbstate">—</span></div><div><b>Date</b>${today0()}</div>`},
@@ -39,6 +40,7 @@ const SYS={
   spec:{t:"Process specifications",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SPEC-01</div><div><b>Standard</b>CQI-9 · HTSA 1.6</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   trend:{t:"Trend analysis",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TREND-01</div><div><b>Standard</b>CQI-9 · HTSA 1.8</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   scada:{t:"SCADA temperature review",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SCADA-01</div><div><b>Standard</b>CQI-9 · HTSA 1.9</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
+  quench:{t:"Quench media analysis",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-QM-01</div><div><b>Standard</b>CQI-9 · HTSA 3.14</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   tc:{t:"Thermocouples & protection tubes",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TC-01</div><div><b>Standard</b>CQI-9 · HTSA 3.3</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`}
 };
 const appOf=h=>{const m=String(h||"").match(/^#([a-z]+)(?:\/|$)/);return m&&MODS.includes(m[1])?m[1]:"home";};

@@ -4,7 +4,7 @@ function renderHome(){
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
   const sp=MWS.spec?MWS.spec.stats():null;
   const dbs={on:"Shared · live",local:"Local · this browser",error:"Store error"};
-  const tc=MWS.tc?MWS.tc.stats():null,og=MWS.org?MWS.org.stats():null,sc=MWS.scada?MWS.scada.stats():null,aq=MWS.apqp?MWS.apqp.stats():null,tr=MWS.trend?MWS.trend.stats():null,st=document.getElementById("dbstate"),any=og||sp||tc;if(st)st.textContent=any?(dbs[any.db]||"Connecting…"):"—";
+  const tc=MWS.tc?MWS.tc.stats():null,og=MWS.org?MWS.org.stats():null,sc=MWS.scada?MWS.scada.stats():null,aq=MWS.apqp?MWS.apqp.stats():null,tr=MWS.trend?MWS.trend.stats():null,qm=MWS.quench?MWS.quench.stats():null,st=document.getElementById("dbstate"),any=og||sp||tc;if(st)st.textContent=any?(dbs[any.db]||"Connecting…"):"—";
   const tile=(k,v,c,h)=>`<a class="tile" href="${h}"><div class="k">${esc(k)}</div><div class="v ${c||""}">${esc(v)}</div></a>`;
   const specCard=sp?`<section class="panel"><div class="row between"><h2>Process specifications</h2><a class="pill ${sp.cls}" href="#spec/review">HTSA 1.6 · ${esc(sp.label)}</a></div>
     <p class="muted">${esc(MWS.spec.summary())}</p>
@@ -26,13 +26,17 @@ function renderHome(){
     <p class="muted">${esc(MWS.scada.summary())}</p>
     <div class="tiles">${tile("Chambers reviewed within 24 h",sc.ok+"/"+sc.chambers,sc.ok===sc.chambers?"ok":"bad","#scada/htsa")}${tile("Never reviewed",sc.never,sc.never?"bad":"ok","#scada/dash")}${tile("Overdue",sc.overdue,sc.overdue?"bad":"ok","#scada/dash")}${tile("Reactions open",sc.open,sc.open?"warn":"ok","#scada/act")}${tile("Reviews recorded",sc.reviews,"","#scada/reviews")}</div>
     <p class="row"><a class="btn pri" href="#scada/load">Load a SCADA record</a><a class="btn" href="#scada/reviews">Reviews</a><a class="btn" href="#scada/hist">History</a></p></section>`:"";
+  const qmCard=qm?`<section class="panel"><div class="row between"><h2>Quench media analysis</h2><a class="pill ${qm.cls}" href="#quench/review">HTSA 3.14 · ${esc(qm.label)}</a></div>
+    <p class="muted">${esc(MWS.quench.summary())}</p>
+    <div class="tiles">${tile("Tanks in order",qm.ok+"/"+qm.tanks,qm.tanks&&qm.ok===qm.tanks?"ok":"bad","#quench/tanks")}${tile("Tests overdue / never",qm.overdue,qm.overdue?"bad":"ok","#quench/sched")}${tile("Out of limits",qm.out,qm.out?"bad":"ok","#quench/act")}${tile("Results to review",qm.reviews,qm.reviewsLate?"bad":qm.reviews?"warn":"ok","#quench/act")}${tile("Reactions open",qm.open,qm.open?"warn":"ok","#quench/act")}${tile("Test plan",qm.planRev!=null?"Rev "+qm.planRev:"Not approved",qm.planOk?"ok":"warn","#quench/plan")}</div>
+    <p class="row"><a class="btn pri" href="#quench/dash">Open Quench media</a><a class="btn" href="#quench/tests">Test records</a><a class="btn" href="#quench/plan">Test plan</a></p></section>`:"";
   const tcCard=tc?`<section class="panel"><div class="row between"><h2>Thermocouples &amp; protection tubes</h2><a class="pill ${tc.cls}" href="#tc/review">HTSA 3.3 · ${esc(tc.label)}</a></div>
     <p class="muted">${esc(MWS.tc.summary())}</p>
     <div class="tiles">${tile("In use",tc.inUse,"","#tc/tcs")}${tile("SAT overdue / none",tc.satOver,tc.satOver?"bad":"ok","#tc/review")}${tile("SAT failed",tc.satFail,tc.satFail?"bad":"ok","#tc/act")}${tile("SAT due soon",tc.satSoon,tc.satSoon?"warn":"ok","#tc/review")}${tile("Calibration issues",tc.calBad,tc.calBad?"bad":"ok","#tc/tcs")}${tile("Tubes overdue / to replace",tc.tubeBad,tc.tubeBad?"bad":"ok","#tc/tube")}</div>
     <p class="row"><a class="btn pri" href="#tc/dash">Open Thermocouples</a><a class="btn" href="#tc/sat">SAT records</a><a class="btn" href="#tc/tube">Tube checks</a></p></section>`:"";
   document.getElementById("main").innerHTML=`
   <section class="panel"><h2>Heat treat quality system</h2>
-    <p class="muted">One application for the CQI-9 heat treat system of the plant. Each module keeps its own records and follows its procedure; the Overview collects their status. This build holds Heat treat organization (HTSA 1.1, MWSPL-QP-ORG-01), Advanced quality planning (HTSA 1.2, MWSPL-QP-APQP-01), Process specifications (HTSA 1.6, MWSPL-QP-SPEC-01), Trend analysis (HTSA 1.8, MWSPL-QP-TREND-01), SCADA temperature review (HTSA 1.9, MWSPL-QP-SCADA-01) and Thermocouples &amp; protection tubes (HTSA 3.3, MWSPL-QP-TC-01); the other modules of the CALOR register follow in the same form.</p>
+    <p class="muted">One application for the CQI-9 heat treat system of the plant. Each module keeps its own records and follows its procedure; the Overview collects their status. This build holds Heat treat organization (HTSA 1.1, MWSPL-QP-ORG-01), Advanced quality planning (HTSA 1.2, MWSPL-QP-APQP-01), Process specifications (HTSA 1.6, MWSPL-QP-SPEC-01), Trend analysis (HTSA 1.8, MWSPL-QP-TREND-01), SCADA temperature review (HTSA 1.9, MWSPL-QP-SCADA-01), Quench media analysis (HTSA 3.14, MWSPL-QP-QM-01) and Thermocouples &amp; protection tubes (HTSA 3.3, MWSPL-QP-TC-01); the other modules of the CALOR register follow in the same form.</p>
     <div class="grid3">
       <div><b>Furnaces</b><p class="small">F-01 … F-04, continuous gas-fired pushers, identical; hardening chamber 13 trays (5/4/4), controlled cooling chamber, tempering chamber 12 trays (4/4/4).</p></div>
       <div><b>Processes</b><p class="small">F-01 isothermal annealing, hardening &amp; tempering (water quench) · F-02 isothermal annealing, normalizing, hardening &amp; tempering (oil quench) · F-03, F-04 isothermal annealing, normalizing.</p></div>
@@ -43,6 +47,7 @@ function renderHome(){
   ${specCard}
   ${trCard}
   ${scCard}
+  ${qmCard}
   ${tcCard}
   ${MWS.calor?MWS.calor.panel(null,"Each module's Data tab imports what it needs from it."):""}
   <section class="panel"><h2>How the modules connect</h2>
