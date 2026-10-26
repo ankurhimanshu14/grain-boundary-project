@@ -547,6 +547,8 @@ onWin("hashchange",()=>{route();S.pending=false;render();window.scrollTo(0,0);})
 MWS.quench={closeModal,
   refresh:()=>safeRender(),
   hasData:()=>S.tanks.length>0,
+  /* each tank with its state (Process validation, HTSA 1.7) */
+  tanks:()=>assess314().st.map(({tk,s})=>({id:tk.id,furnace:tk.furnace,media:MEDIA[tk.media]||tk.media,lvl:s.lvl,label:LVL[s.lvl][1]})),
   stats:()=>{const k=kp();return {db:S.dbState,...k,label:SCORE[k.score][1],cls:SCORE[k.score][0]};},
   summary:()=>{const k=kp();return `${k.ok} of ${plural(k.tanks,"quench tank")} in order, ${plural(k.overdue,"test")} overdue, ${plural(k.reviews,"result")} to review, ${plural(k.open,"reaction")} open; HTSA 3.14 ${SCORE[k.score][1].toLowerCase()}.`;}};
 window.__QMM={S,assess314,judge,evalT,schedule,tankState,missingAct,retestOf,reviewDue,reviewLate,kp,PL};
