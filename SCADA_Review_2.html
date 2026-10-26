@@ -1982,11 +1982,14 @@ const pdAll=()=>PD.reviews.concat(PD_MEM);
 const pdGet=id=>pdAll().find(r=>r.id===id);
 const txt=v=>String(v||"").trim();
 const roleOf=s=>ROLES.find(r=>String(s||"").includes(r))||"HT Manager";
-const pdAct=R=>R.items.filter(i=>i.dec&&i.dec!=="none");
+/* decisions that need no action: "none", and for P0 "noprod" = no product in the furnace (start-up / shutdown / not running) */
+const NOACT=["none","noprod"], acts=d=>!!d&&!NOACT.includes(d);
+const NOPROD={startup:"Furnace start-up: no tray loaded yet",shutdown:"Furnace shutdown: emptied / last tray already out",idle:"Furnace running empty (no production)"};
+const pdAct=R=>R.items.filter(i=>acts(i.dec));
 const recKey=D=>furnaceKey(D)+"|"+isoDay(D.rows[0].t)+"|"+isoDay(D.rows[D.rows.length-1].t);
 const pdForRecord=()=>DATA?pdAll().find(r=>r.key===recKey(DATA)):null;
 const pdSave=()=>{ try{ localStorage.setItem(PD_KEY,JSON.stringify(PD)); }catch(e){} if(HTQ) HTQ.emit("scada:pdca"); };
-const pdOverdue=R=>R.stage==="closed"?[]:R.items.filter(i=>i.dec&&i.dec!=="none"&&i.due&&i.due<todayISO()&&(i.dec==="8d"?!e8Closed(i.d8):!i.doneDate));
+const pdOverdue=R=>R.stage==="closed"?[]:R.items.filter(i=>acts(i.dec)&&i.due&&i.due<todayISO()&&(i.dec==="8d"?!e8Closed(i.d8):!i.doneDate));
 const pdLog=(R,t)=>R.log.push({d:todayISO(),t});
 
 /* a repeated problem: the same thermocouple below 100 % in tolerance on S8.repDays or more earlier analysed days of this
@@ -2043,6 +2046,7 @@ function pdMissing(R){
   if(R.stage==="plan"){
     R.items.forEach(i=>{ if(!i.dec) return m.push(i.id+" decision");
       if(i.dec==="none"){ if(i.product) m.push(i.id+": product containment cannot be skipped"); if(!txt(i.plan)) m.push(i.id+" reason for no action"); }
+      else if(i.dec==="noprod"){ if(i.pr!=="P0"&&!i.product) m.push(i.id+": \"no product in the furnace\" applies only to P0 product items"); if(!NOPROD[i.noprod]) m.push(i.id+" furnace state"); if(!txt(i.plan)) m.push(i.id+" evidence that no product was in the furnace"); }
       else if(i.dec==="8d"&&i.join){ const j=R.items.find(x=>x.id===i.join); if(!j||j.dec!=="8d"||j.join) m.push(i.id+": the 8D it joins ("+i.join+") is not an 8D of its own"); }
       else if(i.dec==="8d"){ if(!txt(i.leader)) m.push(i.id+" 8D team leader"); if(!i.owner) m.push(i.id+" 8D champion"); if(!i.due) m.push(i.id+" 8D target date"); }
       else{ if(i.need8d) m.push(i.id+": an 8D is required ("+i.need8d+")"); if(!txt(i.plan)) m.push(i.id+" reaction plan"); if(!i.owner) m.push(i.id+" owner"); if(!i.due) m.push(i.id+" due date"); } });
@@ -2108,7 +2112,7 @@ function renderPdca(){
       <div class="pd-steps">${PD_ST.slice(0,4).map((s,i)=>`<span class="${i<si?"done":i===si?"on":""}">${PD_NM[s]}</span>`).join("")}${closed?`<span class="on" style="background:var(--good);border-color:var(--good)">Closed</span>`:""}</div></div>`;
     if(!R.items.length) h+=`<div class="empty">${R.low&&R.low.length?"No top-priority issue (P0 product or priority A) in this record, so there is nothing to action.":"The application found no issues that need an action in this record."} Confirm the review in each stage.</div>`;
     R.items.forEach(i=>{
-      const lv=PR[i.pr]?PR[i.pr].lvl:"info", k={crit:"var(--crit)",warn:"var(--warn)",info:"var(--muted)"}[lv], p=`it:${i.id}:`, doIt=i.dec&&i.dec!=="none";
+      const lv=PR[i.pr]?PR[i.pr].lvl:"info", k={crit:"var(--crit)",warn:"var(--warn)",info:"var(--muted)"}[lv], p=`it:${i.id}:`, doIt=acts(i.dec);
       const lock=R.cycle>1&&!i.replan; /* in a re-plan cycle only the actions that were not effective are open again */
       const roPlan=R.stage!=="plan"||lock, roDo=R.stage!=="do"||lock, roCheck=R.stage!=="check"||lock;
       const overdue=doIt&&i.due&&!i.doneDate&&i.due<today&&!closed;
@@ -2117,7 +2121,8 @@ function renderPdca(){
         <div class="sug"><b>Suggested action:</b> ${esc(i.suggested)} <span class="muted">· suggested owner ${esc(i.sugOwner)} · ${esc(i.when||("within "+i.sugDays+" day"+(i.sugDays===1?"":"s")))}</span>${HTQ&&i.tag==="SAT"&&R.link?` <button class="linkbtn" type="button" data-pdact="sat">Open in SAT register</button>`:""}</div>
         <div class="pd-grid"><h4>Plan: reaction plan decided by the reviewer</h4>
           ${i.need8d?`<div class="wide small"><b>8D required:</b> ${esc(i.need8d)}.</div>`:""}
-          <label><span class="req">Decision</span>${sel(p+"dec",i.dec,[["8d","Solve with an 8D"],...(i.need8d?[]:[["adopt","Simple action: adopt the suggestion"],["modify","Simple action: changed"]]),...(i.product||i.need8d?[]:[["none","No action needed"]])],roPlan)}</label>
+          <label><span class="req">Decision</span>${sel(p+"dec",i.dec,[["8d","Solve with an 8D"],...(i.need8d?[]:[["adopt","Simple action: adopt the suggestion"],["modify","Simple action: changed"]]),...(i.product||i.need8d?[]:[["none","No action needed"]]),...(i.pr==="P0"||i.product?[["noprod","No reaction: no product in the furnace (start-up / shutdown / not running)"]]:[])],roPlan)}</label>
+          ${i.dec==="noprod"?`<label><span class="req">Furnace state during the affected windows</span>${sel(p+"noprod",i.noprod,Object.entries(NOPROD),roPlan)}</label><div class="wide small muted">No trays were in the furnace, so there is no product to contain. Give the evidence: start-up / shutdown times, first / last tray, the production report or the alarm log.</div>`:""}
           ${i.dec==="8d"?(()=>{ const own=R.items.filter(x=>x!==i&&x.dec==="8d"&&!x.join&&R.items.indexOf(x)<R.items.indexOf(i)); return own.length||i.join?`<label><span>8D</span>${sel(p+"join",i.join,own.map(x=>[x.id,"Same 8D as "+x.id]),roPlan,"Its own 8D")}</label>`:""; })():""}
           ${i.dec==="8d"&&i.join?`<div class="wide small muted">Solved in the same 8D as ${esc(i.join)}: team, champion and target come from it.</div>`:i.dec==="8d"?`<label><span class="req">8D team leader</span>${inp(p+"leader",i.leader,roPlan)}</label>
           <label><span class="req">8D champion (role)</span>${sel(p+"owner",i.owner,ROLES,roPlan)}</label>
@@ -2125,7 +2130,7 @@ function renderPdca(){
           <label class="wide"><span>Notes for the 8D team (optional)</span>${area(p+"plan",i.plan,roPlan)}</label>`:i.dec==="8d"?"":`
           <label><span class="${doIt?"req":""}">Owner</span>${sel(p+"owner",i.owner,ROLES,roPlan||!doIt)}</label>
           <label><span class="${doIt?"req":""}">Due date</span>${inp(p+"due",i.due,roPlan||!doIt,"date")}</label>
-          <label class="wide"><span class="req">${i.dec==="none"?"Reason why no action is needed":"Reaction plan"}</span>${area(p+"plan",i.plan,roPlan)}</label>`}
+          <label class="wide"><span class="req">${i.dec==="none"?"Reason why no action is needed":i.dec==="noprod"?"Evidence that no product was in the furnace":"Reaction plan"}</span>${area(p+"plan",i.plan,roPlan)}</label>`}
           ${(i.hist8||[]).length?`<div class="wide muted small">Earlier 8D${i.hist8.length>1?"s":""} not effective: ${esc(i.hist8.join(", "))}</div>`:""}
           ${i.dec==="8d"&&si>=1?e8ItemBox(i):""}
           ${(i.hist||[]).map(x=>`<div class="wide muted small">Cycle ${x.cycle}: “${esc(x.plan)}” (${esc(x.owner||"")}) was not effective — ${esc(x.evid||"")}</div>`).join("")}
@@ -2169,13 +2174,13 @@ function renderPdca(){
   body.innerHTML=h; if(typeof foldSync==="function") foldSync();
 }
 /* ---------- download of a review: Excel workbook and printable document (PDF) ---------- */
-const PD_DEC={"8d":"Solve with an 8D",adopt:"Adopted the suggested action",modify:"Changed the action",none:"No action needed"};
+const PD_DEC={"8d":"Solve with an 8D",adopt:"Adopted the suggested action",modify:"Changed the action",none:"No action needed",noprod:"No reaction: no product in the furnace"};
 const PD_RES={effective:"Effective",not:"Not effective"};
 const dIso=d=>d?fmtD(Date.parse(d+"T00:00:00Z")):"";
 function pdFileName(R){ return `Reaction plan ${R.id} ${R.fkey} ${R.day0}`.replace(/[\\/:*?"<>|]+/g,"-"); }
 function pdCounts(R){
   const a=pdAct(R), od=pdOverdue(R).length;
-  return {total:R.items.length,adopt:R.items.filter(i=>i.dec==="adopt").length,modify:R.items.filter(i=>i.dec==="modify").length,none:R.items.filter(i=>i.dec==="none").length,
+  return {total:R.items.length,adopt:R.items.filter(i=>i.dec==="adopt").length,modify:R.items.filter(i=>i.dec==="modify").length,none:R.items.filter(i=>NOACT.includes(i.dec)).length,
     undecided:R.items.filter(i=>!i.dec).length,done:a.filter(i=>i.doneDate).length,eff:a.filter(i=>i.res==="effective").length,not:a.filter(i=>i.res==="not").length,act:a.length,od};
 }
 /* the same content for both formats: summary, Plan, Do, Check, Act, history */
@@ -2191,11 +2196,11 @@ function pdTables(R){
   const plan={head:["#","Priority","Source","Issue found","Details","Suggested action","Suggested owner","Suggested timing","Decision","Reaction plan / reason for no action","Owner","Due date"],
     rows:R.items.map(i=>[i.id,i.pr==="P0"?"P0 product":i.pr,i.src,i.issue,i.detail||"",i.suggested,i.sugOwner,i.when||`within ${i.sugDays} day(s)`,(PD_DEC[i.dec]||"Not decided")+(i.need8d?" (required: "+i.need8d+")":""),i.dec==="8d"?`${i.d8||"8D"} · leader ${i.leader||"—"}${i.plan?" · "+i.plan:""}`:i.plan||"",i.owner||"",dIso(i.due)])};
   const doT={head:["#","Issue found","Reaction plan","Owner","Due date","Date done","Done by","What was done","Product disposition","On time"],
-    rows:R.items.filter(i=>i.dec&&i.dec!=="none").map(i=>[i.id,i.issue,i.plan||"",i.owner||"",dIso(i.due),dIso(i.doneDate),i.doneBy||"",i.doneNote||"",i.product?(i.dispo||"not recorded"):"n/a",
+    rows:R.items.filter(i=>acts(i.dec)).map(i=>[i.id,i.issue,i.plan||"",i.owner||"",dIso(i.due),dIso(i.doneDate),i.doneBy||"",i.doneNote||"",i.product?(i.dispo||"not recorded"):"n/a",
       !i.due?"":i.doneDate?(i.doneDate<=i.due?"Yes":"Late"):(i.due<today?"Overdue":"Open")])};
   const check={head:["#","Issue found","What was done","Result","Evidence"],
-    rows:R.items.filter(i=>i.dec&&i.dec!=="none").map(i=>[i.id,i.issue,i.doneNote||"",PD_RES[i.res]||"Not checked",i.evid||""])};
-  const none={head:["#","Issue found","Reason why no action is needed"],rows:R.items.filter(i=>i.dec==="none").map(i=>[i.id,i.issue,i.plan||""])};
+    rows:R.items.filter(i=>acts(i.dec)).map(i=>[i.id,i.issue,i.doneNote||"",PD_RES[i.res]||"Not checked",i.evid||""])};
+  const none={head:["#","Issue found","Reason why no action is needed"],rows:R.items.filter(i=>NOACT.includes(i.dec)).map(i=>[i.id,i.issue,(i.dec==="noprod"?"No product in the furnace"+(NOPROD[i.noprod]?" ("+NOPROD[i.noprod]+")":"")+": ":"")+(i.plan||"")])};
   const earlier={head:["#","Issue found","Cycle","Reaction plan","Owner","What was done","Evidence (not effective)"],
     rows:R.items.flatMap(i=>(i.hist||[]).map(h=>[i.id,i.issue,h.cycle,h.plan||"",h.owner||"",h.done||"",h.evid||""]))};
   const act=[["Documents standardised",(R.docs||[]).join(", ")||"not yet"],["Lessons learned / what was standardised",R.lessons||""],["Approved by",R.apprBy||""],["Role",R.apprRole||""],["Date",dIso(R.actDate)],["Review closed",R.stage==="closed"?dIso(R.closedDate)||"Yes":"No"]];
@@ -2282,8 +2287,14 @@ function pdPrint(D){
         else if(i.dec==="adopt"){ i.plan=i.suggested; i.owner=i.owner||i.sugOwner; i.due=i.due||addDay(todayISO(),i.sugDays); }
         else if(i.dec==="modify"){ i.owner=i.owner||i.sugOwner; i.due=i.due||addDay(todayISO(),i.sugDays); if(i.plan===i.suggested) i.plan=i.suggested; }
         else if(i.dec==="none"){ i.plan=""; i.owner=""; i.due=""; }
+        else if(i.dec==="noprod"){ if(i.plan===i.suggested) i.plan=""; i.owner=""; i.due="";
+          R.items.filter(x=>x!==i&&(x.pr==="P0"||x.product)&&x.dec!=="noprod").forEach(x=>{ x.dec="noprod"; x.noprod=x.noprod||i.noprod||""; x.owner=""; x.due=""; delete x.join; });   /* no product in the furnace holds for every P0 item */
+          R.items.forEach(x=>{ const j=x.join&&R.items.find(y=>y.id===x.join); if(j&&j.dec==="noprod") delete x.join; });
+          pdLog(R,"P0: no reaction, no product in the furnace"); }
         pdSave(); renderPdca(); return; }
-      if(f==="join"){ pdSave(); renderPdca(); return; } }
+      if(f==="join"){ pdSave(); renderPdca(); return; }
+      if((f==="noprod"||f==="plan")&&i.dec==="noprod") R.items.filter(x=>x!==i&&x.dec==="noprod").forEach(x=>{ x[f]=el.value; });
+      if(f==="noprod"){ pdSave(); renderPdca(); return; } }
     pdSave();
   });
   panel.addEventListener("click",e=>{
