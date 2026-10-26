@@ -33,7 +33,7 @@ const OFFSET=["Yes","No offset was in use","No — reason in notes"];
 const TUSDEC=["TUS planned","Assessed: TUS not required (reason in notes)"];
 const ACTIONS=["Replace the thermocouple","Apply / adjust the instrument offset","Recalibrate the controller / recorder","Repair wiring / connection","Re-position the thermocouple","Other"];
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",furnaces:"F-01, F-02, F-03, F-04",rangeH:"700-960",rangeT:"500-900",
-  satDays:90,satTol:5.5,warnPct:70,satMin:30,satStep:1,satStab:5,soonDays:14,lifeDays:365,
+  satDays:90,satTol:5.5,warnPct:70,satMin:30,satStep:1,satStab:5,soonDays:14,lifeDays:365,lifeGrace:7,
   accFieldBase:"2.2|0.75",accFieldNoble:"1.5|0.25",accTestBase:"1.1|0.4",accTestNoble:"0.6|0.1",
   reuseDeeper:"yes",maxUses:0,tubeCheckDays:30,tubeReplDays:365,pmReviewDays:365,
   /* default specification of a thermocouple per chamber (Default TC specifications view): fills a new thermocouple, gives the range of use */
@@ -56,7 +56,7 @@ function fixCfg(c){c=c||{};const T={};CH.forEach(ch=>{const r=rng(ch==="Temperin
   return o;}
 const SETF=[["plant","Plant","text"],["furnaces","Furnaces (comma separated)","text"],
   ["satDays","SAT interval for control / monitoring / recording TCs (days, Process Table)","number"],["satTol","SAT tolerance ± °C (P3.3)","number"],["warnPct","SAT warning at % of the tolerance","number"],["satMin","SAT: minutes of readings per test","number"],["satStep","SAT: minutes between readings","number"],["satStab","SAT: largest furnace range during the test (°C)","number"],
-  ["soonDays","Show as due this many days before","number"],["lifeDays","Replace sensing elements after (days, 0 = off)","number"],
+  ["soonDays","Show as due this many days before","number"],["lifeDays","Replace sensing elements after (days, 0 = off)","number"],["lifeGrace","Past its life with a passing verification SAT: replace within (days, QP-TC-01 §6.5)","number"],
   ["accFieldBase","Calibration accuracy, base-metal control / monitoring / recording TCs (± °C | % of reading, the greater)","text"],["accFieldNoble","Same, noble-metal (R / S / B)","text"],
   ["accTestBase","Calibration accuracy, base-metal test TCs","text"],["accTestNoble","Same, noble-metal test TCs","text"],
   ["reuseDeeper","Reused type K / E test TC: insertion depth at least the deepest earlier use (yes / no)","text"],["maxUses","Test TC: maximum number of uses (0 = no limit)","number"],
@@ -120,9 +120,11 @@ function specDiff(e){const t=specOf(e);if(!t)return [];const L=[],cmp=(v,dv,l)=>
   cmp(JUNCTION[e.spec.junction]||e.spec.junction,JUNCTION[t.junction]||t.junction,"junction");cmp(e.tube.mat,t.tubeMat,"tube");return L;}
 
 /* 5. domain logic */
+/* reaction plan for an element used beyond its service life (QP-TC-01 §6.5), kept on the element */
+const PLF={found:"",vsat:"",impact:"",cause:"",action:"",owner:"",date:""};
 function fillTc(o){const d={id:"",tag:"",furnace:"",chamber:"Hardening",zone:"",use:"control",type:"K",serial:"",sheath:"",installed:"",status:"inuse",removed:"",reason:"",replacedBy:"",
-  useLo:"",useHi:"",specId:"",spec:{make:"",cls:"",dia:"",length:"",depth:"",junction:""},cal:{cert:"",lab:"",date:"",lo:"",hi:"",maxErr:""},tube:{mat:"",installed:"",checkDays:"",replDays:""},notes:"",log:[]};
-  const x={...d,...(o||{})};x.spec={...d.spec,...((o&&o.spec)||{})};x.cal={...d.cal,...((o&&o.cal)||{})};x.tube={...d.tube,...((o&&o.tube)||{})};if(!Array.isArray(x.log))x.log=[];
+  useLo:"",useHi:"",specId:"",spec:{make:"",cls:"",dia:"",length:"",depth:"",junction:""},cal:{cert:"",lab:"",date:"",lo:"",hi:"",maxErr:""},tube:{mat:"",installed:"",checkDays:"",replDays:""},pl:{...PLF},notes:"",log:[]};
+  const x={...d,...(o||{})};x.spec={...d.spec,...((o&&o.spec)||{})};x.cal={...d.cal,...((o&&o.cal)||{})};x.tube={...d.tube,...((o&&o.tube)||{})};x.pl={...PLF,...((o&&o.pl)||{})};if(!Array.isArray(x.log))x.log=[];
   /* element and protection tube are installed and replaced together (one assembly): the tube's installation date is the element's */
   if(isDate(x.installed))x.tube.installed=x.installed;return x;}
 function fillEq(o){const d={id:"",kind:"testtc",ident:"",type:"K",make:"",model:"",serial:"",lo:"",hi:"",lc:"",lab:"",cert:"",calDate:"",calDue:"",cl:"95",k:"2",obs:[],corr:"",maxErr:"",uses0:"0",active:true,notes:"",log:[]};const x={...d,...(o||{})};if(!Array.isArray(x.log))x.log=[];
@@ -259,6 +261,30 @@ function satState(e){
   return {st,due,last:lastPass,txt:(st==="overdue"?"SAT overdue since ":"SAT due ")+fmtD(due)};}
 function lifeOf(e){if(!(+C().lifeDays>0)||!isDate(e.installed))return {st:isDate(e.installed)?"off":"unknown"};const due=addDays(e.installed,+C().lifeDays),d=today();
   return {st:due<d?"over":addDays(d,+C().soonDays)>=due?"soon":"ok",due};}
+/* past its life: in use after the life date, or removed (in the last lifeDays days) after it */
+function pastLife(e){if(!(+C().lifeDays>0)||!isDate(e.installed))return null;const due=addDays(e.installed,+C().lifeDays),d=today();
+  if(e.status==="inuse")return due<d?{due,to:d,open:true}:null;
+  if(e.status==="removed"&&isDate(e.removed)&&e.removed>due&&e.removed>=addDays(d,-(+C().lifeDays)))return {due,to:e.removed,open:false};
+  return null;}
+const dayDiff=(a,b)=>Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/864e5);
+/* the verification SAT: a valid SAT of the element on or after its life date (the one named, else the first) */
+function plSat(e,p){if(!needSat(e)||!p)return null;const L=S.sats.filter(r=>r.tc===e.id&&r.date>=p.due&&validSat(r)).sort((a,b)=>(a.date+a.time)<(b.date+b.time)?-1:1);
+  return (e.pl.vsat&&L.find(r=>r.id===e.pl.vsat))||L[0]||null;}
+function plMissing(e){const p=pastLife(e);if(!p)return [];const m=[],a=e.pl,v=plSat(e,p);
+  if(p.open&&needSat(e)&&!v)m.push("verification SAT");
+  if(v&&satEval(v).res==="fail"&&actMissing(v).length)m.push(`the reaction of the failed SAT ${v.id}`);
+  if(!txt(a.impact))m.push("product impact assessment of the window");if(!txt(a.cause))m.push("why the replacement was missed");
+  if(!txt(a.action))m.push("corrective action");if(!txt(a.owner))m.push("owner");if(!isDate(a.date))m.push("date");return m;}
+function plState(e){const p=pastLife(e);if(!p)return null;const v=plSat(e,p),m=plMissing(e),res=v?satEval(v).res:null,n=dayDiff(p.due,p.to);
+  if(p.open){
+    if(needSat(e)&&!v)return {st:"sat",lvl:"crit",p,v,m,txt:`past its life since ${fmtD(p.due)}: verification SAT required now`};
+    if(res==="fail")return {st:"fail",lvl:"crit",p,v,m,txt:`verification SAT ${v.id} failed: failed-SAT reaction (WI-TC-02 §4), product held back to the last passing SAT; replace the element`};
+    const by=addDays(v?v.date:p.due,+C().lifeGrace||0);
+    if(by<today())return {st:"late",lvl:"crit",p,v,m,by,txt:`not replaced by ${fmtD(by)}${v?` (verification SAT ${v.id} passed ${fmtD(v.date)})`:""}`};
+    return {st:"replace",lvl:"warn",p,v,m,by,txt:`${v?`verification SAT ${v.id} passed ${fmtD(v.date)}`:"past its life since "+fmtD(p.due)}: replace by ${fmtD(by)}`};}
+  if(m.length)return {st:"record",lvl:"crit",p,v,m,txt:`replaced ${fmtD(p.to)}, ${n} days past its life: reaction record incomplete`};
+  return {st:"closed",lvl:"ok",p,v,m,txt:`replaced ${fmtD(p.to)}, ${n} days past its life: reaction complete`};}
+const PLP={sat:["bad","Verification SAT now"],fail:["bad","Verification SAT failed"],late:["bad","Replacement late"],replace:["warn","Replace soon"],record:["bad","Record incomplete"],closed:["ok","Reaction complete"]};
 const tubesOf=id=>S.tubes.filter(t=>t.tc===id).sort((a,b)=>a.date<b.date?1:-1);
 function tubeState(e){const t=e.tube,ck=num(t.checkDays),rp=num(t.replDays);
   if(!t.mat||!ck)return {st:"nopm",txt:"not in the PM schedule"};
@@ -303,9 +329,11 @@ function assess33(){
     [!isDate(S.pm.apprDate)?"PM schedule not approved":`PM schedule rev ${S.pm.rev} approved ${fmtD(S.pm.apprDate)} by ${S.pm.appr}${S.pm.ref?" ("+S.pm.ref+")":""}${S.pm.dirty?", changed since":""}${pr.st==="overdue"?", review overdue":""}`,
       noPm.length?`${plural(noPm.length,"thermocouple")} without a tube interval`:"",tBad.length?tBad.slice(0,6).map(x=>`${tcName(x.e)}: ${x.t.txt}`).join("; "):"",tSoon.length?`${plural(tSoon.length,"tube")} due soon`:""].filter(Boolean).join(" · "),
     "Approve the schedule (PM schedule view), check every tube due (WI-TC-03) and replace worn tubes.");
-  const lo=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="over"),ls=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="soon");
-  if(+C().lifeDays>0)add(`Sensing elements replaced within ${C().lifeDays} days (site schedule)`,lo.length?"crit":ls.length?"warn":"ok",
-    lo.length?lo.slice(0,6).map(x=>`${tcName(x.e)} installed ${fmtD(x.e.installed)}`).join("; "):ls.length?`${plural(ls.length,"element")} due for replacement soon.`:"No element past its life.",lo.length?"Replace the thermocouple (element and tube) and run a SAT before use.":"");
+  const PL=S.tcs.map(e=>({e,s:plState(e)})).filter(x=>x.s),pc=PL.filter(x=>x.s.lvl==="crit"),pw=PL.filter(x=>x.s.lvl==="warn"),pk=PL.filter(x=>x.s.lvl==="ok"),ls=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="soon");
+  if(+C().lifeDays>0)add(`Sensing elements replaced within ${C().lifeDays} days; an element past its life handled by the reaction plan (site schedule, QP-TC-01 §6.5)`,pc.length?"crit":pw.length||ls.length?"warn":"ok",
+    [pc.concat(pw).slice(0,6).map(x=>`${tcName(x.e)} (${x.e.serial||"?"}): ${x.s.txt}${x.s.m.length?" · to record: "+x.s.m.join(", "):""}`).join("; "),ls.length?`${plural(ls.length,"element")} due for replacement soon.`:"",
+      pk.length?`${plural(pk.length,"late replacement")} in the last ${C().lifeDays} days with a complete reaction record.`:"",!PL.length&&!ls.length?"No element past its life.":""].filter(Boolean).join(" · "),
+    pc.length?"Run the verification SAT, replace the element (and tube) and complete the reaction record (Act → Elements past their service life).":pw.length?"Replace the element by the date shown and complete the reaction record.":"");
   const crit=I.filter(i=>i.lvl==="crit").length;
   const nia=!U.length||need.some(x=>hasUse(x.e,"control")&&(x.s.st==="fail"||(x.s.st==="none"&&!S.sats.some(r=>r.tc===x.e.id))));
   return {I,score:nia?"nia":crit?"ns":"s",crit};}
@@ -389,7 +417,7 @@ function attention(){
   S.repl.forEach(r=>{const m=replMissing(r);if(m.length)out.push([`#repl`,`${r.id} replacement record: ${m.join(", ")}`,"warn"]);});
   U.forEach(e=>{const t=tubeState(e);if(["bad","overdue","replover","none","nopm"].includes(t.st))out.push([`#tube`,`${tcName(e)} protection tube: ${t.txt}`,"bad"]);});
   U.forEach(e=>{const i=calIssues(e);if(i.length)out.push([`#tcs`,`${tcName(e)}: ${i[0]}`,"bad"]);});
-  U.forEach(e=>{if(lifeOf(e).st==="over")out.push([`#tcs`,`${tcName(e)}: element past its ${C().lifeDays}-day life`,"bad"]);});
+  S.tcs.forEach(e=>{const s=plState(e);if(s&&s.lvl!=="ok")out.push([`#act`,`${tcName(e)}: ${s.txt}`,s.lvl==="crit"?"bad":"warn"]);});
   S.sats.forEach(r=>{const v=satEval(r);if(v.res==="fail"&&actMissing(r).length)out.push([`#act`,`${r.id} ${tcName(tcById(r.tc))}: failed SAT, reaction open`,"bad"]);else if(satMissing(r).length)out.push([`#sat`,`${r.id}: record incomplete`,"warn"]);});
   S.eq.filter(q=>q.active).forEach(q=>{const i=eqIssues(q);if(i.length)out.push([`#eq`,`${q.ident}: ${i[0]}`,"warn"]);});
   if(!isDate(S.pm.apprDate))out.push([`#pm`,"Protection tube PM schedule not approved","bad"]);else if(S.pm.dirty)out.push([`#pm`,"PM schedule changed since its approval","warn"]);
@@ -544,8 +572,15 @@ function vAct(){
       ||(e&&e.replacedBy&&S.sats.find(x=>x.tc===e.replacedBy&&validSat(x)&&satEval(x).res!=="fail"));
     return `<tr class="click" data-sat="${esc(r.id)}"><td class="mono">${esc(r.id)}</td><td>${esc(tcName(e))}</td><td>${fmtD(r.date)}</td><td class="n">${fx(satEval(r).diff)} °C</td><td>${m.length?pill("bad",m.length+" missing"):pill("ok","Complete")}<br><span class="small muted">${esc(r.act.action)}</span></td><td>${re?pill("ok",re.id+" "+fmtD(re.date)):pill("bad","None yet")}</td></tr>`;}).join("")}</tbody></table></div>`:`<p class="muted">No failed SAT.</p>`}</div>
   <div class="panel"><h3>Protection tubes to replace</h3>${W.length?`<ul class="issues">${W.map(e=>`<li><a href="#tube" data-tc="${esc(e.id)}">${esc(tcName(e))}</a>: ${esc(tubeState(e).txt)}. Replace the thermocouple (element and tube) <button class="link" data-replfor="${esc(e.id)}">Replace…</button></li>`).join("")}</ul>`:`<p class="muted">None.</p>`}</div>
+  ${plPanel()}
   <div class="panel"><h3>Elements awaiting their verification SAT</h3>${inUse().filter(e=>satState(e).st==="repl").map(e=>`<p><a href="#repl">${esc(tcName(e))}</a>: ${esc(satState(e).txt)} <button class="w" data-new-sat="${esc(e.id)}">Record the SAT</button></p>`).join("")||`<p class="muted">None.</p>`}</div>`;
 }
+function plPanel(){const L=S.tcs.map(e=>({e,s:plState(e)})).filter(x=>x.s).sort((a,b)=>(a.s.lvl==="ok")-(b.s.lvl==="ok")||(a.s.p.due<b.s.p.due?-1:1));
+  return `<div class="panel"><h3>Elements past their service life (QP-TC-01 §6.5)</h3><p class="small muted">An element in use after ${C().lifeDays} days gets a verification SAT at once; a passing one allows ${C().lifeGrace} days to replace it, a failed one starts the failed-SAT reaction (product held back to the last passing SAT). The product made in the window is assessed and the miss is corrected; elements replaced late in the last ${C().lifeDays} days stay listed until the record is complete.</p>
+  ${L.length?`<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Element</th><th>Life ended</th><th class="n">Days past</th><th>Verification SAT</th><th>State</th><th>Reaction record</th><th></th></tr></thead><tbody>${L.map(({e,s})=>`<tr><td><button class="link" data-tc="${esc(e.id)}"><b>${esc(tcName(e))}</b></button><br><span class="small muted">${esc(useTxt(e))}${e.status==="removed"?" · removed "+fmtD(e.removed):""}</span></td><td class="mono">${esc(e.serial||"—")}</td><td>${fmtD(s.p.due)}</td><td class="n">${dayDiff(s.p.due,s.p.to)}</td>
+    <td>${s.v?`<a href="#sat" data-sat="${esc(s.v.id)}">${esc(s.v.id)}</a> ${fmtD(s.v.date)}<br>${resPill(s.v)}`:needSat(e)?(s.p.open?pill("bad","Required now"):pill("","None before removal")):pill("","Not required")}</td>
+    <td>${pill(...PLP[s.st])}${s.by?`<br><span class="small muted">replace by ${fmtD(s.by)}</span>`:""}</td><td>${s.m.length?pill(s.lvl==="ok"?"warn":"bad",plural(s.m.length,"item")+" missing"):pill("ok","Complete")}</td>
+    <td>${s.p.open?`${needSat(e)&&!s.v?`<button class="w" data-new-sat="${esc(e.id)}">Record the SAT</button>`:""}<button class="w" data-replfor="${esc(e.id)}">Replace…</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No element past its life.</p>`}</div>`;}
 const lifePill=l=>l.st==="over"?pill("bad","Past life "+fmtD(l.due)):l.st==="soon"?pill("warn","Due "+fmtD(l.due)):l.st==="ok"?pill("ok","Replace by "+fmtD(l.due)):pill("","—");
 function vRepl(){
   const U=inUse(),due=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="over"||x.l.st==="soon").sort((a,b)=>a.l.due<b.l.due?-1:1),unk=U.filter(e=>!isDate(e.installed)).length;
@@ -571,6 +606,7 @@ function vRules(){
     ["Failed SAT","Cause, corrective action, product impact, owner and date, then a passing re-SAT (after adjustment or replacement)."],
     ["Protection tubes","Each thermocouple in use has a tube material and a check interval and optionally a tube life (from the specification of each thermocouple, TC specifications; a new thermocouple without one gets a check every "+DEF.tubeCheckDays+" days and a tube life of "+DEF.tubeReplDays+" days); the schedule is approved and reviewed every "+c.pmReviewDays+" days. Element and tube form one assembly: they are installed and replaced together, so the tube's installation date is the element's. A worn or cracked tube, or a tube past its replacement interval, stays open until the thermocouple is replaced (reason \"Protection tube failure\" or service life); the new assembly starts its check interval on the replacement date."],
     ["Element life","Sensing elements in use longer than "+c.lifeDays+" days are due for replacement (site schedule); the due list shows them."],
+    ["Past its life (QP-TC-01 §6.5)","An element in use after its life date needs a verification SAT at once (control, monitoring, recording TCs). Passing: replace within "+c.lifeGrace+" days of that SAT. Failing: the failed-SAT reaction applies (product held back to the last passing SAT) and the element is replaced. The reaction record on the element names the product impact of the window (life date → replacement), the cause of the miss, the corrective action, owner and date. Elements replaced late stay listed for "+c.lifeDays+" days until their record is complete. Any of: no verification SAT, a failed one, the replacement late, or an incomplete record of a replaced element = HTSA 3.3 item not met."],
     ["Replacement","Element and protection tube are replaced together. Recorded with the date, the reason (SAT failure, service life, drift, damage, open circuit, exposure, TUS failure, tube failure, wrong type, relocation / immersion change, other), the removed and fitted element, the calibration certificate of the fitted one, the controller offset decision, the TUS decision for a relocation or immersion change, who replaced it and the failed SAT that found it. The old element is kept as removed. The fitted element shows \"SAT due after replacement\" until a valid SAT on or after the replacement date. A failed SAT whose action is \"Replace the thermocouple\" closes only with a replacement record linked to it."],
     ["Furnace readings from SCADA","The SAT dialog can fill the furnace readings from a SCADA export loaded in the SCADA review (this session): the PV of the thermocouple's column (TC-n → PV-n) of that furnace and chamber at each reading time, the nearest row within half the logging step. Readings outside 500–1000 °C or not in the record stay empty. The source file is kept on the SAT record."],
     ["HTSA 3.3 score","Needs immediate action: no thermocouple registered, or a control TC with a failed SAT or never SAT checked. Not satisfactory: any item not met. Satisfactory: otherwise."],
@@ -646,6 +682,17 @@ function posLinks(e){
   return `${lines.length?`<p class="banner" style="margin-top:10px">${lines.join("<br>")}</p>`:""}
   ${H.length>1?`<fieldset><legend>Elements at ${esc(e.furnace)} ${esc(e.chamber)} ${esc(e.tag)}</legend><div class="tw"><table><thead><tr><th>Element</th><th>Installed</th><th>Removed</th><th>Reason</th><th>Record</th></tr></thead><tbody>${H.map(x=>{const r=S.repl.find(y=>y.oldTc===x.id);
     return `<tr><td>${x.id===e.id?`<b>${esc(x.serial||x.id)}</b> (this one)`:el(x)} ${x.status==="inuse"?pill("ok","In use"):""}</td><td>${fmtD(x.installed)}</td><td>${x.status==="removed"?fmtD(x.removed):"—"}</td><td>${esc(x.reason)}</td><td>${rec(r)}</td></tr>`;}).join("")}</tbody></table></div></fieldset>`:""}`;}
+/* the past-life reaction plan on the element dialog (QP-TC-01 §6.5) */
+function plBox(e){const s=plState(e);if(!s)return "";const p=s.p,ok=s.v&&satEval(s.v).res!=="fail";
+  return `<fieldset><legend>Past its service life · reaction plan (QP-TC-01 §6.5)</legend>
+  <p>${pill(...PLP[s.st])} ${esc(s.txt)}.</p><p class="small muted">Life ended ${fmtD(p.due)} (installed ${fmtD(e.installed)} + ${C().lifeDays} days); window ${fmtD(p.due)} → ${p.open?"today":fmtD(p.to)}, ${plural(dayDiff(p.due,p.to),"day")}.</p>
+  <p class="small"><b>1 · Verification SAT:</b> ${s.v?`<a href="#sat" data-sat="${esc(s.v.id)}">${esc(s.v.id)}</a> ${fmtD(s.v.date)} ${resPill(s.v)}${ok?" → the measuring chain was still accurate; replace within "+C().lifeGrace+" days.":" → apply the failed-SAT reaction (WI-TC-02 §4): hold the zone's product back to the last passing SAT."}`:!needSat(e)?"not required (not a control, monitoring or recording thermocouple).":p.open?`required now. <button class="w" data-new-sat="${esc(e.id)}">Record the verification SAT</button>`:"none before the element was removed: the impact assessment gives the evidence."}</p>
+  <div class="fields">${mf("pl.found","Found past its life on",{type:"date"})}${mf("pl.vsat","Verification SAT (empty = the first valid SAT after the life date)",{opts:Object.fromEntries(S.sats.filter(r=>r.tc===e.id&&r.date>=p.due).map(r=>[r.id,r.id+" "+fmtD(r.date)])),blank:1})}
+    ${mf("pl.impact","Product made in the window: impact assessment (verification SAT, SCADA reviews of the zone, hardness of the lots, old vs new element at the same temperature)",{area:3,wide:1,req:1})}
+    ${mf("pl.cause","Why the replacement was missed (cause)",{area:2,wide:1,req:1})}${mf("pl.action","Corrective action on the system (e.g. weekly due-list review, spare stock)",{area:2,wide:1,req:1})}
+    ${mf("pl.owner","Owner",{req:1})}${mf("pl.date","Date",{type:"date",req:1})}</div>
+  <p class="small ${s.m.length?"":"muted"}" style="margin-top:6px">${s.m.length?"To complete: "+esc(s.m.join(" · "))+".":p.open?"Record complete: the item clears when the element is replaced.":"Reaction complete."}</p>
+  <div class="row"><button class="w" data-save-pl>Save the reaction</button>${p.open?`<button class="pri w" data-replace>Replace thermocouple…</button>`:""}</div></fieldset>`;}
 function DRAW_TC(){
   const e=S.modal.ed,known=S.tcs.find(x=>x.id===e.id),[lo,hi]=useRange(e),ci=calIssues(e),rem=e.status==="removed",L=known?satsOf(e.id):[],T=known?tubesOf(e.id):[];
   const body=`<p class="muted">${known?pill(...TSTAT[e.status]):pill("warn","New")} ${e.tag?esc(wallOf(e.tag)):""}${known&&e.status==="inuse"?" "+satPill(e,1)+" "+tubePill(e,1):""}</p>
@@ -659,6 +706,7 @@ function DRAW_TC(){
     ${mf("cal.lo","Calibrated from °C",{num:1,req:1,dis:rem})}${mf("cal.hi","to °C",{num:1,req:1,dis:rem})}${mf("cal.maxErr","Largest error on the certificate ± °C",{num:1,req:1,dis:rem})}</div>
     <p class="small ${ci.length?"":"muted"}" style="margin-top:6px">${ci.length?pill("bad","Issue")+" "+esc(ci.join(" · ")):`Accuracy required: ±${fx(limAt(e.type,false,hi),1)} °C at ${hi??"?"} °C (type ${esc(e.type)}). Range of use ${lo??"?"}–${hi??"?"} °C.`}</p></fieldset>
   <fieldset><legend>Protection tube (PM schedule)</legend><p class="small muted" style="margin:0 0 6px">Element and tube are installed and replaced together: a worn or cracked tube, or the tube life, means replacing the thermocouple (Replace thermocouple…).</p><div class="fields">${mf("tube.mat","Tube material",{req:1,dis:rem,ph:"e.g. Inconel 600, ceramic C799"})}<label class="f"><span>Tube installed (with the element)</span><input value="${esc(fmtD(e.installed))}" disabled></label>${mf("tube.checkDays","Check every (days)",{num:1,req:1,dis:rem})}${mf("tube.replDays","Tube life: replace the thermocouple after (days, 0 = on condition)",{num:1,dis:rem})}</div></fieldset>
+  ${known?plBox(e):""}
   ${mf("notes","Notes",{area:2,wide:1})}
   ${known?posLinks(e):""}
   ${L.length?`<fieldset><legend>SATs</legend><ul class="small">${L.map(r=>`<li><a href="#sat" data-sat="${esc(r.id)}">${esc(r.id)}</a> ${fmtD(r.date)} · ${resPill(r)}</li>`).join("")}</ul></fieldset>`:""}
@@ -855,6 +903,10 @@ async function saveTc(){const e=fillTc(S.modal.ed),known=S.tcs.find(x=>x.id===e.
   const pmCh=!known||["mat","checkDays","replDays"].some(k=>String(known.tube[k])!==String(e.tube[k]));
   if(!known)e.id=nextCode("TE",S.tcs);
   if(await put("tcs",e,known?"Saved":"Registered")){if(pmCh)await markPm((known?"Tube data of ":"New thermocouple ")+tcName(e));toast(tcName(e)+" saved");closeModal();}}
+async function savePl(){const e=fillTc(S.modal.ed),a=e.pl;
+  if([a.found,a.date].some(x=>isDate(x)&&x>today())){msg("Dates cannot be in the future.");return;}
+  if(a.vsat&&!S.sats.some(r=>r.id===a.vsat&&r.tc===e.id)){msg("The verification SAT must be a SAT of this element.");return;}
+  const m=plMissing(e);if(await put("tcs",e,"Past-life reaction "+(m.length?"updated":"complete"))){S.modal.ed=clone(e);redraw();msg(m.length?"Saved. To complete: "+m.join(", ")+".":"Saved: reaction complete.",1);}}
 /* the replacement dialog keeps what was typed when it redraws (reason → TUS question) */
 const RPF={date:"rp-date",time:"rp-time",reason:"rp-reason",satRef:"rp-sat",serial:"rp-serial",type:"rp-type",cert:"rp-cert",cdate:"rp-cdate",lo:"rp-lo",hi:"rp-hi",err:"rp-err",offset:"rp-offset",tus:"rp-tus",by:"rp-by",notes:"rp-notes",tmat:"rp-tmat"};
 const rpKeep=()=>{const m=S.modal;Object.entries(RPF).forEach(([k,id])=>{const el=$("#"+id);if(el)m[k]=el.value;});};
@@ -863,7 +915,7 @@ async function replaceTc(){rpKeep();const m=S.modal,old=clone(tcById(m.id));
   const miss=[!isDate(m.date)&&"date",!txt(m.tmat)&&!old.tube.mat&&"protection tube material",!m.reason&&"reason",m.reason===R_SAT&&F.length&&!m.satRef&&"the failed SAT that found it",!txt(m.serial)&&"fitted element serial",!txt(m.cert)&&"certificate",!isDate(m.cdate)&&"calibration date",(num(m.lo)==null||num(m.hi)==null)&&"calibrated range",num(m.err)==null&&"largest error",!m.offset&&"controller offset reset",m.reason===R_MOVE&&!m.tus&&"TUS decision",!txt(m.by)&&"replaced by",m.offset===OFFSET[2]&&!txt(m.notes)&&"why the offset was not reset (notes)"].filter(Boolean);
   if(miss.length){msg("Missing: "+miss.join(", ")+".");return;}
   if(m.date>today()){msg("Not in the future.");return;}if(m.cdate>m.date){msg("The fitted element must be calibrated before it is put into use.");return;}
-  const n=fillTc({...clone(old),id:nextCode("TE",S.tcs),serial:txt(m.serial),type:m.type||old.type,installed:m.date,status:"inuse",removed:"",reason:"",replacedBy:"",log:[],
+  const n=fillTc({...clone(old),id:nextCode("TE",S.tcs),serial:txt(m.serial),type:m.type||old.type,installed:m.date,status:"inuse",removed:"",reason:"",replacedBy:"",log:[],pl:{...PLF},
     cal:{cert:txt(m.cert),lab:old.cal.lab,date:m.cdate,lo:m.lo,hi:m.hi,maxErr:m.err},tube:{...old.tube,mat:txt(m.tmat)||old.tube.mat,installed:m.date}});
   old.status="removed";old.removed=m.date;old.reason=m.reason;old.replacedBy=n.id;
   const r=fillRepl({id:nextCode("TR",S.repl),oldTc:old.id,newTc:n.id,date:m.date,time:m.time||"",oldSerial:old.serial,oldInstalled:old.installed,newSerial:n.serial,newType:n.type,cert:n.cal.cert,
@@ -899,11 +951,12 @@ async function stdOps(){if(!needDb())return;if(S.tcs.length||S.sats.length){toas
       obs:[["400","16.420","400.3","0.9"],["600","24.880","600.4","0.9"],["800","33.250","800.4","1.0"],["900","37.290","900.5","1.0"],["1000","41.300","1000.6","1.1"]].map(([std,mv,uuc,unc])=>({std,mv,uuc,unc}))}),
     fillEq({id:"TT-0003",kind:"testtc",ident:"TTC-N-201"+ex,type:"N",cert:"CC/2318",calDate:D(-400),calDue:D(-35),corr:"0.3",maxErr:"0.9",uses0:"4"})];
   const furn=["F-01","F-02","F-03","F-04"];
-  furn.forEach((f,fi)=>CH.forEach((ch,ci)=>{for(let k=1;k<=6;k++){const id="TE-"+String(++te).padStart(4,"0"),inst=D(-300+fi*20+k*3),tubeInst=inst;
+  furn.forEach((f,fi)=>CH.forEach((ch,ci)=>{for(let k=1;k<=6;k++){const id="TE-"+String(++te).padStart(4,"0"),pastL=f==="F-02"&&ch==="Tempering"&&k===3,inst=pastL?D(-372):D(-300+fi*20+k*3),tubeInst=inst;  /* F-02 tempering TC-03: past its life */
     const e=fromDef(ch,{id,tag:"TC-"+pad(k),furnace:f,use:"control",type:"K",serial:`K-${f.slice(2)}${ci?"T":"H"}${k}-${2400+te}`,installed:inst,
       cal:{cert:"CC/"+(2100+te),lab:"Example calibration lab",date:addDays(inst,-10),lo:ch==="Hardening"?"600":"400",hi:ch==="Hardening"?"1000":"950",maxErr:"1.6"},
       tube:{mat:ch==="Hardening"?"Inconel 600":"AISI 310",installed:tubeInst,checkDays:"30",replDays:"365"},notes:"Example",log:[{d,t:"Example"}]});
     if(f==="F-03"&&ch==="Tempering"&&k===2)e.cal.cert="";                          /* a missing certificate */
+    if(pastL)e.pl={found:D(-6),vsat:"",impact:"Window "+fmtD(D(-7))+" → replacement: verification SAT passed, the two zone-2 wall TCs agreed in the SCADA reviews, hardness of the lots in the window within limits: product not affected (example).",cause:"Replacement not on the weekly maintenance plan; no spare element in stock (example).",action:"Weekly review of the 14-day due list in the maintenance meeting; minimum stock of two spare elements per chamber type (example).",owner:"Maintenance Head"+ex,date:D(-2)};
     T.push(e);
     const sp=ch==="Hardening"?(k<=2?840:870):(k<=2?560:580);
     const last=f==="F-03"&&ch==="Hardening"&&k===4?-100:-20-fi*7-k;               /* F-03 hardening TC-04: SAT overdue */
@@ -915,6 +968,9 @@ async function stdOps(){if(!needDb())return;if(S.tcs.length||S.sats.length){toas
         appr:fail?{by:"",date:""}:{by:"R. Sharma"+ex,date:D(o+1)},act:fail?{cause:"Element drift suspected",action:"",impact:"",by:"",date:""}:{},log:[{d,t:"Example"}]}));});
     const chk=f==="F-04"&&ch==="Hardening"&&k===3?-45:-10-k;                      /* F-04 hardening TC-03: tube check overdue */
     TB.push(fillTube({id:"PT-"+String(++pt).padStart(4,"0"),tc:id,date:D(chk),by:"Maintenance"+ex,res:f==="F-01"&&ch==="Hardening"&&k===6?"worn":"ok",note:f==="F-01"&&ch==="Hardening"&&k===6?"Heavy scaling at the tip":""}));}}));
+  /* verification SAT of the past-life element (F-02 tempering TC-03) */
+  {const pe=T.find(e=>e.furnace==="F-02"&&e.chamber==="Tempering"&&e.tag==="TC-03");if(pe)SA.push(fillSat({id:"SAT-"+String(++sa).padStart(4,"0"),tc:pe.id,date:D(-2),time:"11:00",by:"S. Patil"+ex,sp:"580",instr:"TT-0001",testTc:"TT-0002",depth:"190",
+    rd:exRd(580,0.9,77),instrCorr:"0.2",tcCorr:"-0.4",appr:{by:"R. Sharma"+ex,date:D(-2)},act:{},log:[{d,t:"Example: verification SAT of an element past its life"}]}));}
   /* the depth rule: the last SAT with the reused K test TC is shallower on one record */
   const sh=SA.find(r=>r.tc==="TE-0009"&&r.depth==="180");if(sh)sh.depth="120";
   S.cfg={...S.cfg};await dbSet("config","settings",S.cfg);
@@ -997,7 +1053,7 @@ onDoc("click",e=>{
   const b=e.target.closest("button,tr.click,a[data-docref],a[data-sat],a[data-tc],circle[data-sat]");if(!b)return;const d=b.dataset;
   if(b.closest("#modal")||d.close!==undefined){
     if(d.close!==undefined){closeModal();return;}
-    if(d.saveTc!==undefined){saveTc();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.tdaGo!==undefined){tdApply();return;}
+    if(d.saveTc!==undefined){saveTc();return;}if(d.savePl!==undefined){savePl();return;}if(d.saveEq!==undefined){saveEq();return;}if(d.tdaGo!==undefined){tdApply();return;}
     if(d.tdaAll!==undefined){S.modal.x={};redraw();return;}if(d.tdaNone!==undefined){tdPlan(S.modal).forEach(x=>S.modal.x[x.e.id]=true);redraw();return;}
     if(d.saveTspec!==undefined){saveTspec();return;}if(d.copyTspec!==undefined){specModal(S.modal.ed.id,1);return;}if(d.tdapply!==undefined){tdApplyModal(d.tdapply);return;}
     if(d.delTspec!==undefined){const id=d.delTspec||S.modal.ed.id,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC unlinked`:"Confirm delete");return;}

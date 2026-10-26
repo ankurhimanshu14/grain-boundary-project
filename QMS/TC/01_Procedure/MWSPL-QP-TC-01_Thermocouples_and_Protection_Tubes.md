@@ -4,7 +4,7 @@
 
 | Doc No. | Rev | Issue date | Process Owner | Prepared | Reviewed | Approved | Copy status |
 |---|---|---|---|---|---|---|---|
-| MWSPL-QP-TC-01 | 00 | — | Maintenance Head | | | | Uncontrolled until approved |
+| MWSPL-QP-TC-01 | 01 | — | Maintenance Head | | | | Uncontrolled until approved |
 
 ### 1. Purpose
 
@@ -84,6 +84,21 @@ The HT Manager and the Maintenance Head keep the list of thermocouple specificat
 
 Elements are replaced at the end of their service life (setting, default 365 days), after a failed SAT when adjustment is not enough, on damage or protection tube failure (the tube is always replaced with the element). The old element is kept in the register as removed with its reason; the new one needs its certificate and a SAT before use.
 
+#### 6.5 Reaction plan: an element used beyond its service life
+
+An element still in use after its service life (§6.4) is a nonconformity of this procedure. The application lists it as "Past its service life" (Thermocouples → Act) and keeps the reaction record on the element.
+
+| Step | Action | Who | When |
+|---|---|---|---|
+| 1. Contain | Inform the HT Engineer. Run a **verification SAT** on the element (WI-TC-02) for a control, monitoring or recording thermocouple. | Technician / HT Engineer | The same shift it is found |
+| 2. Decide on product | **SAT passes:** the measuring chain was still accurate and product is not affected; replace the element within the grace period (setting, default 7 days after the verification SAT). **SAT fails:** apply WI-TC-02 §4: hold the zone's product back to the last passing SAT and assess it; replace the element. | HT Engineer | After the SAT |
+| 3. Replace | Fit a new certified element with its protection tube (WI-TC-01, §6.4). Record the replacement with reason "Service life reached", the controller offset decision, and a SAT of the fitted element before use. | Maintenance Head | Within the grace period |
+| 4. Assess the window | Assess the product made from the life date to the replacement: the verification SAT, the SCADA reviews of the zone (do the two wall thermocouples still agree?), the hardness results of the lots in the window. Where possible read the old and the new element at the same temperature before the old one is removed: the difference is the drift. | HT Engineer / Quality Manager | Before the record is closed |
+| 5. Correct the system | Find why the replacement was missed (due list not reviewed, no spare in stock, furnace not stopped) and correct it, e.g. a weekly review of the due list, a minimum stock of spare elements. | Maintenance Head | Owner and date on the record |
+| 6. Record | On the element: found date, verification SAT, product impact assessment, cause, corrective action, owner, date. | HT Engineer | — |
+
+HTSA 3.3 counts it as not met while there is no verification SAT, the verification SAT failed, the replacement is past the grace period, or a late-replaced element (last 365 days) has an incomplete record. The life and the grace period are site rules; confirm the type K usage and replacement limits against the controlled CQI-9 copy (P3.1, Process Table) and the customer requirements.
+
 ### 7. Records
 
 | Record | Kept in | Retention |
@@ -91,6 +106,7 @@ Elements are replaced at the end of their service life (setting, default 365 day
 | Thermocouple register with certificates (F-TC-01) | Application → Thermocouples | Life of the furnace + 1 year |
 | SAT records (F-TC-02) | Application → SAT records | 3 years minimum, or as the customer requires |
 | PM schedule and tube checks (F-TC-03) | Application → PM schedule, Tube checks | 3 years |
+| Reaction records for elements used beyond their life (§6.5) | Application → Thermocouples (element record), Act | 3 years |
 | Test equipment calibration records (F-TC-04) | Application → Test equipment | Life of the equipment + 3 years |
 | HTSA 3.3 evidence | Printed from the application, filed with the self-assessment | Until the next assessment |
 
@@ -99,3 +115,4 @@ Elements are replaced at the end of their service life (setting, default 365 day
 | Rev | Date | Change | Approved |
 |---|---|---|---|
 | 00 | — | First issue | |
+| 01 | — | §6.5 reaction plan for an element used beyond its service life | |
