@@ -14,17 +14,11 @@
   <div class="hdr-r"><div class="ctrl" id="ctrl" aria-label="Document control"></div><button id="syncBtn" type="button" class="sync" title="Google Drive folder">This browser only</button><button id="themeBtn" type="button" aria-label="Toggle colour theme">Theme</button></div>
 </div></header>
 <nav class="sys" aria-label="Modules"><div class="wrap">
-  <a href="#home" data-sys="home">Overview</a>
-  <a href="#org/dash" data-sys="org">HT organization</a>
-  <a href="#apqp/dash" data-sys="apqp">Quality planning</a>
-  <a href="#spec/dash" data-sys="spec">Specifications</a>
-  <a href="#valid/dash" data-sys="valid">Process validation</a>
-  <a href="#trend/dash" data-sys="trend">Trend analysis</a>
-  <a href="#scada/dash" data-sys="scada">SCADA review</a>
-  <a href="#quench/dash" data-sys="quench">Quench media</a>
-  <a href="#cal/dash" data-sys="cal">Calibration</a>
-  <a href="#tus/dash" data-sys="tus">Uniformity (TUS)</a>
-  <a href="#tc/dash" data-sys="tc">Thermocouples</a>
+  <a href="#home" data-sys="home" class="stab">Overview</a>
+  <div class="sdd" data-grp="s1"><button type="button" class="sddh" aria-haspopup="true" aria-expanded="false"><span class="sg">Section 1</span><span class="sn" data-def="Management &amp; planning">Management &amp; planning</span><span class="car" aria-hidden="true">▾</span></button>
+    <div class="smenu" role="menu"><a href="#org/dash" data-sys="org" data-q="1.1" role="menuitem"><b>1.1</b><span>HT organization<small>Dedicated, qualified heat treat person</small></span></a><a href="#apqp/dash" data-sys="apqp" data-q="1.2" role="menuitem"><b>1.2</b><span>Quality planning<small>Feasibility studies, part families</small></span></a><a href="#spec/dash" data-sys="spec" data-q="1.6" role="menuitem"><b>1.6</b><span>Specifications<small>Process specifications in force</small></span></a><a href="#valid/dash" data-sys="valid" data-q="1.7" role="menuitem"><b>1.7</b><span>Process validation<small>Validation and revalidation of process lines</small></span></a><a href="#trend/dash" data-sys="trend" data-q="1.8" role="menuitem"><b>1.8</b><span>Trend analysis<small>Data collected, analysed and reacted to</small></span></a><a href="#scada/dash" data-sys="scada" data-q="1.9" role="menuitem"><b>1.9</b><span>SCADA review<small>Second-level review of the monitoring data</small></span></a></div></div>
+  <div class="sdd" data-grp="s3"><button type="button" class="sddh" aria-haspopup="true" aria-expanded="false"><span class="sg">Section 3</span><span class="sn" data-def="Equipment">Equipment</span><span class="car" aria-hidden="true">▾</span></button>
+    <div class="smenu" role="menu"><a href="#cal/dash" data-sys="cal" data-q="3.2" role="menuitem"><b>3.2</b><span>Calibration<small>Process and test equipment, offsets</small></span></a><a href="#tc/dash" data-sys="tc" data-q="3.3" role="menuitem"><b>3.3</b><span>Thermocouples<small>SAT, protection tubes, replacements</small></span></a><a href="#tus/dash" data-sys="tus" data-q="3.4" role="menuitem"><b>3.4</b><span>Uniformity (TUS)<small>Temperature uniformity surveys</small></span></a><a href="#quench/dash" data-sys="quench" data-q="3.14" role="menuitem"><b>3.14</b><span>Quench media<small>Quenchant analysis</small></span></a></div></div>
 </div></nav>
 <nav id="nav" aria-label="Module views" hidden></nav>
 <main id="main" class="wrap"></main>
@@ -68,6 +62,7 @@ function shellRoute(){
   const S=SYS[MWS.app];document.getElementById("apptitle").textContent=S.t;document.getElementById("ctrl").innerHTML=S.ctrl();
   document.title=(MWS.app==="home"?"":S.t+" · ")+"CALOR Quality System";
   document.querySelectorAll("nav.sys a").forEach(a=>{if(a.dataset.sys===MWS.app)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
+  sysSync();
   document.getElementById("nav").hidden=MWS.app==="home";
   if(MWS.app==="home"){document.getElementById("nav").innerHTML="";if(typeof renderHome==="function")renderHome();}
 }
@@ -76,6 +71,25 @@ addEventListener("hashchange",shellRoute,true);
 document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest("a[href^='#']");if(!a||MWS.app==="home")return;
   const h=a.getAttribute("href");if(h==="#home"||/^#[a-z]+\//.test(h)||a.closest("nav.sys"))return;
   e.preventDefault();location.hash="#"+MWS.app+"/"+h.slice(1);},true);
+/* module menus: one row (Overview + one dropdown per HTSA section, modules in question order); hover opens with a mouse, a click / tap toggles */
+function sysSync(){document.querySelectorAll("nav.sys .sdd").forEach(d=>{const a=d.querySelector("a[aria-current]"),n=d.querySelector(".sn");
+  d.classList.toggle("on",!!a);n.textContent=a?a.dataset.q+" "+a.querySelector("span").firstChild.textContent:n.dataset.def;});}
+(function(){const D=[...document.querySelectorAll("nav.sys .sdd")];let T=null,ptr="mouse";
+  const close=x=>D.forEach(d=>{if(d!==x){d.classList.remove("open");d.querySelector(".sddh").setAttribute("aria-expanded","false");}});
+  const open=d=>{close(d);d.classList.add("open");d.querySelector(".sddh").setAttribute("aria-expanded","true");
+    const m=d.querySelector(".smenu");m.style.left="0px";const r=m.getBoundingClientRect(),over=r.right-(document.documentElement.clientWidth-16);if(over>0)m.style.left=-Math.min(over,r.left-16)+"px";};
+  addEventListener("pointerdown",e=>{ptr=e.pointerType||"mouse";if(!e.target.closest("nav.sys .sdd"))close();},true);
+  D.forEach(d=>{const h=d.querySelector(".sddh");
+    h.addEventListener("click",()=>{if(d.classList.contains("open")&&ptr!=="mouse")close();else open(d);});
+    d.addEventListener("pointerenter",e=>{if(e.pointerType!=="mouse")return;clearTimeout(T);const any=D.some(x=>x.classList.contains("open"));T=setTimeout(()=>open(d),any?0:60);});
+    d.addEventListener("pointerleave",e=>{if(e.pointerType!=="mouse")return;clearTimeout(T);T=setTimeout(()=>{d.classList.remove("open");h.setAttribute("aria-expanded","false");},250);});
+    d.addEventListener("click",e=>{if(e.target.closest(".smenu a"))close();});
+    d.addEventListener("keydown",e=>{const L=[...d.querySelectorAll(".smenu a")],i=L.indexOf(document.activeElement);
+      if(e.key==="Escape"){close();h.focus();}
+      else if(e.key==="ArrowDown"){e.preventDefault();open(d);(L[i+1]||L[0]).focus();}
+      else if(e.key==="ArrowUp"){e.preventDefault();open(d);(L[i-1]||L[L.length-1]).focus();}});});
+  addEventListener("keydown",e=>{if(e.key==="Escape")close();});
+  addEventListener("hashchange",()=>close());sysSync();})();
 /* theme: automatic, with a manual override kept per browser */
 (function(){let t=null;try{t=localStorage.getItem("mws-theme");}catch(e){}if(t)document.documentElement.dataset.theme=t;
   document.getElementById("themeBtn").addEventListener("click",()=>{const r=document.documentElement,dark=r.dataset.theme?r.dataset.theme==="dark":matchMedia("(prefers-color-scheme:dark)").matches;
