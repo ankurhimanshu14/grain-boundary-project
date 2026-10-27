@@ -31,3 +31,6 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | Test hook | `window.__TCM` |
 
 **Not in the application:** the calibration certificates themselves (kept in the maintenance file; the register holds their numbers); TUS and controller / recorder calibration (CALOR TUS and Equipment pages).
+
+
+**Pending replacements** (`replDue()`): every element in use that has to be replaced, with the reasons: a failed SAT (latest valid SAT failed, reaction not decided or "Replace the thermocouple"; another action keeps it off the list), service life (over / due soon), protection tube (worn / cracked, tube life). It leaves the list when the replacement is recorded or a later valid SAT passes. Shown on the Replacements view ("Record replacement" opens the dialog with the reason and the failed SAT), the dashboard tile "Pending replacements", the attention list and the Overview card.

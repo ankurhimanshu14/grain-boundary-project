@@ -84,6 +84,16 @@ The HT Manager and the Maintenance Head keep the list of thermocouple specificat
 
 Elements are replaced at the end of their service life (setting, default 365 days), after a failed SAT when adjustment is not enough, on damage or protection tube failure (the tube is always replaced with the element). The old element is kept in the register as removed with its reason; the new one needs its certificate and a SAT before use.
 
+**Pending replacements.** The application keeps one list of every element in use that has to be replaced (Thermocouples → Replacements, "Pending replacements"), with the reason:
+
+| Reason | Listed while | Leaves the list when |
+|---|---|---|
+| SAT failed | The latest valid SAT failed and the reaction is not decided, or "Replace the thermocouple" was decided | The replacement is recorded, or a later valid SAT passes. If the reaction chooses another action (offset, recalibration, wiring repair, re-positioning), the element is not listed; the re-SAT confirms that action |
+| Service life | From the reminder period before the life date | The replacement is recorded |
+| Protection tube | The last check found the tube worn or cracked, or the tube life is passed | The replacement is recorded (element and tube together) |
+
+The Maintenance Head reviews the list at least weekly and plans each replacement at the next opportunity; an element listed after a failed SAT is replaced before the furnace runs product on that thermocouple again, unless the reaction record justifies another action.
+
 #### 6.5 Reaction plan: an element used beyond its service life
 
 An element still in use after its service life (§6.4) is a nonconformity of this procedure. The application lists it as "Past its service life" (Thermocouples → Act) and keeps the reaction record on the element.
@@ -115,4 +125,4 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 | Rev | Date | Change | Approved |
 |---|---|---|---|
 | 00 | — | First issue | |
-| 01 | — | §6.5 reaction plan for an element used beyond its service life | |
+| 01 | — | §6.4 pending replacements (incl. a failed SAT without a replacement); §6.5 reaction plan for an element used beyond its service life | |

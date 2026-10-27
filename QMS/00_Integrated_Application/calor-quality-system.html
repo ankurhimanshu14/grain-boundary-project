@@ -6064,7 +6064,7 @@ function assess33(){
 function kp(){const U=inUse(),need=U.filter(e=>needSat(e)).map(e=>satState(e)),T=U.map(tubeState),A=assess33();
   return {inUse:U.length,satOk:need.filter(s=>s.st==="ok"||s.st==="soon").length,satNeed:need.length,satOver:need.filter(s=>["none","overdue"].includes(s.st)).length,satFail:need.filter(s=>s.st==="fail").length,
     satSoon:need.filter(s=>s.st==="soon").length,calBad:U.filter(e=>calIssues(e).length).length,tubeBad:T.filter(t=>["bad","overdue","replover","none","nopm"].includes(t.st)).length,tubeSoon:T.filter(t=>t.st==="soon").length,
-    lifeOver:U.filter(e=>lifeOf(e).st==="over").length,replOpen:U.filter(e=>satState(e).st==="repl").length,eqBad:S.eq.filter(q=>q.active&&eqIssues(q).length).length,score:A.score,notMet:A.crit};}
+    lifeOver:U.filter(e=>lifeOf(e).st==="over").length,replOpen:U.filter(e=>satState(e).st==="repl").length,replDue:replDue().length,replSat:replDue().filter(x=>x.W.some(w=>w.k==="sat")).length,eqBad:S.eq.filter(q=>q.active&&eqIssues(q).length).length,score:A.score,notMet:A.crit};}
 
 /* 6. db plumbing: shared store (claude.use("db")) or localStorage with the same calls */
 function toast(t){MWS.toast(t);}
@@ -6137,7 +6137,8 @@ const tubePill=(e,inl)=>{const t=tubeState(e);return pill(TUBP[t.st][0],TUBP[t.s
 const resPill=r=>{const v=satEval(r);if(!v.res)return pill("","Incomplete");if(v.invalid.length)return pill("bad","Invalid");return v.res==="fail"?pill("bad","Fail "+fx(v.diff)+" °C"):v.res==="warn"?pill("warn","Pass "+fx(v.diff)+" °C (warning)"):pill("ok","Pass "+fx(v.diff)+" °C");};
 function attention(){
   const U=inUse(),out=[];
-  U.forEach(e=>{const s=satState(e);if(["fail","overdue","none","repl"].includes(s.st))out.push([s.st==="repl"?`#repl`:`#review`,`${tcName(e)}: ${s.txt}`,"bad"]);});
+  U.forEach(e=>{const s=satState(e);if(["fail","overdue","none","repl"].includes(s.st)){const k=s.st==="fail"&&s.last?s.last.act.kind:"";
+    out.push([s.st==="repl"||(s.st==="fail"&&(!k||k===ACTIONS[0]))?`#repl`:`#review`,`${tcName(e)}: ${s.txt}${s.st==="fail"?(k===ACTIONS[0]?" · replacement decided, not made":!k?" · reaction not decided: pending replacement":" · "+k+": re-SAT"):""}`,"bad"]);}});
   S.repl.forEach(r=>{const m=replMissing(r);if(m.length)out.push([`#repl`,`${r.id} replacement record: ${m.join(", ")}`,"warn"]);});
   U.forEach(e=>{const t=tubeState(e);if(["bad","overdue","replover","none","nopm"].includes(t.st))out.push([`#tube`,`${tcName(e)} protection tube: ${t.txt}`,"bad"]);});
   U.forEach(e=>{const i=calIssues(e);if(i.length)out.push([`#tcs`,`${tcName(e)}: ${i[0]}`,"bad"]);});
@@ -6152,7 +6153,7 @@ function vDash(){
   return `<div class="tiles">
     <a class="tile" href="#tcs"><span class="k">Thermocouples in use</span><span class="v">${k.inUse}</span><span class="small muted">${plural(k.satNeed,"needs","need")} SAT</span></a>
     <a class="tile ${k.satOver||k.satFail?"bad":k.satSoon?"warn":"ok"}" href="#review"><span class="k">SAT in date</span><span class="v">${k.satOk}/${k.satNeed}</span><span class="small muted">${k.satOver} overdue / none · ${k.satFail} failed</span></a>
-    <a class="tile ${k.replOpen?"bad":k.lifeOver?"warn":"ok"}" href="#repl"><span class="k">Replacements</span><span class="v">${k.replOpen}</span><span class="small muted">awaiting SAT · ${k.lifeOver} past life</span></a>
+    <a class="tile ${k.replSat||k.replOpen?"bad":k.replDue?"warn":"ok"}" href="#repl"><span class="k">Pending replacements</span><span class="v">${k.replDue}</span><span class="small muted">${k.replSat} after a failed SAT · ${k.lifeOver} past life · ${k.replOpen} awaiting SAT</span></a>
     <a class="tile ${k.calBad?"bad":"ok"}" href="#tcs"><span class="k">Calibration (P3.1)</span><span class="v">${k.calBad}</span><span class="small muted">elements with an issue</span></a>
     <a class="tile ${k.tubeBad?"bad":k.tubeSoon?"warn":"ok"}" href="#tube"><span class="k">Protection tubes</span><span class="v">${k.tubeBad}</span><span class="small muted">overdue / to replace · ${k.tubeSoon} soon</span></a>
     <a class="tile ${k.eqBad?"warn":"ok"}" href="#eq"><span class="k">Test equipment</span><span class="v">${k.eqBad}</span><span class="small muted">out of calibration</span></a>
@@ -6305,14 +6306,25 @@ function plPanel(){const L=S.tcs.map(e=>({e,s:plState(e)})).filter(x=>x.s).sort(
     <td>${s.v?`<a href="#sat" data-sat="${esc(s.v.id)}">${esc(s.v.id)}</a> ${fmtD(s.v.date)}<br>${resPill(s.v)}`:needSat(e)?(s.p.open?pill("bad","Required now"):pill("","None before removal")):pill("","Not required")}</td>
     <td>${pill(...PLP[s.st])}${s.by?`<br><span class="small muted">replace by ${fmtD(s.by)}</span>`:""}</td><td>${s.m.length?pill(s.lvl==="ok"?"warn":"bad",plural(s.m.length,"item")+" missing"):pill("ok","Complete")}</td>
     <td>${s.p.open?`${needSat(e)&&!s.v?`<button class="w" data-new-sat="${esc(e.id)}">Record the SAT</button>`:""}<button class="w" data-replfor="${esc(e.id)}">Replace…</button>`:""}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No element past its life.</p>`}</div>`;}
+/* the pending replacement list (the user's request: a failed SAT without a replacement must be listed there and leave it once
+   the thermocouple is replaced or a later SAT passes): every element in use that has to be replaced, with each reason */
+function replDue(){return inUse().map(e=>{const W=[],l=lifeOf(e),s=satState(e),t=tubeState(e);
+    if(s.st==="fail"&&s.last){const r=s.last,k=r.act.kind;
+      if(!k||k===ACTIONS[0])W.push({k:"sat",lvl:"crit",reason:R_SAT,sat:r.id,since:r.date,txt:`SAT ${r.id} failed ${fmtD(r.date)} (${satEval(r).diff>0?"+":""}${fx(satEval(r).diff)} °C) · ${k?"replacement decided, not made":"reaction not decided"} · open ${dayDiff(r.date,today())} d`});}
+    if(l.st==="over"||l.st==="soon")W.push({k:"life",lvl:l.st==="over"?"crit":"warn",reason:R_LIFE,since:l.due,txt:l.st==="over"?`Service life reached ${fmtD(l.due)}`:`Service life due ${fmtD(l.due)}`});
+    if(t.st==="bad"||t.st==="replover")W.push({k:"tube",lvl:"crit",reason:t.st==="bad"?R_TUBE:R_LIFE,since:t.st==="bad"&&t.last?t.last.date:t.rdue,txt:"Protection tube: "+t.txt});
+    return W.length?{e,W,lvl:W.some(w=>w.lvl==="crit")?"crit":"warn",l,since:W.map(w=>w.since).filter(isDate).sort()[0]||""}:null;}).filter(Boolean)
+  .sort((a,b)=>(a.lvl===b.lvl?0:a.lvl==="crit"?-1:1)||(a.since<b.since?-1:a.since>b.since?1:0));}
 const lifePill=l=>l.st==="over"?pill("bad","Past life "+fmtD(l.due)):l.st==="soon"?pill("warn","Due "+fmtD(l.due)):l.st==="ok"?pill("ok","Replace by "+fmtD(l.due)):pill("","—");
 function vRepl(){
-  const U=inUse(),due=U.map(e=>({e,l:lifeOf(e)})).filter(x=>x.l.st==="over"||x.l.st==="soon").sort((a,b)=>a.l.due<b.l.due?-1:1),unk=U.filter(e=>!isDate(e.installed)).length;
+  const U=inUse(),due=replDue(),unk=U.filter(e=>!isDate(e.installed)).length;
   const L=S.repl.slice().sort((a,b)=>(a.date+a.time)<(b.date+b.time)?1:-1),known=new Set(S.repl.map(r=>r.oldTc).filter(Boolean));
   const legacy=S.tcs.filter(e=>e.status==="removed"&&!known.has(e.id)).sort((a,b)=>a.removed<b.removed?1:-1);
   return `<div class="row between"><h2>Thermocouple replacements</h2><button data-replcsv>Replacements CSV</button></div>
-  <div class="panel"><h3>Due for replacement</h3><p class="small muted">Elements are replaced ${C().lifeDays} days after installation (site schedule); listed when past it or due within ${C().soonDays} days. Other reasons are chosen when the replacement is recorded.</p>
-    ${due.length?`<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Element</th><th>Installed</th><th>Replace by</th><th></th></tr></thead><tbody>${due.map(({e,l})=>`<tr><td><b>${esc(tcName(e))}</b><br><span class="small muted">${esc(useTxt(e))} · ${esc(wallOf(e.tag))}</span></td><td class="mono">${esc(e.serial||"—")}</td><td>${fmtD(e.installed)}</td><td>${lifePill(l)}</td><td><button class="w" data-replfor="${esc(e.id)}">Record replacement</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No element due within ${C().soonDays} days.</p>`}
+  <div class="panel"><h3>Pending replacements</h3><p class="small muted">Every element in use that has to be replaced: a failed SAT not followed by a replacement or a later passing SAT (unless the reaction chose another action, such as an offset or a wiring repair, which a re-SAT then confirms), the service life (${C().lifeDays} days after installation, listed from ${C().soonDays} days before), a worn or cracked protection tube or the tube life. An element leaves the list when the replacement is recorded or a later SAT passes.</p>
+    ${due.length?`<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Element</th><th>Installed</th><th>Why it has to be replaced</th><th>Replace by</th><th></th></tr></thead><tbody>${due.map(({e,W,l,lvl})=>`<tr><td><b>${esc(tcName(e))}</b><br><span class="small muted">${esc(useTxt(e))} · ${esc(wallOf(e.tag))}</span></td><td class="mono">${esc(e.serial||"—")}</td><td>${fmtD(e.installed)}</td>
+      <td>${W.map(w=>`<div>${pill(w.lvl==="crit"?"bad":"warn",{sat:"SAT failed",life:"Service life",tube:"Tube"}[w.k])} <span class="small">${w.sat?`<a href="#sat" data-sat="${esc(w.sat)}">${esc(w.txt)}</a>`:esc(w.txt)}</span></div>`).join("")}</td>
+      <td>${W.some(w=>w.k!=="life"&&w.lvl==="crit")?pill("bad","Now"):lifePill(l)}</td><td><button class="w" data-replfor="${esc(e.id)}" data-replwhy="${esc(W[0].reason)}">Record replacement</button></td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">No element to replace.</p>`}
     ${unk?`<p class="small muted">${plural(unk,"thermocouple")} without an installation date: enter it so the replacement can be tracked.</p>`:""}</div>
   <div class="panel"><h3>Replacement history</h3>${L.length||legacy.length?`<div class="tw"><table><thead><tr><th>Record</th><th>Date</th><th>Thermocouple</th><th>Removed element</th><th>Fitted element</th><th>Reason</th><th>Found by SAT</th><th>Verification SAT</th><th>By</th></tr></thead><tbody>${L.map(r=>{const v=verifySat(r),n=tcById(r.newTc)||tcById(r.oldTc),m=replMissing(r),life=isDate(r.oldInstalled)&&isDate(r.date)?Math.round((new Date(r.date)-new Date(r.oldInstalled))/864e5):null;
       return `<tr class="click" data-replrec="${esc(r.id)}"><td class="mono">${esc(r.id)}${m.length?`<br>${pill("warn",m.length+" missing")}`:""}</td><td>${fmtD(r.date)}${r.time?`<br><span class="small muted">${esc(r.time)}</span>`:""}</td><td><b>${esc(tcName(n))}</b></td>
@@ -6814,7 +6826,7 @@ onDoc("click",e=>{
     return;
   }
   if(d.tc){e.preventDefault();tcModal(d.tc);return;}
-  if(d.replfor){if(needDb())openRepl(d.replfor);return;}
+  if(d.replfor){if(needDb())openRepl(d.replfor,d.replwhy||"");return;}
   if(d.replrec){const r=S.repl.find(x=>x.id===d.replrec);if(r)openModal({kind:"replrec",ed:clone(r),msg:""});return;}
   if(d.replcsv!==undefined){replCsv();return;}
   if(d.sat){e.preventDefault();satModal(d.sat);return;}
@@ -6950,7 +6962,7 @@ function renderHome(){
     <p class="row"><a class="btn pri" href="#quench/dash">Open Quench media</a><a class="btn" href="#quench/tests">Test records</a><a class="btn" href="#quench/plan">Test plan</a></p></section>`:"";
   const tcCard=tc?`<section class="panel"><div class="row between"><h2>Thermocouples &amp; protection tubes</h2><a class="pill ${tc.cls}" href="#tc/review">HTSA 3.3 · ${esc(tc.label)}</a></div>
     <p class="muted">${esc(MWS.tc.summary())}</p>
-    <div class="tiles">${tile("In use",tc.inUse,"","#tc/tcs")}${tile("SAT overdue / none",tc.satOver,tc.satOver?"bad":"ok","#tc/review")}${tile("SAT failed",tc.satFail,tc.satFail?"bad":"ok","#tc/act")}${tile("SAT due soon",tc.satSoon,tc.satSoon?"warn":"ok","#tc/review")}${tile("Calibration issues",tc.calBad,tc.calBad?"bad":"ok","#tc/tcs")}${tile("Tubes overdue / to replace",tc.tubeBad,tc.tubeBad?"bad":"ok","#tc/tube")}</div>
+    <div class="tiles">${tile("In use",tc.inUse,"","#tc/tcs")}${tile("SAT overdue / none",tc.satOver,tc.satOver?"bad":"ok","#tc/review")}${tile("SAT failed",tc.satFail,tc.satFail?"bad":"ok","#tc/act")}${tile("SAT due soon",tc.satSoon,tc.satSoon?"warn":"ok","#tc/review")}${tile("Calibration issues",tc.calBad,tc.calBad?"bad":"ok","#tc/tcs")}${tile("Tubes overdue / to replace",tc.tubeBad,tc.tubeBad?"bad":"ok","#tc/tube")}${tile("Pending replacements",tc.replDue,tc.replSat?"bad":tc.replDue?"warn":"ok","#tc/repl")}</div>
     <p class="row"><a class="btn pri" href="#tc/dash">Open Thermocouples</a><a class="btn" href="#tc/sat">SAT records</a><a class="btn" href="#tc/tube">Tube checks</a></p></section>`:"";
   document.getElementById("main").innerHTML=`
   <section class="panel"><h2>Heat treat quality system</h2>
