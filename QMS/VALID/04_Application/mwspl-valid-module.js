@@ -606,6 +606,8 @@ MWS.valid={closeModal,
   refresh:()=>safeRender(),
   /* the validation state of each process line (for other modules) */
   lines:()=>lineList().map(lineState).map(s=>({key:s.L.key,name:s.L.name,st:s.st,lvl:s.lvl,last:s.last?s.last.id:"",lastDate:s.last?s.last.apprDate:""})),
+  /* the equipment changes (for the TUS module: changes that can alter a chamber's temperature uniformity) */
+  changes:()=>S.chgs.map(c=>({id:c.id,date:c.date,furnace:c.furnace,equip:c.equip.slice(),kind:c.kind,kindTxt:KIND[c.kind]?KIND[c.kind][0]:c.kind,what:c.what,major:isMajor(c)})),
   hasData:()=>S.vals.length+S.chgs.length>0,
   stats:()=>{const k=kp();return {db:S.dbState,...k,label:SCORE[k.score][1],cls:SCORE[k.score][0],procOk:isDate(S.proc.apprDate)};},
   summary:()=>{const k=kp();return `${k.ok} of ${plural(k.lines,"process line")} validated, ${k.reval} awaiting revalidation, ${plural(k.unass,"change")} to assess; HTSA 1.7 ${SCORE[k.score][1].toLowerCase()}.`;}};

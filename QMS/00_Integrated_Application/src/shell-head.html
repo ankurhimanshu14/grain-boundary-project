@@ -22,6 +22,7 @@
   <a href="#trend/dash" data-sys="trend">Trend analysis</a>
   <a href="#scada/dash" data-sys="scada">SCADA review</a>
   <a href="#quench/dash" data-sys="quench">Quench media</a>
+  <a href="#tus/dash" data-sys="tus">Uniformity (TUS)</a>
   <a href="#tc/dash" data-sys="tc">Thermocouples</a>
 </div></nav>
 <nav id="nav" aria-label="Module views" hidden></nav>
@@ -32,7 +33,7 @@
 <script>
 "use strict";
 /* ---------- shell: module table, routing, theme ---------- */
-const MODS=["org","apqp","spec","valid","trend","scada","quench","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
+const MODS=["org","apqp","spec","valid","trend","scada","quench","tus","tc"];                           /* every module code; add new modules here (and in nav.sys, SYS, build.py) */
 const today0=()=>{const d=new Date();return `${String(d.getDate()).padStart(2,"0")}-${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]}-${d.getFullYear()}`;};
 const SYS={
   home:{t:"CALOR · Heat treat quality system",ctrl:()=>`<div><b>Standard</b>AIAG CQI-9 4th Ed.</div><div><b>Scope</b>Pusher furnaces F-01 … F-04</div><div><b>Records</b><span id="dbstate">—</span></div><div><b>Date</b>${today0()}</div>`},
@@ -42,6 +43,7 @@ const SYS={
   valid:{t:"Heat treat process validation",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-PV-01</div><div><b>Standard</b>CQI-9 · HTSA 1.7</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   trend:{t:"Trend analysis",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TREND-01</div><div><b>Standard</b>CQI-9 · HTSA 1.8</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   scada:{t:"SCADA temperature review",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-SCADA-01</div><div><b>Standard</b>CQI-9 · HTSA 1.9</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
+  tus:{t:"Temperature uniformity surveys",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TUS-01</div><div><b>Standard</b>CQI-9 · HTSA 3.4</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   quench:{t:"Quench media analysis",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-QM-01</div><div><b>Standard</b>CQI-9 · HTSA 3.14</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`},
   tc:{t:"Thermocouples & protection tubes",ctrl:()=>`<div><b>Procedure</b>MWSPL-QP-TC-01</div><div><b>Standard</b>CQI-9 · HTSA 3.3</div><div><b>Records</b><span id="dbstate">Connecting…</span></div><div><b>Date</b>${today0()}</div>`}
 };
@@ -82,7 +84,7 @@ document.addEventListener("click",e=>{const a=e.target.closest&&e.target.closest
    This application can read that folder (Chrome / Edge), files picked from it or downloaded from Google Drive, a CALOR backup, the SAT page's own export,
    or the CALOR registers of this browser. What was read is kept under its own key (mws-calor-src); CALOR's own keys are never written. */
 (function(){
-  const LK="mws-calor-src",NEED={"org-reg":"HT organization","psr-reg":"Process specifications","prod-reg":"Daily production","tsat-pdca":"SAT register","hmt-reg":"Hardness tests","qmt-reg":"Quench media","fop-reg":"Alarm log"};
+  const LK="mws-calor-src",NEED={"org-reg":"HT organization","psr-reg":"Process specifications","prod-reg":"Daily production","tsat-pdca":"SAT register","hmt-reg":"Hardness tests","qmt-reg":"Quench media","tus-reg":"TUS register","fop-reg":"Alarm log"};
   let SRC=null;try{SRC=JSON.parse(localStorage.getItem(LK)||"null");}catch(e){SRC=null;}
   const parse=v=>{if(v==null)return null;if(typeof v!=="string")return v;try{return JSON.parse(v);}catch(e){return null;}};
   const fromLocal=k=>{try{return parse(localStorage.getItem(k));}catch(e){return null;}};
