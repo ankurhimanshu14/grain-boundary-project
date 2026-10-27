@@ -351,6 +351,12 @@ button.sync{font-size:12.5px;white-space:nowrap}button.sync.ok{border-color:var(
 .qtrend svg{display:block;width:100%;height:auto;margin-top:4px}
 .qtrend text{font-size:10px;fill:var(--muted)}
 
+/* SCADA review, 8D D2: the structured problem description */
+h4.d2h{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13px;letter-spacing:.02em}
+table.d2i td:first-child{width:22%;min-width:150px}table.d2i textarea{width:100%;min-width:150px;resize:vertical}
+table.d2w input{min-width:110px}table.d2w input[type=datetime-local]{min-width:180px}
+.d2sum{margin:2px 0 0}
+
 </style></head>
 <body>
 <header class="top"><div class="wrap">
@@ -2306,7 +2312,7 @@ async function saveCfg(){if(!needDb())return;try{await dbSet("config","settings"
 function startStore(store,state){
   S.unsub.forEach(u=>{try{u();}catch(e){}});S.db=store;S.dbState=state;
   S.unsub=[store.sub("reviews",L=>{S.reviews=L.map(fillRev).sort((a,b)=>a.id<b.id?-1:1);safeRender();}),
-    store.sub("pdca",L=>{S.pdca=L.sort((a,b)=>a.id<b.id?-1:1);safeRender();}),store.sub("e8",L=>{S.e8=L.sort((a,b)=>a.id<b.id?-1:1);safeRender();}),
+    store.sub("pdca",L=>{S.pdca=L.sort((a,b)=>a.id<b.id?-1:1);safeRender();}),store.sub("e8",L=>{S.e8=L.map(d2Fix).sort((a,b)=>a.id<b.id?-1:1);safeRender();}),
     store.sub("config",L=>{const c=L.find(x=>x.id==="settings");S.cfg={...DEF,...(c||{})};delete S.cfg.id;if(S.cur)runCur();safeRender();})];
   render();
 }
@@ -2729,7 +2735,7 @@ function pdSplit(A,O){const all=pdItems(A,O),top=all.filter(i=>PD_TOP.includes(i
   return {top,low};}
 async function pdStart(){const D=S.cur;if(!D||!D.A||!D.furnace||!D.chamber)return;if(!D.sample&&!needDb())return;const A=D.A,sp=pdSplit(A,D.O);
   const R={id:nextId(pdAll(),"RV-"),key:recKeyOf(D),fkey:fkeyOf(D.furnace,D.chamber),furnace:D.furnace,chamber:D.chamber,from:A.from,to:A.to,file:D.file,example:!!D.sample,created:todayISO(),stage:"plan",cycle:1,tol:A.tolDef,
-    items:sp.top,low:sp.low,docs:[],log:[],wins:windows(A).map((w,n)=>({no:"W"+(n+1),from:w.from,to:w.to,zones:w.zones}))};
+    items:sp.top,low:sp.low,docs:[],log:[],wins:windows(A).map((w,n)=>({no:"W"+(n+1),from:w.from,to:w.to,zones:w.zones})),...incOf(A)};
   R.items.forEach(i=>{const w=need8d(i,R.fkey,A.from);if(w){i.need8d=w;i.dec="8d";i.owner=i.sugOwner;i.due=addDay(todayISO(),S8.targetDays);}});
   const p0=R.items.filter(i=>i.dec==="8d"&&i.pr==="P0");p0.slice(1).forEach(i=>i.join=p0[0].id); /* the P0 issues of one record are one problem: one 8D */
   pdLog(R,`Review started: ${plural(R.items.length,"top-priority action")} (P0 / A); ${plural(R.low.length,"lower-priority issue")} listed, not actioned`);
@@ -2789,19 +2795,65 @@ const E8_TIP={
 const M6=["Man","Machine","Method","Material","Measurement","Environment"];
 const e8Si=d=>E8_ST.indexOf(d.stage);
 function e8Blank(src,title){return {id:nextId(e8All(),"8D-"),title:title||"",created:todayISO(),stage:"d1",src,target:addDay(todayISO(),S8.targetDays),
-  d1:{leader:"",champion:"",members:"",date:todayISO()},d2:{what:"",where:"",when:"",who:"",how:"",howMuch:"",why:"",isnot:""},
+  d1:{leader:"",champion:"",members:"",date:todayISO()},d2:D2B(),
   d3:{action:"",suspect:"",qty:"",disp:"",owner:"",date:"",verify:""},d4:{m:{},why:["","","","",""],root:"",ewhy:["","",""],escape:"",verify:""},
   d5:{occ:"",esc:"",owner:"",due:"",verify:""},d6:{date:"",by:"",valid:"",res:"",removed:""},d7:{docs:[],horiz:"",lessons:"",ref:""},d8:{recog:"",by:"",role:"",date:""},log:[]};}
+/* D2 in a structured form (the user's request): the measurement, where, the time windows, the extent and the is / is not comparison;
+   filled from the analysis of the record, then checked and completed by the team */
+const ISN=[["zone","Zones","Which zones are affected, which are not?"],["wall","Walls","Left wall, right wall or both?"],["tc","Thermocouples","Which thermocouples, which not?"],
+  ["time","Time","When does it happen, when not (rest of the record, other days)?"],["sp","Set value","At which set value; was it changed at the time?"],["pattern","Pattern","Sudden drop, slow drift or cycling?"],
+  ["chamber","Other chamber","The other chamber of the same furnace at the same times?"],["furnace","Other furnaces","The other furnaces at the same times?"],
+  ["alarm","Alarms and events","Alarms, gas / power events, door openings, start-up or shutdown recorded?"],["load","Product and load","Trays in the furnace; a heavier load than usual; first trays after a stop?"]];
+const D2TEAM=["pattern","chamber","furnace","alarm","load"];   /* comparisons the analysis cannot make: the team checks them */
+const D2B=()=>({v:2,what:"",char:"",req:"",act:"",furnace:"",chamber:"",zones:[],walls:"",tcs:"",where:"",win:[],when:"",who:"",how:"",trays:"",batches:"",howMuch:"",why:"",isn:{},isnot:""});
+function d2Fix(d){const x={...D2B(),v:d.d2&&d.d2.v,...(d.d2||{})};if(!Array.isArray(x.zones))x.zones=[];if(!Array.isArray(x.win))x.win=[];if(!x.isn||typeof x.isn!=="object")x.isn={};
+  ISN.forEach(([k])=>{x.isn[k]={is:"",not:"",d:"",...(x.isn[k]||{})};});d.d2=x;return d;}
+const dtl=ms=>ms==null?"":new Date(ms).toISOString().slice(0,16);   /* UTC-naive ms ↔ datetime-local */
+const dtm=v=>v?Date.parse(v+":00Z"):null;
+/* the incidents and chamber-wide dips of a record, compact, kept on the review */
+const incOf=A=>({step:A.step,inc:A.incidents.map(c=>({z:c.z,from:c.from,to:c.to,tcs:c.tcs,walls:c.walls,max:c.max,ext:c.ext,aff:c.aff,sps:c.sps})),dips:chamberDips(A).map(x=>({from:x.from,to:x.to,n:x.max}))});
+/* the facts of the problem: from the loaded record when it is the 8D's record, else from what the review kept */
+function d2Facts(d){const R=d.src.rv&&pdGet(d.src.rv),it=R&&R.items.find(x=>x.id===String(d.src.item||"").split(",")[0].trim()),D=S.cur;
+  const live=D&&D.A&&D.furnace&&D.chamber&&fkeyOf(D.furnace,D.chamber)===d.src.fkey&&D.A.from===d.src.from?{step:D.A.step,...incOf(D.A)}:null,src=live||(R&&R.inc?R:null);
+  const chw=/chamber-wide/i.test((it&&it.issue)||d.title||""),k=d.src.k,prod=it&&(it.pr==="P0"||it.product);
+  let W=[],used=[];
+  if(src){const all=src.inc||[];used=k!=null?all.filter(c=>c.tcs.includes(tcTag(k))):prod?all.filter(c=>c.aff):all;
+    if(chw&&(src.dips||[]).length)W=src.dips.map(x=>({from:x.from,to:x.to}));
+    else{used.slice().sort((a,b)=>a.from-b.from).forEach(c=>{const w=W.at(-1);if(w&&c.from<=w.to+C().merge*60000)w.to=Math.max(w.to,c.to);else W.push({from:c.from,to:c.to});});}
+    W.forEach(w=>{const ins=(src.inc||[]).filter(c=>c.from<=w.to&&c.to>=w.from&&(k==null||c.tcs.includes(tcTag(k))));w.zones=[...new Set(ins.map(c=>c.z+1))].sort();
+      w.top=ins.reduce((b,c)=>!b||Math.abs(c.max)>Math.abs(b.max)?c:b,null);w.min=(w.to-w.from)/60000+(src.step||1);});
+    if(chw)used=(src.inc||[]).filter(c=>W.some(w=>c.from<=w.to&&c.to>=w.from));}
+  else if(R&&R.wins)W=R.wins.map(w=>({from:w.from,to:w.to,zones:w.zones,min:(w.to-w.from)/60000}));
+  const zones=[...new Set([...used.map(c=>c.z+1),...W.flatMap(w=>w.zones||[])])].sort(),tcs=[...new Set(used.flatMap(c=>c.tcs))].sort();
+  const top=used.reduce((b,c)=>!b||Math.abs(c.max)>Math.abs(b.max)?c:b,null),sps=[...new Set(used.flatMap(c=>c.sps||[]))].sort((a,b)=>a-b);
+  const L=tcs.some(t=>isLeft(+t.slice(3)-1)),Rw=tcs.some(t=>!isLeft(+t.slice(3)-1));
+  return {W,zones,tcs,top,sps,walls:L&&Rw?"Both walls":L?"Left wall only":Rw?"Right wall only":"",total:W.reduce((a,w)=>a+(w.min||0),0),chw,from:d.src.from,to:d.src.to,src:live?"the loaded record":src?"the review":R?"the review's affected windows":""};}
+/* fill the empty fields (force: the analysis parts again) */
+function d2Auto(d,force){d2Fix(d);const x=d.d2,F=d2Facts(d),tol=d.src.tol,set=(k,v)=>{if(v!=null&&v!==""&&(force||!txt(x[k])))x[k]=v;},ch=d.src.chamber||"";
+  x.v=2;set("furnace",d.src.furnace);set("chamber",ch);
+  set("char","Chamber temperature: PV of each thermocouple against the set value of its zone");set("req",tol!=null?`Set value ± ${tol} °C (process specification / CQI-9 process table)`:"");
+  if(F.top){const t=F.top,e=t.ext||{};set("act",`Worst ${sgn(t.max)} °C from the set value (${e.tag||""} ${fx(e.v)} °C at set value ${fx(e.sp,0)} °C, ${fDT(e.t)}); ${plural(F.W.length,"time window")}, ${fDur(F.total)} in total`);}
+  if(force||!x.zones.length)x.zones=F.zones;set("walls",F.walls);set("tcs",F.tcs.join(", "));
+  if(F.W.length&&(force||!x.win.length))x.win=F.W.map(w=>({from:dtl(w.from),to:dtl(w.to),zones:(w.zones||[]).join(", "),worst:w.top?`${sgn(w.top.max)} °C ${w.top.ext&&w.top.ext.tag||""}`:"",note:""}));
+  if(F.zones.length)set("trays",F.zones.map(z=>{const [a,b]=traysOf(ch,z-1);return `zone ${z}: tray positions ${a}–${b}`;}).join("; ")+(ch==="Hardening"?" (zone 1 preheats: product counts in zones 2–3 above 800 °C)":""));
+  const I=x.isn,iset=(k,f,v)=>{if(v&&(force||!txt(I[k][f])))I[k][f]=v;},all3=F.zones.length===3,others=[1,2,3].filter(z=>!F.zones.includes(z));
+  if(F.zones.length){iset("zone","is","Zone "+F.zones.join(", "));iset("zone","not",others.length?"Zone "+others.join(", "):"— (every zone)");
+    iset("zone","d",all3?"Whole chamber at once: a common cause (gas supply, combustion, power, door, load), not one burner or thermocouple":"Local to "+(F.zones.length===1?"one zone":"these zones")+": burners, thermocouples or control loop of the zone");}
+  if(F.walls){iset("wall","is",F.walls);iset("wall","not",F.walls==="Both walls"?"— (both walls)":F.walls==="Left wall only"?"Right wall":"Left wall");iset("wall","d",F.walls==="Both walls"?"Both walls together: zone-wide or chamber-wide heat input":"One wall: that wall's burner or thermocouple");}
+  if(F.tcs.length){const rest=K6.map(tcTag).filter(t=>!F.tcs.includes(t));iset("tc","is",F.tcs.join(", "));iset("tc","not",rest.length?rest.join(", "):"— (every thermocouple)");}
+  if(F.W.length){iset("time","is",F.W.map(w=>`${fDT(w.from)}–${fT(w.to)}`).join("; "));iset("time","not",`The rest of the record (${fDT(F.from)} – ${fDT(F.to)})`);}
+  if(F.sps.length)iset("sp","is",F.sps.map(v=>fx(v,0)+" °C").join(", "));
+  return F;}
 const winTxt=w=>`${w.no} ${fD(w.from).slice(0,6)} ${fT(w.from)} – ${fT(w.to)} (zone ${w.zones.join(", ")})`;
 /* an 8D opened from a review item: the problem description and the suspect product come from the analysis */
 function e8FromItem(R,i){const where=`${fkName(R.fkey)}${i.k!=null?` · ${tcTag(i.k)} zone ${zoneOf(i.k)+1}, ${wallOf(i.k)} wall`:""}`;
   const d=e8Blank({rv:R.id,item:i.id,fkey:R.fkey,furnace:R.furnace,chamber:R.chamber,from:R.from,to:R.to,k:i.k,tol:R.tol,file:R.file,example:!!R.example,pr:i.pr},i.issue);
   d.target=i.due||d.target;d.d1.leader=i.leader||"";d.d1.champion=i.owner||"";const wins=R.wins||[];
-  Object.assign(d.d2,{what:i.issue,where,when:`${fDT(R.from)} – ${fDT(R.to)}${i.when?" · "+i.when:""}`,who:`SCADA action review ${R.id}`,how:`SCADA export ${R.file}, analysed against the set value ± ${R.tol} °C`,
-    howMuch:[i.detail||"",i.product&&wins.length?`${plural(wins.length,"affected window")}: ${wins.map(winTxt).join("; ")}`:""].filter(Boolean).join(" · "),
-    why:`Temperature outside the set value ± ${R.tol} °C (CQI-9 process table / process specification tolerance)`});
+  Object.assign(d.d2,{what:i.issue,where:i.k!=null?where:"",who:`SCADA action review ${R.id}`,how:`SCADA export ${R.file}, analysed against the set value ± ${R.tol} °C`,
+    howMuch:i.detail||"",why:`Temperature outside the set value ± ${R.tol} °C (CQI-9 process table / process specification tolerance)`});
   if(i.product&&wins.length)d.d3.suspect=`Trays in the affected zones during ${wins.map(winTxt).join("; ")}`;
   if(i.plan)d.d2.isnot="Notes from the review: "+i.plan;
+  d.src.item=i.id;d2Auto(d,false);
   e8Log(d,`Opened from review ${R.id} (${i.id}${i.need8d?", 8D required: "+i.need8d:""})`);
   if(R.example)E8_MEM.push(d);else S.e8.push(d);i.d8=d.id;return d;}
 async function e8Manual(){const D=S.cur,A=D&&D.A,ex=!!(D&&D.sample);if(!ex&&!needDb())return;
@@ -2812,7 +2864,13 @@ async function e8Manual(){const D=S.cur,A=D&&D.A,ex=!!(D&&D.sample);if(!ex&&!nee
 /* gate of each discipline */
 function e8Missing(d,st){st=st||d.stage;const m=[],need=(v,l)=>{if(!txt(v))m.push(l);};
   if(st==="d1"){need(d.title,"problem title");need(d.d1.leader,"team leader");need(d.d1.champion,"champion");if(lns(d.d1.members).length<2)m.push("at least two team members");}
-  if(st==="d2")["what","where","when","howMuch","why"].forEach((k,j)=>need(d.d2[k],["what","where","when","how much / extent","why it is a problem"][j]));
+  if(st==="d2"&&d.d2.v!==2)["what","where","when","howMuch","why"].forEach((k,j)=>need(d.d2[k],["what","where","when","how much / extent","why it is a problem"][j]));
+  if(st==="d2"&&d.d2.v===2){const x=d.d2,W=x.win.filter(w=>w.from&&w.to);need(x.what,"problem statement");need(x.req,"requirement");need(x.act,"what was measured (actual)");
+    if(!x.zones.length&&!txt(x.where))m.push("where: zones or a note");if(!W.length&&!txt(x.when))m.push("when: at least one time window (from, to) or a note");
+    if(W.some(w=>dtm(w.to)<dtm(w.from)))m.push("time windows ending before they start");if(!txt(x.trays)&&!txt(x.batches)&&!txt(x.howMuch))m.push("how much: trays, batches or extent");need(x.why,"why it is a problem");
+    const ans=v=>txt(v)&&!/^not checked/i.test(txt(v)),full=ISN.filter(([k])=>ans(x.isn[k].is)&&ans(x.isn[k].not)).map(([k])=>k),team=full.filter(k=>D2TEAM.includes(k));
+    if(!full.includes("zone")||!full.includes("time"))m.push("is / is not for zones and time");
+    if(team.length<2)m.push(`is / is not: at least 2 comparisons the team checks (pattern, other chamber, other furnaces, alarms, load; ${team.length} so far)`);}
   if(st==="d3"){need(d.d3.action,"containment action");if(d.src.pr==="P0")need(d.d3.suspect,"suspect product");if(!d.d3.disp)m.push("product disposition");need(d.d3.owner,"owner");need(d.d3.date,"date implemented");need(d.d3.verify,"how the containment was verified");}
   if(st==="d4"){if(!M6.some(k=>txt(d.d4.m[k])))m.push("at least one cause in the 6M");if(d.d4.why.filter(x=>txt(x)).length<3)m.push("at least three Whys");need(d.d4.root,"root cause of the occurrence");
     if(!d.d4.ewhy.some(x=>txt(x)))m.push("why it was not detected (escape Why)");need(d.d4.escape,"escape point");need(d.d4.verify,"how the root cause was verified");}
@@ -2901,8 +2959,7 @@ function e8Card(d){const h=[];const si=e8Si(d),closed=d.stage==="closed",view=S.
       <div class="d8-steps">${E8_ST.slice(0,8).map((s,j)=>`<button data-e8act="view:${s}" class="${j<si?"done":j===si?"on":""} ${s===view?"view":""}" ${j>si?"disabled":""} title="${esc(E8_NM[s])}">D${j+1}</button>`).join("")}${closed?pill("ok","Closed "+dIso(d.closed)):""}</div></div>`);
     let f="";
     if(view==="d1")f=FL("Problem title",P("title",d.title),true,true)+FL("Team leader",P("d1.leader",d.d1.leader),true)+FL("Champion (role)",Se("d1.champion",d.d1.champion,ROLES),true)+FL("Team formed",P("d1.date",d.d1.date,"date"))+FL("Target closure",P("target",d.target,"date"),true)+FL("Team members (one per line, with function)",T("d1.members",d.d1.members),true,true);
-    if(view==="d2")f=FL("What: the problem, in measurable terms",T("d2.what",d.d2.what),true,true)+FL("Where: furnace, chamber, zone, thermocouple",P("d2.where",d.d2.where),true)+FL("When: date and time",P("d2.when",d.d2.when),true)+FL("Who found it",P("d2.who",d.d2.who))+FL("How it was found",P("d2.how",d.d2.how))
-      +FL("How much: extent, windows, trays",T("d2.howMuch",d.d2.howMuch),true,true)+FL("Why it is a problem: the requirement",P("d2.why",d.d2.why),true,true)+FL("Is / is not: where and when it happens and where / when it does not (other zones, walls, set values, days)",T("d2.isnot",d.d2.isnot),false,true);
+    if(view==="d2")f=d2Form(d,ro,P,T,Se);
     if(view==="d3")f=FL("Suspect product (time windows, zones, batches)",T("d3.suspect",d.d3.suspect),d.src.pr==="P0",true)+FL("Quantity (trays / pcs / kg)",P("d3.qty",d.d3.qty))+FL("Product disposition",Se("d3.disp",d.d3.disp,DISPO),true)
       +FL("Containment action (segregate, hold, 100 % check, process safeguard)",T("d3.action",d.d3.action),true,true)+FL("Owner",P("d3.owner",d.d3.owner),true)+FL("Date implemented",P("d3.date",d.d3.date,"date"),true)+FL("How the containment was verified (e.g. hardness / microstructure of the suspect trays)",T("d3.verify",d.d3.verify),true,true);
     if(view==="d4")f=`<p class="wide"><b class="small">6M: possible causes (Ishikawa)</b></p>`+M6.map(k=>FL(k,P("d4.m."+k,d.d4.m[k]))).join("")
@@ -2927,6 +2984,29 @@ function e8Card(d){const h=[];const si=e8Si(d),closed=d.stage==="closed",view=S.
         <button data-e8act="close">Close the form</button>
         ${closed||ro?"":`<button class="pri w" data-e8act="advance">${d.stage==="d8"?"Close the 8D":E8_NM[d.stage].slice(0,2)+" complete → "+E8_NM[E8_ST[si+1]].slice(0,2)}</button>`}</div></section>`);
   return h.join("");}
+function d2Form(d,ro,P,T,Se){d2Fix(d);const x=d.d2,H=t=>`<h4 class="wide d2h">${t}</h4>`,dis=ro?" disabled":"";
+  if(x.v!==2)return `<p class="wide banner">This 8D was opened before D2 was structured. <button data-e8act="d2auto"${dis}>Structure it and fill from the analysis</button> keeps every text already written as notes.</p>`
+    +FL("What",T("d2.what",x.what),true,true)+FL("Where",P("d2.where",x.where),true)+FL("When",P("d2.when",x.when),true)+FL("Who found it",P("d2.who",x.who))+FL("How it was found",P("d2.how",x.how))
+    +FL("How much",T("d2.howMuch",x.howMuch),true,true)+FL("Why it is a problem",P("d2.why",x.why),true,true)+FL("Is / is not",T("d2.isnot",x.isnot),false,true);
+  const W=x.win.map(w=>({...w,a:dtm(w.from),b:dtm(w.to)})),tot=W.reduce((s,w)=>s+(w.a!=null&&w.b!=null&&w.b>=w.a?(w.b-w.a)/60000:0),0);
+  return (ro?"":`<p class="wide row" style="margin:0"><button data-e8act="d2auto">Fill the empty fields from the analysis</button><button data-e8act="d2refill" title="Replaces the zones, windows, measurement and the first comparisons with the analysis">Fill again from the analysis</button></p>`)
+    +H("1 · Problem statement (what)")+FL("Problem in one sentence",T("d2.what",x.what),true,true)+FL("Characteristic",P("d2.char",x.char))+FL("Requirement (specification, tolerance)",P("d2.req",x.req),true)
+    +FL("Actual: what was measured (worst value, how far out, how long)",T("d2.act",x.act),true,true)
+    +H("2 · Where")+FL("Furnace",P("d2.furnace",x.furnace))+FL("Chamber",Se("d2.chamber",x.chamber,["Hardening","Tempering"]))
+    +`<div class="f"><span>Zones</span><div class="row">${[1,2,3].map(z=>`<label class="chk"><input type="checkbox" data-e8="d2.zones:${z}" ${x.zones.includes(z)?"checked":""}${dis}> Zone ${z}</label>`).join("")}</div></div>`
+    +FL("Walls",Se("d2.walls",x.walls,["Both walls","Left wall only","Right wall only"]))+FL("Thermocouples",P("d2.tcs",x.tcs))+FL("Notes on where",P("d2.where",x.where),false,true)
+    +H("3 · When: the time windows")+`<div class="wide tw"><table class="fq d2w"><thead><tr><th>#</th><th>From</th><th>To</th><th>Duration</th><th>Zones</th><th>Worst deviation</th><th>Note</th>${ro?"":"<th></th>"}</tr></thead><tbody>${W.map((w,j)=>`<tr><td>W${j+1}</td>
+      <td>${P(`d2.win.${j}.from`,w.from,"datetime-local")}</td><td>${P(`d2.win.${j}.to`,w.to,"datetime-local")}</td><td class="n">${w.a!=null&&w.b!=null&&w.b>=w.a?fDur((w.b-w.a)/60000):"—"}</td>
+      <td>${P(`d2.win.${j}.zones`,w.zones)}</td><td>${P(`d2.win.${j}.worst`,w.worst)}</td><td>${P(`d2.win.${j}.note`,w.note)}</td>${ro?"":`<td><button data-e8act="w2del:${j}" aria-label="Remove window">✕</button></td>`}</tr>`).join("")||`<tr><td colspan="8" class="muted">No time window yet.</td></tr>`}</tbody></table></div>`
+    +(ro?"":`<p class="wide" style="margin:0"><button data-e8act="w2add">Add a time window</button></p>`)+FL("Notes on when (e.g. first noticed, repeats on other days)",P("d2.when",x.when),false,true)
+    +FL("Who found it",P("d2.who",x.who))+FL("How it was found",P("d2.how",x.how))
+    +H("4 · How much: the extent")+`<p class="wide small d2sum"><b>${plural(W.length,"time window")}</b> · <b>${fDur(tot)}</b> in total${x.zones.length?` · zone ${x.zones.join(", ")}`:""}${x.tcs?` · ${esc(x.tcs)}`:""}</p>`
+    +FL("Trays / positions in the windows",T("d2.trays",x.trays),false,true)+FL("Batches / lots in the furnace then (production report)",T("d2.batches",x.batches),false,true)+FL("Other extent (Pareto share, exposure)",T("d2.howMuch",x.howMuch),false,true)
+    +H("5 · Why it is a problem")+FL("Requirement not met and the risk (hardness, microstructure, customer)",T("d2.why",x.why),true,true)
+    +H("6 · Is / is not")+`<p class="wide small muted" style="margin:0">Compare where and when the problem is with where and when it could be but is not; the difference points to the cause. Write "not checked" when a comparison is still open.</p>
+    <div class="wide tw"><table class="fq d2i"><thead><tr><th>Compare</th><th>Is</th><th>Is not</th><th>Distinction: what it tells us</th></tr></thead><tbody>${ISN.map(([k,l,q])=>`<tr><td><b>${esc(l)}</b><br><span class="small muted">${esc(q)}</span></td>
+      <td>${T(`d2.isn.${k}.is`,x.isn[k].is)}</td><td>${T(`d2.isn.${k}.not`,x.isn[k].not)}</td><td>${T(`d2.isn.${k}.d`,x.isn[k].d)}</td></tr>`).join("")}</tbody></table></div>`
+    +FL("Notes",T("d2.isnot",x.isnot),false,true);}
 function vE8(){
   const d=e8Get(S.e8Cur),h=[`<div class="row between"><h2>8D problem solving</h2><button class="w" data-e8act="new">New 8D (problem not from a review)</button></div>
     <p class="muted">One 8D per problem: opened from the action review when the plan is confirmed (product affected, or a repeated problem), or by hand. Each discipline has its gate; the review item follows its 8D (D6 done = the action is done, closed = the result for Check).</p>`];
@@ -2948,11 +3028,19 @@ function pdHtml(R){const row=(a,b)=>`<tr><th>${a}</th><td>${b}</td></tr>`;
   ${(R.past||[]).length?`<h3>Earlier cycles</h3><ul>${R.past.map(c=>`<li>Cycle ${c.cycle}: plan by ${esc(c.planBy)}, verified by ${esc(c.checkBy)} (${esc(dIso(c.checkDate))}); not effective: ${esc(c.notEffective.join(", "))}</li>`).join("")}</ul>`:""}
   <h3>History</h3><ul class="small">${R.log.map(x=>`<li>${esc(dIso(x.d))} — ${esc(x.t)}</li>`).join("")}</ul>
   <div class="signoff">${["Plan decided by","Effect verified by","Approved by"].map(r=>`<div><b>${r}</b><span>Name / signature / date</span></div>`).join("")}</div>`;}
+function d2Html(d,row,sec_){d2Fix(d);const x=d.d2;
+  if(x.v!==2)return sec_("D2 Problem description",row("What",x.what)+row("Where",x.where)+row("When",x.when)+row("Who",x.who)+row("How",x.how)+row("How much",x.howMuch)+row("Why it is a problem",x.why)+row("Is / is not",x.isnot));
+  const W=x.win.map(w=>({...w,a:dtm(w.from),b:dtm(w.to)})),tot=W.reduce((s,w)=>s+(w.a!=null&&w.b!=null&&w.b>=w.a?(w.b-w.a)/60000:0),0);
+  return sec_("D2 Problem description",row("Problem",x.what)+row("Characteristic",x.char)+row("Requirement",x.req)+row("Actual (measured)",x.act)
+      +row("Where",[x.furnace,x.chamber&&x.chamber+" chamber",x.zones.length?"zone "+x.zones.join(", "):"",x.walls,x.tcs].filter(Boolean).join(" · ")+(x.where?" · "+x.where:""))
+      +row("Who found it · how",[x.who,x.how].filter(Boolean).join(" · "))+row("How much",`${plural(W.length,"time window")}, ${fDur(tot)} in total`+(x.howMuch?" · "+x.howMuch:""))+row("Trays / positions",x.trays)+row("Batches / lots",x.batches)+row("Why it is a problem",x.why))
+    +`<h4>When: time windows</h4><table><thead><tr><th>#</th><th>From</th><th>To</th><th>Duration</th><th>Zones</th><th>Worst</th><th>Note</th></tr></thead><tbody>${W.map((w,j)=>`<tr><td>W${j+1}</td><td>${w.a!=null?fDT(w.a):"—"}</td><td>${w.b!=null?fDT(w.b):"—"}</td><td>${w.a!=null&&w.b!=null&&w.b>=w.a?fDur((w.b-w.a)/60000):"—"}</td><td>${esc(w.zones)}</td><td>${esc(w.worst)}</td><td>${esc(w.note)}</td></tr>`).join("")||`<tr><td colspan="7">—</td></tr>`}</tbody></table>${x.when?`<p>${esc(x.when)}</p>`:""}
+    <h4>Is / is not</h4><table><thead><tr><th>Compare</th><th>Is</th><th>Is not</th><th>Distinction</th></tr></thead><tbody>${ISN.map(([k,l])=>`<tr><td>${esc(l)}</td><td>${esc(x.isn[k].is||"—")}</td><td>${esc(x.isn[k].not||"—")}</td><td>${esc(x.isn[k].d||"")}</td></tr>`).join("")}</tbody></table>${x.isnot?`<p>${esc(x.isnot)}</p>`:""}`;}
 function e8Html(d){const row=(a,b)=>`<tr><th>${a}</th><td>${esc(b||"—")}</td></tr>`,sec_=(t,b)=>`<h3>${t}</h3><table>${b}</table>`;
   return `${pHead("8D report · SCADA temperature review")}<h2>${esc(d.id)} · ${esc(d.title||"")}</h2>
   <table>${row("Chamber · record",(d.src.fkey?fkName(d.src.fkey):"—")+(d.src.from!=null?" · "+fDT(d.src.from)+" – "+fDT(d.src.to):""))}${row("Source",d.src.rv?`Review ${d.src.rv} · ${d.src.item}`:"Opened by hand")}${row("Discipline",E8_NM[d.stage])}${row("Opened · target",dIso(d.created)+" · "+dIso(d.target))}</table>
   ${sec_("D1 Team",row("Leader",d.d1.leader)+row("Champion",d.d1.champion)+row("Members",d.d1.members)+row("Formed",dIso(d.d1.date)))}
-  ${sec_("D2 Problem description",row("What",d.d2.what)+row("Where",d.d2.where)+row("When",d.d2.when)+row("Who",d.d2.who)+row("How",d.d2.how)+row("How much",d.d2.howMuch)+row("Why it is a problem",d.d2.why)+row("Is / is not",d.d2.isnot))}
+  ${d2Html(d,row,sec_)}
   ${sec_("D3 Containment",row("Suspect product",d.d3.suspect)+row("Quantity",d.d3.qty)+row("Disposition",d.d3.disp)+row("Action",d.d3.action)+row("Owner · date",d.d3.owner+" · "+dIso(d.d3.date))+row("Verification",d.d3.verify))}
   ${sec_("D4 Root cause",M6.filter(k=>txt(d.d4.m[k])).map(k=>row(k,d.d4.m[k])).join("")+d.d4.why.map((w,j)=>w?row("Why "+(j+1),w):"").join("")+row("Root cause",d.d4.root)+d.d4.ewhy.map((w,j)=>w?row("Escape why "+(j+1),w):"").join("")+row("Escape point",d.d4.escape)+row("Verification",d.d4.verify))}
   ${sec_("D5 Permanent corrective actions",row("Occurrence",d.d5.occ)+row("Escape",d.d5.esc)+row("Owner · target",d.d5.owner+" · "+dIso(d.d5.due))+row("Verified before implementing",d.d5.verify))}
@@ -2982,6 +3070,9 @@ onDoc("click",async e=>{const b=e.target.closest("button,tr.click");if(!b||b.clo
     if(a==="advance"){S.e8Msg=await e8Advance(x);render();return;}
     if(a==="back"){e8Back(x);await e8Save(x);render();return;}
     if(a==="ev"){x.d6.valid=e8Evidence(x);await e8Save(x);render();return;}
+    if(a==="d2auto"||a==="d2refill"){const F=d2Auto(x,a==="d2refill");e8Log(x,`D2 ${a==="d2refill"?"filled again":"filled"} from ${F.src||"the record"}`);await e8Save(x);S.e8Msg=F.src?"":"The record is not loaded and the review keeps no analysis: load the record to fill the windows.";render();return;}
+    if(a==="w2add"){d2Fix(x);const l=x.d2.win.at(-1);x.d2.win.push({from:l?l.to:dtl(x.src.from),to:"",zones:"",worst:"",note:""});await e8Save(x);render();return;}
+    if(a.startsWith("w2del:")){d2Fix(x);x.d2.win.splice(+a.slice(6),1);await e8Save(x);render();return;}
     if(a==="delete"){armedDelete(b,async()=>{if(x.src.example)E8_MEM.splice(E8_MEM.indexOf(x),1);else await dbDel("e8",x.id);S.e8Cur=null;toast(x.id+" deleted");render();});return;}}
 });
 onDoc("change",async e=>{const el=e.target;if(el.closest("#modal"))return;
@@ -2996,9 +3087,10 @@ onDoc("change",async e=>{const el=e.target;if(el.closest("#modal"))return;
     await pdSave(R);if(el.tagName==="SELECT"||el.type==="checkbox")render();return;}
   if(el.dataset.e8){const x=e8Get(S.e8Cur);if(!x)return;const k=el.dataset.e8,v=el.type==="checkbox"?el.checked:el.value;
     if(k.startsWith("d7.docs:")){const n=k.slice(8);x.d7.docs=(x.d7.docs||[]).filter(y=>y!==n);if(v)x.d7.docs.push(n);}
+    else if(k.startsWith("d2.zones:")){d2Fix(x);const z=+k.slice(9);x.d2.zones=x.d2.zones.filter(y=>y!==z);if(v)x.d2.zones.push(z);x.d2.zones.sort();}
     else{const ks=k.split(".");if(ks[1]==="why"||ks[1]==="ewhy")x.d4[ks[1]][+ks[2]]=v;else setPath(x,k,v);}
     if(e8Si(x)>E8_ST.indexOf(k.split(".")[0])&&/^d\d/.test(k))e8Log(x,`${E8_NM[k.split(".")[0]]||k} changed after completion`);
-    await e8Save(x);if(el.tagName==="SELECT"||el.type==="checkbox")render();}
+    await e8Save(x);if(el.tagName==="SELECT"||el.type==="checkbox"||k.startsWith("d2.win."))render();}
 });
 
 /* the record page: settings in place, section jumps, set value of the statistics, folded cards, print, copy, drop a file */

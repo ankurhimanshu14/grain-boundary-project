@@ -20,3 +20,7 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | Records | `reviews`, `config/settings`; shared store prefix `scada-`, else `localStorage` `mws-scada-local-v1` |
 | API | `MWS.scada.stats()`, `summary()`, `closeModal()`; uses `MWS.spec.inForce()`, `MWS.tc.chamber()`, `MWS.org.qualified()` |
 | Not here | 8D problem solving and the record-level PDCA of the CALOR SCADA review |
+
+### 8D D2: structured problem description
+
+D2 has six parts: 1 problem statement (problem in one sentence, characteristic, requirement, what was measured), 2 where (furnace, chamber, zones, walls, thermocouples, notes), 3 when (time windows W1… with from, to, duration, zones, worst deviation, note; who found it, how), 4 how much (windows and total duration, trays / positions, batches / lots, other extent), 5 why it is a problem, 6 is / is not (zones, walls, thermocouples, time, set value, pattern, other chamber, other furnaces, alarms and events, product and load: is, is not, what it tells). "Fill the empty fields from the analysis" uses the loaded record or the incidents kept on the review. To complete D2: statement, requirement, measured value, where, a time window, the extent, why, is / is not for zones and time, and at least two comparisons only the team can check (pattern, other chamber, other furnaces, alarms, load); "not checked" does not count.

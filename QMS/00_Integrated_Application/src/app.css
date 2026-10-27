@@ -342,3 +342,9 @@ button.sync{font-size:12.5px;white-space:nowrap}button.sync.ok{border-color:var(
 .qtrend{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--panel,transparent)}
 .qtrend svg{display:block;width:100%;height:auto;margin-top:4px}
 .qtrend text{font-size:10px;fill:var(--muted)}
+
+/* SCADA review, 8D D2: the structured problem description */
+h4.d2h{margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13px;letter-spacing:.02em}
+table.d2i td:first-child{width:22%;min-width:150px}table.d2i textarea{width:100%;min-width:150px;resize:vertical}
+table.d2w input{min-width:110px}table.d2w input[type=datetime-local]{min-width:180px}
+.d2sum{margin:2px 0 0}
