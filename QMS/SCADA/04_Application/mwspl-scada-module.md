@@ -19,7 +19,6 @@ The module runs in the CALOR Quality System (`QMS/00_Integrated_Application/calo
 | 8D (A) | 8D problem solving D1–D8 with a gate per discipline; required for product-affecting and repeated problems (same thermocouple out of tolerance in 2 earlier records within 30 days); opened from the action review (problem and suspect product filled from the analysis) or by hand; past target and containment late flagged; register and print record |
 | Records | `reviews`, `config/settings`; shared store prefix `scada-`, else `localStorage` `mws-scada-local-v1` |
 | API | `MWS.scada.stats()`, `summary()`, `closeModal()`; uses `MWS.spec.inForce()`, `MWS.tc.chamber()`, `MWS.org.qualified()` |
-| Not here | 8D problem solving and the record-level PDCA of the CALOR SCADA review |
 
 ### 8D D2: structured problem description
 
