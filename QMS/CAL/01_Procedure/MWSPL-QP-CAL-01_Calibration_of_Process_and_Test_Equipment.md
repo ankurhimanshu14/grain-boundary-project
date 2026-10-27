@@ -43,7 +43,7 @@ The process and test equipment of furnaces F-01 to F-04 and the laboratory: zone
 ### 6. Procedure
 
 #### 6.1 Register (F-CAL-01)
-Every item is registered with its tag, location, type (calibration / verification / certification), range of use, accuracy requirement, interval and the Process Table item. The interval may be shorter than, but not longer than, the frequency of the Process Table for its kind 〈frequencies to confirm per Process Table A / E〉.
+Every item is registered with its tag, location, type (calibration / verification / certification), range of use, accuracy requirement, interval (in days or calendar months, as the Process Table states it) and the Process Table item. The interval may be shorter than, but not longer than, the frequency of the Process Table for its kind 〈frequencies to confirm per Process Table A / E〉.
 
 #### 6.2 Schedule
 The application gives the due date of each item (latest valid record + interval, or the due date on the report). Items due soon are planned; an overdue item is not used until calibrated. A spare item is calibrated before it is put into use.

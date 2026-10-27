@@ -10,20 +10,20 @@ const NS=c=>S.db&&S.db.local?c:"cal-"+c;
 const ID_RE=/^[A-Za-z0-9_\-.~:@+]{1,200}$/;
 const LKEY="mws-cal-local-v1";
 const CHAMBERS=["Hardening","Tempering"];
-/* equipment kinds: label, default type, interval (days), accuracy ± abs, ± % of reading, unit, Process Table section — typical values, to confirm */
+/* equipment kinds: label, default type, interval ("3m" = months, "90d" = days), accuracy ± abs, ± % of reading, unit, Process Table section — typical values, to confirm */
 const KINDS={
-  ctrl:["Temperature controller","cal",90,1.1,0.2,"°C","2.0"],
-  rec:["Recorder / SCADA recording channels","cal",90,1.1,0.2,"°C","2.0"],
-  otp:["Over-temperature controller","cal",90,1.1,0.2,"°C","2.0"],
-  fti:["Field test instrument (SAT / TUS)","cal",365,0.6,0.1,"°C","2.0"],
-  ir:["Non-contact thermometer (pyrometer / infrared)","cal",365,3,0.5,"°C","2.0"],
-  qtemp:["Quench medium temperature indicator","cal",365,2,0,"°C","1.0"],
-  timer:["Timer (push cycle, dip, cooling)","verif",365,1,1,"s","1.0"],
-  flow:["Flow / pressure gauge (combustion, cooling air)","cal",365,0,2,"","1.0"],
-  hard:["Hardness tester","cal",365,0,1.5,"HRC","1.0"],
-  block:["Hardness test block (certified)","cert",1825,0,0,"","1.0"],
-  micro:["Microscope / stage micrometer","cal",365,0,1,"µm","1.0"],
-  other:["Other process or test equipment","cal",365,0,0,"","1.0"]};
+  ctrl:["Temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
+  rec:["Recorder / SCADA recording channels","cal","3m",1.1,0.2,"°C","2.0"],
+  otp:["Over-temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
+  fti:["Field test instrument (SAT / TUS)","cal","12m",0.6,0.1,"°C","2.0"],
+  ir:["Non-contact thermometer (pyrometer / infrared)","cal","12m",3,0.5,"°C","2.0"],
+  qtemp:["Quench medium temperature indicator","cal","12m",2,0,"°C","1.0"],
+  timer:["Timer (push cycle, dip, cooling)","verif","12m",1,1,"s","1.0"],
+  flow:["Flow / pressure gauge (combustion, cooling air)","cal","12m",0,2,"","1.0"],
+  hard:["Hardness tester","cal","12m",0,1.5,"HRC","1.0"],
+  block:["Hardness test block (certified)","cert","60m",0,0,"","1.0"],
+  micro:["Microscope / stage micrometer","cal","12m",0,1,"µm","1.0"],
+  other:["Other process or test equipment","cal","12m",0,0,"","1.0"]};
 const TYPES={cal:"Calibration",verif:"Verification",cert:"Certification"};
 const ESTAT={inuse:"In use",spare:"Spare (calibrate before use)",out:"Out of service",scrap:"Scrapped"};
 const LBL={id:"equipment identification",date:"calibration date",due:"next due date",by:"calibrated by"};
@@ -69,6 +69,15 @@ const nlines=v=>String(v||"").split(/\n+/).map(txt).filter(Boolean);
 const arr=v=>Array.isArray(v)?v:[];
 const r2=v=>v==null?"—":String(Math.round(v*100)/100);
 const sgn=v=>v==null?"—":(v>0?"+":"")+r2(v);
+/* intervals: days ("90", "90d") or calendar months ("3m"); a plain number saved before is days */
+const ivOf=v=>{const m=String(v??"").trim().match(/^(\d+(?:\.\d+)?)\s*([dm]?)$/i);return m&&+m[1]>0?{n:+m[1],u:(m[2]||"d").toLowerCase()}:null;};
+const ivAdd=(s,v,sg=1)=>{const p=ivOf(v);if(!p||!isDate(s))return "";if(p.u==="d")return addDays(s,sg*p.n);
+  const d=new Date(s+"T00:00:00"),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+sg*Math.round(p.n));d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return iso(d);};
+const ivDays=v=>{const p=ivOf(v);return p?(p.u==="m"?p.n*30.44:p.n):null;};
+const ivTxt=v=>{const p=ivOf(v);return p?plural(p.n,p.u==="m"?"month":"day"):"—";};
+/* number + unit (days / months) for an interval; read back with ivRead */
+const ivBox=(key,v,dis)=>{const p=ivOf(v)||{n:"",u:"m"};return `<span class="ivb" data-iv="${esc(key)}"><input type="number" min="1" step="1" value="${esc(p.n)}" ${dis?"disabled":""} aria-label="Interval"><select ${dis?"disabled":""} aria-label="Unit"><option value="d" ${p.u==="d"?"selected":""}>days</option><option value="m" ${p.u==="m"?"selected":""}>months</option></select></span>`;};
+const ivRead=el=>{const n=num(el.querySelector("input").value),u=el.querySelector("select").value;return n>0?(u==="m"?Math.round(n)+"m":Math.round(n)+"d"):"";};
 
 /* 4. state */
 const S={view:"dash",db:null,dbState:"connecting",canWrite:true,dl:null,eqs:[],cals:[],offs:[],cfg:{...DEF},op:null,
@@ -79,7 +88,7 @@ const DEFOP={no:"MWSPL-WI-CAL-02",rev:0,prep:"",appr:"",apprDate:"",change:"",au
 /* 5. domain logic */
 const furnaces=()=>lines(C().furnaces).map(x=>x.toUpperCase());
 const kd=k=>KINDS[k]||KINDS.other;
-const kInt=k=>num((C().kint||{})[k])??kd(k)[2];
+const kInt=k=>ivOf((C().kint||{})[k])?String(C().kint[k]):kd(k)[2];
 function fillEq(o){const x={id:"",tag:"",kind:"ctrl",name:"",furnace:"",chamber:"",loop:"",make:"",model:"",serial:"",lo:"",hi:"",unit:"",accAbs:"",accPct:"",interval:"",type:"",ptRef:"",loc:"",emis:"",status:"inuse",notes:"",log:[],...(o||{})};
   if(!x.type)x.type=kd(x.kind)[1];if(!Array.isArray(x.log))x.log=[];return x;}
 function fillCal(o){const d={id:"",eq:"",type:"cal",date:"",due:"",by:"",ext:"int",lab:"",accred:"",certNo:"",method:"",std:{id:"",cert:"",due:"",trace:""},env:"",pts:[],adj:"none",offChk:"",emis:"",
@@ -95,7 +104,7 @@ const byDate=(a,b)=>(a.date||"")<(b.date||"")?-1:(a.date||"")>(b.date||"")?1:(a.
 const accOf=e=>({abs:num(e.accAbs)??kd(e.kind)[3],pct:num(e.accPct)??kd(e.kind)[4],unit:e.unit||kd(e.kind)[5]});
 const accTxt=e=>{const a=accOf(e);return a.abs||a.pct?`± ${a.abs?a.abs+" "+a.unit:""}${a.abs&&a.pct?" or ":""}${a.pct?a.pct+" % of reading":""}${a.abs&&a.pct?", the greater":""}`:"not set";};
 const limAt=(e,nom)=>{const a=accOf(e);const L=Math.max(a.abs||0,(a.pct||0)/100*Math.abs(nom||0));return L>0?L:null;};
-const intOf=e=>num(e.interval)||kInt(e.kind);
+const intOf=e=>ivOf(e.interval)?String(e.interval):kInt(e.kind);
 const judged=e=>e.status==="inuse"||e.status==="spare";
 /* approvers of calibration reports: Settings + HT organization */
 function approvers(){const L=lines(C().approvers).map(n=>({name:n,src:"Settings"}));
@@ -124,7 +133,7 @@ function evalCal(r){const e=eqById(r.eq),issues=[];if(!e)return {res:null,issues
   return {res,issues,pts,of,ol};}
 const RES={pass:["ok","In tolerance"],oof:["warn","Found out of tolerance"],fail:["bad","Out of tolerance"],invalid:["bad","Invalid"],none:["","No points"]};
 const okCal=r=>{const k=evalCal(r).res;return k==="pass"||k==="oof";};
-const dueOf=r=>isDate(r.due)?r.due:isDate(r.date)?addDays(r.date,intOf(eqById(r.eq)||{kind:"other"})):"";
+const dueOf=r=>isDate(r.due)?r.due:isDate(r.date)?ivAdd(r.date,intOf(eqById(r.eq)||{kind:"other"})):"";
 const calsOf=id=>S.cals.filter(r=>r.eq===id&&isDate(r.date)).sort(byDate);
 /* the state of a piece of equipment on a day: the latest valid record */
 function eqState(e,day){day=day||today();if(!judged(e))return {st:"out"};
@@ -182,9 +191,9 @@ const LV={ok:["ok","Met"],warn:["warn","Attention"],crit:["bad","Not met"],info:
 function assess32(){
   const I=[],add=(lvl,req,ev,act)=>I.push({lvl,req,ev,act}),E=S.eqs.filter(judged),ES=E.map(e=>({e,s:eqState(e)})),TQ=tcEquip();
   /* 1. register with the Process Table frequencies */
-  const noRef=E.filter(e=>!txt(e.ptRef)),long=E.filter(e=>num(e.interval)!=null&&num(e.interval)>kInt(e.kind));
+  const noRef=E.filter(e=>!txt(e.ptRef)),long=E.filter(e=>ivOf(e.interval)&&ivDays(e.interval)>ivDays(kInt(e.kind))+0.5);
   if(!E.length)add("crit","Equipment register with the frequencies of the Process Tables, Sections 1.0 and 2.0","No process or test equipment registered.","Register the controllers, recorders, over-temperature controllers, test instruments, timers, gauges and testers with their interval (F-CAL-01).");
-  else add(long.length?"crit":noRef.length?"warn":"ok","Equipment register with the frequencies of the Process Tables, Sections 1.0 and 2.0",long.length?`${long.map(e=>`${e.tag} ${e.interval} d (Process Table ${kInt(e.kind)} d)`).join("; ")}: interval longer than the Process Table frequency.`:noRef.length?`${plural(noRef.length,"item")} without the Process Table reference: ${noRef.slice(0,6).map(e=>e.tag).join(", ")}${noRef.length>6?" …":""}.`:`${plural(E.length,"item")} with interval and Process Table reference.`,long.length?"Shorten the interval to the Process Table frequency.":noRef.length?"Add the Process Table item to each.":"");
+  else add(long.length?"crit":noRef.length?"warn":"ok","Equipment register with the frequencies of the Process Tables, Sections 1.0 and 2.0",long.length?`${long.map(e=>`${e.tag} ${ivTxt(e.interval)} (Process Table ${ivTxt(kInt(e.kind))})`).join("; ")}: interval longer than the Process Table frequency.`:noRef.length?`${plural(noRef.length,"item")} without the Process Table reference: ${noRef.slice(0,6).map(e=>e.tag).join(", ")}${noRef.length>6?" …":""}.`:`${plural(E.length,"item")} with interval and Process Table reference.`,long.length?"Shorten the interval to the Process Table frequency.":noRef.length?"Add the Process Table item to each.":"");
   /* 2. current */
   const bad=ES.filter(x=>ELV[x.s.st]==="crit"),soon=ES.filter(x=>x.s.st==="soon"),tqBad=TQ.filter(q=>["none","overdue"].includes(tcState(q)));
   if(E.length)add(bad.length||tqBad.length?"crit":soon.length?"warn":"ok","Calibrations, verifications and certifications current",
@@ -316,7 +325,7 @@ function vEquip(){const L=S.eqs.filter(inView),TQ=tcEquip();
   <p class="muted">Every piece of process and test equipment that needs calibration, verification or certification, with the interval of the applicable Process Table (Section 1.0 process and test equipment, Section 2.0 pyrometry). Due = the latest valid record + the interval (or the due date of the report when shorter).</p>${filtRow()}
   ${L.length?`<div class="tw"><table><thead><tr><th>Tag</th><th>Equipment</th><th>Location</th><th>Type · interval</th><th>Accuracy</th><th>Process Table</th><th>Last</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${L.map(e=>{const s=eqState(e),o=activeOffs(e.id);
     return `<tr><td class="mono"><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button></td><td>${esc(e.name)}<br><span class="small muted">${esc(kd(e.kind)[0])}${e.serial?" · s/n "+esc(e.serial):""}</span></td><td>${esc(e.furnace||e.loc||"—")}${e.chamber?" "+esc(e.chamber):""}${e.loop?`<br><span class="small muted">${esc(e.loop)}</span>`:""}</td>
-    <td>${esc(TYPES[e.type])}<br><span class="small muted">${intOf(e)} d</span></td><td class="small">${esc(accTxt(e))}</td><td class="small">${esc(e.ptRef||"—")}</td><td>${s.last?`<button class="link" data-open-cal="${esc(s.last.id)}">${fmtD(s.last.date)}</button>`:"—"}</td><td>${fmtD(s.due)}</td>
+    <td>${esc(TYPES[e.type])}<br><span class="small muted">${ivTxt(intOf(e))}</span></td><td class="small">${esc(accTxt(e))}</td><td class="small">${esc(e.ptRef||"—")}</td><td>${s.last?`<button class="link" data-open-cal="${esc(s.last.id)}">${fmtD(s.last.date)}</button>`:"—"}</td><td>${fmtD(s.due)}</td>
     <td>${pill(...EST[s.st])}${o.length?" "+pill(offLv(o[0])==="ok"?"acc":"warn","offset "+sgn(num(o[0].value)))+"":""}</td><td><button data-new-cal="${esc(e.id)}">Record</button></td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No equipment matches.</p></div>`}
   ${TQ.length?`<div class="panel"><h3>Test thermocouples and instruments (Thermocouples module, HTSA 3.3)</h3><p class="small muted">Kept in the Thermocouples module with their calibration observations; counted here for HTSA 3.2.</p><div class="tw"><table><thead><tr><th>Ident</th><th>Kind</th><th>Certificate</th><th>Calibrated</th><th>Due</th><th>Status</th><th>Notes</th></tr></thead><tbody>${TQ.map(q=>`<tr><td><b>${esc(q.ident)}</b></td><td>${q.kind==="testtc"?"Test thermocouple":"Test instrument"}</td><td>${esc(q.cert||"—")}</td><td>${fmtD(q.calDate)}</td><td>${fmtD(q.calDue)}</td><td>${pill(...EST[tcState(q)])}</td><td class="small">${esc(q.issues.join("; "))}</td></tr>`).join("")}</tbody></table></div><p><a class="btn" href="#tc/eq">Open in Thermocouples</a></p></div>`:""}`;}
 function vCals(){const L=S.cals.filter(r=>{const e=eqById(r.eq);return !e||inView(e);}).slice().sort(byDate).reverse();
@@ -350,7 +359,7 @@ function vAct(){const att=attention(),F=S.cals.filter(r=>["oof","fail"].includes
 function vSettings(){const c=C();
   return `<div class="panel"><h3>Settings</h3><div class="fields">${SETF.map(([k,l,t])=>t==="area"?`<label class="f wide"><span>${esc(l)}</span><textarea data-cfg="${k}" rows="3">${esc(c[k])}</textarea></label>`:`<label class="f ${k==="offMax"?"wide":""}"><span>${esc(l)}</span><input data-cfg="${k}" type="${t}" ${t==="number"?'step="any"':""} value="${esc(c[k])}"></label>`).join("")}</div>
     <h4>Frequencies per kind (Process Tables, Sections 1.0 and 2.0)</h4><p class="small muted">The longest interval allowed for each kind; equipment may have a shorter one. Defaults are typical values, flagged to confirm against the applicable Process Table.</p>
-    <div class="tw"><table><thead><tr><th>Kind</th><th>Type</th><th>Section</th><th>Interval (days)</th><th>Default accuracy</th></tr></thead><tbody>${Object.entries(KINDS).map(([k,v])=>`<tr><td>${esc(v[0])}</td><td>${esc(TYPES[v[1]])}</td><td>${v[6]}</td><td><input data-kint="${k}" type="number" min="1" value="${esc(kInt(k))}" style="max-width:110px"></td><td class="small">${esc(accTxt({kind:k}))}</td></tr>`).join("")}</tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Kind</th><th>Type</th><th>Section</th><th>Interval</th><th>Default accuracy</th></tr></thead><tbody>${Object.entries(KINDS).map(([k,v])=>`<tr><td>${esc(v[0])}</td><td>${esc(TYPES[v[1]])}</td><td>${v[6]}</td><td>${ivBox("kint:"+k,kInt(k))}</td><td class="small">${esc(accTxt({kind:k}))}</td></tr>`).join("")}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="pri w" data-save-cfg>Save settings</button><span class="small muted">Changes are kept only after Save.</span></div></div>`;}
 function vRules(){const c=C();
   const R=[["Register","Every piece of process and test equipment in use or kept as a spare has a type (calibration, verification, certification), an interval not longer than the frequency of its kind (Settings) and the Process Table reference."],
@@ -419,7 +428,7 @@ function DRAW_EQ(){const E=S.modal.ed,known=eqById(E.id),used=known&&(S.cals.som
     ${mf("make","Make",{})}${mf("model","Model",{})}${mf("serial","Serial no.",{req:1})}${mf("status","Status",{opts:Object.entries(ESTAT)})}
     ${mf("lo","Range of use from",{})}${mf("hi","to",{})}${mf("unit","Unit",{ph:kd(E.kind)[5]})}
     ${mf("accAbs","Accuracy ± (unit)",{ph:String(kd(E.kind)[3])})}${mf("accPct","Accuracy ± % of reading",{ph:String(kd(E.kind)[4])})}
-    ${mf("interval","Interval (days)",{req:1,ph:String(kInt(E.kind)),hint:`Process Table frequency for this kind: ${kInt(E.kind)} days`})}${mf("ptRef","Process Table reference (table, section 1.0 / 2.0 item)",{wide:1,req:1})}
+    <label class="f req"><span>Interval</span>${ivBox("eq",intOf(E))}<span class="small muted">Longest for this kind (Process Table): ${esc(ivTxt(kInt(E.kind)))}</span></label>${mf("ptRef","Process Table reference (table, section 1.0 / 2.0 item)",{wide:1,req:1})}
     ${E.kind==="ir"?mf("emis","Emissivity setting in use",{}):""}${mf("notes","Notes",{area:2,wide:1})}</div>`,
     `<button class="pri w" data-save-eq>Save</button>${known?`<button data-new-cal="${esc(E.id)}">Record a calibration</button>`:""}${known&&!used?`<button class="danger w" data-del-eq>Delete</button>`:""}<button data-close>Close</button>`);}
 function resHtml(E){const k=evalCal(E),e=eqById(E.eq);if(!e)return `<p class="muted small">Choose the equipment.</p>`;
@@ -430,7 +439,7 @@ function resHtml(E){const k=evalCal(E),e=eqById(E.eq);if(!e)return `<p class="mu
 function DRAW_CAL(){const E=S.modal.ed,known=calById(E.id),e=eqById(E.eq),k=evalCal(E),rm=repMissing(E),lock=reviewed(E),ma=missingAct(E),offs=e?activeOffs(e.id,E.date||today()).filter(o=>o.date<(E.date||today())):[];
   const body=`<p class="muted">${known?pill(...RES[k.res||"none"]):pill("warn","New")} ${lock?pill("ok",`Report reviewed ${fmtD(E.rev.date)} by ${E.rev.by}`):""}</p>
   <fieldset><legend>Equipment and record</legend><div class="fields">${mf("eq","Equipment",{opts:eqOpts(),blank:1,req:1,dis:lock||known})}${mf("type","Type",{opts:Object.entries(TYPES),dis:lock})}
-    ${mf("date","Date",{type:"date",req:1,dis:lock})}${mf("due","Next due",{type:"date",req:1,dis:lock,hint:e?`interval ${intOf(e)} days`:""})}${mf("by","Calibrated by",{req:1,dis:lock})}
+    ${mf("date","Date",{type:"date",req:1,dis:lock})}${mf("due","Next due",{type:"date",req:1,dis:lock,hint:e?`interval ${ivTxt(intOf(e))}`:""})}${mf("by","Calibrated by",{req:1,dis:lock})}
     ${mf("ext","Done by",{opts:[["int","In-house"],["ext","External laboratory"]],dis:lock})}${E.ext==="ext"?mf("lab","Laboratory",{req:1,dis:lock})+mf("accred","Accreditation (e.g. NABL certificate no.)",{req:1,dis:lock}):""}
     ${mf("certNo","Report / certificate no.",{req:1,dis:lock})}${mf("method","Method / procedure",{req:1,dis:lock})}${e&&e.kind==="ir"?mf("emis","Emissivity setting",{req:1,dis:lock}):""}</div></fieldset>
   ${E.type!=="cert"?`<fieldset><legend>Reference standard</legend><div class="fields">${mf("std.id","Standard (ident)",{req:1,dis:lock})}${mf("std.cert","Its certificate no.",{req:1,dis:lock})}${mf("std.due","Its calibration due",{type:"date",req:1,dis:lock})}${mf("std.trace","Traceability (national / international standard)",{wide:1,req:1,dis:lock})}${mf("env","Ambient conditions",{dis:lock})}</div></fieldset>`:""}
@@ -484,7 +493,7 @@ function lblHtml(r){const e=eqById(r.eq)||fillEq({});
 function offHtml(o){const e=eqById(o.eq)||fillEq({}),I=offIssues(o);
   return `${pHead("Offset approval record (MWSPL-F-CAL-03, P3.2.3)")}<h2>${esc(o.id)} · ${esc(e.tag)} ${esc(e.name)}</h2>${kv([["Offset",sgn(num(o.value))+" °C"],["Entered on · by",`${fmtD(o.date)} · ${o.enteredBy}`],["Basis",`${OFFB[o.basis]||""} · ${o.ref}`],["Reason",o.why],["Approved by · on",`${o.apprBy} · ${fmtD(o.apprDate)}`],["Documented in",o.where],["Read back by · on",`${o.verBy} · ${fmtD(o.verDate)}`],["Removed",isDate(o.removed)?fmtD(o.removed)+" · "+o.removedWhy:"—"],["Procedure",`${S.op.no} rev ${S.op.rev}`],["Compliance",I.length?I.map(i=>i.txt).join(" "):"Complies"]])}
   <p class="small" style="margin-top:14px">Signatures: approved ____________________ &nbsp; entered ____________________ &nbsp; verified ____________________</p>`;}
-function regHtml(){return `${pHead("Equipment register and calibration schedule (MWSPL-F-CAL-01)")}<div class="tw"><table><thead><tr><th>Tag</th><th>Equipment</th><th>Location</th><th>Type</th><th>Interval</th><th>Accuracy</th><th>Process Table</th><th>Last</th><th>Due</th><th>Status</th></tr></thead><tbody>${S.eqs.filter(judged).map(e=>{const s=eqState(e);return `<tr><td>${esc(e.tag)}</td><td>${esc(e.name)}</td><td>${esc(e.furnace||e.loc)} ${esc(e.chamber)}</td><td>${esc(TYPES[e.type])}</td><td>${intOf(e)} d</td><td>${esc(accTxt(e))}</td><td>${esc(e.ptRef)}</td><td>${s.last?fmtD(s.last.date)+" "+s.last.id:"—"}</td><td>${fmtD(s.due)}</td><td>${esc(EST[s.st][1])}</td></tr>`;}).join("")}${tcEquip().map(q=>`<tr><td>${esc(q.ident)}</td><td>${q.kind==="testtc"?"Test thermocouple":"Test instrument"} (Thermocouples)</td><td>—</td><td>Calibration</td><td>—</td><td>—</td><td>—</td><td>${fmtD(q.calDate)}</td><td>${fmtD(q.calDue)}</td><td>${esc(EST[tcState(q)][1])}</td></tr>`).join("")}</tbody></table></div>`;}
+function regHtml(){return `${pHead("Equipment register and calibration schedule (MWSPL-F-CAL-01)")}<div class="tw"><table><thead><tr><th>Tag</th><th>Equipment</th><th>Location</th><th>Type</th><th>Interval</th><th>Accuracy</th><th>Process Table</th><th>Last</th><th>Due</th><th>Status</th></tr></thead><tbody>${S.eqs.filter(judged).map(e=>{const s=eqState(e);return `<tr><td>${esc(e.tag)}</td><td>${esc(e.name)}</td><td>${esc(e.furnace||e.loc)} ${esc(e.chamber)}</td><td>${esc(TYPES[e.type])}</td><td>${esc(ivTxt(intOf(e)))}</td><td>${esc(accTxt(e))}</td><td>${esc(e.ptRef)}</td><td>${s.last?fmtD(s.last.date)+" "+s.last.id:"—"}</td><td>${fmtD(s.due)}</td><td>${esc(EST[s.st][1])}</td></tr>`;}).join("")}${tcEquip().map(q=>`<tr><td>${esc(q.ident)}</td><td>${q.kind==="testtc"?"Test thermocouple":"Test instrument"} (Thermocouples)</td><td>—</td><td>Calibration</td><td>—</td><td>—</td><td>—</td><td>${fmtD(q.calDate)}</td><td>${fmtD(q.calDue)}</td><td>${esc(EST[tcState(q)][1])}</td></tr>`).join("")}</tbody></table></div>`;}
 function h32Html(){const A=assess32(),sc=SCORE[A.score];
   return `${pHead("CQI-9 HTSA 3.2 evidence")}<p><span class="verdict ${sc[2]}">${sc[1]}</span></p>
   <div class="tw"><table><thead><tr><th>Requirement</th><th>Evidence</th><th>Result</th></tr></thead><tbody>${A.I.map(i=>`<tr><td><b>${esc(i.req)}</b></td><td>${esc(i.ev)}</td><td>${esc(LV[i.lvl][1])}</td></tr>`).join("")}</tbody></table></div>
@@ -495,13 +504,13 @@ const DRAW={eq:DRAW_EQ,cal:DRAW_CAL,off:DRAW_OFF,opappr:DRAW_OPAPPR,print:DRAW_P
 
 /* 10. actions */
 function calModal(id,eqId){const r=calById(id);let E;
-  if(r)E=clone(r);else{const e=eqById(eqId);E=fillCal({eq:e?e.id:"",type:e?e.type:"cal",date:today(),due:e?addDays(today(),intOf(e)):"",pts:e&&e.type!=="cert"?defPts(e).map(n=>({nom:String(n),found:"",left:""})):[],emis:e?e.emis:""});}
+  if(r)E=clone(r);else{const e=eqById(eqId);E=fillCal({eq:e?e.id:"",type:e?e.type:"cal",date:today(),due:e?ivAdd(today(),intOf(e)):"",pts:e&&e.type!=="cert"?defPts(e).map(n=>({nom:String(n),found:"",left:""})):[],emis:e?e.emis:""});}
   openModal({kind:"cal",ed:E,msg:""});}
 function defPts(e){const lo=num(e.lo),hi=num(e.hi);if(lo==null||hi==null)return [""];if(lo===hi)return [lo];return [lo,Math.round((lo+hi)/2),hi];}
 async function saveCal(text){const E=fillCal(S.modal.ed),known=calById(E.id),e=eqById(E.eq);
   if(!e||!isDate(E.date)){msg("Choose the equipment and the date.");return false;}if(E.date>today()){msg("The date is in the future.");return false;}
   if(isDate(E.due)&&E.due<=E.date){msg("The next due date must be after the date.");return false;}
-  if(isDate(E.due)&&dayDiff(E.date,E.due)>intOf(e)){msg(`The next due date is beyond the interval of ${intOf(e)} days.`);return false;}
+  if(isDate(E.due)&&E.due>ivAdd(E.date,intOf(e))){msg(`The next due date is beyond the interval of ${ivTxt(intOf(e))}.`);return false;}
   if(!known)E.id="CR-"+String(maxNo(S.cals)+1).padStart(4,"0");
   if(await put("cals",E,text||(known?"Saved":"Recorded"))){S.modal.ed=clone(E);return true;}return false;}
 async function saveOff(){const E=fillOff(S.modal.ed),known=offById(E.id);
@@ -527,7 +536,7 @@ function plantEquip(){const ex=S.exTag||"",L=[];const PT={ctrl:"Process Table A 
    {tag:"HT-B1",name:"Brinell hardness tester"+ex,kind:"hard",loc:"Laboratory",lo:"150",hi:"350",unit:"HBW",ptRef:PT.hard},
    {tag:"TB-HRC-45",name:"Rockwell test block 45 HRC"+ex,kind:"block",loc:"Laboratory",ptRef:PT.block},
    {tag:"MIC-01",name:"Metallurgical microscope with stage micrometer"+ex,kind:"micro",loc:"Laboratory",lo:"10",hi:"1000",ptRef:PT.micro}].forEach(x=>L.push(x));
-  return L.map(x=>fillEq({...x,serial:x.serial||"MW-"+x.tag.replace(/[^0-9A-Z]/g,""),interval:String(kInt(x.kind))}));}
+  return L.map(x=>fillEq({...x,serial:x.serial||"MW-"+x.tag.replace(/[^0-9A-Z]/g,""),interval:kInt(x.kind)}));}
 async function addDefaults(){if(!needDb())return;let n=maxNo(S.eqs);const L=plantEquip().filter(x=>!S.eqs.some(e=>e.tag===x.tag)).map(x=>({...x,id:"CE-"+String(++n).padStart(4,"0"),log:[{d:today(),t:"Added with the equipment of this plant"}]}));
   if(!L.length){toast("Every item is already registered.");return;}await batchPut("equip",L);toast(plural(L.length,"item")+" added");}
 async function stdOps(){if(!needDb())return;if(S.eqs.length||S.cals.length||S.offs.length){toast("Only on an empty module.");return;}
@@ -540,11 +549,11 @@ async function stdOps(){if(!needDb())return;if(S.eqs.length||S.cals.length||S.of
   const C2=[];let cn=0;
   const mkCal=(e,d,o)=>{const lo=num(e.lo),hi=num(e.hi),pts=e.type==="cert"?[]:defPts(e).map(nm=>{const L=limAt(e,nm)||1,ef=Math.round((rnd()-.5)*L*1.1*100)/100;return {nom:String(nm),found:String(Math.round((nm+ef)*100)/100),left:""};});
     const ext=["fti","ir","hard","block","micro"].includes(e.kind);
-    return fillCal({id:"CR-"+String(++cn).padStart(4,"0"),eq:e.id,type:e.type,date:D(-d),due:addDays(D(-d),intOf(e)),by:ext?"Lab engineer"+ex:"K. Yadav"+ex,ext:ext?"ext":"int",lab:ext?"Accredited calibration laboratory"+ex:"",accred:ext?"NABL CC-2291"+ex:"",
+    return fillCal({id:"CR-"+String(++cn).padStart(4,"0"),eq:e.id,type:e.type,date:D(-d),due:ivAdd(D(-d),intOf(e)),by:ext?"Lab engineer"+ex:"K. Yadav"+ex,ext:ext?"ext":"int",lab:ext?"Accredited calibration laboratory"+ex:"",accred:ext?"NABL CC-2291"+ex:"",
       certNo:(ext?"EXT/":"INT/")+cn,method:e.kind==="ir"?"Blackbody comparison WI-CAL-01 §5"+ex:e.kind==="block"?"Supplier certificate"+ex:"WI-CAL-01 §4: simulated input at three points"+ex,
       std:e.type==="cert"?{id:"",cert:"",due:"",trace:""}:{id:"Calibrator CAL-STD-02"+ex,cert:"CAL/STD/0912",due:D(150),trace:"NPL India, unbroken chain (example)"},env:"25 °C",pts,emis:e.kind==="ir"?"0.85":"",adj:"none",
       lbl:{id:true,date:true,due:true,by:true,lim:"",chkBy:"K. Yadav"+ex},rev:{by:QM,date:D(-d+2),remarks:""},log:[{d:D(-d),t:"Recorded"+ex}],...(o||{})});};
-  EQ.forEach(e=>{const iv=intOf(e);
+  EQ.forEach(e=>{const iv=Math.round(ivDays(intOf(e)));
     if(e.furnace==="F-04"&&e.chamber==="Hardening"&&e.kind==="ctrl"){C2.push(mkCal(e,iv+iv+10),mkCal(e,iv+10));return;}
     C2.push(mkCal(e,Math.round(iv*1.3)));C2.push(mkCal(e,Math.max(5,Math.round(iv*.3+rnd()*iv*.3))));});
   /* F-02 hardening zone 3 controller found out of tolerance last week, adjusted, reaction open */
@@ -553,7 +562,7 @@ async function stdOps(){if(!needDb())return;if(S.eqs.length||S.cals.length||S.of
   const i3=C2.findIndex(r=>r.eq===z3.id&&dayDiff(r.date,td)<60);if(i3>=0)C2.splice(i3,1);C2.push(r3);
   /* F-01 SCADA hardening: label without the due date; F-03 OTC tempering: report not reviewed */
   const rs=EQ.find(e=>e.tag==="F-01-H-SCADA"),ri=C2.filter(r=>r.eq===rs.id).sort(byDate).at(-1);ri.lbl.due=false;ri.notes="Old label left on the panel; new label without the due date."+ex;
-  const ot=EQ.find(e=>e.tag==="F-03-T-OTC"),oi=C2.filter(r=>r.eq===ot.id).sort(byDate).at(-1);oi.rev={by:"",date:"",remarks:""};oi.date=D(-3);oi.due=addDays(D(-3),intOf(ot));
+  const ot=EQ.find(e=>e.tag==="F-03-T-OTC"),oi=C2.filter(r=>r.eq===ot.id).sort(byDate).at(-1);oi.rev={by:"",date:"",remarks:""};oi.date=D(-3);oi.due=ivAdd(D(-3),intOf(ot));
   /* offsets: F-03 tempering zone 2 approved and re-evaluated; F-04 hardening zone 2 entered without approval and beyond the limit */
   const f3=EQ.find(e=>e.tag==="F-03-T-TIC-2"),f4=EQ.find(e=>e.tag==="F-04-H-TIC-2");
   const OF=[fillOff({id:"OF-0001",eq:f3.id,date:D(-50),value:"2",basis:"sat",ref:"SAT-0031 (Thermocouples)",why:"SAT difference +2.1 °C on TC-03 within tolerance; offset to centre the control reading until the element is replaced."+ex,enteredBy:"K. Yadav"+ex,apprBy:HM,apprDate:D(-51),where:"Controller parameter log book p. 14; SCADA offset register line 7"+ex,verBy:QM,verDate:D(-50),log:[{d:D(-50),t:"Recorded"+ex}]}),
@@ -562,11 +571,11 @@ async function stdOps(){if(!needDb())return;if(S.eqs.length||S.cals.length||S.of
   await batchPut("equip",EQ);await batchPut("cals",C2);await batchPut("offsets",OF);toast("Starter set-up loaded");render();}
 /* import from CALOR: hardness testers (hmt-reg: calDue) and the controller / recorder calibration dates of the Equipment page (eqq-reg) */
 async function calorImport(){if(!needDb())return;const H=MWS.calor.get("hmt-reg"),Q=MWS.calor.get("eqq-reg");let n=maxNo(S.eqs),c=maxNo(S.cals);const EQ=[],CR=[];
-  const addEq=x=>{const have=S.eqs.find(e=>e.tag===x.tag)||EQ.find(e=>e.tag===x.tag);if(have)return have;const e=fillEq({...x,id:"CE-"+String(++n).padStart(4,"0"),interval:String(kInt(x.kind)),log:[{d:today(),t:"Imported from CALOR"}]});EQ.push(e);return e;};
-  const addCal=(e,date,note)=>{if(!isDate(date)||S.cals.some(r=>r.eq===e.id&&r.date===date))return;CR.push(fillCal({id:"CR-"+String(++c).padStart(4,"0"),eq:e.id,type:e.type,date,due:addDays(date,intOf(e)),notes:note,log:[{d:today(),t:"Imported from CALOR"}]}));};
+  const addEq=x=>{const have=S.eqs.find(e=>e.tag===x.tag)||EQ.find(e=>e.tag===x.tag);if(have)return have;const e=fillEq({...x,id:"CE-"+String(++n).padStart(4,"0"),interval:kInt(x.kind),log:[{d:today(),t:"Imported from CALOR"}]});EQ.push(e);return e;};
+  const addCal=(e,date,note)=>{if(!isDate(date)||S.cals.some(r=>r.eq===e.id&&r.date===date))return;CR.push(fillCal({id:"CR-"+String(++c).padStart(4,"0"),eq:e.id,type:e.type,date,due:ivAdd(date,intOf(e)),notes:note,log:[{d:today(),t:"Imported from CALOR"}]}));};
   if(H&&Array.isArray(H.equip))H.equip.forEach(q=>{const kind=/microscope/i.test(q.kind||"")?"micro":/rockwell|brinell|vickers/i.test(q.kind||"")?"hard":"other";
     const e=addEq({tag:q.id,name:q.name||q.kind,kind,serial:q.serial||"",loc:"Laboratory",accAbs:q.tol!=null?String(q.tol):"",status:q.active===false?"out":"inuse"});
-    if(isDate(q.calDue))addCal(e,addDays(q.calDue,-intOf(e)),`Calibration date derived from CALOR's calibration due ${fmtD(q.calDue)}; complete the record.`);});
+    if(isDate(q.calDue))addCal(e,ivAdd(q.calDue,intOf(e),-1),`Calibration date derived from CALOR's calibration due ${fmtD(q.calDue)}; complete the record.`);});
   if(Q&&Array.isArray(Q.recs))Q.recs.forEach(r=>{const c0=r.chamber[0];
     if(isDate(r.ctrlCal))addCal(addEq({tag:`${r.furnace}-${c0}-CTRL`,name:`${r.chamber} chamber controllers (CALOR equipment record)`,kind:"ctrl",furnace:r.furnace,chamber:r.chamber}),r.ctrlCal,"From CALOR's equipment qualification record; complete the record.");
     if(isDate(r.recCal))addCal(addEq({tag:`${r.furnace}-${c0}-REC`,name:`${r.chamber} chamber recorder (CALOR equipment record)`,kind:"rec",furnace:r.furnace,chamber:r.chamber}),r.recCal,"From CALOR's equipment qualification record; complete the record.");});
@@ -578,7 +587,7 @@ async function download(name,text,type){
 const exportJson=()=>download(`mws-cal-${today()}.json`,JSON.stringify({app:"mws-cal-manager",v:1,saved:new Date().toISOString(),equip:S.eqs,cals:S.cals,offsets:S.offs,config:S.cfg,offproc:S.op},null,1),"application/json");
 const csvQ=v=>{v=String(v??"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
 const csv=()=>download(`mws-cal-schedule-${today()}.csv`,"﻿"+[["Tag","Equipment","Kind","Furnace","Chamber","Type","Interval (d)","Accuracy","Process Table","Last record","Last date","Due","Status","Offset in use"],
-  ...S.eqs.map(e=>{const s=eqState(e),o=activeOffs(e.id);return [e.tag,e.name,kd(e.kind)[0],e.furnace,e.chamber,TYPES[e.type],intOf(e),accTxt(e),e.ptRef,s.last?s.last.id:"",s.last?s.last.date:"",s.due||"",EST[s.st][1],o.map(x=>x.value).join(" ")];})].map(r=>r.map(csvQ).join(",")).join("\r\n"),"text/csv");
+  ...S.eqs.map(e=>{const s=eqState(e),o=activeOffs(e.id);return [e.tag,e.name,kd(e.kind)[0],e.furnace,e.chamber,TYPES[e.type],ivTxt(intOf(e)),accTxt(e),e.ptRef,s.last?s.last.id:"",s.last?s.last.date:"",s.due||"",EST[s.st][1],o.map(x=>x.value).join(" ")];})].map(r=>r.map(csvQ).join(",")).join("\r\n"),"text/csv");
 function readImport(f){f.text().then(t=>{let o;try{o=JSON.parse(t);}catch(e){toast("Not a JSON file");return;}
   if(!o||o.app!=="mws-cal-manager"||!Array.isArray(o.equip)){toast("Not an export of this module");return;}
   const ok=L=>arr(L).filter(x=>x&&ID_RE.test(String(x.id||"")));
@@ -597,7 +606,7 @@ onDoc("click",async e=>{
     if(d.close!==undefined){closeModal();return;}
     const m=S.modal;
     if(d.saveEq!==undefined){const E=fillEq(m.ed);if(!txt(E.tag)||!txt(E.name)){msg("Enter the tag and the name.");return;}if(S.eqs.some(x=>x.id!==E.id&&x.tag.toLowerCase()===E.tag.toLowerCase())){msg("Another item has this tag.");return;}
-      if(num(E.interval)!=null&&num(E.interval)<=0){msg("The interval must be more than 0 days.");return;}
+      {const el=document.querySelector("#modal [data-iv=eq]");E.interval=el?ivRead(el):E.interval;}if(!ivOf(E.interval)){msg("Enter the interval (days or months).");return;}
       const known=eqById(E.id);if(!known)E.id="CE-"+String(maxNo(S.eqs)+1).padStart(4,"0");if(await put("equip",E,known?"Saved":"Added")){toast("Saved");closeModal();}return;}
     if(d.delEq!==undefined){armedDelete(b,async()=>{await dbDel("equip",m.ed.id);toast("Deleted");closeModal();});return;}
     if(d.newCal!==undefined){calModal(null,d.newCal);return;}
@@ -639,7 +648,7 @@ onDoc("click",async e=>{
   if(d.std!==undefined){stdOps();return;}
   if(d.calor!==undefined){calorImport();return;}
   if(d.saveCfg!==undefined){document.querySelectorAll("[data-cfg]").forEach(i=>{const k=i.dataset.cfg,t=(SETF.find(x=>x[0]===k)||[])[2];S.cfg[k]=t==="number"?(num(i.value)>=0&&i.value!==""?num(i.value):DEF[k]):i.value;});
-    const ki={};document.querySelectorAll("[data-kint]").forEach(i=>{const v=num(i.value);if(v>0&&v!==KINDS[i.dataset.kint][2])ki[i.dataset.kint]=v;});S.cfg.kint=ki;saveCfg();return;}
+    const ki={};document.querySelectorAll("[data-iv^='kint:']").forEach(el=>{const k=el.dataset.iv.slice(5),v=ivRead(el);if(v&&v!==KINDS[k][2])ki[k]=v;});S.cfg.kint=ki;saveCfg();return;}
   if(d.doc){S.docSel=d.doc;render();return;}
   if(d.docref){e.preventDefault();const p=DOCS.find(x=>x[0].endsWith(d.docref.replace(/^(\.\.\/)+/,"").replace(/^\.\//,"")));if(p){S.docSel=p[0];location.hash="#docs";render();}return;}
   if(d.export!==undefined){exportJson();return;}if(d.csv!==undefined){csv();return;}
@@ -649,16 +658,18 @@ onDoc("click",async e=>{
 const live=()=>{if(!S.modal||!S.modal.ed)return;if(S.modal.kind==="cal"){const el=$("#calres");if(el)el.innerHTML=resHtml(fillCal(S.modal.ed));}
   if(S.modal.kind==="off"){const el=$("#offres");if(el)el.innerHTML=offRes(fillOff(S.modal.ed));}};
 onDoc("input",e=>{const el=e.target;if(!(S.modal&&S.modal.ed))return;const E=S.modal.ed;
+  const ivb=el.closest&&el.closest("#modal [data-iv=eq]");if(ivb){E.interval=ivRead(ivb);return;}
   if(el.dataset.pt){const [i,f]=el.dataset.pt.split(".");E.pts[+i][f]=el.value;live();return;}
   if(el.dataset.p&&el.tagName!=="SELECT"){setp(E,el.dataset.p,el.value);live();}});
 onDoc("change",e=>{const el=e.target;
   if(S.modal&&S.modal.ed){const E=S.modal.ed;
+    {const ivb=el.closest&&el.closest("#modal [data-iv=eq]");if(ivb){E.interval=ivRead(ivb);return;}}
     if(el.dataset.lbl){E.lbl[el.dataset.lbl]=el.checked;return;}
     if(el.dataset.p&&el.tagName==="SELECT"){setp(E,el.dataset.p,el.value);
       if(S.modal.kind==="eq"&&el.dataset.p==="kind"){E.type=kd(E.kind)[1];}
-      if(S.modal.kind==="cal"&&el.dataset.p==="eq"){const q=eqById(el.value);if(q){E.type=q.type;E.emis=q.emis;if(isDate(E.date))E.due=addDays(E.date,intOf(q));if(!E.pts.some(p=>txt(p.found)))E.pts=q.type==="cert"?[]:defPts(q).map(n=>({nom:String(n),found:"",left:""}));}}
+      if(S.modal.kind==="cal"&&el.dataset.p==="eq"){const q=eqById(el.value);if(q){E.type=q.type;E.emis=q.emis;if(isDate(E.date))E.due=ivAdd(E.date,intOf(q));if(!E.pts.some(p=>txt(p.found)))E.pts=q.type==="cert"?[]:defPts(q).map(n=>({nom:String(n),found:"",left:""}));}}
       redraw();return;}
-    if(el.dataset.p==="date"&&S.modal.kind==="cal"){const q=eqById(E.eq);if(q&&isDate(el.value)&&!calById(E.id)){E.due=addDays(el.value,intOf(q));const d=$("#m-due");if(d)d.value=E.due;live();}return;}}
+    if(el.dataset.p==="date"&&S.modal.kind==="cal"){const q=eqById(E.eq);if(q&&isDate(el.value)&&!calById(E.id)){E.due=ivAdd(el.value,intOf(q));const d=$("#m-due");if(d)d.value=E.due;live();}return;}}
   if(el.dataset.filt){S.filt[el.dataset.filt]=el.value;render();return;}
   if(el.id==="impfile"&&el.files[0]){readImport(el.files[0]);el.value="";}});
 onDoc("keydown",e=>{if(e.key==="Escape"&&S.modal)closeModal();});

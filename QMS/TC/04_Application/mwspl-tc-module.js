@@ -33,7 +33,7 @@ const OFFSET=["Yes","No offset was in use","No — reason in notes"];
 const TUSDEC=["TUS planned","Assessed: TUS not required (reason in notes)"];
 const ACTIONS=["Replace the thermocouple","Apply / adjust the instrument offset","Recalibrate the controller / recorder","Repair wiring / connection","Re-position the thermocouple","Other"];
 const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",furnaces:"F-01, F-02, F-03, F-04",rangeH:"700-960",rangeT:"500-900",
-  satDays:90,satTol:5.5,warnPct:70,satMin:30,satStep:1,satStab:5,soonDays:14,lifeDays:365,lifeGrace:7,
+  satDays:"3m",satTol:5.5,warnPct:70,satMin:30,satStep:1,satStab:5,soonDays:14,lifeDays:365,lifeGrace:7,
   accFieldBase:"2.2|0.75",accFieldNoble:"1.5|0.25",accTestBase:"1.1|0.4",accTestNoble:"0.6|0.1",
   reuseDeeper:"yes",maxUses:0,tubeCheckDays:30,tubeReplDays:365,pmReviewDays:365,
   /* default specification of a thermocouple per chamber (Default TC specifications view): fills a new thermocouple, gives the range of use */
@@ -55,7 +55,7 @@ function fixCfg(c){c=c||{};const T={};CH.forEach(ch=>{const r=rng(ch==="Temperin
   if(!c.specFresh){o.specs=[];o.specFresh=1;}
   return o;}
 const SETF=[["plant","Plant","text"],["furnaces","Furnaces (comma separated)","text"],
-  ["satDays","SAT interval for control / monitoring / recording TCs (days, Process Table)","number"],["satTol","SAT tolerance ± °C (P3.3)","number"],["warnPct","SAT warning at % of the tolerance","number"],["satMin","SAT: minutes of readings per test","number"],["satStep","SAT: minutes between readings","number"],["satStab","SAT: largest furnace range during the test (°C)","number"],
+  ["satDays","SAT interval for control / monitoring / recording TCs (Process Table)","iv"],["satTol","SAT tolerance ± °C (P3.3)","number"],["warnPct","SAT warning at % of the tolerance","number"],["satMin","SAT: minutes of readings per test","number"],["satStep","SAT: minutes between readings","number"],["satStab","SAT: largest furnace range during the test (°C)","number"],
   ["soonDays","Show as due this many days before","number"],["lifeDays","Replace sensing elements after (days, 0 = off)","number"],["lifeGrace","Past its life with a passing verification SAT: replace within (days, QP-TC-01 §6.5)","number"],
   ["accFieldBase","Calibration accuracy, base-metal control / monitoring / recording TCs (± °C | % of reading, the greater)","text"],["accFieldNoble","Same, noble-metal (R / S / B)","text"],
   ["accTestBase","Calibration accuracy, base-metal test TCs","text"],["accTestNoble","Same, noble-metal test TCs","text"],
@@ -90,6 +90,14 @@ const getp=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o);
 const setp=(o,p,v)=>{const k=p.split(".");let a=o;k.slice(0,-1).forEach(x=>{if(a[x]==null||typeof a[x]!=="object")a[x]={};a=a[x];});a[k.at(-1)]=v;};
 const pill=(c,t)=>`<span class="pill ${c||""}">${esc(t)}</span>`;
 const plural=(n,w,p)=>`${n} ${n===1?w:(p||w+"s")}`;
+/* intervals: days ("90", "90d") or calendar months ("3m"); a plain number saved before is days */
+const ivOf=v=>{const m=String(v??"").trim().match(/^(\d+(?:\.\d+)?)\s*([dm]?)$/i);return m&&+m[1]>0?{n:+m[1],u:(m[2]||"d").toLowerCase()}:null;};
+const ivAdd=(s,v,sg=1)=>{const p=ivOf(v);if(!p||!isDate(s))return "";if(p.u==="d")return addDays(s,sg*p.n);
+  const d=new Date(s+"T00:00:00"),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+sg*Math.round(p.n));d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0).getDate()));return iso(d);};
+const ivTxt=v=>{const p=ivOf(v);return p?plural(p.n,p.u==="m"?"month":"day"):"—";};
+/* number + unit (days / months) for an interval; read back with ivRead */
+const ivBox=(key,v,dis)=>{const p=ivOf(v)||{n:"",u:"m"};return `<span class="ivb" data-iv="${esc(key)}"><input type="number" min="1" step="1" value="${esc(p.n)}" ${dis?"disabled":""} aria-label="Interval"><select ${dis?"disabled":""} aria-label="Unit"><option value="d" ${p.u==="d"?"selected":""}>days</option><option value="m" ${p.u==="m"?"selected":""}>months</option></select></span>`;};
+const ivRead=el=>{const n=num(el.querySelector("input").value),u=el.querySelector("select").value;return n>0?(u==="m"?Math.round(n)+"m":Math.round(n)+"d"):"";};
 const isNA=v=>/^(n\/?a|not available)$/i.test(String(v||"").trim());
 const nextCode=(p,list)=>p+"-"+String(Math.max(0,...list.map(x=>+(String(x.id).match(/(\d+)$/)||[0,0])[1]))+1).padStart(4,"0");
 const rng=s=>{const m=String(s||"").match(/(-?\d+(?:\.\d+)?)\s*[-–]\s*(-?\d+(?:\.\d+)?)/);return m?[+m[1],+m[2]]:[null,null];};
@@ -256,7 +264,7 @@ function satState(e){
   const last=V[0],lastPass=V.find(r=>satEval(r).res!=="fail");
   if(last&&satEval(last).res==="fail"){const reSat=lastPass&&lastPass.date>=last.date?lastPass:null;if(!reSat)return {st:"fail",txt:"last SAT failed "+fmtD(last.date),last};}
   if(!lastPass)return {st:"none",txt:isDate(e.installed)?"no SAT since installed "+fmtD(e.installed):"no SAT",last};
-  const due=addDays(lastPass.date,+C().satDays),d=today();
+  const due=ivAdd(lastPass.date,ivOf(C().satDays)?C().satDays:DEF.satDays),d=today();
   const st=due<d?"overdue":addDays(d,+C().soonDays)>=due?"soon":"ok";
   return {st,due,last:lastPass,txt:(st==="overdue"?"SAT overdue since ":"SAT due ")+fmtD(due)};}
 function lifeOf(e){if(!(+C().lifeDays>0)||!isDate(e.installed))return {st:isDate(e.installed)?"off":"unknown"};const due=addDays(e.installed,+C().lifeDays),d=today();
@@ -308,7 +316,7 @@ function assess33(){
     cal.length?"Obtain or attach the calibration certificate; replace an element that was not calibrated before use or does not meet the accuracy.":"");
   const need=U.filter(e=>needSat(e)).map(e=>({e,s:satState(e)}));
   const bad=need.filter(x=>["none","overdue","fail","repl"].includes(x.s.st)),soon=need.filter(x=>x.s.st==="soon");
-  add(`Control, monitoring and recording TCs SAT checked every ${C().satDays} days (Process Table, P3.3)`,!need.length?"crit":bad.length?"crit":soon.length?"warn":"ok",
+  add(`Control, monitoring and recording TCs SAT checked every ${ivTxt(C().satDays)} (Process Table, P3.3)`,!need.length?"crit":bad.length?"crit":soon.length?"warn":"ok",
     !need.length?"No control, monitoring or recording thermocouple is registered.":bad.length?bad.slice(0,8).map(x=>`${tcName(x.e)}: ${x.s.txt}`).join("; ")+(bad.length>8?` … (${bad.length})`:""):soon.length?`${plural(soon.length,"SAT")} due within ${C().soonDays} days.`:`${plural(need.length,"thermocouple")} with a passing SAT in date.`,
     bad.length?"Run the SAT (WI-TC-02); a failed SAT needs its reaction and a passing re-SAT.":"");
   const rOpen=S.repl.filter(r=>{const n=tcById(r.newTc);return n&&n.status==="inuse"&&needSat(n)&&!verifySat(r);}),rInc=S.repl.filter(r=>replMissing(r).length);
@@ -502,7 +510,7 @@ function vPm(){
     <p class="small muted">The schedule is the tube material and the check / replacement interval of every thermocouple in use (edit them on each thermocouple). Changing an interval or adding a thermocouple after the approval marks the schedule as changed.</p>
     ${U.length?`<div class="tw"><table><thead><tr><th>Thermocouple</th><th>Tube material</th><th>Tube installed</th><th class="n">Check every (d)</th><th class="n">Replace after (d)</th><th>Status</th></tr></thead><tbody>${U.map(e=>`<tr class="click" data-tc="${esc(e.id)}"><td>${esc(tcName(e))}</td><td>${esc(e.tube.mat||"—")}</td><td>${fmtD(e.installed)}</td><td class="n">${esc(e.tube.checkDays||"—")}</td><td class="n">${esc(e.tube.replDays||"—")}</td><td>${tubePill(e)}</td></tr>`).join("")}</tbody></table></div>`:""}</div>
   <div class="panel"><h3>Settings</h3><p class="small muted">Accuracy figures are written "± °C | % of reading" (the greater applies). They and the SAT interval / tolerance are typical CQI-9 values to <b>confirm against the controlled copy</b> (Section P3.1 tables, P3.3, Process Tables A and E).</p>
-    <div class="fields">${SETF.map(([k,l,t])=>`<label class="f"><span>${esc(l)}</span><input data-cfg="${k}" type="${t}" value="${esc(c[k])}"></label>`).join("")}</div>
+    <div class="fields">${SETF.map(([k,l,t])=>t==="iv"?`<label class="f"><span>${esc(l)}</span>${ivBox("cfg:"+k,c[k])}</label>`:`<label class="f"><span>${esc(l)}</span><input data-cfg="${k}" type="${t}" value="${esc(c[k])}"></label>`).join("")}</div>
     <div class="row" style="margin-top:12px"><button class="pri w" data-save-cfg>Save settings</button><span class="small muted">Changes are kept only after Save.</span></div></div>`;
 }
 function vEq(){
@@ -612,7 +620,7 @@ function vRepl(){
 function vRules(){
   const c=C();
   const R=[["Calibration (P3.1)","Each thermocouple needs a calibration certificate dated on or before its installation, a calibrated range covering its range of use (from its specification in TC specifications, or set on the thermocouple) and a largest error within ± the greater of "+c.accFieldBase.replace("|"," °C or ")+" % (base metal) / "+c.accFieldNoble.replace("|"," °C or ")+" % (noble metal) at the top of the range. Test TCs: "+c.accTestBase.replace("|"," °C or ")+" % / "+c.accTestNoble.replace("|"," °C or ")+" %."],
-    ["SAT (P3.3)","Control, monitoring and recording thermocouples: a passing SAT after installation and then every "+c.satDays+" days. Each SAT records "+c.satMin+" minutes of furnace / test readings, one every "+c.satStep+" min ("+nRd()+" pairs); difference = mean over the readings of furnace − (test + instrument correction + test TC correction); a reading outside the tolerance turns a pass into a warning, a furnace range above "+c.satStab+" °C is flagged; fail beyond ±"+c.satTol+" °C, warning beyond "+c.warnPct+" % of it. A failed SAT stays failed until a later passing SAT (or the replacement's SAT)."],
+    ["SAT (P3.3)","Control, monitoring and recording thermocouples: a passing SAT after installation and then every "+ivTxt(c.satDays)+" (a month = a calendar month). Each SAT records "+c.satMin+" minutes of furnace / test readings, one every "+c.satStep+" min ("+nRd()+" pairs); difference = mean over the readings of furnace − (test + instrument correction + test TC correction); a reading outside the tolerance turns a pass into a warning, a furnace range above "+c.satStab+" °C is flagged; fail beyond ±"+c.satTol+" °C, warning beyond "+c.warnPct+" % of it. A failed SAT stays failed until a later passing SAT (or the replacement's SAT)."],
     ["Valid SAT","Test instrument and test thermocouple identified and in calibration on the test day; for a type K / E test TC the insertion depth recorded"+(c.reuseDeeper!=="no"?", and a reused one not shallower than its deepest earlier use":"")+(+c.maxUses>0?"; not more than "+c.maxUses+" uses":"")+"."],
     ["SAT record (P3.3.5)","Thermocouple tested, date and start time, set point, test instrument and test TC with calibration, the "+c.satMin+"-minute series of furnace and test readings, both corrections, difference, result, technician, approval by name and date. Incomplete records count against HTSA 3.3."],
     ["Failed SAT","Cause, corrective action, product impact, owner and date, then a passing re-SAT (after adjustment or replacement)."],
@@ -1121,7 +1129,7 @@ onDoc("click",e=>{
   if(d.specClear!==undefined){const n=S.tcs.filter(e=>specById(e.specId)).length;armedDelete(b,clearTspecs,`Confirm: clear ${specs().length}`+(n?` · ${n} TC unlinked`:""));return;}
   if(d.delTspec){const id=d.delTspec,n=S.tcs.filter(e=>e.specId===id).length;armedDelete(b,()=>delTspec(id),n?`Confirm: ${n} TC unlinked`:"Confirm delete");return;}
   if(d.specOpen){specModal(d.specOpen);return;}
-  if(d.saveCfg!==undefined){document.querySelectorAll("[data-cfg]").forEach(i=>{const k=i.dataset.cfg,t=(SETF.find(x=>x[0]===k)||[])[2];S.cfg[k]=t==="number"?(num(i.value)??DEF[k]):i.value;});saveCfg();return;}
+  if(d.saveCfg!==undefined){document.querySelectorAll("[data-cfg]").forEach(i=>{const k=i.dataset.cfg,t=(SETF.find(x=>x[0]===k)||[])[2];S.cfg[k]=t==="number"?(num(i.value)??DEF[k]):i.value;});document.querySelectorAll("[data-iv^='cfg:']").forEach(el=>{const k=el.dataset.iv.slice(4);S.cfg[k]=ivRead(el)||DEF[k];});saveCfg();return;}
   if(d.doc){S.docSel=d.doc;render();return;}
   if(d.docref){e.preventDefault();const p=DOCS.find(x=>x[0].endsWith(d.docref.replace(/^(\.\.\/)+/,"").replace(/^\.\//,"")));if(p){S.docSel=p[0];render();}return;}
   if(d.export!==undefined){exportJson();return;}if(d.csv!==undefined){csv();return;}if(d.satcsv!==undefined){satCsv();return;}if(d.calcsv!==undefined){calCsv();return;}if(d.rdcsv!==undefined){rdCsv();return;}

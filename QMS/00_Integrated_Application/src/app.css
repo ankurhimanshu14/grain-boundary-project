@@ -48,6 +48,9 @@ header.top .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;ju
 .ctrl b{display:block;font-weight:500;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
 .hdr-r{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 
+/* interval: number + days / months */
+.ivb{display:inline-flex;gap:4px;align-items:center}.ivb input{width:84px;min-width:0}.ivb select{width:auto}
+
 /* navigation */
 nav.sys{background:var(--bg);border-bottom:1px solid var(--line)}
 nav.sys{position:relative;z-index:30}
