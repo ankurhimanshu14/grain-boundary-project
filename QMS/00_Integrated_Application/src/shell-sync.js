@@ -7,7 +7,7 @@
    Files: <key>.json = {format "CALOR Quality System data", version, key, module, saved, by, stamp, data}; mws-manifest.json;
    backup/mws-backup-<day>.json once a day (30 kept) and backup/before-link_<time>.json; conflicts/<key>_<time>_<computer>.json. */
 (function(){
-  const KEYS={"mws-org-local-v1":"HT organization","mws-apqp-local-v1":"Quality planning","mws-spec-local-v1":"Process specifications","mws-valid-local-v1":"Process validation","mws-trend-local-v1":"Trend analysis","mws-scada-local-v1":"SCADA review","mws-quench-local-v1":"Quench media","mws-tus-local-v1":"Uniformity (TUS)","mws-tc-local-v1":"Thermocouples"};
+  const KEYS={"mws-org-local-v1":"HT organization","mws-apqp-local-v1":"Quality planning","mws-spec-local-v1":"Process specifications","mws-valid-local-v1":"Process validation","mws-trend-local-v1":"Trend analysis","mws-scada-local-v1":"SCADA review","mws-quench-local-v1":"Quench media","mws-cal-local-v1":"Calibration","mws-tus-local-v1":"Uniformity (TUS)","mws-tc-local-v1":"Thermocouples"};
   const FORMAT="CALOR Quality System data",SK="mws-sync",DB_NAME="mws-drive",MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const pad=n=>String(n).padStart(2,"0"),day=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
   const ftime=()=>{const d=new Date();return `${day()}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;};

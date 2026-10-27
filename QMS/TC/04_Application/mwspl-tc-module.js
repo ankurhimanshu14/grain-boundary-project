@@ -1178,6 +1178,8 @@ MWS.tc={closeModal,
   /* the thermocouples of a chamber with their SAT, life and tube state (used by the SCADA review) */
   chamber:(f,ch)=>inUse().filter(e=>e.furnace===f&&e.chamber===ch).map(e=>{const s=satState(e),l=lifeOf(e),t=tubeState(e);return {tag:e.tag,no:tcNo(e.tag),use:e.use,sat:s.st,satTxt:s.txt,satDue:s.due||"",life:l.st,lifeDue:l.due||"",tube:t.st,tubeTxt:t.txt};}),
   hasData:()=>S.tcs.length>0,
+  /* test thermocouples and test instruments with their calibration (Calibration module, HTSA 3.2) */
+  testEquip:()=>S.eq.filter(q=>q.active!==false).map(q=>({id:q.id,kind:q.kind,ident:q.ident,serial:q.serial,cert:q.cert,lab:q.lab,calDate:q.calDate,calDue:q.calDue,issues:eqIssues(q)})),
   /* SAT difference over time per thermocouple position (Trend analysis, HTSA 1.8): valid SATs of every element that has been there */
   satSeries:()=>{const P={};S.tcs.filter(e=>needSat(e)&&tcNo(e.tag)!=null).forEach(e=>{const k=`${e.furnace}|${e.chamber}|${String(tcNo(e.tag)).padStart(2,"0")}`;(P[k]=P[k]||[]).push(e);});
     return Object.entries(P).sort((a,b)=>a[0]<b[0]?-1:1).map(([k,E])=>{const ids=new Set(E.map(e=>e.id)),by=Object.fromEntries(E.map(e=>[e.id,e]));

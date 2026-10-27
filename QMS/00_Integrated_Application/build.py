@@ -18,6 +18,7 @@ MODULES = {"org": (QMS / "ORG/04_Application/mwspl-org-module.js", "ORG"),
            "valid": (QMS / "VALID/04_Application/mwspl-valid-module.js", "VALID"),
            "trend": (QMS / "TREND/04_Application/mwspl-trend-module.js", "TREND"),
            "quench": (QMS / "QUENCH/04_Application/mwspl-quench-module.js", "QUENCH"),
+           "cal": (QMS / "CAL/04_Application/mwspl-cal-module.js", "CAL"),
            "tus": (QMS / "TUS/04_Application/mwspl-tus-module.js", "TUS"),
            "tc": (QMS / "TC/04_Application/mwspl-tc-module.js", "TC")}
 

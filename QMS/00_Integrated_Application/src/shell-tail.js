@@ -4,7 +4,7 @@ function renderHome(){
   const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
   const sp=MWS.spec?MWS.spec.stats():null;
   const dbs={on:"Shared · live",local:"Local · this browser",error:"Store error"};
-  const tc=MWS.tc?MWS.tc.stats():null,og=MWS.org?MWS.org.stats():null,sc=MWS.scada?MWS.scada.stats():null,aq=MWS.apqp?MWS.apqp.stats():null,tr=MWS.trend?MWS.trend.stats():null,qm=MWS.quench?MWS.quench.stats():null,pv=MWS.valid?MWS.valid.stats():null,tu=MWS.tus?MWS.tus.stats():null,st=document.getElementById("dbstate"),any=og||sp||tc;if(st)st.textContent=any?(dbs[any.db]||"Connecting…"):"—";
+  const tc=MWS.tc?MWS.tc.stats():null,og=MWS.org?MWS.org.stats():null,sc=MWS.scada?MWS.scada.stats():null,aq=MWS.apqp?MWS.apqp.stats():null,tr=MWS.trend?MWS.trend.stats():null,qm=MWS.quench?MWS.quench.stats():null,pv=MWS.valid?MWS.valid.stats():null,tu=MWS.tus?MWS.tus.stats():null,ca=MWS.cal?MWS.cal.stats():null,st=document.getElementById("dbstate"),any=og||sp||tc;if(st)st.textContent=any?(dbs[any.db]||"Connecting…"):"—";
   const tile=(k,v,c,h)=>`<a class="tile" href="${h}"><div class="k">${esc(k)}</div><div class="v ${c||""}">${esc(v)}</div></a>`;
   const specCard=sp?`<section class="panel"><div class="row between"><h2>Process specifications</h2><a class="pill ${sp.cls}" href="#spec/review">HTSA 1.6 · ${esc(sp.label)}</a></div>
     <p class="muted">${esc(MWS.spec.summary())}</p>
@@ -34,6 +34,10 @@ function renderHome(){
     <p class="muted">${esc(MWS.quench.summary())}</p>
     <div class="tiles">${tile("Tanks in order",qm.ok+"/"+qm.tanks,qm.tanks&&qm.ok===qm.tanks?"ok":"bad","#quench/tanks")}${tile("Tests overdue / never",qm.overdue,qm.overdue?"bad":"ok","#quench/sched")}${tile("Out of limits",qm.out,qm.out?"bad":"ok","#quench/act")}${tile("Results to review",qm.reviews,qm.reviewsLate?"bad":qm.reviews?"warn":"ok","#quench/act")}${tile("Reactions open",qm.open,qm.open?"warn":"ok","#quench/act")}${tile("Test plan",qm.planRev!=null?"Rev "+qm.planRev:"Not approved",qm.planOk?"ok":"warn","#quench/plan")}</div>
     <p class="row"><a class="btn pri" href="#quench/dash">Open Quench media</a><a class="btn" href="#quench/tests">Test records</a><a class="btn" href="#quench/plan">Test plan</a></p></section>`:"";
+  const caCard=ca?`<section class="panel"><div class="row between"><h2>Calibration of process equipment</h2><a class="pill ${ca.cls}" href="#cal/review">HTSA 3.2 · ${esc(ca.label)}</a></div>
+    <p class="muted">${esc(MWS.cal.summary())}</p>
+    <div class="tiles">${tile("Equipment current",ca.ok+"/"+ca.items,ca.items&&ca.ok===ca.items?"ok":"bad","#cal/equip")}${tile("Overdue / never",ca.overdue,ca.overdue?"bad":"ok","#cal/equip")}${tile("Out of tolerance open",ca.open,ca.open?"bad":"ok","#cal/act")}${tile("Offsets in use",ca.offs+(ca.offBad?" ("+ca.offBad+" not compliant)":""),ca.offBad?"bad":"ok","#cal/offsets")}${tile("Reports to review",ca.toReview,ca.toReview?"warn":"ok","#cal/cals")}${tile("Offset procedure",ca.opRev!=null?"Rev "+ca.opRev:"Not approved",ca.opOk?"ok":"bad","#cal/proc")}</div>
+    <p class="row"><a class="btn pri" href="#cal/dash">Open Calibration</a><a class="btn" href="#cal/equip">Register &amp; schedule</a><a class="btn" href="#cal/offsets">Offsets</a></p></section>`:"";
   const tuCard=tu?`<section class="panel"><div class="row between"><h2>Temperature uniformity surveys</h2><a class="pill ${tu.cls}" href="#tus/review">HTSA 3.4 · ${esc(tu.label)}</a></div>
     <p class="muted">${esc(MWS.tus.summary())}</p>
     <div class="tiles">${tile("Ranges qualified",tu.ok+"/"+tu.ranges,tu.ranges&&tu.ok===tu.ranges?"ok":"bad","#tus/ranges")}${tile("Overdue / never surveyed",tu.overdue,tu.overdue?"bad":"ok","#tus/ranges")}${tile("Last survey failed",tu.failed,tu.failed?"bad":"ok","#tus/act")}${tile("Reactions open",tu.open,tu.open?"bad":"ok","#tus/act")}${tile("Changes to close",tu.chgOpen,tu.chgOpen?"warn":"ok","#tus/changes")}${tile("Reports to approve",tu.toApprove,tu.toApprove?"warn":"ok","#tus/surveys")}</div>
@@ -44,7 +48,7 @@ function renderHome(){
     <p class="row"><a class="btn pri" href="#tc/dash">Open Thermocouples</a><a class="btn" href="#tc/sat">SAT records</a><a class="btn" href="#tc/tube">Tube checks</a></p></section>`:"";
   document.getElementById("main").innerHTML=`
   <section class="panel"><h2>Heat treat quality system</h2>
-    <p class="muted">One application for the CQI-9 heat treat system of the plant. Each module keeps its own records and follows its procedure; the Overview collects their status. This build holds Heat treat organization (HTSA 1.1, MWSPL-QP-ORG-01), Advanced quality planning (HTSA 1.2, MWSPL-QP-APQP-01), Process specifications (HTSA 1.6, MWSPL-QP-SPEC-01), Process validation (HTSA 1.7, MWSPL-QP-PV-01), Trend analysis (HTSA 1.8, MWSPL-QP-TREND-01), SCADA temperature review (HTSA 1.9, MWSPL-QP-SCADA-01), Quench media analysis (HTSA 3.14, MWSPL-QP-QM-01), Temperature uniformity surveys (HTSA 3.4, MWSPL-QP-TUS-01) and Thermocouples &amp; protection tubes (HTSA 3.3, MWSPL-QP-TC-01); the other modules of the CALOR register follow in the same form.</p>
+    <p class="muted">One application for the CQI-9 heat treat system of the plant. Each module keeps its own records and follows its procedure; the Overview collects their status. This build holds Heat treat organization (HTSA 1.1, MWSPL-QP-ORG-01), Advanced quality planning (HTSA 1.2, MWSPL-QP-APQP-01), Process specifications (HTSA 1.6, MWSPL-QP-SPEC-01), Process validation (HTSA 1.7, MWSPL-QP-PV-01), Trend analysis (HTSA 1.8, MWSPL-QP-TREND-01), SCADA temperature review (HTSA 1.9, MWSPL-QP-SCADA-01), Quench media analysis (HTSA 3.14, MWSPL-QP-QM-01), Calibration of process equipment (HTSA 3.2, MWSPL-QP-CAL-01), Temperature uniformity surveys (HTSA 3.4, MWSPL-QP-TUS-01) and Thermocouples &amp; protection tubes (HTSA 3.3, MWSPL-QP-TC-01); the other modules of the CALOR register follow in the same form.</p>
     <div class="grid3">
       <div><b>Furnaces</b><p class="small">F-01 … F-04, continuous gas-fired pushers, identical; hardening chamber 13 trays (5/4/4), controlled cooling chamber, tempering chamber 12 trays (4/4/4).</p></div>
       <div><b>Processes</b><p class="small">F-01 isothermal annealing, hardening &amp; tempering (water quench) · F-02 isothermal annealing, normalizing, hardening &amp; tempering (oil quench) · F-03, F-04 isothermal annealing, normalizing.</p></div>
@@ -57,6 +61,7 @@ function renderHome(){
   ${trCard}
   ${scCard}
   ${qmCard}
+  ${caCard}
   ${tuCard}
   ${tcCard}
   ${MWS.calor?MWS.calor.panel(null,"Each module's Data tab imports what it needs from it."):""}
