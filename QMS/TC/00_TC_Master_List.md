@@ -19,6 +19,7 @@
 | P / D | MWSPL-F-TC-03 | Protection tube PM schedule and check record | 00 | — | [03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md](03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md) |
 | P | MWSPL-F-TC-04 | Test equipment calibration record | 00 | — | [03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md](03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md) |
 | P / D | MWSPL-F-TC-05 | Thermocouple calibration record (sensing element) | 00 | — | [03_Formats/MWSPL-F-TC-05_Thermocouple_Calibration_Record.md](03_Formats/MWSPL-F-TC-05_Thermocouple_Calibration_Record.md) |
+| D | MWSPL-F-TC-06 | Thermocouple store issue slip and issue register | 00 | — | [03_Formats/MWSPL-F-TC-06_Thermocouple_Store_Issue.md](03_Formats/MWSPL-F-TC-06_Thermocouple_Store_Issue.md) |
 | — | — | Module description (application) | — | — | [04_Application/mwspl-tc-module.md](04_Application/mwspl-tc-module.md) |
 
 ### Where each requirement is met
