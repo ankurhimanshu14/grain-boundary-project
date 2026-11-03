@@ -68,6 +68,7 @@ The HT Manager and the Maintenance Head keep the list of thermocouple specificat
 1. Every element is bought with a calibration certificate covering at least its range of use, giving the largest error. The error must be within the accuracy of the P3.1 table for its type and use (application setting, confirm against the copy).
 2. The element is registered before it is installed (WI-TC-01); the certificate date must be on or before the installation date.
 3. An element without a valid certificate is not installed.
+4. The calibration record of every element (F-TC-05, Application → TC calibration records) holds the certificate data and its thermal calibration observations (standard temperature, reading in mV and °C, error, expanded uncertainty with confidence level and k), and who checked the certificate on receipt and when. The record stays with the element in the store, in use and after its removal.
 
 #### 6.1a Elements kept in the store
 
@@ -122,7 +123,7 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 
 | Record | Kept in | Retention |
 |---|---|---|
-| Thermocouple register with certificates (F-TC-01), incl. elements in store | Application → Thermocouples, Thermocouple store | Life of the furnace + 1 year |
+| Thermocouple register with certificates (F-TC-01) and calibration records (F-TC-05), incl. elements in store | Application → Thermocouples, Thermocouple store | Life of the furnace + 1 year |
 | SAT records (F-TC-02) | Application → SAT records | 3 years minimum, or as the customer requires |
 | PM schedule and tube checks (F-TC-03) | Application → PM schedule, Tube checks | 3 years |
 | Reaction records for elements used beyond their life (§6.5) | Application → Thermocouples (element record), Act | 3 years |
@@ -135,4 +136,4 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 |---|---|---|---|
 | 00 | — | First issue | |
 | 01 | — | §6.4 pending replacements (incl. a failed SAT without a replacement); §6.5 reaction plan for an element used beyond its service life | |
-| 02 | — | §2 one record per thermocouple (not in the Calibration module); §6.1a elements kept in the store, fitted from the store | |
+| 02 | — | §2 one record per thermocouple (not in the Calibration module); §6.1 item 4 calibration record of each element (F-TC-05); §6.1a elements kept in the store, fitted from the store | |

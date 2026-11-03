@@ -18,13 +18,14 @@
 | C | MWSPL-F-TC-02 | SAT record | 00 | — | [03_Formats/MWSPL-F-TC-02_SAT_Record.md](03_Formats/MWSPL-F-TC-02_SAT_Record.md) |
 | P / D | MWSPL-F-TC-03 | Protection tube PM schedule and check record | 00 | — | [03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md](03_Formats/MWSPL-F-TC-03_Protection_Tube_PM_Schedule_and_Check.md) |
 | P | MWSPL-F-TC-04 | Test equipment calibration record | 00 | — | [03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md](03_Formats/MWSPL-F-TC-04_Test_Equipment_Calibration_Record.md) |
+| P / D | MWSPL-F-TC-05 | Thermocouple calibration record (sensing element) | 00 | — | [03_Formats/MWSPL-F-TC-05_Thermocouple_Calibration_Record.md](03_Formats/MWSPL-F-TC-05_Thermocouple_Calibration_Record.md) |
 | — | — | Module description (application) | — | — | [04_Application/mwspl-tc-module.md](04_Application/mwspl-tc-module.md) |
 
 ### Where each requirement is met
 
 | Requirement (HTSA 3.3) | Met by | Evidence in the application |
 |---|---|---|
-| Thermocouples calibrated before first use, within the range of use, meeting the P3.1 accuracy | QP-TC-01 §6.1, §6.1a; WI-TC-01 §1–§3; F-TC-01 | Calibration fields of each thermocouple; issue shown when the certificate is missing, dated after installation, does not cover the range of use or exceeds the accuracy |
+| Thermocouples calibrated before first use, within the range of use, meeting the P3.1 accuracy | QP-TC-01 §6.1, §6.1a; WI-TC-01 §1–§3; F-TC-01; F-TC-05 | Calibration fields of each thermocouple; issue shown when the certificate is missing, dated after installation, does not cover the range of use or exceeds the accuracy |
 | Control, monitoring and recording thermocouples SAT checked per the Process Table and P3.3 | QP-TC-01 §6.2; WI-TC-02 | SAT state per thermocouple (none / ok / due soon / overdue / failed); due list |
 | Insertion depth of reused type K / E test thermocouples documented (P3.1.3.3) | WI-TC-02 §2.4; F-TC-02 | Depth required on the SAT record for a type K / E test TC; a reuse shallower than before is flagged |
 | SAT records meet P3.3.5 | WI-TC-02 §3; F-TC-02; F-TC-04 | Record completeness gate, validity (test equipment in calibration), approval |
