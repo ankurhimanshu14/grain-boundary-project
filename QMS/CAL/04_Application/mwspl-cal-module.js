@@ -29,7 +29,11 @@ const ESTAT={inuse:"In use",spare:"Spare (calibrate before use)",out:"Out of ser
 const LBL={id:"equipment identification",date:"calibration date",due:"next due date",by:"calibrated by"};
 const OFFB={cal:"Calibration record (as found)",sat:"System accuracy test (SAT)",tus:"Temperature uniformity survey",other:"Other documented evidence"};
 const OFFCHK={confirmed:"Offset confirmed (kept)",changed:"Offset changed (new offset record)",removed:"Offset removed"};
-const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",furnaces:"F-01, F-02, F-03, F-04",soon:14,offMax:3,reviewDays:365,revDays:7,kint:{},approvers:""};
+const DEF={plant:"Mass Wire and Steels Pvt. Ltd. · Bhiwadi",furnaces:"F-01, F-02, F-03, F-04",soon:14,offMax:3,reviewDays:365,revDays:7,kint:{},approvers:"",specs:[]};
+/* the equipment specification library (like the thermocouple specifications): specs[{id ES-nn, name, ...}] kept in the settings, entered by the user.
+   EMAP = the equipment fields a specification sets; pts / method / ext / lab are the calibration standard used for every new record */
+const EMAP={kind:"Kind",type:"Type",make:"Make",model:"Model",lo:"Range of use from",hi:"Range of use to",unit:"Unit",accAbs:"Accuracy ± (unit)",accPct:"Accuracy ± % of reading",interval:"Interval",ptRef:"Process Table reference",emis:"Emissivity setting"};
+const fillEsp=o=>{const x={id:"",name:"",kind:"ctrl",type:"",make:"",model:"",lo:"",hi:"",unit:"",accAbs:"",accPct:"",interval:"",ptRef:"",emis:"",pts:"",method:"",ext:"int",lab:"",notes:"",...(o||{})};if(!x.type)x.type=kd(x.kind)[1];return x;};
 const SETF=[["plant","Plant","text"],["furnaces","Furnaces (comma separated)","text"],["soon","Due soon (days before)","number"],
   ["offMax","Largest offset allowed (± °C, P3.2.3 — site limit, to confirm)","number"],["reviewDays","Offset procedure: periodic review (days)","number"],
   ["revDays","A calibration report is to be reviewed within (days)","number"],
@@ -89,7 +93,7 @@ const DEFOP={no:"MWSPL-WI-CAL-02",rev:0,prep:"",appr:"",apprDate:"",change:"",au
 const furnaces=()=>lines(C().furnaces).map(x=>x.toUpperCase());
 const kd=k=>KINDS[k]||KINDS.other;
 const kInt=k=>ivOf((C().kint||{})[k])?String(C().kint[k]):kd(k)[2];
-function fillEq(o){const x={id:"",tag:"",kind:"ctrl",name:"",furnace:"",chamber:"",loop:"",make:"",model:"",serial:"",lo:"",hi:"",unit:"",accAbs:"",accPct:"",interval:"",type:"",ptRef:"",loc:"",emis:"",status:"inuse",notes:"",log:[],...(o||{})};
+function fillEq(o){const x={id:"",specId:"",tag:"",kind:"ctrl",name:"",furnace:"",chamber:"",loop:"",make:"",model:"",serial:"",lo:"",hi:"",unit:"",accAbs:"",accPct:"",interval:"",type:"",ptRef:"",loc:"",emis:"",status:"inuse",notes:"",log:[],...(o||{})};
   if(!x.type)x.type=kd(x.kind)[1];if(!Array.isArray(x.log))x.log=[];return x;}
 function fillCal(o){const d={id:"",eq:"",type:"cal",date:"",due:"",by:"",ext:"int",lab:"",accred:"",certNo:"",method:"",std:{id:"",cert:"",due:"",trace:""},env:"",pts:[],adj:"none",offChk:"",emis:"",
   lbl:{id:false,date:false,due:false,by:false,lim:"",chkBy:""},rev:{by:"",date:"",remarks:""},act:{impact:"",contain:"",action:"",by:"",date:""},closed:false,notes:"",log:[]};
@@ -101,10 +105,19 @@ const calById=id=>S.cals.find(r=>r.id===id)||null;
 const offById=id=>S.offs.find(o=>o.id===id)||null;
 const eqName=e=>e?`${e.tag}${e.name?" · "+e.name:""}`:"—";
 const byDate=(a,b)=>(a.date||"")<(b.date||"")?-1:(a.date||"")>(b.date||"")?1:(a.id<b.id?-1:1);
-const accOf=e=>({abs:num(e.accAbs)??kd(e.kind)[3],pct:num(e.accPct)??kd(e.kind)[4],unit:e.unit||kd(e.kind)[5]});
+const especs=()=>arr(C().specs).map(fillEsp);
+const espById=id=>id?especs().find(t=>t.id===id)||null:null;
+const espOf=e=>espById(e&&e.specId);
+const espName=t=>t?`${t.id} · ${t.name}`:"—";
+/* an item follows its specification for the fields it leaves blank */
+const accOf=e=>{const t=espOf(e)||{};return {abs:num(e.accAbs)??num(t.accAbs)??kd(e.kind)[3],pct:num(e.accPct)??num(t.accPct)??kd(e.kind)[4],unit:e.unit||t.unit||kd(e.kind)[5]};};
+const espPts=t=>t?lines(t.pts).map(num).filter(x=>x!=null):[];
+/* fields of an item that differ from its specification (blank fields are not compared) */
+function espDiff(e){const t=espOf(e);if(!t)return [];return Object.entries(EMAP).filter(([k])=>{const a=txt(e[k]),b=txt(t[k]);if(!a||!b)return false;
+  return k==="interval"?ivDays(a)!==ivDays(b):a.toLowerCase()!==b.toLowerCase();}).map(([k,l])=>`${l} ${k==="interval"?ivTxt(e[k]):e[k]} (specification ${k==="interval"?ivTxt(t[k]):t[k]})`);}
 const accTxt=e=>{const a=accOf(e);return a.abs||a.pct?`± ${a.abs?a.abs+" "+a.unit:""}${a.abs&&a.pct?" or ":""}${a.pct?a.pct+" % of reading":""}${a.abs&&a.pct?", the greater":""}`:"not set";};
 const limAt=(e,nom)=>{const a=accOf(e);const L=Math.max(a.abs||0,(a.pct||0)/100*Math.abs(nom||0));return L>0?L:null;};
-const intOf=e=>ivOf(e.interval)?String(e.interval):kInt(e.kind);
+const intOf=e=>{if(ivOf(e.interval))return String(e.interval);const t=espOf(e);return t&&ivOf(t.interval)?String(t.interval):kInt(e.kind);};
 const judged=e=>e.status==="inuse"||e.status==="spare";
 /* approvers of calibration reports: Settings + HT organization */
 function approvers(){const L=lines(C().approvers).map(n=>({name:n,src:"Settings"}));
@@ -276,7 +289,7 @@ function safeRender(){
 onDoc("focusout",()=>setTimeout(()=>{if(S.pending&&!S.modal){const a=document.activeElement;if(!(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))){S.pending=false;render();}}},0));
 
 /* 7. navigation */
-const NAV=[["",[["dash","Dashboard"]]],["P",[["equip","Register & schedule"],["proc","Offset procedure"]]],["D",[["cals","Calibrations"],["offsets","Offsets"]]],
+const NAV=[["",[["dash","Dashboard"]]],["P",[["equip","Register & schedule"],["especs","Equipment specifications"],["proc","Offset procedure"]]],["D",[["cals","Calibrations"],["offsets","Offsets"]]],
   ["C",[["review","HTSA 3.2"]]],["A",[["act","Actions"]]],["",[["settings","Settings"],["rules","Rules"],["docs","Docs"],["data","Data"]]]];
 const navHtml=()=>`<div class="wrap">${NAV.map(([p,it])=>`<div class="grp">${p?`<span class="pd">${p}</span>`:""}${it.map(([k,l])=>`<a href="#${k}" ${S.view===k?'aria-current="page"':""}>${l}</a>`).join("")}</div>`).join("")}</div>`;
 function route(){const v=(location.hash||"").slice(1);S.view=VIEWS[v]?v:"dash";}
@@ -320,11 +333,22 @@ function vDash(){
 function dueTable(days){const L=S.eqs.filter(judged).map(e=>({e,s:eqState(e)})).filter(x=>x.s.due&&dayDiff(today(),x.s.due)<=days).sort((a,b)=>a.s.due<b.s.due?-1:1);
   const T=tcEquip().filter(q=>isDate(q.calDue)&&dayDiff(today(),q.calDue)<=days);
   return L.length||T.length?`<div class="tw"><table><thead><tr><th>Due</th><th>Equipment</th><th>Status</th></tr></thead><tbody>${L.map(x=>`<tr class="click" data-new-cal="${esc(x.e.id)}"><td>${fmtD(x.s.due)}</td><td><b>${esc(x.e.tag)}</b> ${esc(x.e.name)}</td><td>${pill(...EST[x.s.st])}</td></tr>`).join("")}${T.map(q=>`<tr><td>${fmtD(q.calDue)}</td><td><b>${esc(q.ident)}</b> <span class="small muted">Thermocouples module</span></td><td>${pill(...EST[tcState(q)])}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Nothing due.</p>`;}
+function vEspecs(){const L=especs(),use=id=>S.eqs.filter(e=>judged(e)&&e.specId===id).length,J=S.eqs.filter(judged);
+  const D=J.map(e=>({e,d:espDiff(e)})).filter(x=>x.d.length),none=J.filter(e=>!espOf(e));
+  return `<div class="row between"><h2>Equipment specifications</h2><div class="row"><button class="pri w" data-espec-new>New specification</button>${L.length?`<button class="w" data-eapply>Update the register to a specification…</button><button class="danger w" data-espec-clear>Clear all specifications</button>`:""}</div></div>
+  <p class="muted">Save each standard equipment type the plant uses (kind, make and model, range of use, accuracy, calibration interval, Process Table reference) with its calibration standard (points, method, in-house or laboratory). Set an item to one in its dialog or many at once with "Update the register…". An item follows its specification for every field it leaves blank, and a new calibration record takes the specification's points and method.</p>
+  ${L.length?`<div class="tw"><table><thead><tr><th>Specification</th><th>Kind · type</th><th>Make / model</th><th>Range of use</th><th>Accuracy</th><th>Interval</th><th>Calibration points · method</th><th>Process Table</th><th class="n">Items</th><th></th></tr></thead><tbody>${L.map(t=>`<tr class="click" data-espec-open="${esc(t.id)}"><td><b>${esc(t.id)}</b><br>${esc(t.name)}</td>
+    <td>${esc(kd(t.kind)[0])}<br><span class="small muted">${esc(TYPES[t.type])}</span></td><td class="small">${esc([t.make,t.model].filter(Boolean).join(" ")||"—")}</td><td>${t.lo!==""||t.hi!==""?esc(t.lo)+"–"+esc(t.hi)+" "+esc(t.unit||kd(t.kind)[5]):"—"}</td>
+    <td class="small">${esc(accTxt(t))}</td><td>${esc(ivTxt(t.interval||kInt(t.kind)))}</td><td class="small">${esc(espPts(t).join(", ")||"from the range")}${t.method?"<br>"+esc(t.method):""}${t.ext==="ext"?"<br>"+esc(t.lab||"laboratory"):""}</td><td class="small">${esc(t.ptRef||"—")}</td>
+    <td class="n">${use(t.id)}</td><td style="white-space:nowrap"><button class="link" data-eapply="${esc(t.id)}">Apply…</button> <button class="link c-bad" data-del-espec="${esc(t.id)}">Delete</button></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty"><p>No equipment specifications yet. Add each standard type of equipment the plant uses with "New specification".</p></div>`}
+  <div class="panel"><h3>Equipment that differs from its specification</h3>
+    ${L.length&&none.length?`<p class="small">${pill("warn",plural(none.length,"item"))} in use or spare not set to a specification: ${esc(none.slice(0,14).map(e=>e.tag).join(", "))}${none.length>14?" …":""}.</p>`:""}
+    ${D.length?`<ul class="issues">${D.map(({e,d})=>`<li><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button> (${esc(espName(espOf(e)))}): ${esc(d.join(" · "))}</li>`).join("")}</ul>`:`<p class="muted">None: every item set to a specification matches it (fields left blank are not compared).</p>`}</div>`;}
 function vEquip(){const L=S.eqs.filter(inView),TQ=tcEquip();
   return `<div class="row between"><h2>Equipment register and schedule (F-CAL-01)</h2><div class="row"><button class="pri w" data-new-eq>Add equipment</button><button data-add-defaults>Add the equipment of this plant</button><button data-eqprint>Print F-CAL-01</button></div></div>
   <p class="muted">Every piece of process and test equipment that needs calibration, verification or certification, with the interval of the applicable Process Table (Section 1.0 process and test equipment, Section 2.0 pyrometry). Due = the latest valid record + the interval (or the due date of the report when shorter).</p>${filtRow()}
   ${L.length?`<div class="tw"><table><thead><tr><th>Tag</th><th>Equipment</th><th>Location</th><th>Type · interval</th><th>Accuracy</th><th>Process Table</th><th>Last</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${L.map(e=>{const s=eqState(e),o=activeOffs(e.id);
-    return `<tr><td class="mono"><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button></td><td>${esc(e.name)}<br><span class="small muted">${esc(kd(e.kind)[0])}${e.serial?" · s/n "+esc(e.serial):""}</span></td><td>${esc(e.furnace||e.loc||"—")}${e.chamber?" "+esc(e.chamber):""}${e.loop?`<br><span class="small muted">${esc(e.loop)}</span>`:""}</td>
+    return `<tr><td class="mono"><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button></td><td>${esc(e.name)}<br><span class="small muted">${esc(kd(e.kind)[0])}${e.serial?" · s/n "+esc(e.serial):""}${espOf(e)?" · "+esc(espOf(e).id)+(espDiff(e).length?" (differs)":""):""}</span></td><td>${esc(e.furnace||e.loc||"—")}${e.chamber?" "+esc(e.chamber):""}${e.loop?`<br><span class="small muted">${esc(e.loop)}</span>`:""}</td>
     <td>${esc(TYPES[e.type])}<br><span class="small muted">${ivTxt(intOf(e))}</span></td><td class="small">${esc(accTxt(e))}</td><td class="small">${esc(e.ptRef||"—")}</td><td>${s.last?`<button class="link" data-open-cal="${esc(s.last.id)}">${fmtD(s.last.date)}</button>`:"—"}</td><td>${fmtD(s.due)}</td>
     <td>${pill(...EST[s.st])}${o.length?" "+pill(offLv(o[0])==="ok"?"acc":"warn","offset "+sgn(num(o[0].value)))+"":""}</td><td><button data-new-cal="${esc(e.id)}">Record</button></td></tr>`;}).join("")}</tbody></table></div>`:`<div class="empty"><p>No equipment matches.</p></div>`}
   ${TQ.length?`<div class="panel"><h3>Test thermocouples and instruments (Thermocouples module, HTSA 3.3)</h3><p class="small muted">Kept in the Thermocouples module with their calibration observations; counted here for HTSA 3.2.</p><div class="tw"><table><thead><tr><th>Ident</th><th>Kind</th><th>Certificate</th><th>Calibrated</th><th>Due</th><th>Status</th><th>Notes</th></tr></thead><tbody>${TQ.map(q=>`<tr><td><b>${esc(q.ident)}</b></td><td>${q.kind==="testtc"?"Test thermocouple":"Test instrument"}</td><td>${esc(q.cert||"—")}</td><td>${fmtD(q.calDate)}</td><td>${fmtD(q.calDue)}</td><td>${pill(...EST[tcState(q)])}</td><td class="small">${esc(q.issues.join("; "))}</td></tr>`).join("")}</tbody></table></div><p><a class="btn" href="#tc/eq">Open in Thermocouples</a></p></div>`:""}`;}
@@ -362,7 +386,8 @@ function vSettings(){const c=C();
     <div class="tw"><table><thead><tr><th>Kind</th><th>Type</th><th>Section</th><th>Interval</th><th>Default accuracy</th></tr></thead><tbody>${Object.entries(KINDS).map(([k,v])=>`<tr><td>${esc(v[0])}</td><td>${esc(TYPES[v[1]])}</td><td>${v[6]}</td><td>${ivBox("kint:"+k,kInt(k))}</td><td class="small">${esc(accTxt({kind:k}))}</td></tr>`).join("")}</tbody></table></div>
     <div class="row" style="margin-top:12px"><button class="pri w" data-save-cfg>Save settings</button><span class="small muted">Changes are kept only after Save.</span></div></div>`;}
 function vRules(){const c=C();
-  const R=[["Register","Every piece of process and test equipment in use or kept as a spare has a type (calibration, verification, certification), an interval not longer than the frequency of its kind (Settings) and the Process Table reference."],
+  const R=[["Equipment specifications","Each standard type of equipment (kind, make / model, range, accuracy, interval, Process Table reference, calibration points and method) is saved once. An item set to a specification follows it for every field it leaves blank; its own values are compared with it (differences listed). A new calibration record takes the specification's points, method and in-house / laboratory choice. A specification's interval may not be longer than the Process Table frequency of its kind."],
+    ["Register","Every piece of process and test equipment in use or kept as a spare has a type (calibration, verification, certification), an interval not longer than the frequency of its kind (Settings) and the Process Table reference."],
     ["Calibration points","Error = reading − nominal, as found and as left (as left = as found when nothing was adjusted). Limit at a point = the equipment's ± value or ± % of the reading, the greater. As found beyond the limit = found out of tolerance (reaction); as left beyond = out of tolerance (do not use). Invalid: the reference standard out of calibration on the day, a certification without a certificate no., no points."],
     ["Current","The latest valid record counts; due = its due date (else its date + the interval). Overdue / never calibrated / out of tolerance = not current; due soon "+c.soon+" days before. Spare equipment: calibrate before use. The test thermocouples and instruments of the Thermocouples module count with their calibration due date."],
     ["Non-contact thermometry","Infrared / optical pyrometers are calibrated at the interval of their kind; the record states the emissivity setting."],
@@ -403,7 +428,7 @@ function vData(){const n=S.eqs.length+S.cals.length+S.offs.length;
   <div class="panel"><h3>Starter set-up</h3><p class="small muted">The equipment of F-01 … F-04 and the laboratory with a year of calibration records: F-04 hardening controllers overdue, the F-02 hardening zone 3 controller found out of tolerance with the reaction open, an approved offset on F-03 and an offset on F-04 entered without approval, the offset procedure rev 1, one label and one report incomplete; all marked "(example)".</p><button class="w" data-std ${n?"disabled":""}>Load starter set-up</button>${n?`<p class="small muted">Only on an empty module.</p>`:""}</div>
   <div class="panel"><h3>Clear all</h3><p class="small muted">Deletes every record, the offset procedure and the settings of this module. Type <b>CLEAR ALL</b> to enable.</p>
     <div class="row w"><input id="clrtxt" placeholder="CLEAR ALL" style="max-width:180px"><button class="danger" data-clear>Clear all</button></div></div></div>`;}
-const VIEWS={dash:vDash,equip:vEquip,proc:vProc,cals:vCals,offsets:vOffsets,review:vReview,act:vAct,settings:vSettings,rules:vRules,docs:vDocs,data:vData};
+const VIEWS={dash:vDash,equip:vEquip,especs:vEspecs,proc:vProc,cals:vCals,offsets:vOffsets,review:vReview,act:vAct,settings:vSettings,rules:vRules,docs:vDocs,data:vData};
 const AFTER={docs:showDoc};
 
 /* 9. modal record sheets */
@@ -422,13 +447,17 @@ const sheet=(title,body,foot)=>`<div class="row between"><h2>${title}</h2><butto
 const msg=(t,ok)=>{if(!S.modal)return;S.modal.msg=t?`<span style="color:var(--${ok?"ok":"bad"})">${esc(t)}</span>`:"";const el=$("#mmsg");if(el)el.innerHTML=S.modal.msg;};
 const eqOpts=()=>S.eqs.filter(e=>e.status!=="scrap").map(e=>[e.id,`${e.tag} · ${e.name}`]);
 function DRAW_EQ(){const E=S.modal.ed,known=eqById(E.id),used=known&&(S.cals.some(r=>r.eq===E.id)||S.offs.some(o=>o.eq===E.id)),s=known?eqState(known):null;
-  return sheet(esc(known?`${E.tag} · ${E.name}`:"Add equipment"),`${s?`<p class="muted">${pill(...EST[s.st])} ${s.due?"due "+fmtD(s.due):""}</p>`:""}<div class="fields">
+  const sp=espOf(E),dif=espDiff(E);
+  return sheet(esc(known?`${E.tag} · ${E.name}`:"Add equipment"),`${s?`<p class="muted">${pill(...EST[s.st])} ${s.due?"due "+fmtD(s.due):""}</p>`:""}
+    <fieldset><legend>Specification</legend><div class="fields">${mf("specId","Equipment specification",{opts:especs().map(t=>[t.id,espName(t)]),blank:1,wide:1,hint:especs().length?"":"No specification saved yet (Equipment specifications)."})}</div>
+    ${sp?`<p class="row" style="margin:6px 0 0"><button data-eqfill>Fill the fields from this specification</button><span class="small muted">Blank fields follow the specification${espPts(sp).length?"; calibration points "+esc(espPts(sp).join(", ")):""}${sp.method?"; method "+esc(sp.method):""}.</span></p>`:""}
+    ${dif.length?`<p class="small c-warn" style="margin-top:6px">Differs from ${esc(sp.id)}: ${esc(dif.join(" · "))}.</p>`:""}</fieldset><div class="fields">
     ${mf("tag","Tag (as marked)",{req:1})}${mf("name","Name",{req:1,wide:1})}${mf("kind","Kind",{opts:Object.entries(KINDS).map(([k,v])=>[k,v[0]])})}${mf("type","Type",{opts:Object.entries(TYPES)})}
     ${mf("furnace","Furnace",{opts:furnaces().map(f=>[f,f]),blank:1})}${mf("chamber","Chamber",{opts:CHAMBERS.map(c=>[c,c]),blank:1})}${mf("loop","Loop / channels / zone",{})}${mf("loc","Location (laboratory, site)",{})}
     ${mf("make","Make",{})}${mf("model","Model",{})}${mf("serial","Serial no.",{req:1})}${mf("status","Status",{opts:Object.entries(ESTAT)})}
-    ${mf("lo","Range of use from",{})}${mf("hi","to",{})}${mf("unit","Unit",{ph:kd(E.kind)[5]})}
-    ${mf("accAbs","Accuracy ± (unit)",{ph:String(kd(E.kind)[3])})}${mf("accPct","Accuracy ± % of reading",{ph:String(kd(E.kind)[4])})}
-    <label class="f req"><span>Interval</span>${ivBox("eq",intOf(E))}<span class="small muted">Longest for this kind (Process Table): ${esc(ivTxt(kInt(E.kind)))}</span></label>${mf("ptRef","Process Table reference (table, section 1.0 / 2.0 item)",{wide:1,req:1})}
+    ${mf("lo","Range of use from",{ph:sp?sp.lo:""})}${mf("hi","to",{ph:sp?sp.hi:""})}${mf("unit","Unit",{ph:(sp&&sp.unit)||kd(E.kind)[5]})}
+    ${mf("accAbs","Accuracy ± (unit)",{ph:String(sp&&sp.accAbs!==""?sp.accAbs:kd(E.kind)[3])})}${mf("accPct","Accuracy ± % of reading",{ph:String(sp&&sp.accPct!==""?sp.accPct:kd(E.kind)[4])})}
+    <label class="f req"><span>Interval</span>${ivBox("eq",intOf(E))}<span class="small muted">Longest for this kind (Process Table): ${esc(ivTxt(kInt(E.kind)))}${sp&&ivOf(sp.interval)?" · specification "+esc(ivTxt(sp.interval)):""}</span></label>${mf("ptRef","Process Table reference (table, section 1.0 / 2.0 item)",{wide:1,req:1,ph:sp?sp.ptRef:""})}
     ${E.kind==="ir"?mf("emis","Emissivity setting in use",{}):""}${mf("notes","Notes",{area:2,wide:1})}</div>`,
     `<button class="pri w" data-save-eq>Save</button>${known?`<button data-new-cal="${esc(E.id)}">Record a calibration</button>`:""}${known&&!used?`<button class="danger w" data-del-eq>Delete</button>`:""}<button data-close>Close</button>`);}
 function resHtml(E){const k=evalCal(E),e=eqById(E.eq);if(!e)return `<p class="muted small">Choose the equipment.</p>`;
@@ -500,13 +529,66 @@ function h32Html(){const A=assess32(),sc=SCORE[A.score];
   <h3>Offset procedure</h3>${kv([["Document",`${S.op.no} rev ${S.op.rev} · approved ${fmtD(S.op.apprDate)} by ${S.op.appr||"—"}`],["Authorized to approve offsets",authLines().join("; ")||"—"],["How the approval is documented",S.op.how||"—"],["Largest offset allowed",`± ${C().offMax} °C`]])}
   <h3>Offsets in use</h3><div class="tw"><table><thead><tr><th>Offset</th><th>Equipment</th><th>Value</th><th>Approved</th><th>Compliance</th></tr></thead><tbody>${S.offs.filter(o=>offActive(o)).map(o=>`<tr><td>${esc(o.id)}</td><td>${esc((eqById(o.eq)||{}).tag||"")}</td><td>${sgn(num(o.value))} °C</td><td>${esc(o.apprBy)} ${fmtD(o.apprDate)}</td><td>${esc(offIssues(o).map(i=>i.txt).join(" ")||"Complies")}</td></tr>`).join("")||`<tr><td colspan="5">None.</td></tr>`}</tbody></table></div>
   <h3>Register and schedule (F-CAL-01)</h3>${regHtml().replace(/^<p[^>]*>.*?<\/p>/,"")}`;}
-const DRAW={eq:DRAW_EQ,cal:DRAW_CAL,off:DRAW_OFF,opappr:DRAW_OPAPPR,print:DRAW_PRINT};
+function especModal(id,copy){const t=espById(id);let ed=t?clone(t):fillEsp({interval:kInt("ctrl")});if(copy){ed.id="";ed.name=t.name+" (copy)";}openModal({kind:"espec",ed,msg:""});}
+function DRAW_ESPEC(){const t=S.modal.ed,known=espById(t.id),n=known?S.eqs.filter(e=>e.specId===t.id).length:0;
+  return sheet(esc(known?espName(t):"New equipment specification"),`<div class="fields">${mf("name","Name (e.g. Zone controller Yokogawa UT55A, hardening chamber)",{req:1,wide:1})}
+    ${mf("kind","Kind",{opts:Object.entries(KINDS).map(([k,v])=>[k,v[0]])})}${mf("type","Type",{opts:Object.entries(TYPES)})}${mf("make","Make",{})}${mf("model","Model",{})}
+    ${mf("lo","Range of use from",{})}${mf("hi","to",{})}${mf("unit","Unit",{ph:kd(t.kind)[5]})}
+    ${mf("accAbs","Accuracy ± (unit)",{ph:String(kd(t.kind)[3])})}${mf("accPct","Accuracy ± % of reading",{ph:String(kd(t.kind)[4])})}
+    <label class="f req"><span>Interval</span>${ivBox("es",t.interval||kInt(t.kind))}<span class="small muted">Longest for this kind (Process Table): ${esc(ivTxt(kInt(t.kind)))}</span></label>
+    ${mf("ptRef","Process Table reference (table, section 1.0 / 2.0 item)",{wide:1})}${t.kind==="ir"?mf("emis","Emissivity setting",{}):""}</div>
+    <fieldset><legend>Calibration standard (used for every new record)</legend><div class="fields">${mf("pts","Calibration points (comma separated; empty = low, middle and high of the range)",{wide:1,ph:"e.g. 700, 830, 960"})}
+    ${mf("method","Method / procedure",{wide:1,ph:"e.g. WI-CAL-01 §4: simulated type K input at three points"})}${mf("ext","Done by",{opts:[["int","In-house"],["ext","External laboratory"]]})}${t.ext==="ext"?mf("lab","Laboratory",{}):""}${mf("notes","Notes",{area:2,wide:1})}</div></fieldset>
+    ${n?`<p class="small muted" style="margin-top:8px">${plural(n,"item")} set to this specification; a change applies to their blank fields at once and to their own values only when you update the register.</p>`:""}`,
+    `<button class="pri w" data-save-espec>Save</button>${known?`<button class="w" data-copy-espec>Copy as new</button><button class="w" data-eapply="${esc(t.id)}">Apply to the register…</button><button class="danger w" data-del-espec="${esc(t.id)}">Delete</button>`:""}<button data-close>Close</button>`);}
+async function saveEspec(){if(!needDb())return;const t=fillEsp(S.modal.ed);t.name=txt(t.name);
+  {const el=document.querySelector("#modal [data-iv=es]");if(el)t.interval=ivRead(el);}
+  if(!t.name){msg("Enter a name.");return;}if(especs().some(x=>x.id!==t.id&&x.name.toLowerCase()===t.name.toLowerCase())){msg("Another specification has that name.");return;}
+  if(!ivOf(t.interval)){msg("Enter the interval (days or months).");return;}if(ivDays(t.interval)>ivDays(kInt(t.kind))+0.5){msg(`The interval is longer than the Process Table frequency for this kind (${ivTxt(kInt(t.kind))}).`);return;}
+  const a=num(t.lo),b=num(t.hi);if(a!=null&&b!=null&&a>=b){msg("The range of use must run from low to high.");return;}
+  if(txt(t.pts)&&lines(t.pts).some(x=>num(x)==null)){msg("Calibration points: numbers separated by commas.");return;}
+  const L=especs();if(!t.id)t.id="ES-"+String(maxNo(L)+1).padStart(2,"0");const i=L.findIndex(x=>x.id===t.id);if(i>=0)L[i]=t;else L.push(t);
+  S.cfg.specs=L;try{await dbSet("config","settings",S.cfg);}catch(e){msg("Not saved: "+errMsg(e));return;}S.modal.ed=clone(t);redraw();msg("Saved.",1);render();}
+/* deleting a specification: the items set to it keep their values and are no longer set to a specification (logged) */
+async function unlinkEsp(ids,why){const U=S.eqs.filter(e=>ids.includes(e.specId));for(const e of U){const x=clone(e),t=espOf(e);
+  Object.keys(EMAP).forEach(k=>{if(!txt(x[k])&&t&&txt(t[k]))x[k]=t[k];});x.specId="";await put("equip",x,`${why} ${espName(t)}: no longer set to a specification (its values kept)`);}return U.length;}
+async function delEspec(id){if(!needDb())return;const t=espById(id);if(!t)return;const n=await unlinkEsp([id],"Deleted specification");
+  S.cfg.specs=especs().filter(x=>x.id!==id);try{await dbSet("config","settings",S.cfg);}catch(e){toast("Not saved: "+errMsg(e));return;}
+  toast(`${id} deleted`+(n?` · ${plural(n,"item")} no longer set to a specification`:""));if(S.modal&&S.modal.kind==="espec")closeModal();render();}
+async function clearEspecs(){if(!needDb())return;const ids=especs().map(x=>x.id),n=await unlinkEsp(ids,"Cleared specification");S.cfg.specs=[];
+  try{await dbSet("config","settings",S.cfg);}catch(e){toast("Not saved: "+errMsg(e));return;}toast(`${plural(ids.length,"specification")} cleared`+(n?` · ${plural(n,"item")} unlinked`:""));render();}
+/* updating the register to a specification: items of the same kind, in use or spare, in the locations chosen */
+const eaTargets=m=>{const t=espById(m.spec);return t?S.eqs.filter(e=>judged(e)&&e.kind===t.kind&&m.fu.includes(e.furnace||"lab")):[];};
+function eaPlan(m){const t=espById(m.spec),out=[];if(!t)return out;eaTargets(m).forEach(e=>{const ch=[];
+    if(e.specId!==t.id)ch.push({k:"specId",l:"Specification",from:e.specId,to:t.id});
+    Object.entries(EMAP).forEach(([k,l])=>{if(!m.f[k]||k==="kind")return;const want=txt(t[k]),cur=txt(e[k]);if(!want)return;
+      if(k==="interval"?ivDays(cur)===ivDays(want):cur.toLowerCase()===want.toLowerCase())return;if(m.mode==="fill"&&cur)return;ch.push({k,l,from:cur,to:want});});
+    if(ch.length)out.push({e,ch,x:!!m.x[e.id]});});return out;}
+function eaModal(id){const t=espById(id)||especs()[0];if(!t){toast("Save a specification first");return;}
+  openModal({kind:"eapply",spec:t.id,fu:[...furnaces(),"lab"],x:{},mode:"all",f:Object.fromEntries(Object.keys(EMAP).map(k=>[k,k!=="lo"&&k!=="hi"])),msg:""});}
+function DRAW_EAPPLY(){const m=S.modal,t=espById(m.spec),P=eaPlan(m),go=P.filter(x=>!x.x),n=go.reduce((a,x)=>a+x.ch.length,0),v=(c,x)=>c.k==="specId"?(x?espName(espById(x)):"(none)"):c.k==="interval"?(x?ivTxt(x):"(blank)"):x===""?"(blank)":x;
+  return sheet("Update the register to a specification",`<p class="muted">The items you pick (in use or spare, of the specification's kind) are set to follow it and the chosen fields take its values. Each change is written in the item's log.</p>
+  <div class="fields"><label class="f wide"><span>Specification</span><select data-ea-spec>${especs().map(x=>`<option value="${esc(x.id)}" ${x.id===m.spec?"selected":""}>${esc(espName(x))} · ${esc(kd(x.kind)[0])}</option>`).join("")}</select></label></div>
+  <fieldset><legend>Items</legend><div class="row" style="gap:6px 16px;flex-wrap:wrap">${[...furnaces(),"lab"].map(f=>`<label class="chk"><input type="checkbox" data-ea-fu="${esc(f)}" ${m.fu.includes(f)?"checked":""}> ${f==="lab"?"Laboratory / site":esc(f)}</label>`).join("")}</div>
+    <div class="row" style="gap:16px;margin-top:6px"><label class="chk"><input type="radio" name="eamode" data-ea-mode="all" ${m.mode==="all"?"checked":""}> Replace values that differ</label><label class="chk"><input type="radio" name="eamode" data-ea-mode="fill" ${m.mode==="fill"?"checked":""}> Only fill blank fields</label></div></fieldset>
+  <fieldset><legend>Fields to update</legend><div class="row" style="gap:6px 16px;flex-wrap:wrap">${Object.entries(EMAP).filter(([k])=>k!=="kind").map(([k,l])=>`<label class="chk"><input type="checkbox" data-ea-f="${k}" ${m.f[k]?"checked":""}> ${esc(l)}</label>`).join("")}</div>
+    <p class="small muted" style="margin-top:6px">The range of use is not ticked by default: it often differs per chamber.</p></fieldset>
+  <div class="row between" style="margin-top:10px"><p style="margin:0"><b>${plural(go.length,"item")}</b>, ${plural(n,"change")}${P.length>go.length?` · ${P.length-go.length} left out`:""}.</p>${P.length?`<div class="row"><button class="link" data-ea-all>Select all</button><button class="link" data-ea-none>Select none</button></div>`:""}</div>
+  ${P.length?`<div class="tw"><table><thead><tr><th>Update</th><th>Item</th><th>Changes</th></tr></thead><tbody>${P.map(({e,ch,x})=>`<tr><td><input type="checkbox" data-ea-x="${esc(e.id)}" ${x?"":"checked"} aria-label="Update ${esc(e.tag)}"></td><td><b>${esc(e.tag)}</b><br><span class="small muted">${esc(e.name)}</span></td><td class="small">${ch.map(c=>`${esc(c.l)}: ${esc(v(c,c.from))} → <b>${esc(v(c,c.to))}</b>`).join("<br>")}</td></tr>`).join("")}</tbody></table></div>`:`<p class="muted">Nothing to change${t?`: no ${esc(kd(t.kind)[0].toLowerCase())} in the locations chosen differs from this specification`:""}.</p>`}`,
+  `${go.length?`<button class="pri w" data-ea-go>Update ${plural(go.length,"item")}</button>`:""}<button data-close>Close</button>`);}
+async function eaApply(){if(!needDb())return;const t=espById(S.modal.spec),P=eaPlan(S.modal).filter(x=>!x.x);if(!P.length||!t)return;let ok=0;
+  for(const {e,ch} of P){const x=clone(e);ch.forEach(c=>{x[c.k]=c.to;});if(ch.some(c=>c.k==="type"))x.type=t.type;
+    if(await put("equip",x,`Updated to specification ${espName(t)}`+(ch.filter(c=>c.k!=="specId").length?": "+ch.filter(c=>c.k!=="specId").map(c=>`${c.l} ${c.from||"(blank)"} → ${c.to}`).join("; "):"")))ok++;}
+  toast(`${plural(ok,"item")} updated to ${t.id}`);closeModal();}
+const DRAW={espec:DRAW_ESPEC,eapply:DRAW_EAPPLY,eq:DRAW_EQ,cal:DRAW_CAL,off:DRAW_OFF,opappr:DRAW_OPAPPR,print:DRAW_PRINT};
 
 /* 10. actions */
 function calModal(id,eqId){const r=calById(id);let E;
-  if(r)E=clone(r);else{const e=eqById(eqId);E=fillCal({eq:e?e.id:"",type:e?e.type:"cal",date:today(),due:e?ivAdd(today(),intOf(e)):"",pts:e&&e.type!=="cert"?defPts(e).map(n=>({nom:String(n),found:"",left:""})):[],emis:e?e.emis:""});}
+  if(r)E=clone(r);else{const e=eqById(eqId);E=fillCal({eq:e?e.id:"",type:e?e.type:"cal",date:today(),due:e?ivAdd(today(),intOf(e)):"",pts:e&&e.type!=="cert"?defPts(e).map(n=>({nom:String(n),found:"",left:""})):[],emis:e?e.emis||(espOf(e)||{}).emis||"":"",...calStd(e)});}
   openModal({kind:"cal",ed:E,msg:""});}
-function defPts(e){const lo=num(e.lo),hi=num(e.hi);if(lo==null||hi==null)return [""];if(lo===hi)return [lo];return [lo,Math.round((lo+hi)/2),hi];}
+/* the calibration standard of the item's specification for a new record: method, in-house / laboratory */
+const calStd=e=>{const t=espOf(e);return t?{method:t.method,ext:t.ext||"int",lab:t.ext==="ext"?t.lab:""}:{};};
+function defPts(e){const sp=espPts(espOf(e));if(sp.length)return sp;const lo=num(e.lo),hi=num(e.hi);if(lo==null||hi==null)return [""];if(lo===hi)return [lo];return [lo,Math.round((lo+hi)/2),hi];}
 async function saveCal(text){const E=fillCal(S.modal.ed),known=calById(E.id),e=eqById(E.eq);
   if(!e||!isDate(E.date)){msg("Choose the equipment and the date.");return false;}if(E.date>today()){msg("The date is in the future.");return false;}
   if(isDate(E.due)&&E.due<=E.date){msg("The next due date must be after the date.");return false;}
@@ -542,10 +624,19 @@ async function addDefaults(){if(!needDb())return;let n=maxNo(S.eqs);const L=plan
 async function stdOps(){if(!needDb())return;if(S.eqs.length||S.cals.length||S.offs.length){toast("Only on an empty module.");return;}
   const td=today(),D=n=>addDays(td,n),ex=" (example)";let seed=11;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
   const HM="R. Sharma"+ex,QM="S. Gupta"+ex;
-  await dbSet("config","settings",{...S.cfg,approvers:HM+"\n"+QM});
+  const PTC="Process Table A / E 2.0 — control instrumentation 〈confirm item〉",WI="WI-CAL-01 §4: simulated type K input at three points"+ex;
+  const SP=[fillEsp({id:"ES-01",name:"Zone controller, hardening chamber (example)",kind:"ctrl",make:"Yokogawa",model:"UT55A",lo:"700",hi:"960",accAbs:"1.1",accPct:"0.2",interval:"3m",ptRef:PTC,pts:"700, 830, 960",method:WI}),
+    fillEsp({id:"ES-02",name:"Zone controller, tempering chamber (example)",kind:"ctrl",make:"Yokogawa",model:"UT55A",lo:"500",hi:"900",accAbs:"1.1",accPct:"0.2",interval:"3m",ptRef:PTC,pts:"500, 700, 900",method:WI}),
+    fillEsp({id:"ES-03",name:"SCADA recording channels PV-1 … PV-6 (example)",kind:"rec",make:"Siemens",accAbs:"1.1",accPct:"0.2",interval:"3m",ptRef:"Process Table A / E 2.0 — recording instrumentation 〈confirm item〉",pts:"500, 750, 1000",method:"WI-CAL-01 §4: simulated input on each channel"+ex}),
+    fillEsp({id:"ES-04",name:"Over-temperature controller (example)",kind:"otp",make:"Yokogawa",interval:"3m",ptRef:"Process Table A / E 2.0 — over-temperature instrumentation 〈confirm item〉",pts:"",method:"WI-CAL-01 §4 and trip test"+ex}),
+    fillEsp({id:"ES-05",name:"Process timer (example)",kind:"timer",unit:"s",accAbs:"1",accPct:"1",interval:"12m",ptRef:"Process Table A / E 1.0 — process timers 〈confirm item〉",method:"Stop watch comparison over three periods"+ex}),
+    fillEsp({id:"ES-06",name:"Hand-held infrared pyrometer (example)",kind:"ir",lo:"500",hi:"1000",accAbs:"3",accPct:"0.5",interval:"12m",ptRef:"Process Table A / E 2.0 — non-contact thermometry 〈confirm item〉",emis:"0.85",pts:"500, 750, 1000",method:"Blackbody comparison"+ex,ext:"ext",lab:"Accredited calibration laboratory"+ex})];
+  await dbSet("config","settings",{...S.cfg,approvers:HM+"\n"+QM,specs:SP});S.cfg.specs=SP;
   S.op={...DEFOP,rev:1,prep:"K. Yadav"+ex,appr:HM,apprDate:D(-200),change:"Authority extended to the Quality Manager.",auth:`${HM} — HT Manager\n${QM} — Quality Manager`,how:"Offset approval record MWSPL-F-CAL-03 signed by the authorized person before the offset is entered; the offset is written in the controller parameter log book and the SCADA offset register with the F-CAL-03 number.",
     log:[{d:D(-400),t:"Rev 0 approved by "+HM},{d:D(-200),t:"Rev 1 approved by "+HM+": authority extended to the Quality Manager."}]};await saveOp();
-  S.exTag=ex;let n=0;const EQ=plantEquip().map(x=>({...x,id:"CE-"+String(++n).padStart(4,"0"),make:x.kind==="ctrl"||x.kind==="otp"?"Yokogawa":x.kind==="rec"?"Siemens":"",log:[{d:D(-420),t:"Registered"+ex}]}));S.exTag="";
+  const spFor=x=>x.kind==="ctrl"?(x.chamber==="Hardening"?"ES-01":"ES-02"):x.kind==="rec"?"ES-03":x.kind==="otp"?"ES-04":x.kind==="timer"?"ES-05":x.kind==="ir"?"ES-06":"";
+  S.exTag=ex;let n=0;const EQ=plantEquip().map(x=>({...x,specId:spFor(x),id:"CE-"+String(++n).padStart(4,"0"),make:x.kind==="ctrl"||x.kind==="otp"?"Yokogawa":x.kind==="rec"?"Siemens":"",log:[{d:D(-420),t:"Registered"+ex}]}));S.exTag="";
+  {const z=EQ.find(e=>e.tag==="F-04-T-OTC");if(z)z.make="Eurotherm";}
   const C2=[];let cn=0;
   const mkCal=(e,d,o)=>{const lo=num(e.lo),hi=num(e.hi),pts=e.type==="cert"?[]:defPts(e).map(nm=>{const L=limAt(e,nm)||1,ef=Math.round((rnd()-.5)*L*1.1*100)/100;return {nom:String(nm),found:String(Math.round((nm+ef)*100)/100),left:""};});
     const ext=["fti","ir","hard","block","micro"].includes(e.kind);
@@ -609,6 +700,11 @@ onDoc("click",async e=>{
       {const el=document.querySelector("#modal [data-iv=eq]");E.interval=el?ivRead(el):E.interval;}if(!ivOf(E.interval)){msg("Enter the interval (days or months).");return;}
       const known=eqById(E.id);if(!known)E.id="CE-"+String(maxNo(S.eqs)+1).padStart(4,"0");if(await put("equip",E,known?"Saved":"Added")){toast("Saved");closeModal();}return;}
     if(d.delEq!==undefined){armedDelete(b,async()=>{await dbDel("equip",m.ed.id);toast("Deleted");closeModal();});return;}
+    if(d.eqfill!==undefined){const t=espOf(m.ed);if(t){Object.keys(EMAP).forEach(k=>{if(txt(t[k]))m.ed[k]=t[k];});redraw();msg(`Filled from ${t.id}.`,1);}return;}
+    if(d.saveEspec!==undefined){saveEspec();return;}if(d.copyEspec!==undefined){especModal(m.ed.id,1);return;}
+    if(d.delEspec){const id=d.delEspec,n=S.eqs.filter(e=>e.specId===id).length;armedDelete(b,()=>delEspec(id));return;}
+    if(d.eapply!==undefined){eaModal(d.eapply);return;}if(d.eaGo!==undefined){eaApply();return;}
+    if(d.eaAll!==undefined){m.x={};redraw();return;}if(d.eaNone!==undefined){eaPlan(m).forEach(x=>m.x[x.e.id]=true);redraw();return;}
     if(d.newCal!==undefined){calModal(null,d.newCal);return;}
     if(d.saveCal!==undefined){if(await saveCal()){redraw();msg("Saved.",1);}return;}
     if(d.revCal!==undefined){const E=fillCal(m.ed),miss=repMissing(E);if(!txt(E.rev.by)||!isDate(E.rev.date))miss.push("reviewed by and date");else{if(!isApprover(E.rev.by))miss.push(`accepted by a person allowed (${approvers().map(a=>a.name).join(", ")})`);if(isDate(E.date)&&E.rev.date<E.date)miss.push("review not before the calibration");if(E.rev.date>today())miss.push("review not in the future");}
@@ -632,6 +728,10 @@ onDoc("click",async e=>{
     return;
   }
   if(d.openEq){openModal({kind:"eq",ed:clone(eqById(d.openEq)),msg:""});return;}
+  if(d.especNew!==undefined){if(needDb())especModal(null);return;}if(d.especOpen){especModal(d.especOpen);return;}
+  if(d.eapply!==undefined){if(needDb())eaModal(d.eapply);return;}
+  if(d.delEspec){const id=d.delEspec;armedDelete(b,()=>delEspec(id));return;}
+  if(d.especClear!==undefined){armedDelete(b,clearEspecs);return;}
   if(d.newEq!==undefined){if(needDb())openModal({kind:"eq",ed:fillEq({}),msg:""});return;}
   if(d.openCal){calModal(d.openCal);return;}
   if(d.newCal!==undefined){if(needDb())calModal(null,d.newCal);return;}
@@ -658,16 +758,20 @@ onDoc("click",async e=>{
 const live=()=>{if(!S.modal||!S.modal.ed)return;if(S.modal.kind==="cal"){const el=$("#calres");if(el)el.innerHTML=resHtml(fillCal(S.modal.ed));}
   if(S.modal.kind==="off"){const el=$("#offres");if(el)el.innerHTML=offRes(fillOff(S.modal.ed));}};
 onDoc("input",e=>{const el=e.target;if(!(S.modal&&S.modal.ed))return;const E=S.modal.ed;
-  const ivb=el.closest&&el.closest("#modal [data-iv=eq]");if(ivb){E.interval=ivRead(ivb);return;}
+  const ivb=el.closest&&el.closest("#modal [data-iv=eq], #modal [data-iv=es]");if(ivb){E.interval=ivRead(ivb);return;}
   if(el.dataset.pt){const [i,f]=el.dataset.pt.split(".");E.pts[+i][f]=el.value;live();return;}
   if(el.dataset.p&&el.tagName!=="SELECT"){setp(E,el.dataset.p,el.value);live();}});
 onDoc("change",e=>{const el=e.target;
+  if(S.modal&&S.modal.kind==="eapply"){const m=S.modal,d=el.dataset;
+    if(d.eaSpec!==undefined){m.spec=el.value;m.x={};redraw();return;}if(d.eaMode){m.mode=d.eaMode;redraw();return;}if(d.eaF){m.f[d.eaF]=el.checked;redraw();return;}
+    if(d.eaFu){m.fu=el.checked?[...new Set([...m.fu,d.eaFu])]:m.fu.filter(x=>x!==d.eaFu);redraw();return;}if(d.eaX){if(el.checked)delete m.x[d.eaX];else m.x[d.eaX]=true;redraw();return;}}
   if(S.modal&&S.modal.ed){const E=S.modal.ed;
-    {const ivb=el.closest&&el.closest("#modal [data-iv=eq]");if(ivb){E.interval=ivRead(ivb);return;}}
+    {const ivb=el.closest&&el.closest("#modal [data-iv=eq], #modal [data-iv=es]");if(ivb){E.interval=ivRead(ivb);return;}}
     if(el.dataset.lbl){E.lbl[el.dataset.lbl]=el.checked;return;}
     if(el.dataset.p&&el.tagName==="SELECT"){setp(E,el.dataset.p,el.value);
-      if(S.modal.kind==="eq"&&el.dataset.p==="kind"){E.type=kd(E.kind)[1];}
-      if(S.modal.kind==="cal"&&el.dataset.p==="eq"){const q=eqById(el.value);if(q){E.type=q.type;E.emis=q.emis;if(isDate(E.date))E.due=ivAdd(E.date,intOf(q));if(!E.pts.some(p=>txt(p.found)))E.pts=q.type==="cert"?[]:defPts(q).map(n=>({nom:String(n),found:"",left:""}));}}
+      if((S.modal.kind==="eq"||S.modal.kind==="espec")&&el.dataset.p==="kind"){E.type=kd(E.kind)[1];if(S.modal.kind==="espec")E.interval=kInt(E.kind);}
+      if(S.modal.kind==="eq"&&el.dataset.p==="specId"&&!eqById(E.id)){const t=espOf(E);if(t)Object.keys(EMAP).forEach(k=>{if(txt(t[k]))E[k]=t[k];});}
+      if(S.modal.kind==="cal"&&el.dataset.p==="eq"){const q=eqById(el.value);if(q){E.type=q.type;E.emis=q.emis||(espOf(q)||{}).emis||"";{const c=calStd(q);if(c.method&&!txt(E.method))Object.assign(E,c);}if(isDate(E.date))E.due=ivAdd(E.date,intOf(q));if(!E.pts.some(p=>txt(p.found)))E.pts=q.type==="cert"?[]:defPts(q).map(n=>({nom:String(n),found:"",left:""}));}}
       redraw();return;}
     if(el.dataset.p==="date"&&S.modal.kind==="cal"){const q=eqById(E.eq);if(q&&isDate(el.value)&&!calById(E.id)){E.due=ivAdd(el.value,intOf(q));const d=$("#m-due");if(d)d.value=E.due;live();}return;}}
   if(el.dataset.filt){S.filt[el.dataset.filt]=el.value;render();return;}
@@ -683,7 +787,7 @@ MWS.cal={closeModal,
   hasData:()=>S.eqs.length+S.cals.length>0,
   stats:()=>{const k=kp();return {db:S.dbState,...k,label:SCORE[k.score][1],cls:SCORE[k.score][0]};},
   summary:()=>{const k=kp();return `${k.ok} of ${plural(k.items,"item")} of equipment current, ${plural(k.open,"out-of-tolerance finding")} open, ${plural(k.offs,"offset")} in use (${k.offBad} not compliant), offset procedure ${k.opOk?"rev "+k.opRev:"not approved"}; HTSA 3.2 ${SCORE[k.score][1].toLowerCase()}.`;}};
-window.__CALM={S,evalCal,eqState,repMissing,lblMissing,offIssues,offMissing,missingAct,assess32,kp,plantEquip,tcEquip,authNames};
+window.__CALM={S,especs,espDiff,eaPlan,evalCal,eqState,repMissing,lblMissing,offIssues,offMissing,missingAct,assess32,kp,plantEquip,tcEquip,authNames};
 
 /* 13. boot */
 async function boot(){
