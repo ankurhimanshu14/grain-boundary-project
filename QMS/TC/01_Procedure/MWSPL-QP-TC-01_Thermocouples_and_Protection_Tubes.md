@@ -4,7 +4,7 @@
 
 | Doc No. | Rev | Issue date | Process Owner | Prepared | Reviewed | Approved | Copy status |
 |---|---|---|---|---|---|---|---|
-| MWSPL-QP-TC-01 | 01 | — | Maintenance Head | | | | Uncontrolled until approved |
+| MWSPL-QP-TC-01 | 02 | — | Maintenance Head | | | | Uncontrolled until approved |
 
 ### 1. Purpose
 
@@ -13,7 +13,8 @@ To make sure every furnace temperature is measured by a thermocouple that was ca
 ### 2. Scope
 
 - **Equipment:** furnaces F-01 to F-04, hardening and tempering chambers, three zones each; two thermocouples per zone (TC-01 / TC-02 = zone 1 …; odd numbers on the right wall, even on the left), type K, used for control and recording through the SCADA.
-- **Also covered:** test thermocouples and test instruments used for SATs; protection tubes of every thermocouple in use.
+- **Also covered:** test thermocouples and test instruments used for SATs; protection tubes of every thermocouple in use; calibrated elements kept in the store until they are fitted (§6.1a).
+- **One record per thermocouple:** every thermocouple of the plant (installed, test or in store) is registered only here. The Calibration module (MWSPL-QP-CAL-01) does not register thermocouples; it counts this register's test equipment for HTSA 3.2 and refuses a serial or ident already registered here.
 - **Not covered:** TUS (temperature uniformity survey) and instrument calibration of controllers and recorders (CALOR TUS and Equipment pages).
 
 ### 3. References
@@ -68,6 +69,14 @@ The HT Manager and the Maintenance Head keep the list of thermocouple specificat
 2. The element is registered before it is installed (WI-TC-01); the certificate date must be on or before the installation date.
 3. An element without a valid certificate is not installed.
 
+#### 6.1a Elements kept in the store
+
+1. A calibrated element that is not installed is registered **in store** (Application → Thermocouple store → "Add to store") on receipt: serial / batch no., type, specification, certificate no., calibration date, calibrated range, largest error, store location, date received, condition (new and ready to fit, or quarantine with the reason).
+2. The application checks the certificate before the element is fitted: certificate present, calibration date, largest error within the P3.1 accuracy and, when a specification is set, the calibrated range covering its range of use. An element "not ready" or in quarantine is not issued.
+3. A replacement takes the element from the store ("Take the fitted element from the store" in the replacement record): the same record moves into the register at the position, with its certificate and history, and the store location and date taken are kept on it. The calibrated range is checked against the range of use of the position before it is accepted. An element fitted at a new position uses "Install at a position".
+4. A removed element is not returned to the store; it stays in the register as removed with its reason. 〈Re-use of a removed base-metal element: confirm against the controlled CQI-9 copy (usage limits) before allowing it.〉
+5. The Maintenance Head reviews the store with the due list: enough ready elements for the pending replacements and the life dates coming up (§6.4, §6.5).
+
 #### 6.2 System accuracy test (P3.3, Process Tables)
 
 1. Control, monitoring and recording thermocouples get a SAT after installation and then at the Process Table interval (setting, default 90 days).
@@ -113,7 +122,7 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 
 | Record | Kept in | Retention |
 |---|---|---|
-| Thermocouple register with certificates (F-TC-01) | Application → Thermocouples | Life of the furnace + 1 year |
+| Thermocouple register with certificates (F-TC-01), incl. elements in store | Application → Thermocouples, Thermocouple store | Life of the furnace + 1 year |
 | SAT records (F-TC-02) | Application → SAT records | 3 years minimum, or as the customer requires |
 | PM schedule and tube checks (F-TC-03) | Application → PM schedule, Tube checks | 3 years |
 | Reaction records for elements used beyond their life (§6.5) | Application → Thermocouples (element record), Act | 3 years |
@@ -126,3 +135,4 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 |---|---|---|---|
 | 00 | — | First issue | |
 | 01 | — | §6.4 pending replacements (incl. a failed SAT without a replacement); §6.5 reaction plan for an element used beyond its service life | |
+| 02 | — | §2 one record per thermocouple (not in the Calibration module); §6.1a elements kept in the store, fitted from the store | |

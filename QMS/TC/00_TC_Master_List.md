@@ -10,7 +10,7 @@
 
 | PDCA | Doc. No. | Title | Rev. | Date | File link |
 |---|---|---|---|---|---|
-| P | MWSPL-QP-TC-01 | Thermocouples and protection tubes | 01 | — | [01_Procedure/MWSPL-QP-TC-01_Thermocouples_and_Protection_Tubes.md](01_Procedure/MWSPL-QP-TC-01_Thermocouples_and_Protection_Tubes.md) |
+| P | MWSPL-QP-TC-01 | Thermocouples and protection tubes | 02 | — | [01_Procedure/MWSPL-QP-TC-01_Thermocouples_and_Protection_Tubes.md](01_Procedure/MWSPL-QP-TC-01_Thermocouples_and_Protection_Tubes.md) |
 | P / D | MWSPL-WI-TC-01 | Receive, calibrate and install a thermocouple | 00 | — | [02_Work_Instructions/MWSPL-WI-TC-01_Receive_Calibrate_and_Install_a_Thermocouple.md](02_Work_Instructions/MWSPL-WI-TC-01_Receive_Calibrate_and_Install_a_Thermocouple.md) |
 | D / C | MWSPL-WI-TC-02 | System accuracy test (SAT) | 00 | — | [02_Work_Instructions/MWSPL-WI-TC-02_System_Accuracy_Test.md](02_Work_Instructions/MWSPL-WI-TC-02_System_Accuracy_Test.md) |
 | D / A | MWSPL-WI-TC-03 | Protection tube check and replacement | 00 | — | [02_Work_Instructions/MWSPL-WI-TC-03_Protection_Tube_Check_and_Replacement.md](02_Work_Instructions/MWSPL-WI-TC-03_Protection_Tube_Check_and_Replacement.md) |
@@ -24,7 +24,7 @@
 
 | Requirement (HTSA 3.3) | Met by | Evidence in the application |
 |---|---|---|
-| Thermocouples calibrated before first use, within the range of use, meeting the P3.1 accuracy | QP-TC-01 §6.1; WI-TC-01 §2–§3; F-TC-01 | Calibration fields of each thermocouple; issue shown when the certificate is missing, dated after installation, does not cover the range of use or exceeds the accuracy |
+| Thermocouples calibrated before first use, within the range of use, meeting the P3.1 accuracy | QP-TC-01 §6.1, §6.1a; WI-TC-01 §1–§3; F-TC-01 | Calibration fields of each thermocouple; issue shown when the certificate is missing, dated after installation, does not cover the range of use or exceeds the accuracy |
 | Control, monitoring and recording thermocouples SAT checked per the Process Table and P3.3 | QP-TC-01 §6.2; WI-TC-02 | SAT state per thermocouple (none / ok / due soon / overdue / failed); due list |
 | Insertion depth of reused type K / E test thermocouples documented (P3.1.3.3) | WI-TC-02 §2.4; F-TC-02 | Depth required on the SAT record for a type K / E test TC; a reuse shallower than before is flagged |
 | SAT records meet P3.3.5 | WI-TC-02 §3; F-TC-02; F-TC-04 | Record completeness gate, validity (test equipment in calibration), approval |

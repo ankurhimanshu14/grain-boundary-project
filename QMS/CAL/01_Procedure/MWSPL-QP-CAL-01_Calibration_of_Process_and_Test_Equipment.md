@@ -12,7 +12,7 @@ To keep every calibration, verification and certification of the heat treat proc
 
 ### 2. Scope
 
-The process and test equipment of furnaces F-01 to F-04 and the laboratory: zone temperature controllers, SCADA recording channels, over-temperature controllers, process timers (push cycle, controlled cooling, quench dip), quench medium temperature indicators, combustion gauges, field test instruments for SAT / TUS, non-contact thermometers, hardness testers and test blocks, the microscope. Test thermocouples and their instruments are controlled by MWSPL-QP-TC-01 and counted in the register. Measuring equipment outside the heat treat process follows the IATF 16949 calibration system 〈reference the plant's MSA / calibration procedure〉.
+The process and test equipment of furnaces F-01 to F-04 and the laboratory: zone temperature controllers, SCADA recording channels, over-temperature controllers, process timers (push cycle, controlled cooling, quench dip), quench medium temperature indicators, combustion gauges, field test instruments for SAT / TUS, non-contact thermometers, hardness testers and test blocks, the microscope. Thermocouples are not registered here: every thermocouple (installed control / monitoring / recording / load / over-temperature, SAT / TUS test thermocouples and calibrated elements in store) is controlled by MWSPL-QP-TC-01 in the Thermocouples module; its test thermocouples and instruments are counted in this register for HTSA 3.2. The application refuses an item whose serial or tag is already registered there. Measuring equipment outside the heat treat process follows the IATF 16949 calibration system 〈reference the plant's MSA / calibration procedure〉.
 
 ### 3. References
 

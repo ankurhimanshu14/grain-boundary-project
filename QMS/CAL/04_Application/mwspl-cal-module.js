@@ -15,7 +15,6 @@ const KINDS={
   ctrl:["Temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
   rec:["Recorder / SCADA recording channels","cal","3m",1.1,0.2,"°C","2.0"],
   otp:["Over-temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
-  tc:["Thermocouple (control, monitoring, recording, test)","cal","12m",2.2,0.75,"°C","2.0"],
   fti:["Field test instrument (SAT / TUS)","cal","12m",0.6,0.1,"°C","2.0"],
   ir:["Non-contact thermometer (pyrometer / infrared)","cal","12m",3,0.5,"°C","2.0"],
   qtemp:["Quench medium temperature indicator","cal","12m",2,0,"°C","1.0"],
@@ -25,6 +24,9 @@ const KINDS={
   block:["Hardness test block (certified)","cert","60m",0,0,"","1.0"],
   micro:["Microscope / stage micrometer","cal","12m",0,1,"µm","1.0"],
   other:["Other process or test equipment","cal","12m",0,0,"","1.0"]};
+/* thermocouples are not a kind here: every thermocouple (installed control / monitoring / recording / load / over-temperature, SAT / TUS test, in store)
+   is kept in the Thermocouples module (HTSA 3.3) and its test equipment is counted here from there; items saved before as kind "tc" are shown, not judged */
+const OLDKINDS={tc:["Thermocouple (keep it in the Thermocouples module)","cal","12m",2.2,0.75,"°C","2.0"]};
 const TYPES={cal:"Calibration",verif:"Verification",cert:"Certification"};
 const ESTAT={inuse:"In use",spare:"Spare (calibrate before use)",out:"Out of service",scrap:"Scrapped"};
 const LBL={id:"equipment identification",date:"calibration date",due:"next due date",by:"calibrated by"};
@@ -67,6 +69,7 @@ const fmtD=s=>isDate(s)?`${s.slice(8,10)}-${MON[+s.slice(5,7)-1]}-${s.slice(0,4)
 const getp=(o,p)=>p.split(".").reduce((a,k)=>a==null?a:a[k],o);
 const setp=(o,p,v)=>{const k=p.split(".");let a=o;k.slice(0,-1).forEach(x=>{if(a[x]==null||typeof a[x]!=="object")a[x]={};a=a[x];});a[k.at(-1)]=v;};
 const pill=(c,t)=>`<span class="pill ${c||""}">${esc(t)}</span>`;
+const isNA=v=>/^(n\/?a|not available)$/i.test(txt(v));
 const plural=(n,w,p)=>`${n} ${n===1?w:(p||w+"s")}`;
 const maxNo=L=>Math.max(0,...L.map(x=>+(String(x.id).match(/(\d+)$/)||[0,0])[1]));
 const lines=v=>String(v||"").split(/[\n,;]+/).map(txt).filter(Boolean);
@@ -92,7 +95,7 @@ const DEFOP={no:"MWSPL-WI-CAL-02",rev:0,prep:"",appr:"",apprDate:"",change:"",au
 
 /* 5. domain logic */
 const furnaces=()=>lines(C().furnaces).map(x=>x.toUpperCase());
-const kd=k=>KINDS[k]||KINDS.other;
+const kd=k=>KINDS[k]||OLDKINDS[k]||KINDS.other;
 const kInt=k=>ivOf((C().kint||{})[k])?String(C().kint[k]):kd(k)[2];
 function fillEq(o){const x={id:"",specId:"",tag:"",kind:"ctrl",name:"",furnace:"",chamber:"",loop:"",make:"",model:"",serial:"",lo:"",hi:"",unit:"",accAbs:"",accPct:"",interval:"",type:"",ptRef:"",loc:"",emis:"",status:"inuse",notes:"",log:[],...(o||{})};
   if(!x.type)x.type=kd(x.kind)[1];if(!Array.isArray(x.log))x.log=[];return x;}
@@ -121,7 +124,14 @@ function espDiff(e){const t=espOf(e);if(!t)return [];return Object.entries(EMAP)
 const accTxt=e=>{const a=accOf(e);return a.abs||a.pct?`± ${a.abs?a.abs+" "+a.unit:""}${a.abs&&a.pct?" or ":""}${a.pct?a.pct+" % of reading":""}${a.abs&&a.pct?", the greater":""}`:"not set";};
 const limAt=(e,nom)=>{const a=accOf(e);const L=Math.max(a.abs||0,(a.pct||0)/100*Math.abs(nom||0));return L>0?L:null;};
 const intOf=e=>{if(ivOf(e.interval))return String(e.interval);const t=espOf(e);return t&&ivOf(t.interval)?String(t.interval):kInt(e.kind);};
-const judged=e=>e.status==="inuse"||e.status==="spare";
+const judged=e=>(e.status==="inuse"||e.status==="spare")&&!OLDKINDS[e.kind];
+/* one home per thermocouple: a CAL item may not be a thermocouple or carry the serial / ident of an element or test equipment of the Thermocouples module */
+function tcIdents(){try{return MWS.tc&&MWS.tc.idents?MWS.tc.idents():[];}catch(e){return [];}}
+function tcClash(e){if(OLDKINDS[e.kind])return "Thermocouples are kept in the Thermocouples module (installed, test and in store): choose another kind, or record it there.";
+  const key=v=>txt(v).toUpperCase(),hit=tcIdents().find(x=>[e.serial,e.tag].some(v=>key(v)&&!isNA(v)&&[x.serial,x.ident].some(w=>key(w)&&key(w)===key(v))));
+  return hit?`${hit.serial||hit.ident} is registered in the Thermocouples module (${hit.what}): it is calibrated and counted there, not here.`:"";}
+const tcNote=()=>{const L=S.eqs.filter(e=>OLDKINDS[e.kind]),T=especs().filter(t=>OLDKINDS[t.kind]);
+  return `<p class="small muted">Thermocouples (installed, SAT / TUS test thermocouples and those in store) are kept in the <a href="#tc/tcs">Thermocouples module</a> with their certificates; its test equipment is counted here for HTSA 3.2.</p>${L.length||T.length?`<p class="banner warn">${L.length?`${plural(L.length,"item")} saved here as a thermocouple (${esc(L.map(e=>e.tag).join(", "))}) ${L.length>1?"are":"is"} not judged: record ${L.length>1?"them":"it"} in the Thermocouples module (Thermocouple store, or the register), then delete ${L.length>1?"them":"it"} here.`:""}${L.length&&T.length?" ":""}${T.length?`${plural(T.length,"specification")} of kind thermocouple (${esc(T.map(t=>t.id).join(", "))}): use the TC specifications of the Thermocouples module instead.`:""}</p>`:""}`;};
 /* approvers of calibration reports: Settings + HT organization */
 function approvers(){const L=lines(C().approvers).map(n=>({name:n,src:"Settings"}));
   try{if(MWS.org&&MWS.org.hasData&&MWS.org.hasData())MWS.org.authorized().forEach(a=>{if(!L.some(x=>x.name.toLowerCase()===a.name.toLowerCase()))L.push({name:a.name,src:a.position});});}catch(e){}
@@ -340,7 +350,7 @@ function dueTable(days){const L=S.eqs.filter(judged).map(e=>({e,s:eqState(e)})).
 function vEspecs(){const L=especs(),use=id=>S.eqs.filter(e=>judged(e)&&e.specId===id).length,J=S.eqs.filter(judged);
   const D=J.map(e=>({e,d:espDiff(e)})).filter(x=>x.d.length),none=J.filter(e=>!espOf(e));
   return `<div class="row between"><h2>Equipment specifications</h2><div class="row"><button class="pri w" data-espec-new>New specification</button>${L.length?`<button class="w" data-eapply>Update the register to a specification…</button><button class="danger w" data-espec-clear>Clear all specifications</button>`:""}</div></div>
-  <p class="muted">Save each standard equipment type the plant uses (kind, make and model, range of use, accuracy, calibration interval, Process Table reference) with its calibration standard (points, method, in-house or laboratory). Set an item to one in its dialog or many at once with "Update the register…". An item follows its specification for every field it leaves blank, and a new calibration record takes the specification's points and method.</p>
+  <p class="muted">Save each standard equipment type the plant uses (kind, make and model, range of use, accuracy, calibration interval, Process Table reference) with its calibration standard (points, method, in-house or laboratory). Set an item to one in its dialog or many at once with "Update the register…". An item follows its specification for every field it leaves blank, and a new calibration record takes the specification's points and method.</p>${tcNote()}
   ${L.length?`<div class="tw"><table><thead><tr><th>Specification</th><th>Kind · type</th><th>Make / model</th><th>Range of use</th><th>Accuracy</th><th>Interval</th><th>Calibration points · method</th><th>Process Table</th><th class="n">Items</th><th></th></tr></thead><tbody>${L.map(t=>`<tr class="click" data-espec-open="${esc(t.id)}"><td><b>${esc(t.id)}</b><br>${esc(t.name)}${t.loc?`<br><span class="small muted">${esc(t.loc)}</span>`:""}</td>
     <td>${esc(kd(t.kind)[0])}<br><span class="small muted">${esc(TYPES[t.type])}</span></td><td class="small">${esc([t.make,t.model].filter(Boolean).join(" ")||"—")}</td><td>${t.lo!==""||t.hi!==""?esc(t.lo)+"–"+esc(t.hi)+" "+esc(t.unit||kd(t.kind)[5]):"—"}</td>
     <td class="small">${esc(accTxt(t))}</td><td>${esc(ivTxt(t.interval||kInt(t.kind)))}</td><td class="small">${esc(espPts(t).join(", ")||"from the range")}${t.method?"<br>"+esc(t.method):""}${t.ext==="ext"?"<br>"+esc(t.lab||"laboratory"):""}</td><td class="small">${esc(t.ptRef||"—")}</td>
@@ -348,9 +358,9 @@ function vEspecs(){const L=especs(),use=id=>S.eqs.filter(e=>judged(e)&&e.specId=
   <div class="panel"><h3>Equipment that differs from its specification</h3>
     ${L.length&&none.length?`<p class="small">${pill("warn",plural(none.length,"item"))} in use or spare not set to a specification: ${esc(none.slice(0,14).map(e=>e.tag).join(", "))}${none.length>14?" …":""}.</p>`:""}
     ${D.length?`<ul class="issues">${D.map(({e,d})=>`<li><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button> (${esc(espName(espOf(e)))}): ${esc(d.join(" · "))}</li>`).join("")}</ul>`:`<p class="muted">None: every item set to a specification matches it (fields left blank are not compared).</p>`}</div>`;}
-function vEquip(){const L=S.eqs.filter(inView),TQ=tcEquip();
+function vEquip(){const L=S.eqs.filter(inView),TQ=tcEquip(),tn=tcNote();
   return `<div class="row between"><h2>Equipment register and schedule (F-CAL-01)</h2><div class="row"><button class="pri w" data-new-eq>Add equipment</button><button data-add-defaults>Add the equipment of this plant</button><button data-eqprint>Print F-CAL-01</button></div></div>
-  <p class="muted">Every piece of process and test equipment that needs calibration, verification or certification, with the interval of the applicable Process Table (Section 1.0 process and test equipment, Section 2.0 pyrometry). Due = the latest valid record + the interval (or the due date of the report when shorter).</p>${filtRow()}
+  <p class="muted">Every piece of process and test equipment that needs calibration, verification or certification, with the interval of the applicable Process Table (Section 1.0 process and test equipment, Section 2.0 pyrometry). Due = the latest valid record + the interval (or the due date of the report when shorter).</p>${tn}${filtRow()}
   ${L.length?`<div class="tw"><table><thead><tr><th>Tag</th><th>Equipment</th><th>Location</th><th>Type · interval</th><th>Accuracy</th><th>Process Table</th><th>Last</th><th>Due</th><th>Status</th><th></th></tr></thead><tbody>${L.map(e=>{const s=eqState(e),o=activeOffs(e.id);
     return `<tr><td class="mono"><button class="link" data-open-eq="${esc(e.id)}">${esc(e.tag)}</button></td><td>${esc(e.name)}<br><span class="small muted">${esc(kd(e.kind)[0])}${e.serial?" · s/n "+esc(e.serial):""}${espOf(e)?" · "+esc(espOf(e).id)+(espDiff(e).length?" (differs)":""):""}</span></td><td>${esc(e.furnace||locOf(e)||"—")}${e.chamber?" "+esc(e.chamber):""}${e.loop?`<br><span class="small muted">${esc(e.loop)}</span>`:""}</td>
     <td>${esc(TYPES[e.type])}<br><span class="small muted">${ivTxt(intOf(e))}</span></td><td class="small">${esc(accTxt(e))}</td><td class="small">${esc(e.ptRef||"—")}</td><td>${s.last?`<button class="link" data-open-cal="${esc(s.last.id)}">${fmtD(s.last.date)}</button>`:"—"}</td><td>${fmtD(s.due)}</td>
@@ -547,7 +557,7 @@ function DRAW_ESPEC(){const t=S.modal.ed,known=espById(t.id),n=known?S.eqs.filte
     `<button class="pri w" data-save-espec>Save</button>${known?`<button class="w" data-copy-espec>Copy as new</button><button class="w" data-eapply="${esc(t.id)}">Apply to the register…</button><button class="danger w" data-del-espec="${esc(t.id)}">Delete</button>`:""}<button data-close>Close</button>`);}
 async function saveEspec(){if(!needDb())return;const t=fillEsp(S.modal.ed);t.name=txt(t.name);
   {const el=document.querySelector("#modal [data-iv=es]");if(el)t.interval=ivRead(el);}
-  if(!t.name){msg("Enter a name.");return;}if(especs().some(x=>x.id!==t.id&&x.name.toLowerCase()===t.name.toLowerCase())){msg("Another specification has that name.");return;}
+  if(!t.name){msg("Enter a name.");return;}if(OLDKINDS[t.kind]){msg("Thermocouple specifications are kept in the Thermocouples module (TC specifications): choose another kind.");return;}if(especs().some(x=>x.id!==t.id&&x.name.toLowerCase()===t.name.toLowerCase())){msg("Another specification has that name.");return;}
   if(!ivOf(t.interval)){msg("Enter the interval (days or months).");return;}if(ivDays(t.interval)>ivDays(kInt(t.kind))+0.5){msg(`The interval is longer than the Process Table frequency for this kind (${ivTxt(kInt(t.kind))}).`);return;}
   const a=num(t.lo),b=num(t.hi);if(a!=null&&b!=null&&a>=b){msg("The range of use must run from low to high.");return;}
   if(txt(t.pts)&&lines(t.pts).some(x=>num(x)==null)){msg("Calibration points: numbers separated by commas.");return;}
@@ -701,6 +711,7 @@ onDoc("click",async e=>{
     if(d.close!==undefined){closeModal();return;}
     const m=S.modal;
     if(d.saveEq!==undefined){const E=fillEq(m.ed);if(!txt(E.tag)||!txt(E.name)){msg("Enter the tag and the name.");return;}if(S.eqs.some(x=>x.id!==E.id&&x.tag.toLowerCase()===E.tag.toLowerCase())){msg("Another item has this tag.");return;}
+      {const c=tcClash(E);if(c){msg(c);return;}}
       {const el=document.querySelector("#modal [data-iv=eq]");E.interval=el?ivRead(el):E.interval;}if(!ivOf(E.interval)){msg("Enter the interval (days or months).");return;}
       const known=eqById(E.id);if(!known)E.id="CE-"+String(maxNo(S.eqs)+1).padStart(4,"0");if(await put("equip",E,known?"Saved":"Added")){toast("Saved");closeModal();}return;}
     if(d.delEq!==undefined){armedDelete(b,async()=>{await dbDel("equip",m.ed.id);toast("Deleted");closeModal();});return;}
