@@ -74,9 +74,10 @@ The HT Manager and the Maintenance Head keep the list of thermocouple specificat
 
 1. A calibrated element that is not installed is registered **in store** (Application → Thermocouple store → "Add to store") on receipt: serial / batch no., type, specification, certificate no., calibration date, calibrated range, largest error, store location, date received, condition (new and ready to fit, or quarantine with the reason).
 2. The application checks the certificate before the element is fitted: certificate present, calibration date, largest error within the P3.1 accuracy and, when a specification is set, the calibrated range covering its range of use. An element "not ready" or in quarantine is not issued.
-3. A replacement takes the element from the store ("Take the fitted element from the store" in the replacement record): the same record moves into the register at the position, with its certificate and history, and the store location and date taken are kept on it. The calibrated range is checked against the range of use of the position before it is accepted. An element fitted at a new position uses "Install at a position".
-4. A removed element is not returned to the store; it stays in the register as removed with its reason. 〈Re-use of a removed base-metal element: confirm against the controlled CQI-9 copy (usage limits) before allowing it.〉
-5. The Maintenance Head reviews the store with the due list: enough ready elements for the pending replacements and the life dates coming up (§6.4, §6.5).
+3. **Issue.** An element leaves the store only through an issue (F-TC-06, Application → Store issues): issue no., date, issued by (stores), received by, work order / job, intended position. Only an element ready to fit, not in quarantine and not already issued is issued. The issue closes when the element is fitted, or when it is returned to the store unused (date, by, reason); an issue neither fitted nor returned within the set days (setting, default 2, site rule) is listed for attention.
+4. A replacement takes the element from the store ("Take the fitted element from the store" in the replacement record): the same record moves into the register at the position, with its certificate and history, and the store location and date taken are kept on it. The calibrated range is checked against the range of use of the position before it is accepted. An element fitted at a new position uses "Install at a position" after it is issued. A replacement closes the element's issue, or records the issue with it when the element was not issued before.
+5. A removed element is not returned to the store; it stays in the register as removed with its reason. 〈Re-use of a removed base-metal element: confirm against the controlled CQI-9 copy (usage limits) before allowing it.〉
+6. The Maintenance Head reviews the store with the due list: enough ready elements for the pending replacements and the life dates coming up (§6.4, §6.5).
 
 #### 6.2 System accuracy test (P3.3, Process Tables)
 
@@ -123,7 +124,7 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 
 | Record | Kept in | Retention |
 |---|---|---|
-| Thermocouple register with certificates (F-TC-01) and calibration records (F-TC-05), incl. elements in store | Application → Thermocouples, Thermocouple store | Life of the furnace + 1 year |
+| Thermocouple register with certificates (F-TC-01), calibration records (F-TC-05) and store issues (F-TC-06), incl. elements in store | Application → Thermocouples, Thermocouple store | Life of the furnace + 1 year |
 | SAT records (F-TC-02) | Application → SAT records | 3 years minimum, or as the customer requires |
 | PM schedule and tube checks (F-TC-03) | Application → PM schedule, Tube checks | 3 years |
 | Reaction records for elements used beyond their life (§6.5) | Application → Thermocouples (element record), Act | 3 years |
@@ -136,4 +137,4 @@ HTSA 3.3 counts it as not met while there is no verification SAT, the verificati
 |---|---|---|---|
 | 00 | — | First issue | |
 | 01 | — | §6.4 pending replacements (incl. a failed SAT without a replacement); §6.5 reaction plan for an element used beyond its service life | |
-| 02 | — | §2 one record per thermocouple (not in the Calibration module); §6.1 item 4 calibration record of each element (F-TC-05); §6.1a elements kept in the store, fitted from the store | |
+| 02 | — | §2 one record per thermocouple (not in the Calibration module); §6.1 item 4 calibration record of each element (F-TC-05); §6.1a elements kept in the store, issued from the store (F-TC-06), fitted from the store | |
