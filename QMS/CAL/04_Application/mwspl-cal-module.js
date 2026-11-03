@@ -132,7 +132,8 @@ const isOffAuth=n=>!!txt(n)&&authNames().some(a=>a.toLowerCase()===txt(n).toLowe
 /* one calibration / verification / certification record */
 function evalCal(r){const e=eqById(r.eq),issues=[];if(!e)return {res:null,issues:[{j:"invalid",txt:"No equipment."}],pts:[]};
   const pts=r.pts.filter(p=>num(p.nom)!=null&&num(p.found)!=null).map(p=>{const nom=num(p.nom),f=num(p.found),l=num(p.left)??f,lim=limAt(e,nom);
-    return {nom,found:f,left:l,ef:f-nom,el:l-nom,lim,of:lim!=null&&Math.abs(f-nom)>lim+1e-9,ol:lim!=null&&Math.abs(l-nom)>lim+1e-9};});
+    /* error = nominal value − reading (as found / as left) */
+    return {nom,found:f,left:l,ef:nom-f,el:nom-l,lim,of:lim!=null&&Math.abs(f-nom)>lim+1e-9,ol:lim!=null&&Math.abs(l-nom)>lim+1e-9};});
   if(r.type!=="cert"&&!pts.length)return {res:null,issues:[{j:"incomplete",txt:"No calibration point with nominal and as-found values."}],pts};
   if(isDate(r.std.due)&&isDate(r.date)&&r.std.due<r.date)issues.push({j:"invalid",txt:`Reference standard ${r.std.id||""} out of calibration (due ${fmtD(r.std.due)}) on the calibration day.`});
   if(r.type==="cert"&&!txt(r.certNo))issues.push({j:"invalid",txt:"Certification without a certificate number."});
@@ -388,7 +389,7 @@ function vSettings(){const c=C();
 function vRules(){const c=C();
   const R=[["Equipment specifications","Each standard type of equipment (kind, make / model, range, accuracy, interval, Process Table reference, calibration points and method) is saved once. An item set to a specification follows it for every field it leaves blank; its own values are compared with it (differences listed). A new calibration record takes the specification's points, method and in-house / laboratory choice. A specification's interval may not be longer than the Process Table frequency of its kind."],
     ["Register","Every piece of process and test equipment in use or kept as a spare has a type (calibration, verification, certification), an interval not longer than the frequency of its kind (Settings) and the Process Table reference."],
-    ["Calibration points","Error = reading − nominal, as found and as left (as left = as found when nothing was adjusted). Limit at a point = the equipment's ± value or ± % of the reading, the greater. As found beyond the limit = found out of tolerance (reaction); as left beyond = out of tolerance (do not use). Invalid: the reference standard out of calibration on the day, a certification without a certificate no., no points."],
+    ["Calibration points","Error = nominal value − reading, as found and as left (as left = as found when nothing was adjusted). Limit at a point = the equipment's ± value or ± % of the reading, the greater. As found beyond the limit = found out of tolerance (reaction); as left beyond = out of tolerance (do not use). Invalid: the reference standard out of calibration on the day, a certification without a certificate no., no points."],
     ["Current","The latest valid record counts; due = its due date (else its date + the interval). Overdue / never calibrated / out of tolerance = not current; due soon "+c.soon+" days before. Spare equipment: calibrate before use. The test thermocouples and instruments of the Thermocouples module count with their calibration due date."],
     ["Non-contact thermometry","Infrared / optical pyrometers are calibrated at the interval of their kind; the record states the emissivity setting."],
     ["Offset procedure","MWSPL-WI-CAL-02 approved, reviewed every "+c.reviewDays+" days, naming who may approve offsets and how the approval is documented; a change to these marks it for a new revision."],

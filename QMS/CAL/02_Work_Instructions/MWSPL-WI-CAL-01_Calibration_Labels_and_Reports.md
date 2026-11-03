@@ -13,7 +13,7 @@ Check the due list (Calibration → Register & schedule). Check that the referen
 Record at least three points covering the range of use (low, middle, high); for a controller or recorder, simulate the thermocouple input (type K) at the input terminals, with cold-junction compensation active.
 
 ### 3. As found and as left
-Enter the reading at each point before any adjustment (as found). If adjusted, enter the reading after the adjustment (as left); leave as left empty when nothing was adjusted. The application compares each error with the accuracy (± value or ± % of reading, the greater) 〈confirm against P3.2〉.
+Enter the reading at each point before any adjustment (as found). If adjusted, enter the reading after the adjustment (as left); leave as left empty when nothing was adjusted. Error = **nominal value − as-found value** (and nominal value − as-left value). The application compares each error with the accuracy (± value or ± % of reading, the greater) 〈confirm against P3.2〉.
 
 ### 4. Temperature instrumentation
 Controllers, SCADA channels and over-temperature controllers: simulated input at three points; record the adjustment (calibrated) or, only per WI-CAL-02, an offset.
