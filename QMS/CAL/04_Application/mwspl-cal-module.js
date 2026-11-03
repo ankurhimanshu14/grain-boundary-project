@@ -15,6 +15,7 @@ const KINDS={
   ctrl:["Temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
   rec:["Recorder / SCADA recording channels","cal","3m",1.1,0.2,"°C","2.0"],
   otp:["Over-temperature controller","cal","3m",1.1,0.2,"°C","2.0"],
+  tc:["Thermocouple (control, monitoring, recording, test)","cal","12m",2.2,0.75,"°C","2.0"],
   fti:["Field test instrument (SAT / TUS)","cal","12m",0.6,0.1,"°C","2.0"],
   ir:["Non-contact thermometer (pyrometer / infrared)","cal","12m",3,0.5,"°C","2.0"],
   qtemp:["Quench medium temperature indicator","cal","12m",2,0,"°C","1.0"],
